@@ -1,0 +1,22 @@
+{
+  "name": "@mogura/moguchart",
+  "version": "0.0.1",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/moguchart.umd.cjs",
+  "module": "./dist/moguchart.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/moguchart.js",
+      "require": "./dist/moguchart.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && pnpm run build:types",
+    "build:types": "tsc --emitDeclarationOnly"
+  }
+}
