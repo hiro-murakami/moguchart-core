@@ -4,19 +4,25 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/moguchart.umd.cjs",
-  "module": "./dist/moguchart.js",
+  "main": "./dist/moguchart.umd.js",
+  "module": "./dist/moguchart.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/moguchart.js",
-      "require": "./dist/moguchart.umd.cjs"
+      "import": "./dist/moguchart.mjs",
+      "require": "./dist/moguchart.umd.js"
     }
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && pnpm run build:types",
-    "build:types": "tsc --emitDeclarationOnly"
+    "build": "vite build && pnpm exec tsc",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "lit": "^3.3.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
   }
 }
