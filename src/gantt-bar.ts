@@ -14,28 +14,55 @@ export class GanttBar extends LitElement {
   static styles = css`
     :host {
       display: block;
+      position: relative;
       height: var(--gantt-row-height, 40px);
     }
+    .task-group {
+      position: absolute;
+      box-sizing: border-box;
+    }
     .bar {
-      fill: var(--gantt-bar-fill, #3b82f6);
-      rx: 4;
-      transition: fill 0.3s;
+      background-color: var(--gantt-bar-fill, #3b82f6);
+      border-radius: 4px;
+      transition: background-color 0.3s;
       cursor: grab;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
     .handle-left,
     .handle-right {
-      fill: transparent;
+      background: transparent;
       cursor: col-resize;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 20px;
+      z-index: 10;
+    }
+    .handle-left {
+      left: -10px;
+    }
+    .handle-right {
+      right: -10px;
     }
     .handle-left:hover,
     .handle-right:hover {
-      fill: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.3);
     }
     .bar-label {
-      fill: white;
+      color: white;
       font-size: 12px;
       pointer-events: none;
       user-select: none;
+      position: absolute;
+      top: 50%;
+      left: 6px;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      z-index: 5;
     }
   `
 
@@ -154,40 +181,30 @@ export class GanttBar extends LitElement {
     const y = (this.rowHeight - this.barHeight) / 2
 
     return html`
-      <svg width="100%" height="${this.rowHeight}" style="overflow: visible;">
-        <g transform="translate(${x}, ${y})">
-          <rect
-            class="bar"
-            width="${width}"
-            height="${this.barHeight}"
-            style="fill: ${barColor};"
-            @pointerdown="${this.onMoveStart}"
-          />
-          <text
-            class="bar-label"
-            x="5"
-            y="${this.barHeight / 2}"
-            dominant-baseline="middle"
-          >
-            ${this.task.name}
-          </text>
-          <rect
-            class="handle-left"
-            x="-10"
-            width="20"
-            height="${this.barHeight}"
-            @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"
-          />
-          <rect
-            class="handle-right"
-            x="${width - 10}"
-            width="20"
-            height="${this.barHeight}"
-            @pointerdown="${(e: PointerEvent) =>
-              this.onResizeStart(e, 'right')}"
-          />
-        </g>
-      </svg>
+      <div
+        class="task-group"
+        style="
+          left: ${x}px;
+          top: ${y}px;
+          width: ${width}px;
+          height: ${this.barHeight}px;
+        "
+      >
+        <div
+          class="bar"
+          style="background-color: ${barColor};"
+          @pointerdown="${this.onMoveStart}"
+        ></div>
+        <div class="bar-label">${this.task.name}</div>
+        <div
+          class="handle-left"
+          @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"
+        ></div>
+        <div
+          class="handle-right"
+          @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"
+        ></div>
+      </div>
     `
   }
 }
