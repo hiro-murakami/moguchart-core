@@ -21,6 +21,9 @@ export class GanttBar extends LitElement {
       position: absolute;
       box-sizing: border-box;
     }
+    .task-group.dragging {
+      opacity: 0.5;
+    }
     .bar {
       background-color: var(--gantt-bar-fill, #3b82f6);
       border-radius: 4px;
@@ -80,6 +83,9 @@ export class GanttBar extends LitElement {
     }
     barEl.style.pointerEvents = 'none'
 
+    const taskGroup = this.shadowRoot?.querySelector('.task-group')
+    taskGroup?.classList.add('dragging')
+
     document.body.style.cursor = 'col-resize'
     const startX = e.clientX
     const originalStart = new Date(this.task.start)
@@ -116,6 +122,7 @@ export class GanttBar extends LitElement {
     }
 
     const onPointerUp = () => {
+      taskGroup?.classList.remove('dragging')
       document.body.style.cursor = ''
       barEl.style.pointerEvents = ''
       window.removeEventListener('pointermove', onPointerMove)
@@ -135,6 +142,9 @@ export class GanttBar extends LitElement {
     }
 
     target.style.cursor = 'grabbing'
+
+    const taskGroup = this.shadowRoot?.querySelector('.task-group')
+    taskGroup?.classList.add('dragging')
 
     const startX = e.clientX
     // 開始時の一時的な日付を保持
@@ -161,6 +171,7 @@ export class GanttBar extends LitElement {
     }
 
     const onPointerUp = () => {
+      taskGroup?.classList.remove('dragging')
       target.style.cursor = ''
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
