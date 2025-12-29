@@ -48,6 +48,7 @@ const barColor = '#10b981'
 const barHeight = 28
 const barMargin = 4
 let dragTargetRowIndex: number | null = null
+let draggingTask: { id: string; start: Date; end: Date } | null = null
 
 // 日付ラベルの配列を生成
 const days = Array.from({ length: totalDays }, (_, i) => {
@@ -198,10 +199,19 @@ const renderApp = () => {
               background-position: -1px 0;
             "
               >
-                ${tasksWithLanes.map(
-                  (task) => html`
+                ${tasksWithLanes.map((task) => {
+                  const isDragging = draggingTask?.id === task.id
+                  const displayTask = isDragging
+                    ? {
+                        ...task,
+                        start: draggingTask!.start,
+                        end: draggingTask!.end,
+                      }
+                    : task
+
+                  return html`
                     <gantt-bar
-                      .task="${task}"
+                      .task="${displayTask}"
                       .chartStart="${chartStart}"
                       .pxPerDay="${pxPerDay}"
                       .color="${barColor}"
@@ -210,8 +220,8 @@ const renderApp = () => {
                       .lane="${task.lane}"
                       @task-update="${handleTaskUpdate}"
                     />
-                  `,
-                )}
+                  `
+                })}
               </div>
             </div>
           `
@@ -272,18 +282,14 @@ function handleTaskUpdate(e: CustomEvent<any>) {
   }
 
   if (isDragging) {
+    draggingTask = { id, start, end }
     dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
-
-    // ドラッグ中は日付の更新のみを行い、再描画
-    rows = rows.map((r) => ({
-      ...r,
-      tasks: r.tasks.map((t) => (t.id === id ? { ...t, start, end } : t)),
-    }))
     renderApp()
     return
   }
 
   // ドロップ時の処理
+  draggingTask = null
   dragTargetRowIndex = null
 
   // 有効な別の行にドロップされた場合

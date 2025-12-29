@@ -97,6 +97,8 @@ export class GanttBar extends LitElement {
     const startX = e.clientX
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
+    let currentStart = new Date(originalStart)
+    let currentEnd = new Date(originalEnd)
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
@@ -119,9 +121,18 @@ export class GanttBar extends LitElement {
         }
       }
 
+      currentStart = newStart
+      currentEnd = newEnd
+
       this.dispatchEvent(
         new CustomEvent('task-update', {
-          detail: { ...this.task, start: newStart, end: newEnd },
+          detail: {
+            ...this.task,
+            start: newStart,
+            end: newEnd,
+            dy: 0,
+            isDragging: true,
+          },
           bubbles: true,
           composed: true,
         }),
@@ -134,6 +145,20 @@ export class GanttBar extends LitElement {
       barEl.style.pointerEvents = ''
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+
+      this.dispatchEvent(
+        new CustomEvent('task-update', {
+          detail: {
+            ...this.task,
+            start: currentStart,
+            end: currentEnd,
+            dy: 0,
+            isDragging: false,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
 
     window.addEventListener('pointermove', onPointerMove)
