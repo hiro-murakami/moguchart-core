@@ -6,3 +6,13 @@ export interface GanttTask {
   end: Date
   color?: string
 }
+
+export interface GanttRow {
+  id: string
+  label: string
+  tasks: GanttTask[]
+}
+
+export interface TaskWithLane extends GanttTask {
+  lane: number
+}

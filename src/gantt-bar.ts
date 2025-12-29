@@ -10,16 +10,23 @@ export class GanttBar extends LitElement {
   @property({ type: String, reflect: true }) color = '#3b82f6'
   @property({ type: Number }) rowHeight = 40
   @property({ type: Number }) barHeight = 30
+  @property({ type: Number }) barMargin = 5
+  @property({ type: Number }) lane = 0
 
   static styles = css`
     :host {
       display: block;
-      position: relative;
-      height: var(--gantt-row-height, 40px);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
     .task-group {
       position: absolute;
       box-sizing: border-box;
+      pointer-events: auto;
     }
     .task-group.dragging {
       opacity: 0.5;
@@ -137,22 +144,26 @@ export class GanttBar extends LitElement {
   private onMoveStart(e: PointerEvent) {
     e.stopPropagation()
     const target = e.target as HTMLElement
-    if (!target) {
+    const taskGroup = this.shadowRoot?.querySelector(
+      '.task-group',
+    ) as HTMLElement
+
+    if (!target || !taskGroup) {
       return
     }
 
     target.style.cursor = 'grabbing'
-
-    const taskGroup = this.shadowRoot?.querySelector('.task-group')
-    taskGroup?.classList.add('dragging')
+    taskGroup.classList.add('dragging')
 
     const startX = e.clientX
+    const startY = e.clientY
     // 開始時の一時的な日付を保持
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
+      const deltaY = moveEvent.clientY - startY
       const daysDiff = Math.round(deltaX / this.pxPerDay)
 
       const newStart = new Date(originalStart)
@@ -161,20 +172,51 @@ export class GanttBar extends LitElement {
       const newEnd = new Date(originalEnd)
       newEnd.setDate(originalEnd.getDate() + daysDiff)
 
+      taskGroup.style.transform = `translateY(${deltaY}px)`
+
       this.dispatchEvent(
         new CustomEvent('task-update', {
-          detail: { ...this.task, start: newStart, end: newEnd },
+          detail: {
+            ...this.task,
+            start: newStart,
+            end: newEnd,
+            dy: deltaY,
+            isDragging: true,
+          },
           bubbles: true,
           composed: true,
         }),
       )
     }
 
-    const onPointerUp = () => {
-      taskGroup?.classList.remove('dragging')
+    const onPointerUp = (upEvent: PointerEvent) => {
+      taskGroup.classList.remove('dragging')
+      taskGroup.style.transform = ''
       target.style.cursor = ''
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+
+      const finalDeltaX = upEvent.clientX - startX
+      const finalDaysDiff = Math.round(finalDeltaX / this.pxPerDay)
+      const finalNewStart = new Date(originalStart)
+      finalNewStart.setDate(originalStart.getDate() + finalDaysDiff)
+      const finalNewEnd = new Date(originalEnd)
+      finalNewEnd.setDate(originalEnd.getDate() + finalDaysDiff)
+      const finalDeltaY = upEvent.clientY - startY
+
+      this.dispatchEvent(
+        new CustomEvent('task-update', {
+          detail: {
+            ...this.task,
+            start: finalNewStart,
+            end: finalNewEnd,
+            dy: finalDeltaY,
+            isDragging: false, // ドロップしたことを示す
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
 
     window.addEventListener('pointermove', onPointerMove)
@@ -189,7 +231,7 @@ export class GanttBar extends LitElement {
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x
     const barColor = this.color || '#3b82f6'
-    const y = (this.rowHeight - this.barHeight) / 2
+    const y = this.lane * (this.barHeight + this.barMargin) + this.barMargin
 
     return html`
       <div
