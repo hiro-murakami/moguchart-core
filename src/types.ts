@@ -1,4 +1,3 @@
-// types.ts
 export interface GanttTask {
   id: string
   name: string

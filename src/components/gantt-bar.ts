@@ -1,12 +1,12 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '../types'
+import { DEFAULT_BAR_COLOR } from '../constants'
 
 @customElement('gantt-bar')
 export class GanttBar extends LitElement {
   @property({ type: Object }) task!: GanttTask
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: String }) color = '#3b82f6'
   @property({ type: Number }) lane = 0
 
   static styles = css`
@@ -26,9 +26,9 @@ export class GanttBar extends LitElement {
     }
     .task-group.dragging {
       opacity: 0.5;
+      z-index: 1000;
     }
     .bar {
-      background-color: var(--gantt-bar-fill, #3b82f6);
       border-radius: 4px;
       transition: background-color 0.3s;
       cursor: grab;
@@ -187,22 +187,16 @@ export class GanttBar extends LitElement {
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
-      const daysDiff = Math.round(deltaX / this.option.pxPerDay)
 
-      const newStart = new Date(originalStart)
-      newStart.setDate(originalStart.getDate() + daysDiff)
-
-      const newEnd = new Date(originalEnd)
-      newEnd.setDate(originalEnd.getDate() + daysDiff)
-
-      taskGroup.style.transform = `translateY(${deltaY}px)`
+      // スナップさせずに滑らかに移動表示
+      taskGroup.style.transform = `translate(${deltaX}px, ${deltaY}px)`
 
       this.dispatchEvent(
         new CustomEvent('task-update', {
           detail: {
             ...this.task,
-            start: newStart,
-            end: newEnd,
+            start: originalStart, // ドラッグ中は日付を更新しない（スナップ防止）
+            end: originalEnd,
             dy: deltaY,
             isDragging: true,
           },
@@ -252,7 +246,7 @@ export class GanttBar extends LitElement {
 
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x
-    const barColor = this.color || '#3b82f6'
+    const barColor = this.task.color || DEFAULT_BAR_COLOR
     const y =
       this.lane * (this.option.barHeight + this.option.barMargin) +
       this.option.barMargin

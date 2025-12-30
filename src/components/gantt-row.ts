@@ -3,13 +3,14 @@ import { customElement, property } from 'lit/decorators.js'
 import { calculateTaskLanes } from '../utils'
 import type { GanttRow } from '../types'
 import './gantt-bar'
+import { DEFAULT_BAR_COLOR } from '../constants'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
   @property({ type: Object }) row!: GanttRow
   @property({ type: Object }) chartStart!: Date
   @property({ type: Number }) pxPerDay = 30
-  @property({ type: String }) barColor = '#3b82f6'
+  @property({ type: String }) barColor = DEFAULT_BAR_COLOR
   @property({ type: Number }) barHeight = 30
   @property({ type: Number }) barMargin = 5
   @property({ type: Boolean }) isDragTarget = false
@@ -89,7 +90,6 @@ export class GanttRowElement extends LitElement {
               <gantt-bar
                 .task="${displayTask}"
                 .option="${option}"
-                .color="${this.barColor}"
                 .lane="${task.lane}"
               />
             `

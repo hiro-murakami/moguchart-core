@@ -163,7 +163,13 @@ function handleTaskUpdate(e: CustomEvent<any>) {
 
   const rowLayouts = getRowLayouts()
   const dragStartRowTop = rowLayouts[sourceRowIndex].top
-  const currentY = dragStartRowTop + dy
+
+  // タスクの初期位置（レーン）を考慮して、現在の絶対Y座標（中心）を計算
+  const { tasksWithLanes } = calculateTaskLanes(rows[sourceRowIndex].tasks)
+  const taskWithLane = tasksWithLanes.find((t) => t.id === id)
+  const lane = taskWithLane ? taskWithLane.lane : 0
+  const taskInitialY = lane * (barHeight + barMargin) + barMargin
+  const currentY = dragStartRowTop + taskInitialY + dy + barHeight / 2
 
   let targetRowIndex = -1
   for (let i = 0; i < rowLayouts.length; i++) {
