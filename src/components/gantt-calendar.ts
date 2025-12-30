@@ -1,8 +1,13 @@
 import { LitElement, html, css, unsafeCSS } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
-import { DEFAULT_LABEL_WIDTH, DEFAULT_COLOR } from '@/constants'
+import {
+  DEFAULT_LABEL_WIDTH,
+  DEFAULT_COLOR,
+  DEFAULT_MONTH_FORMAT,
+} from '@/constants'
 import * as holiday_jp from '@holiday-jp/holiday_jp'
+import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')
 export class GanttCalendarElement extends LitElement {
@@ -99,16 +104,17 @@ export class GanttCalendarElement extends LitElement {
       ></div>
       <div class="calendar-group">
         <div class="months-container">
-          ${months.map(
-            (m) => html`
-              <div
-                class="month-cell"
-                style="width: ${m.count * this.option.calendar.pxPerDay}px"
-              >
-                ${m.year}年${m.month + 1}月
-              </div>
-            `,
-          )}
+          ${months.map((m) => {
+            const format =
+              this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
+            const text = dayjs(new Date(m.year, m.month)).format(format)
+            return html`<div
+              class="month-cell"
+              style="width: ${m.count * this.option.calendar.pxPerDay}px"
+            >
+              ${text}
+            </div>`
+          })}
         </div>
         <div class="days-container" style="${backgroundStyle}">
           ${days.map((day) => {

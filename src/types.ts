@@ -30,6 +30,7 @@ export interface GanttChartOption {
     saturdayColor?: string
     sundayColor?: string
     holidayColor?: string
+    monthFormat?: string
   }
   readOnly?: boolean
 }

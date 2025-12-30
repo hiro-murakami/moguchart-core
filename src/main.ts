@@ -1,6 +1,10 @@
 import { html, render } from 'lit'
 import '@/components/gantt-chart'
-import type { GanttRow, RenderBarContentEventDetail } from '@/types'
+import type {
+  GanttChartOption,
+  GanttRow,
+  RenderBarContentEventDetail,
+} from '@/types'
 
 let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
   const rowId = String(i + 1)
@@ -44,12 +48,14 @@ const labelWidth = 150
 let isReadOnly = false
 
 const renderApp = () => {
-  const option = {
+  const option: GanttChartOption = {
     chartStart,
     barHeight,
     barMargin,
     barCornerRadius,
-    labelWidth,
+    label: {
+      width: labelWidth,
+    },
     calendar: {
       pxPerDay,
     },

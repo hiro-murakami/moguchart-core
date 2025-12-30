@@ -11,6 +11,9 @@ importers:
       '@holiday-jp/holiday_jp':
         specifier: ^2.5.1
         version: 2.5.1
+      dayjs:
+        specifier: ^1.11.19
+        version: 1.11.19
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -323,6 +326,9 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
+  dayjs@1.11.19:
+    resolution: {integrity: sha512-t5EcLVS6QPBNqM2z8fakk/NKel+Xzshgt8FFKAn+qwlD1pzZWxh0nVCrvFK7ZDb6XucZeF9z8C7CBWTRIVApAw==}
+
   esbuild@0.27.2:
     resolution: {integrity: sha512-HyNQImnsOC7X9PMNaCIeAm4ISCQXs5a5YasTXVliKv4uuBo1dKrG0A+uQS8M5eXjVMnLg3WgXaKvprHlFJQffw==}
     engines: {node: '>=18'}
@@ -599,6 +605,8 @@ snapshots:
       undici-types: 7.16.0
 
   '@types/trusted-types@2.0.7': {}
+
+  dayjs@1.11.19: {}
 
   esbuild@0.27.2:
     optionalDependencies:
