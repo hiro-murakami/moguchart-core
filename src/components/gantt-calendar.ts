@@ -5,7 +5,7 @@ import { DEFAULT_LABEL_WIDTH, DEFAULT_COLOR } from '@/constants'
 import * as holiday_jp from '@holiday-jp/holiday_jp'
 
 @customElement('gantt-calendar')
-export class GanttCalendar extends LitElement {
+export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) totalDays = 30
 
@@ -17,6 +17,9 @@ export class GanttCalendar extends LitElement {
       background: #f8fafc;
       border-bottom: 2px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
       box-sizing: border-box;
+      position: sticky;
+      top: 0;
+      z-index: 40;
     }
     .label-placeholder {
       flex-shrink: 0;
@@ -144,6 +147,6 @@ export class GanttCalendar extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'gantt-calendar': GanttCalendar
+    'gantt-calendar': GanttCalendarElement
   }
 }

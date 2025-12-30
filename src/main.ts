@@ -9,44 +9,28 @@ import type {
 } from '@/types'
 import { calculateTaskLanes } from '@/utils'
 
-let rows: GanttRow[] = [
-  {
-    id: '1',
-    label: '設計フェーズ',
+let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
+  const rowId = String(i + 1)
+  const offset = i % 20
+  return {
+    id: rowId,
+    label: `プロジェクト ${rowId}`,
     tasks: [
       {
-        id: '1',
-        name: '要件定義',
-        start: new Date('2025-12-20'),
-        end: new Date('2025-12-25'),
+        id: `${rowId}-1`,
+        name: `要件定義 ${rowId}`,
+        start: new Date(2025, 11, 16 + offset),
+        end: new Date(2025, 11, 21 + offset),
       },
       {
-        id: '2',
-        name: 'デザイン',
-        start: new Date('2025-12-23'), // 重なりを発生させる
-        end: new Date('2025-12-28'),
-      },
-      {
-        id: '4',
-        name: 'DB設計',
-        start: new Date('2025-12-24'), // さらに重なりを発生させる
-        end: new Date('2025-12-29'),
+        id: `${rowId}-2`,
+        name: `開発 ${rowId}`,
+        start: new Date(2025, 11, 23 + offset),
+        end: new Date(2025, 11, 30 + offset),
       },
     ],
-  },
-  {
-    id: '2',
-    label: '開発フェーズ',
-    tasks: [
-      {
-        id: '3',
-        name: '実装',
-        start: new Date('2026-01-01'),
-        end: new Date('2026-01-10'),
-      },
-    ],
-  },
-]
+  }
+})
 
 const chartStart = new Date('2025-12-15')
 const pxPerDay = 28 // 共通のスケール
@@ -94,6 +78,8 @@ const renderApp = () => {
         style="
           display: block;
           width: 100%;
+          height: 50vh;
+          overflow-y: auto;
           overflow-x: auto;
           border: 1px solid #e2e8f0;
           background: white;

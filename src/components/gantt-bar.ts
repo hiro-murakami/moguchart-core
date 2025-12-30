@@ -4,7 +4,7 @@ import type { GanttTask, GanttChartOption } from '@/types'
 import { DEFAULT_BAR_COLOR } from '@/constants'
 
 @customElement('gantt-bar')
-export class GanttBar extends LitElement {
+export class GanttBarElement extends LitElement {
   @property({ type: Object }) task!: GanttTask
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
@@ -359,6 +359,6 @@ export class GanttBar extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'gantt-bar': GanttBar
+    'gantt-bar': GanttBarElement
   }
 }
