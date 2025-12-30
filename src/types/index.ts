@@ -16,3 +16,10 @@ export interface GanttRow {
 export interface TaskWithLane extends GanttTask {
   lane: number
 }
+
+export interface GanttChartOption {
+  chartStart: Date
+  pxPerDay: number
+  barHeight: number
+  barMargin: number
+}

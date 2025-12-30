@@ -64,6 +64,13 @@ export class GanttRowElement extends LitElement {
       background-image: linear-gradient(90deg, transparent ${this.pxPerDay - 1}px, #f1f5f9 ${this.pxPerDay - 1}px);
     `
 
+    const option = {
+      chartStart: this.chartStart,
+      pxPerDay: this.pxPerDay,
+      barHeight: this.barHeight,
+      barMargin: this.barMargin,
+    }
+
     return html`
       <div class="row-container">
         <div class="label">${this.row.label}</div>
@@ -81,11 +88,8 @@ export class GanttRowElement extends LitElement {
             return html`
               <gantt-bar
                 .task="${displayTask}"
-                .chartStart="${this.chartStart}"
-                .pxPerDay="${this.pxPerDay}"
+                .option="${option}"
                 .color="${this.barColor}"
-                .barHeight="${this.barHeight}"
-                .barMargin="${this.barMargin}"
                 .lane="${task.lane}"
               />
             `

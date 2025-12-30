@@ -1,15 +1,12 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask } from '../types'
+import type { GanttTask, GanttChartOption } from '../types'
 
 @customElement('gantt-bar')
 export class GanttBar extends LitElement {
   @property({ type: Object }) task!: GanttTask
-  @property({ type: Object }) chartStart!: Date
-  @property({ type: Number }) pxPerDay = 30
+  @property({ type: Object }) option!: GanttChartOption
   @property({ type: String }) color = '#3b82f6'
-  @property({ type: Number }) barHeight = 30
-  @property({ type: Number }) barMargin = 5
   @property({ type: Number }) lane = 0
 
   static styles = css`
@@ -76,8 +73,8 @@ export class GanttBar extends LitElement {
   `
 
   private getX(date: Date) {
-    const diff = date.getTime() - this.chartStart.getTime()
-    return (diff / (1000 * 60 * 60 * 24)) * this.pxPerDay
+    const diff = date.getTime() - this.option.chartStart.getTime()
+    return (diff / (1000 * 60 * 60 * 24)) * this.option.pxPerDay
   }
 
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
@@ -102,7 +99,7 @@ export class GanttBar extends LitElement {
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
-      const daysDiff = Math.round(deltaX / this.pxPerDay)
+      const daysDiff = Math.round(deltaX / this.option.pxPerDay)
 
       let newStart = new Date(originalStart)
       let newEnd = new Date(originalEnd)
@@ -190,7 +187,7 @@ export class GanttBar extends LitElement {
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
-      const daysDiff = Math.round(deltaX / this.pxPerDay)
+      const daysDiff = Math.round(deltaX / this.option.pxPerDay)
 
       const newStart = new Date(originalStart)
       newStart.setDate(originalStart.getDate() + daysDiff)
@@ -224,7 +221,7 @@ export class GanttBar extends LitElement {
       window.removeEventListener('pointerup', onPointerUp)
 
       const finalDeltaX = upEvent.clientX - startX
-      const finalDaysDiff = Math.round(finalDeltaX / this.pxPerDay)
+      const finalDaysDiff = Math.round(finalDeltaX / this.option.pxPerDay)
       const finalNewStart = new Date(originalStart)
       finalNewStart.setDate(originalStart.getDate() + finalDaysDiff)
       const finalNewEnd = new Date(originalEnd)
@@ -251,12 +248,14 @@ export class GanttBar extends LitElement {
   }
 
   render() {
-    if (!this.task || !this.chartStart) return html``
+    if (!this.task || !this.option) return html``
 
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x
     const barColor = this.color || '#3b82f6'
-    const y = this.lane * (this.barHeight + this.barMargin) + this.barMargin
+    const y =
+      this.lane * (this.option.barHeight + this.option.barMargin) +
+      this.option.barMargin
 
     return html`
       <div
@@ -265,7 +264,7 @@ export class GanttBar extends LitElement {
           left: ${x}px;
           top: ${y}px;
           width: ${width}px;
-          height: ${this.barHeight}px;
+          height: ${this.option.barHeight}px;
         "
       >
         <div
