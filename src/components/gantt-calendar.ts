@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttChartOption } from '../types'
-import { DEFAULT_LABEL_WIDTH } from '../constants'
+import type { GanttChartOption } from '@/types'
+import { DEFAULT_LABEL_WIDTH } from '@/constants'
 
 @customElement('gantt-calendar')
 export class GanttCalendar extends LitElement {

@@ -1,13 +1,13 @@
 import { html, render } from 'lit'
-import './components/gantt-row'
-import './components/gantt-calendar'
+import '@/components/gantt-row'
+import '@/components/gantt-calendar'
 import type {
   GanttTask,
   GanttRow,
   TaskUpdateEventDetail,
   RenderBarContentEventDetail,
-} from './types'
-import { calculateTaskLanes } from './utils'
+} from '@/types'
+import { calculateTaskLanes } from '@/utils'
 
 let rows: GanttRow[] = [
   {

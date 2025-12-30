@@ -1,7 +1,7 @@
 import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption } from '../types'
-import { DEFAULT_BAR_COLOR } from '../constants'
+import type { GanttTask, GanttChartOption } from '@/types'
+import { DEFAULT_BAR_COLOR } from '@/constants'
 
 @customElement('gantt-bar')
 export class GanttBar extends LitElement {

@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { calculateTaskLanes } from '../utils'
-import type { GanttRow, GanttChartOption } from '../types'
+import { calculateTaskLanes } from '@/utils'
+import type { GanttRow, GanttChartOption } from '@/types'
 import './gantt-bar'
-import { DEFAULT_LABEL_WIDTH } from '../constants'
+import { DEFAULT_LABEL_WIDTH } from '@/constants'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {

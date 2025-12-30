@@ -1,4 +1,4 @@
-import type { GanttTask, TaskWithLane } from './types'
+import type { GanttTask, TaskWithLane } from '@/types'
 
 // ユーティリティ: 日付からX座標を計算
 export const dateToX = (date: Date, startDate: Date, pxPerDay: number) => {
