@@ -19,7 +19,7 @@ export class GanttCalendarElement extends LitElement {
       box-sizing: border-box;
       position: sticky;
       top: 0;
-      z-index: 40;
+      z-index: 70;
     }
     .label-placeholder {
       flex-shrink: 0;

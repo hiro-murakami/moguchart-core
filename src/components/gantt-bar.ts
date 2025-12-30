@@ -29,7 +29,7 @@ export class GanttBarElement extends LitElement {
     }
     .task-group.dragging {
       opacity: 0.5;
-      z-index: 1000;
+      z-index: 15;
     }
     .bar {
       transition: background-color 0.3s;
@@ -233,8 +233,14 @@ export class GanttBarElement extends LitElement {
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
 
-      // スナップさせずに滑らかに移動表示
-      taskGroup.style.transform = `translate(${deltaX}px, ${deltaY}px)`
+      // Shiftキーを押している間はスナップを無効化（滑らかに移動）
+      // 通常はグリッド（1日単位）にスナップさせる
+      const translateX = moveEvent.shiftKey
+        ? deltaX
+        : Math.round(deltaX / this.option.calendar.pxPerDay) *
+          this.option.calendar.pxPerDay
+
+      taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
 
       this.dispatchEvent(
         new CustomEvent('task-update', {

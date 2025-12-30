@@ -4,7 +4,7 @@ import type { GanttRow, RenderBarContentEventDetail } from '@/types'
 
 let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
   const rowId = String(i + 1)
-  const offset = i % 20
+  const offset = i * 7
   return {
     id: rowId,
     label: `プロジェクト ${rowId}`,
@@ -14,12 +14,21 @@ let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
         name: `要件定義 ${rowId}`,
         start: new Date(2025, 11, 16 + offset),
         end: new Date(2025, 11, 21 + offset),
+        color: '#3b82f6',
       },
       {
         id: `${rowId}-2`,
         name: `開発 ${rowId}`,
         start: new Date(2025, 11, 23 + offset),
-        end: new Date(2025, 11, 30 + offset),
+        end: new Date(2026, 0, 20 + offset),
+        color: '#10b981',
+      },
+      {
+        id: `${rowId}-3`,
+        name: `テスト ${rowId}`,
+        start: new Date(2026, 0, 25 + offset),
+        end: new Date(2026, 1, 10 + offset),
+        color: '#f59e0b',
       },
     ],
   }
@@ -27,7 +36,7 @@ let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
 
 const chartStart = new Date('2025-12-15')
 const pxPerDay = 28 // 共通のスケール
-const totalDays = 60 // 表示する日数
+const totalDays = 800 // 表示する日数
 const barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4

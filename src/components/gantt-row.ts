@@ -44,7 +44,7 @@ export class GanttRowElement extends LitElement {
       box-sizing: border-box;
       position: sticky;
       left: 0;
-      z-index: 20;
+      z-index: 60;
       background: inherit;
     }
     .bars-container {
