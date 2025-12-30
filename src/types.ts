@@ -1,6 +1,6 @@
 export interface GanttTask {
   id: string
-  name: string
+  name?: string
   start: Date
   end: Date
   color?: string
@@ -21,4 +21,16 @@ export interface GanttChartOption {
   pxPerDay: number
   barHeight: number
   barMargin: number
+  barCornerRadius: number
+  labelWidth?: number
+}
+
+export interface TaskUpdateEventDetail extends GanttTask {
+  dy: number
+  isDragging: boolean
+}
+
+export interface RenderBarContentEventDetail {
+  container: HTMLElement
+  task: GanttTask
 }

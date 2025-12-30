@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit'
+import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '../types'
 import { DEFAULT_BAR_COLOR } from '../constants'
@@ -29,7 +29,6 @@ export class GanttBar extends LitElement {
       z-index: 1000;
     }
     .bar {
-      border-radius: 4px;
       transition: background-color 0.3s;
       cursor: grab;
       width: 100%;
@@ -241,6 +240,25 @@ export class GanttBar extends LitElement {
     window.addEventListener('pointerup', onPointerUp)
   }
 
+  protected updated(changedProperties: PropertyValues): void {
+    super.updated(changedProperties)
+
+    const barEl = this.shadowRoot?.querySelector('.bar')
+    if (barEl) {
+      barEl.innerHTML = ''
+      this.dispatchEvent(
+        new CustomEvent('render-bar-content', {
+          detail: {
+            container: barEl,
+            task: this.task,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+  }
+
   render() {
     if (!this.task || !this.option) return html``
 
@@ -263,10 +281,13 @@ export class GanttBar extends LitElement {
       >
         <div
           class="bar"
-          style="background-color: ${barColor};"
+          style="background-color: ${barColor}; border-radius: ${this.option
+            .barCornerRadius}px;"
           @pointerdown="${this.onMoveStart}"
         ></div>
-        <div class="bar-label">${this.task.name}</div>
+        ${this.task.name
+          ? html`<div class="bar-label">${this.task.name}</div>`
+          : ''}
         <div
           class="handle-left"
           @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"
