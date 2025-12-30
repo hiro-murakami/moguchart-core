@@ -8,7 +8,6 @@ export class GanttBar extends LitElement {
   @property({ type: Object }) chartStart!: Date
   @property({ type: Number }) pxPerDay = 30
   @property({ type: String, reflect: true }) color = '#3b82f6'
-  @property({ type: Number }) rowHeight = 40
   @property({ type: Number }) barHeight = 30
   @property({ type: Number }) barMargin = 5
   @property({ type: Number }) lane = 0
@@ -83,6 +82,7 @@ export class GanttBar extends LitElement {
 
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
     e.stopPropagation()
+    const target = e.target as HTMLElement
 
     const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
     if (!barEl) {
@@ -93,7 +93,7 @@ export class GanttBar extends LitElement {
     const taskGroup = this.shadowRoot?.querySelector('.task-group')
     taskGroup?.classList.add('dragging')
 
-    document.body.style.cursor = 'col-resize'
+    target.setPointerCapture(e.pointerId)
     const startX = e.clientX
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
@@ -141,7 +141,7 @@ export class GanttBar extends LitElement {
 
     const onPointerUp = () => {
       taskGroup?.classList.remove('dragging')
-      document.body.style.cursor = ''
+      target.releasePointerCapture(e.pointerId)
       barEl.style.pointerEvents = ''
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
@@ -178,6 +178,7 @@ export class GanttBar extends LitElement {
     }
 
     target.style.cursor = 'grabbing'
+    target.setPointerCapture(e.pointerId)
     taskGroup.classList.add('dragging')
 
     const startX = e.clientX
@@ -218,6 +219,7 @@ export class GanttBar extends LitElement {
       taskGroup.classList.remove('dragging')
       taskGroup.style.transform = ''
       target.style.cursor = ''
+      target.releasePointerCapture(e.pointerId)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
 
@@ -250,8 +252,6 @@ export class GanttBar extends LitElement {
 
   render() {
     if (!this.task || !this.chartStart) return html``
-
-    this.style.setProperty('--gantt-row-height', `${this.rowHeight}px`)
 
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x

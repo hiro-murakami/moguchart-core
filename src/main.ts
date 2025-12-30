@@ -1,6 +1,7 @@
 import { html, render } from 'lit'
-import './gantt-bar'
-import type { GanttTask, GanttRow, TaskWithLane } from './types'
+import './gantt-row'
+import type { GanttTask, GanttRow } from './types'
+import { calculateTaskLanes } from './utils'
 
 let rows: GanttRow[] = [
   {
@@ -57,57 +58,6 @@ const days = Array.from({ length: totalDays }, (_, i) => {
   return d
 })
 
-/**
- * タスクの重なりを計算し、各タスクが表示されるべき「レーン（段）」を決定します。
- * @param tasks 同じ行にあるタスクの配列
- * @returns レーン番号が追加されたタスクの配列と、その行で必要なレーンの総数
- */
-function calculateTaskLanes(tasks: GanttTask[]): {
-  tasksWithLanes: TaskWithLane[]
-  laneCount: number
-} {
-  if (!tasks.length) {
-    return { tasksWithLanes: [], laneCount: 1 }
-  }
-
-  // 開始日でタスクをソート
-  const sortedTasks = [...tasks].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  )
-
-  const lanes: Date[] = [] // 各レーンに最後に配置されたタスクの終了日を保持
-  const taskLaneMap = new Map<string, number>()
-
-  for (const task of sortedTasks) {
-    let assignedLane = -1
-    // 既存のレーンに空きがあるか探す
-    for (let i = 0; i < lanes.length; i++) {
-      if (task.start >= lanes[i]) {
-        lanes[i] = task.end // レーンの終了日を更新
-        assignedLane = i
-        break
-      }
-    }
-    // 空きがなければ新しいレーンを作成
-    if (assignedLane === -1) {
-      lanes.push(task.end)
-      assignedLane = lanes.length - 1
-    }
-    taskLaneMap.set(task.id, assignedLane)
-  }
-
-  // 元の順序を維持したままレーン情報を付与
-  const tasksWithLanes = tasks.map((task) => ({
-    ...task,
-    lane: taskLaneMap.get(task.id) ?? 0,
-  }))
-
-  return {
-    tasksWithLanes,
-    laneCount: lanes.length || 1,
-  }
-}
-
 const renderApp = () => {
   const template = html`
     <div style="padding: 50px; font-family: sans-serif; color: #333;">
@@ -157,75 +107,21 @@ const renderApp = () => {
           </div>
         </div>
 
-        ${rows.map((row, index) => {
-          const { tasksWithLanes, laneCount } = calculateTaskLanes(row.tasks)
-          const rowHeight = laneCount * (barHeight + barMargin) + barMargin
-
-          return html`
-            <div
-              style="
-            display: flex;
-            border-bottom: 1px solid #f1f5f9;
-            height: ${rowHeight}px;
-            box-sizing: border-box;
-            background-color: ${dragTargetRowIndex === index
-                ? '#f0f9ff'
-                : 'transparent'};
-            transition: height 0.2s ease-out;
-          "
-            >
-              <div
-                style="
-              width: var(--label-width);
-              font-size: 13px;
-              padding-left: 15px;
-              border-right: 1px solid #e2e8f0;
-              display: flex;
-              align-items: center;
-              flex-shrink: 0;
-              box-sizing: border-box;
-            "
-              >
-                ${row.label}
-              </div>
-
-              <div
-                style="
-              flex: 1;
-              position: relative;
-              background-image: linear-gradient(90deg, transparent ${pxPerDay -
-                1}px, #f1f5f9 ${pxPerDay - 1}px);
-              background-size: ${pxPerDay}px 100%;
-              background-position: -1px 0;
-            "
-              >
-                ${tasksWithLanes.map((task) => {
-                  const isDragging = draggingTask?.id === task.id
-                  const displayTask = isDragging
-                    ? {
-                        ...task,
-                        start: draggingTask!.start,
-                        end: draggingTask!.end,
-                      }
-                    : task
-
-                  return html`
-                    <gantt-bar
-                      .task="${displayTask}"
-                      .chartStart="${chartStart}"
-                      .pxPerDay="${pxPerDay}"
-                      .color="${barColor}"
-                      .barHeight="${barHeight}"
-                      .barMargin="${barMargin}"
-                      .lane="${task.lane}"
-                      @task-update="${handleTaskUpdate}"
-                    />
-                  `
-                })}
-              </div>
-            </div>
-          `
-        })}
+        ${rows.map(
+          (row, index) => html`
+            <gantt-row
+              .row="${row}"
+              .chartStart="${chartStart}"
+              .pxPerDay="${pxPerDay}"
+              .barColor="${barColor}"
+              .barHeight="${barHeight}"
+              .barMargin="${barMargin}"
+              .isDragTarget="${dragTargetRowIndex === index}"
+              .draggingTask="${draggingTask}"
+              @task-update="${handleTaskUpdate}"
+            />
+          `,
+        )}
       </div>
     </div>
   `
