@@ -18,11 +18,20 @@ export interface TaskWithLane extends GanttTask {
 
 export interface GanttChartOption {
   chartStart: Date
-  pxPerDay: number
   barHeight: number
   barMargin: number
   barCornerRadius: number
-  labelWidth?: number
+  label?: {
+    width?: number
+    backgroundColor?: string
+  }
+  calendar: {
+    pxPerDay: number
+    saturdayColor?: string
+    sundayColor?: string
+    holidayColor?: string
+  }
+  readOnly?: boolean
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {

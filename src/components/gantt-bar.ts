@@ -24,6 +24,9 @@ export class GanttBar extends LitElement {
       box-sizing: border-box;
       pointer-events: auto;
     }
+    .task-group:hover {
+      z-index: 30;
+    }
     .task-group.dragging {
       opacity: 0.5;
       z-index: 1000;
@@ -69,11 +72,45 @@ export class GanttBar extends LitElement {
       white-space: nowrap;
       z-index: 5;
     }
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 40;
+      margin-bottom: 6px;
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -4px;
+      border-width: 4px;
+      border-style: solid;
+      border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+    }
+    .task-group:hover .tooltip {
+      opacity: 1;
+    }
+    .task-group.dragging .tooltip {
+      opacity: 0;
+      display: none;
+    }
   `
 
   private getX(date: Date) {
     const diff = date.getTime() - this.option.chartStart.getTime()
-    return (diff / (1000 * 60 * 60 * 24)) * this.option.pxPerDay
+    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
   }
 
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
@@ -98,7 +135,7 @@ export class GanttBar extends LitElement {
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
-      const daysDiff = Math.round(deltaX / this.option.pxPerDay)
+      const daysDiff = Math.round(deltaX / this.option.calendar.pxPerDay)
 
       let newStart = new Date(originalStart)
       let newEnd = new Date(originalEnd)
@@ -214,7 +251,9 @@ export class GanttBar extends LitElement {
       window.removeEventListener('pointerup', onPointerUp)
 
       const finalDeltaX = upEvent.clientX - startX
-      const finalDaysDiff = Math.round(finalDeltaX / this.option.pxPerDay)
+      const finalDaysDiff = Math.round(
+        finalDeltaX / this.option.calendar.pxPerDay,
+      )
       const finalNewStart = new Date(originalStart)
       finalNewStart.setDate(originalStart.getDate() + finalDaysDiff)
       const finalNewEnd = new Date(originalEnd)
@@ -268,6 +307,11 @@ export class GanttBar extends LitElement {
     const y =
       this.lane * (this.option.barHeight + this.option.barMargin) +
       this.option.barMargin
+    const isReadOnly = this.option.readOnly
+
+    const formatDate = (d: Date) => {
+      return `${d.getMonth() + 1}/${d.getDate()}`
+    }
 
     return html`
       <div
@@ -279,23 +323,35 @@ export class GanttBar extends LitElement {
           height: ${this.option.barHeight}px;
         "
       >
+        <div class="tooltip">
+          <div style="font-weight: bold;">${this.task.name}</div>
+          <div>
+            ${formatDate(this.task.start)} - ${formatDate(this.task.end)}
+          </div>
+        </div>
         <div
           class="bar"
           style="background-color: ${barColor}; border-radius: ${this.option
-            .barCornerRadius}px;"
-          @pointerdown="${this.onMoveStart}"
+            .barCornerRadius}px; ${isReadOnly ? 'cursor: default;' : ''}"
+          @pointerdown="${isReadOnly ? undefined : this.onMoveStart}"
         ></div>
         ${this.task.name
           ? html`<div class="bar-label">${this.task.name}</div>`
           : ''}
-        <div
-          class="handle-left"
-          @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"
-        ></div>
-        <div
-          class="handle-right"
-          @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"
-        ></div>
+        ${!isReadOnly
+          ? html`
+              <div
+                class="handle-left"
+                @pointerdown="${(e: PointerEvent) =>
+                  this.onResizeStart(e, 'left')}"
+              ></div>
+              <div
+                class="handle-right"
+                @pointerdown="${(e: PointerEvent) =>
+                  this.onResizeStart(e, 'right')}"
+              ></div>
+            `
+          : ''}
       </div>
     `
   }

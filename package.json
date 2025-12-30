@@ -25,5 +25,8 @@
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",
     "vite": "^7.3.0"
+  },
+  "dependencies": {
+    "@holiday-jp/holiday_jp": "^2.5.1"
   }
 }

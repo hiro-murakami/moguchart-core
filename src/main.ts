@@ -49,7 +49,7 @@ let rows: GanttRow[] = [
 ]
 
 const chartStart = new Date('2025-12-15')
-const pxPerDay = 30 // 共通のスケール
+const pxPerDay = 28 // 共通のスケール
 const totalDays = 60 // 表示する日数
 const barHeight = 28
 const barMargin = 4
@@ -57,20 +57,38 @@ const barCornerRadius = 4
 const labelWidth = 150
 let dragTargetRowIndex: number | null = null
 let draggingTask: { id: string; start: Date; end: Date } | null = null
+let isReadOnly = false
 
 const renderApp = () => {
   const option = {
     chartStart,
-    pxPerDay,
     barHeight,
     barMargin,
     barCornerRadius,
     labelWidth,
+    calendar: {
+      pxPerDay,
+    },
+    readOnly: isReadOnly,
   }
 
   const template = html`
     <div style="padding: 50px; font-family: sans-serif; color: #333;">
       <h2>Moguchart 2</h2>
+
+      <div style="margin-bottom: 16px;">
+        <label>
+          <input
+            type="checkbox"
+            .checked="${isReadOnly}"
+            @change="${(e: Event) => {
+              isReadOnly = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+          />
+          表示専用モード
+        </label>
+      </div>
 
       <div
         style="
