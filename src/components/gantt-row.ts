@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { calculateTaskLanes } from './utils'
-import type { GanttRow } from './types'
+import { calculateTaskLanes } from '../utils'
+import type { GanttRow } from '../types'
 import './gantt-bar'
 
 @customElement('gantt-row')

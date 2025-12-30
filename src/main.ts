@@ -1,5 +1,5 @@
 import { html, render } from 'lit'
-import './gantt-row'
+import './components/gantt-row'
 import type { GanttTask, GanttRow } from './types'
 import { calculateTaskLanes } from './utils'
 
@@ -61,7 +61,7 @@ const days = Array.from({ length: totalDays }, (_, i) => {
 const renderApp = () => {
   const template = html`
     <div style="padding: 50px; font-family: sans-serif; color: #333;">
-      <h2>Gantt Chart (Perfect Sync)</h2>
+      <h2>Moguchart 2</h2>
 
       <div
         style="

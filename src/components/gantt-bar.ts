@@ -1,13 +1,13 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask } from './types'
+import type { GanttTask } from '../types'
 
 @customElement('gantt-bar')
 export class GanttBar extends LitElement {
   @property({ type: Object }) task!: GanttTask
   @property({ type: Object }) chartStart!: Date
   @property({ type: Number }) pxPerDay = 30
-  @property({ type: String, reflect: true }) color = '#3b82f6'
+  @property({ type: String }) color = '#3b82f6'
   @property({ type: Number }) barHeight = 30
   @property({ type: Number }) barMargin = 5
   @property({ type: Number }) lane = 0
