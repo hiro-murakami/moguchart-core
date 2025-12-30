@@ -25,7 +25,7 @@ export class GanttBarElement extends LitElement {
       pointer-events: auto;
     }
     .task-group:hover {
-      z-index: 30;
+      z-index: 50;
     }
     .task-group.dragging {
       opacity: 0.5;
@@ -88,6 +88,11 @@ export class GanttBarElement extends LitElement {
       transition: opacity 0.2s;
       z-index: 40;
       margin-bottom: 6px;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .tooltip-row {
+      display: block;
     }
     .tooltip::after {
       content: '';
@@ -109,7 +114,11 @@ export class GanttBarElement extends LitElement {
   `
 
   private getX(date: Date) {
-    const diff = date.getTime() - this.option.chartStart.getTime()
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    const start = new Date(this.option.chartStart)
+    start.setHours(0, 0, 0, 0)
+    const diff = d.getTime() - start.getTime()
     return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
   }
 
@@ -308,9 +317,13 @@ export class GanttBarElement extends LitElement {
       this.lane * (this.option.barHeight + this.option.barMargin) +
       this.option.barMargin
     const isReadOnly = this.option.readOnly
+    const duration = Math.round(
+      (this.task.end.getTime() - this.task.start.getTime()) /
+        (1000 * 60 * 60 * 24),
+    )
 
     const formatDate = (d: Date) => {
-      return `${d.getMonth() + 1}/${d.getDate()}`
+      return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
     }
 
     return html`
@@ -325,9 +338,10 @@ export class GanttBarElement extends LitElement {
       >
         <div class="tooltip">
           <div style="font-weight: bold;">${this.task.name}</div>
-          <div>
+          <div class="tooltip-row">
             ${formatDate(this.task.start)} - ${formatDate(this.task.end)}
           </div>
+          <div class="tooltip-row">所要日数: ${duration}日</div>
         </div>
         <div
           class="bar"
