@@ -6,7 +6,7 @@ import {
   DEFAULT_COLOR,
   DEFAULT_MONTH_FORMAT,
 } from '@/constants'
-import * as holiday_jp from '@holiday-jp/holiday_jp'
+import { getCalendarColor } from '@/utils'
 import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')
@@ -118,21 +118,7 @@ export class GanttCalendarElement extends LitElement {
         </div>
         <div class="days-container" style="${backgroundStyle}">
           ${days.map((day) => {
-            const dayOfWeek = day.getDay()
-            const isHolidayDay = holiday_jp.isHoliday(day)
-            let backgroundColor = ''
-            if (isHolidayDay) {
-              backgroundColor =
-                this.option.calendar.holidayColor ??
-                this.option.calendar.sundayColor ??
-                DEFAULT_COLOR.HOLIDAY
-            } else if (dayOfWeek === 0) {
-              backgroundColor =
-                this.option.calendar.sundayColor ?? DEFAULT_COLOR.SUNDAY
-            } else if (dayOfWeek === 6) {
-              backgroundColor =
-                this.option.calendar.saturdayColor ?? DEFAULT_COLOR.SATURDAY
-            }
+            const backgroundColor = getCalendarColor(day, this.option)
             return html`
               <div
                 class="day-cell"

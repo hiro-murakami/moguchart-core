@@ -16,28 +16,41 @@ export interface TaskWithLane extends GanttTask {
   lane: number
 }
 
+export interface GanttChartOptionBar {
+  height?: number
+  margin?: number
+  cornerRadius?: number
+}
+
+export interface GanttChartOptionLabel {
+  width?: number
+  backgroundColor?: string
+}
+
+export interface GanttChartOptionColor {
+  sunday?: string
+  saturday?: string
+  holiday?: string
+}
+
 export interface GanttChartOption {
   chartStart: Date
-  barHeight: number
-  barMargin: number
-  barCornerRadius: number
-  label?: {
-    width?: number
-    backgroundColor?: string
-  }
+  bar?: GanttChartOptionBar
+  label?: GanttChartOptionLabel
   calendar: {
+    color?: GanttChartOptionColor
     pxPerDay: number
-    saturdayColor?: string
-    sundayColor?: string
-    holidayColor?: string
     monthFormat?: string
+    showRowBackground?: boolean
   }
   readOnly?: boolean
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
+  dx?: number
   dy: number
   isDragging: boolean
+  targetRowId?: string
 }
 
 export interface RenderBarContentEventDetail {

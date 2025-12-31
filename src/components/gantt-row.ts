@@ -3,7 +3,13 @@ import { customElement, property } from 'lit/decorators.js'
 import { calculateTaskLanes } from '@/utils'
 import type { GanttRow, GanttChartOption } from '@/types'
 import './gantt-bar'
-import { DEFAULT_LABEL_WIDTH, DEFAULT_COLOR } from '@/constants'
+import './gantt-row-background'
+import {
+  DEFAULT_LABEL_WIDTH,
+  DEFAULT_COLOR,
+  DEFAULT_BAR_HEIGHT,
+  DEFAULT_BAR_MARGIN,
+} from '@/constants'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
@@ -55,9 +61,10 @@ export class GanttRowElement extends LitElement {
 
   render() {
     const { tasksWithLanes, laneCount } = calculateTaskLanes(this.row.tasks)
-    const rowHeight =
-      laneCount * (this.option.barHeight + this.option.barMargin) +
-      this.option.barMargin
+    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+
+    const rowHeight = laneCount * (barHeight + barMargin) + barMargin
 
     this.style.height = `${rowHeight}px`
     this.style.backgroundColor = this.isDragTarget ? '#f0f9ff' : '#fff'
@@ -82,6 +89,12 @@ export class GanttRowElement extends LitElement {
           style="${backgroundStyle}; width: ${this.totalDays *
           this.option.calendar.pxPerDay}px"
         >
+          ${this.option.calendar.showRowBackground !== false
+            ? html`<gantt-row-background
+                .option="${this.option}"
+                .totalDays="${this.totalDays}"
+              /> `
+            : ''}
           ${tasksWithLanes.map((task) => {
             const isDragging = this.draggingTask?.id === task.id
             const displayTask = isDragging

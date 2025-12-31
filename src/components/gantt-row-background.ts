@@ -1,0 +1,46 @@
+import { LitElement, html, css } from 'lit'
+import { customElement, property } from 'lit/decorators.js'
+import { getCalendarColor } from '@/utils'
+import type { GanttChartOption } from '@/types'
+
+@customElement('gantt-row-background')
+export class GanttRowBackgroundElement extends LitElement {
+  @property({ type: Object }) option!: GanttChartOption
+  @property({ type: Number }) totalDays = 30
+
+  static styles = css`
+    :host {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      display: flex;
+      z-index: 0;
+      pointer-events: none;
+    }
+  `
+
+  render() {
+    const days = Array.from({ length: this.totalDays }, (_, i) => {
+      const d = new Date(this.option.chartStart)
+      d.setDate(d.getDate() + i)
+      return d
+    })
+
+    return html`
+      ${days.map((day) => {
+        const color = getCalendarColor(day, this.option)
+        return html`<div
+          style="width: ${this.option.calendar
+            .pxPerDay}px; background-color: ${color}; flex-shrink: 0;"
+        ></div>`
+      })}
+    `
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'gantt-row-background': GanttRowBackgroundElement
+  }
+}

@@ -1,6 +1,10 @@
 export const DEFAULT_LABEL_WIDTH = 150
 export const DEFAULT_MONTH_FORMAT = 'YYYY年M月'
 
+export const DEFAULT_BAR_HEIGHT = 28
+export const DEFAULT_BAR_MARGIN = 4
+export const DEFAULT_BAR_CORNER_RADIUS = 4
+
 export const DEFAULT_COLOR = {
   BAR: '#3b82f6',
   LABEL_BACKGROUND: '#fafafa',

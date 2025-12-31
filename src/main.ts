@@ -4,6 +4,7 @@ import type {
   GanttChartOption,
   GanttRow,
   RenderBarContentEventDetail,
+  TaskUpdateEventDetail,
 } from '@/types'
 
 let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
@@ -50,9 +51,11 @@ let isReadOnly = false
 const renderApp = () => {
   const option: GanttChartOption = {
     chartStart,
-    barHeight,
-    barMargin,
-    barCornerRadius,
+    bar: {
+      height: barHeight,
+      margin: barMargin,
+      cornerRadius: barCornerRadius,
+    },
     label: {
       width: labelWidth,
     },
@@ -88,14 +91,24 @@ const renderApp = () => {
         @rows-change="${(e: CustomEvent) => {
           rows = e.detail
         }}"
+        @task-update="${handleTaskUpdate}"
         @render-bar-content="${handleRenderBarContent}"
-      ></gantt-chart>
+      />
     </div>
   `
   render(template, document.getElementById('app')!)
 }
 
-function handleRenderBarContent(e: CustomEvent<RenderBarContentEventDetail>) {
+const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
+  if (e.detail.isDragging) {
+    return
+  }
+  console.log('Task Update:', e.detail)
+}
+
+const handleRenderBarContent = (
+  e: CustomEvent<RenderBarContentEventDetail>,
+) => {
   const { container, task } = e.detail
 
   // サンプル: タスクIDに基づいて擬似的な進捗率を表示

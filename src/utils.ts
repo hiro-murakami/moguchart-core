@@ -1,4 +1,6 @@
-import type { GanttTask, TaskWithLane } from '@/types'
+import type { GanttTask, TaskWithLane, GanttChartOption } from '@/types'
+import * as holiday_jp from '@holiday-jp/holiday_jp'
+import { DEFAULT_COLOR } from '@/constants'
 
 // ユーティリティ: 日付からX座標を計算
 export const dateToX = (date: Date, startDate: Date, pxPerDay: number) => {
@@ -56,4 +58,25 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     tasksWithLanes,
     laneCount: lanes.length || 1,
   }
+}
+
+export const getCalendarColor = (
+  date: Date,
+  option: GanttChartOption,
+): string => {
+  const dayOfWeek = date.getDay()
+  const isHolidayDay = holiday_jp.isHoliday(date)
+
+  if (isHolidayDay) {
+    return (
+      option.calendar.color?.holiday ??
+      option.calendar.color?.sunday ??
+      DEFAULT_COLOR.HOLIDAY
+    )
+  } else if (dayOfWeek === 0) {
+    return option.calendar.color?.sunday ?? DEFAULT_COLOR.SUNDAY
+  } else if (dayOfWeek === 6) {
+    return option.calendar.color?.saturday ?? DEFAULT_COLOR.SATURDAY
+  }
+  return ''
 }

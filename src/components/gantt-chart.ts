@@ -10,6 +10,7 @@ import type {
   GanttTask,
 } from '@/types'
 import { calculateTaskLanes } from '@/utils'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '@/constants'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -40,6 +41,7 @@ export class GanttChartElement extends LitElement {
       height: 100%;
       overflow: auto;
       position: relative;
+      overflow-anchor: none;
     }
   `
 
@@ -71,9 +73,10 @@ export class GanttChartElement extends LitElement {
     let top = 0
     const layouts = this.rows.map((row) => {
       const { laneCount } = calculateTaskLanes(row.tasks)
-      const height =
-        laneCount * (this.option.barHeight + this.option.barMargin) +
-        this.option.barMargin
+      const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+      const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+
+      const height = laneCount * (barHeight + barMargin) + barMargin
       const layout = { top, height }
       top += height
       return layout
@@ -83,7 +86,18 @@ export class GanttChartElement extends LitElement {
 
   private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail>) {
     e.stopPropagation()
-    const { id, start, end, dy, isDragging } = e.detail
+    const { id, start, end, dx, dy, isDragging } = e.detail
+
+    let newStart = start
+    let newEnd = end
+
+    if (dx !== undefined) {
+      const daysDiff = Math.round(dx / this.option.calendar.pxPerDay)
+      newStart = new Date(start)
+      newStart.setDate(start.getDate() + daysDiff)
+      newEnd = new Date(end)
+      newEnd.setDate(end.getDate() + daysDiff)
+    }
 
     let sourceRowIndex = -1
     let taskToMove: GanttTask | undefined
@@ -110,11 +124,11 @@ export class GanttChartElement extends LitElement {
     )
     const taskWithLane = tasksWithLanes.find((t) => t.id === id)
     const lane = taskWithLane ? taskWithLane.lane : 0
-    const taskInitialY =
-      lane * (this.option.barHeight + this.option.barMargin) +
-      this.option.barMargin
-    const currentY =
-      dragStartRowTop + taskInitialY + dy + this.option.barHeight / 2
+    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+
+    const taskInitialY = lane * (barHeight + barMargin) + barMargin
+    const currentY = dragStartRowTop + taskInitialY + dy + barHeight / 2
 
     let targetRowIndex = -1
     for (let i = 0; i < rowLayouts.length; i++) {
@@ -128,8 +142,24 @@ export class GanttChartElement extends LitElement {
       }
     }
 
+    const targetRowId =
+      targetRowIndex !== -1 ? this.rows[targetRowIndex].id : undefined
+
+    this.dispatchEvent(
+      new CustomEvent('task-update', {
+        detail: {
+          ...e.detail,
+          start: newStart,
+          end: newEnd,
+          targetRowId,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
     if (isDragging) {
-      this.draggingTask = { id, start, end }
+      this.draggingTask = { id, start, end } // 元の日付を保持（表示ズレ防止）
       this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
       return
     }
@@ -149,12 +179,12 @@ export class GanttChartElement extends LitElement {
       newRows[targetRowIndex] = targetRow
 
       const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
-      targetRow.tasks.push({ ...movedTask, start, end })
+      targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
     } else {
       sourceRow.tasks[taskIndexInSource] = {
         ...taskToMove,
-        start,
-        end,
+        start: newStart,
+        end: newEnd,
       }
     }
 

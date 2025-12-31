@@ -1,7 +1,12 @@
 import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '@/types'
-import { DEFAULT_BAR_COLOR } from '@/constants'
+import {
+  DEFAULT_BAR_COLOR,
+  DEFAULT_BAR_HEIGHT,
+  DEFAULT_BAR_MARGIN,
+  DEFAULT_BAR_CORNER_RADIUS,
+} from '@/constants'
 
 @customElement('gantt-bar')
 export class GanttBarElement extends LitElement {
@@ -122,6 +127,40 @@ export class GanttBarElement extends LitElement {
     return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
   }
 
+  private setupDragEvents(
+    target: HTMLElement,
+    pointerId: number,
+    onMove: (e: PointerEvent) => void,
+    onEnd: (isCancel: boolean, e?: PointerEvent) => void,
+  ) {
+    const cleanup = () => {
+      target.releasePointerCapture(pointerId)
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+
+    const handleMove = (e: PointerEvent) => {
+      onMove(e)
+    }
+
+    const handleUp = (e: PointerEvent) => {
+      cleanup()
+      onEnd(false, e)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cleanup()
+        onEnd(true)
+      }
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('keydown', handleKeyDown)
+  }
+
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
     e.stopPropagation()
     const target = e.target as HTMLElement
@@ -142,69 +181,82 @@ export class GanttBarElement extends LitElement {
     let currentStart = new Date(originalStart)
     let currentEnd = new Date(originalEnd)
 
-    const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - startX
-      const daysDiff = Math.round(deltaX / this.option.calendar.pxPerDay)
+    this.setupDragEvents(
+      target,
+      e.pointerId,
+      (moveEvent) => {
+        const deltaX = moveEvent.clientX - startX
+        const daysDiff = Math.round(deltaX / this.option.calendar.pxPerDay)
 
-      let newStart = new Date(originalStart)
-      let newEnd = new Date(originalEnd)
+        let newStart = new Date(originalStart)
+        let newEnd = new Date(originalEnd)
 
-      if (handle === 'left') {
-        newStart.setDate(originalStart.getDate() + daysDiff)
-        if (newStart >= newEnd) {
-          // 終了日を越えないように1日前に制限
-          newStart = new Date(newEnd.getTime() - 86400000)
+        if (handle === 'left') {
+          newStart.setDate(originalStart.getDate() + daysDiff)
+          if (newStart >= newEnd) {
+            // 終了日を越えないように1日前に制限
+            newStart = new Date(newEnd.getTime() - 86400000)
+          }
+        } else {
+          newEnd.setDate(originalEnd.getDate() + daysDiff)
+          if (newEnd <= newStart) {
+            // 開始日より前にならないように1日後に制限
+            newEnd = new Date(newStart.getTime() + 86400000)
+          }
         }
-      } else {
-        newEnd.setDate(originalEnd.getDate() + daysDiff)
-        if (newEnd <= newStart) {
-          // 開始日より前にならないように1日後に制限
-          newEnd = new Date(newStart.getTime() + 86400000)
+
+        currentStart = newStart
+        currentEnd = newEnd
+
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: newStart,
+              end: newEnd,
+              dy: 0,
+              isDragging: true,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+      (isCancel) => {
+        taskGroup?.classList.remove('dragging')
+        barEl.style.pointerEvents = ''
+
+        if (isCancel) {
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: originalStart,
+                end: originalEnd,
+                dy: 0,
+                isDragging: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        } else {
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: currentStart,
+                end: currentEnd,
+                dy: 0,
+                isDragging: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
         }
-      }
-
-      currentStart = newStart
-      currentEnd = newEnd
-
-      this.dispatchEvent(
-        new CustomEvent('task-update', {
-          detail: {
-            ...this.task,
-            start: newStart,
-            end: newEnd,
-            dy: 0,
-            isDragging: true,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-
-    const onPointerUp = () => {
-      taskGroup?.classList.remove('dragging')
-      target.releasePointerCapture(e.pointerId)
-      barEl.style.pointerEvents = ''
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-
-      this.dispatchEvent(
-        new CustomEvent('task-update', {
-          detail: {
-            ...this.task,
-            start: currentStart,
-            end: currentEnd,
-            dy: 0,
-            isDragging: false,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
+      },
+    )
   }
 
   // --- 追加: 移動（Move）ロジック ---
@@ -229,69 +281,79 @@ export class GanttBarElement extends LitElement {
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
 
-    const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - startX
-      const deltaY = moveEvent.clientY - startY
+    this.setupDragEvents(
+      target,
+      e.pointerId,
+      (moveEvent) => {
+        const deltaX = moveEvent.clientX - startX
+        const deltaY = moveEvent.clientY - startY
 
-      // Shiftキーを押している間はスナップを無効化（滑らかに移動）
-      // 通常はグリッド（1日単位）にスナップさせる
-      const translateX = moveEvent.shiftKey
-        ? deltaX
-        : Math.round(deltaX / this.option.calendar.pxPerDay) *
+        // 横方向のスナップ処理
+        const translateX =
+          Math.round(deltaX / this.option.calendar.pxPerDay) *
           this.option.calendar.pxPerDay
 
-      taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
+        taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
 
-      this.dispatchEvent(
-        new CustomEvent('task-update', {
-          detail: {
-            ...this.task,
-            start: originalStart, // ドラッグ中は日付を更新しない（スナップ防止）
-            end: originalEnd,
-            dy: deltaY,
-            isDragging: true,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: originalStart,
+              end: originalEnd,
+              dx: translateX,
+              dy: deltaY,
+              isDragging: true,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+      (isCancel, upEvent) => {
+        taskGroup.classList.remove('dragging')
+        taskGroup.style.transform = ''
+        target.style.cursor = ''
 
-    const onPointerUp = (upEvent: PointerEvent) => {
-      taskGroup.classList.remove('dragging')
-      taskGroup.style.transform = ''
-      target.style.cursor = ''
-      target.releasePointerCapture(e.pointerId)
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
+        if (isCancel) {
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: originalStart,
+                end: originalEnd,
+                dx: 0,
+                dy: 0,
+                isDragging: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        } else if (upEvent) {
+          const finalDeltaX = upEvent.clientX - startX
+          const finalTranslateX =
+            Math.round(finalDeltaX / this.option.calendar.pxPerDay) *
+            this.option.calendar.pxPerDay
+          const finalDeltaY = upEvent.clientY - startY
 
-      const finalDeltaX = upEvent.clientX - startX
-      const finalDaysDiff = Math.round(
-        finalDeltaX / this.option.calendar.pxPerDay,
-      )
-      const finalNewStart = new Date(originalStart)
-      finalNewStart.setDate(originalStart.getDate() + finalDaysDiff)
-      const finalNewEnd = new Date(originalEnd)
-      finalNewEnd.setDate(originalEnd.getDate() + finalDaysDiff)
-      const finalDeltaY = upEvent.clientY - startY
-
-      this.dispatchEvent(
-        new CustomEvent('task-update', {
-          detail: {
-            ...this.task,
-            start: finalNewStart,
-            end: finalNewEnd,
-            dy: finalDeltaY,
-            isDragging: false, // ドロップしたことを示す
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: originalStart,
+                end: originalEnd,
+                dx: finalTranslateX,
+                dy: finalDeltaY,
+                isDragging: false, // ドロップしたことを示す
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        }
+      },
+    )
   }
 
   protected updated(changedProperties: PropertyValues): void {
@@ -319,9 +381,12 @@ export class GanttBarElement extends LitElement {
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x
     const barColor = this.task.color || DEFAULT_BAR_COLOR
-    const y =
-      this.lane * (this.option.barHeight + this.option.barMargin) +
-      this.option.barMargin
+    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+    const barCornerRadius =
+      this.option.bar?.cornerRadius ?? DEFAULT_BAR_CORNER_RADIUS
+
+    const y = this.lane * (barHeight + barMargin) + barMargin
     const isReadOnly = this.option.readOnly
     const duration = Math.round(
       (this.task.end.getTime() - this.task.start.getTime()) /
@@ -339,7 +404,7 @@ export class GanttBarElement extends LitElement {
           left: ${x}px;
           top: ${y}px;
           width: ${width}px;
-          height: ${this.option.barHeight}px;
+          height: ${barHeight}px;
         "
       >
         <div class="tooltip">
@@ -351,8 +416,9 @@ export class GanttBarElement extends LitElement {
         </div>
         <div
           class="bar"
-          style="background-color: ${barColor}; border-radius: ${this.option
-            .barCornerRadius}px; ${isReadOnly ? 'cursor: default;' : ''}"
+          style="background-color: ${barColor}; border-radius: ${barCornerRadius}px; ${isReadOnly
+            ? 'cursor: default;'
+            : ''}"
           @pointerdown="${isReadOnly ? undefined : this.onMoveStart}"
         ></div>
         ${this.task.name
