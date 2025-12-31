@@ -4,6 +4,7 @@ export interface GanttTask {
   start: Date
   end: Date
   color?: string
+  dependencies?: string[]
 }
 
 export interface GanttRow {
@@ -34,10 +35,10 @@ export interface GanttChartOptionColor {
 }
 
 export interface GanttChartOption {
-  chartStart: Date
   bar?: GanttChartOptionBar
   label?: GanttChartOptionLabel
   calendar: {
+    start: Date
     color?: GanttChartOptionColor
     pxPerDay: number
     monthFormat?: string

@@ -22,7 +22,7 @@ export class GanttRowBackgroundElement extends LitElement {
 
   render() {
     const days = Array.from({ length: this.totalDays }, (_, i) => {
-      const d = new Date(this.option.chartStart)
+      const d = new Date(this.option.calendar.start)
       d.setDate(d.getDate() + i)
       return d
     })

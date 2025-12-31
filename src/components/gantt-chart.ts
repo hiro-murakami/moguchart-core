@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit'
+import { LitElement, html, css, svg } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { throttle } from 'lodash'
 import './gantt-row'
@@ -10,7 +10,11 @@ import type {
   GanttTask,
 } from '@/types'
 import { calculateTaskLanes } from '@/utils'
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '@/constants'
+import {
+  DEFAULT_BAR_HEIGHT,
+  DEFAULT_BAR_MARGIN,
+  DEFAULT_LABEL_WIDTH,
+} from '@/constants'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -23,6 +27,7 @@ export class GanttChartElement extends LitElement {
   @state() private draggingTask: { id: string; start: Date; end: Date } | null =
     null
   @state() private viewportHeight = 400
+  @state() private calendarHeight = 0
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -43,16 +48,30 @@ export class GanttChartElement extends LitElement {
       position: relative;
       overflow-anchor: none;
     }
+    .dependency-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
   `
 
-  connectedCallback() {
-    super.connectedCallback()
+  protected firstUpdated() {
+    const calendar = this.shadowRoot?.getElementById('calendar')
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        this.viewportHeight = entry.contentRect.height
+        if (entry.target === this) {
+          this.viewportHeight = entry.contentRect.height
+        } else if (entry.target === calendar) {
+          this.calendarHeight = (entry.target as HTMLElement).offsetHeight
+        }
       }
     })
     this.resizeObserver.observe(this)
+    if (calendar) {
+      this.resizeObserver.observe(calendar)
+    }
   }
 
   disconnectedCallback() {
@@ -69,19 +88,56 @@ export class GanttChartElement extends LitElement {
     this.virtualScrollTop = scrollTop
   }, 100)
 
-  private getRowLayouts() {
+  private getDateX(date: Date) {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    const start = new Date(this.option.calendar.start)
+    start.setHours(0, 0, 0, 0)
+    const diff = d.getTime() - start.getTime()
+    const days = diff / (1000 * 60 * 60 * 24)
+    return days * (this.option.calendar.pxPerDay ?? 50)
+  }
+
+  private calculateLayout() {
     let top = 0
+    const labelWidth = this.option.label?.width ?? DEFAULT_LABEL_WIDTH
+    const taskCoords = new Map<
+      string,
+      {
+        x: number
+        y: number
+        width: number
+        height: number
+        dependencies?: string[]
+      }
+    >()
+
     const layouts = this.rows.map((row) => {
-      const { laneCount } = calculateTaskLanes(row.tasks)
+      const { tasksWithLanes, laneCount } = calculateTaskLanes(row.tasks)
       const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
       const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+
+      tasksWithLanes.forEach((task: any) => {
+        const x = this.getDateX(task.start) + labelWidth
+        const endX = this.getDateX(task.end) + labelWidth
+        const width = endX - x
+        const y = top + task.lane * (barHeight + barMargin) + barMargin
+        taskCoords.set(task.id, {
+          x,
+          y,
+          width,
+          height: barHeight,
+          dependencies: task.dependencies,
+        })
+      })
 
       const height = laneCount * (barHeight + barMargin) + barMargin
       const layout = { top, height }
       top += height
       return layout
     })
-    return layouts
+
+    return { layouts, taskCoords, totalHeight: top }
   }
 
   private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail>) {
@@ -116,7 +172,7 @@ export class GanttChartElement extends LitElement {
 
     if (sourceRowIndex === -1 || !taskToMove) return
 
-    const rowLayouts = this.getRowLayouts()
+    const { layouts: rowLayouts } = this.calculateLayout()
     const dragStartRowTop = rowLayouts[sourceRowIndex].top
 
     const { tasksWithLanes } = calculateTaskLanes(
@@ -199,12 +255,12 @@ export class GanttChartElement extends LitElement {
   }
 
   render() {
-    const rowLayouts = this.getRowLayouts()
-    const totalContentHeight =
-      rowLayouts.length > 0
-        ? rowLayouts[rowLayouts.length - 1].top +
-          rowLayouts[rowLayouts.length - 1].height
-        : 0
+    const {
+      layouts: rowLayouts,
+      taskCoords,
+      totalHeight,
+    } = this.calculateLayout()
+    const labelWidth = this.option.label?.width ?? DEFAULT_LABEL_WIDTH
 
     const buffer = 5
     let startIndex = 0
@@ -230,14 +286,45 @@ export class GanttChartElement extends LitElement {
     const renderedBottom = lastVisibleRowLayout
       ? lastVisibleRowLayout.top + lastVisibleRowLayout.height
       : 0
-    const paddingBottom = Math.max(0, totalContentHeight - renderedBottom)
+    const paddingBottom = Math.max(0, totalHeight - renderedBottom)
+
+    const lines = []
+    for (const [id, task] of taskCoords) {
+      if (task.dependencies) {
+        for (const depId of task.dependencies) {
+          const depTask = taskCoords.get(depId)
+          if (depTask) {
+            const startX = depTask.x + depTask.width
+            const startY = depTask.y + depTask.height / 2
+            const endX = task.x
+            const endY = task.y + task.height / 2
+            const midX = (startX + endX) / 2
+
+            lines.push(
+              svg`<path d="M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}" stroke="#cbd5e1" stroke-width="2" fill="none" />`,
+            )
+          }
+        }
+      }
+    }
 
     return html`
       <div class="scroll-container" @scroll="${this.handleScroll}">
         <gantt-calendar
+          id="calendar"
           .option="${this.option}"
           .totalDays="${this.totalDays}"
         ></gantt-calendar>
+
+        <svg
+          class="dependency-lines"
+          style="top: ${this.calendarHeight}px;"
+          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) +
+          labelWidth}"
+          height="${totalHeight}"
+        >
+          ${lines}
+        </svg>
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 

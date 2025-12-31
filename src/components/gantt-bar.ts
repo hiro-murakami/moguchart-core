@@ -121,7 +121,7 @@ export class GanttBarElement extends LitElement {
   private getX(date: Date) {
     const d = new Date(date)
     d.setHours(0, 0, 0, 0)
-    const start = new Date(this.option.chartStart)
+    const start = new Date(this.option.calendar.start)
     start.setHours(0, 0, 0, 0)
     const diff = d.getTime() - start.getTime()
     return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
