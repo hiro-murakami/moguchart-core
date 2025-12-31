@@ -7,11 +7,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // mode が 'demo' の場合はアプリとしてビルド、それ以外はライブラリとしてビルド
+  // Vercel環境（process.env.VERCEL）または BUILD_MODE が 'demo' の場合はアプリとしてビルド
   build:
-    process.env.BUILD_MODE === 'demo'
+    process.env.BUILD_MODE === 'demo' || process.env.VERCEL
       ? {
-          outDir: 'dist-demo', // デモ用の出力先
+          outDir: 'dist', // Vercelのデフォルト設定（dist）に合わせる
         }
       : {
           lib: {
