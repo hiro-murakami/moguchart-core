@@ -8,37 +8,6 @@ import type {
 } from '@/types'
 import { testRows } from './test-data'
 
-// let rows: GanttRow[] = Array.from({ length: 50 }, (_, i) => {
-//   const rowId = String(i + 1)
-//   const offset = i * 7
-//   return {
-//     id: rowId,
-//     label: `プロジェクト ${rowId}`,
-//     tasks: [
-//       {
-//         id: `${rowId}-1`,
-//         name: `要件定義 ${rowId}`,
-//         start: new Date(2025, 11, 16 + offset),
-//         end: new Date(2025, 11, 21 + offset),
-//         color: '#3b82f6',
-//       },
-//       {
-//         id: `${rowId}-2`,
-//         name: `開発 ${rowId}`,
-//         start: new Date(2025, 11, 23 + offset),
-//         end: new Date(2026, 0, 20 + offset),
-//         color: '#10b981',
-//       },
-//       {
-//         id: `${rowId}-3`,
-//         name: `テスト ${rowId}`,
-//         start: new Date(2026, 0, 25 + offset),
-//         end: new Date(2026, 1, 10 + offset),
-//         color: '#f59e0b',
-//       },
-//     ],
-//   }
-// })
 let rows: GanttRow[] = testRows
 
 const chartStart = new Date()

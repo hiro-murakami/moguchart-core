@@ -27,7 +27,7 @@ const generateProject = (
           name: 'Requirement',
           start: d(0),
           end: d(10), // 10日間
-          color: '#60a5fa', // blue
+          style: 'background-color: #60a5fa; border: 1px solid silver', // blue
         },
         {
           id: `${idPrefix}-t-2`,
@@ -35,7 +35,7 @@ const generateProject = (
           start: d(12),
           end: d(24), // 12日間
           dependencies: [`${idPrefix}-t-1`],
-          color: '#34d399', // green
+          style: 'background-color: #34d399', // green
         },
       ],
     },
@@ -49,7 +49,7 @@ const generateProject = (
           start: d(26),
           end: d(46), // 20日間
           dependencies: [`${idPrefix}-t-2`],
-          color: '#818cf8', // indigo
+          style: 'background-color: #818cf8', // indigo
         },
         {
           id: `${idPrefix}-t-4`,
@@ -57,7 +57,7 @@ const generateProject = (
           start: d(28),
           end: d(48), // 20日間
           dependencies: [`${idPrefix}-t-2`],
-          color: '#f472b6', // pink
+          style: 'background-color: #f472b6', // pink
         },
       ],
     },
@@ -71,7 +71,7 @@ const generateProject = (
           start: d(50),
           end: d(60), // 10日間
           dependencies: [`${idPrefix}-t-3`, `${idPrefix}-t-4`],
-          color: '#fbbf24', // amber
+          style: 'background-color: #fbbf24', // amber
         },
         {
           id: `${idPrefix}-t-6`,
@@ -79,7 +79,7 @@ const generateProject = (
           start: d(62),
           end: d(65), // 3日間
           dependencies: [`${idPrefix}-t-5`],
-          color: '#f87171', // red
+          style: 'background-color: #f87171', // red
         },
       ],
     },

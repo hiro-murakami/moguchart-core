@@ -3,7 +3,7 @@ export interface GanttTask {
   name?: string
   start: Date
   end: Date
-  color?: string
+  style?: string
   dependencies?: string[]
 }
 

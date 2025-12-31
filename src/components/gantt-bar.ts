@@ -1,4 +1,4 @@
-import { LitElement, html, css, type PropertyValues } from 'lit'
+import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '@/types'
 import {
@@ -44,6 +44,7 @@ export class GanttBarElement extends LitElement {
       position: absolute;
       top: 0;
       left: 0;
+      background-color: ${unsafeCSS(DEFAULT_BAR_COLOR)};
     }
     .handle-left,
     .handle-right {
@@ -380,7 +381,6 @@ export class GanttBarElement extends LitElement {
 
     const x = this.getX(this.task.start)
     const width = this.getX(this.task.end) - x
-    const barColor = this.task.color || DEFAULT_BAR_COLOR
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
     const barCornerRadius =
@@ -416,9 +416,8 @@ export class GanttBarElement extends LitElement {
         </div>
         <div
           class="bar"
-          style="background-color: ${barColor}; border-radius: ${barCornerRadius}px; ${isReadOnly
-            ? 'cursor: default;'
-            : ''}"
+          style="border-radius: ${barCornerRadius}px; ${this.task.style ||
+          ''}; ${isReadOnly ? 'cursor: default;' : ''}"
           @pointerdown="${isReadOnly ? undefined : this.onMoveStart}"
         ></div>
         ${this.task.name
