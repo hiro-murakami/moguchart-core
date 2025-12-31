@@ -289,7 +289,7 @@ export class GanttChartElement extends LitElement {
     const paddingBottom = Math.max(0, totalHeight - renderedBottom)
 
     const lines = []
-    for (const [id, task] of taskCoords) {
+    for (const [_, task] of taskCoords) {
       if (task.dependencies) {
         for (const depId of task.dependencies) {
           const depTask = taskCoords.get(depId)
