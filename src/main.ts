@@ -4,6 +4,7 @@ import type {
   GanttChartOption,
   GanttRow,
   RenderBarContentEventDetail,
+  RenderRowHeaderEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
 import { testRows } from './test-data'
@@ -16,7 +17,7 @@ const totalDays = 200 // 表示する日数
 const barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
-const labelWidth = 150
+const labelWidth = 250
 let isReadOnly = false
 
 const renderApp = () => {
@@ -64,6 +65,7 @@ const renderApp = () => {
         }}"
         @task-update="${handleTaskUpdate}"
         @render-bar-content="${handleRenderBarContent}"
+        @render-row-header="${handleRenderRowHeader}"
       />
     </div>
   `
@@ -81,7 +83,45 @@ const handleRenderBarContent = (
   e: CustomEvent<RenderBarContentEventDetail>,
 ) => {
   const { container, task } = e.detail
-  console.log('RenderBarContent', container, task)
+
+  // サンプル: バーの中に進捗状況を表示する（ダミーデータ）
+  // IDから適当な進捗率を生成
+  const progressPercent = (task.id.charCodeAt(task.id.length - 1) * 13) % 100
+
+  // 進捗バーの背景
+  const progressBar = document.createElement('div')
+  progressBar.style.width = `${progressPercent}%`
+  progressBar.style.height = '100%'
+  progressBar.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+  progressBar.style.position = 'absolute'
+  progressBar.style.top = '0'
+  progressBar.style.left = '0'
+
+  // 進捗率のテキスト
+  const progressText = document.createElement('span')
+  progressText.textContent = `${progressPercent}%`
+  progressText.style.position = 'absolute'
+  progressText.style.right = '4px'
+  progressText.style.top = '50%'
+  progressText.style.transform = 'translateY(-50%)'
+  progressText.style.fontSize = '10px'
+  progressText.style.color = 'rgba(255, 255, 255, 0.9)'
+  progressText.style.fontWeight = 'bold'
+
+  // コンテナに追加
+  container.style.overflow = 'hidden'
+  container.appendChild(progressBar)
+  container.appendChild(progressText)
+}
+
+const handleRenderRowHeader = (e: CustomEvent<RenderRowHeaderEventDetail>) => {
+  const { container, row } = e.detail
+  // サンプル: ラベルを太字にして、IDを小さく表示する
+  container.innerHTML = `
+    <div style="display: flex; flex-direction: column;">
+      <div style="font-weight: bold;">${row.label}</div>
+      <div style="font-size: 10px; color: #666;">${row.id}</div>
+    </div>`
 }
 
 renderApp()

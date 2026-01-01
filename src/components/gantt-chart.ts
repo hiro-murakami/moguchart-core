@@ -288,6 +288,7 @@ export class GanttChartElement extends LitElement {
       : 0
     const paddingBottom = Math.max(0, totalHeight - renderedBottom)
 
+    // タスク間の接続線を描く
     const lines = []
     for (const [_, task] of taskCoords) {
       if (task.dependencies) {

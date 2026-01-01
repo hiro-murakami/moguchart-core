@@ -58,3 +58,8 @@ export interface RenderBarContentEventDetail {
   container: HTMLElement
   task: GanttTask
 }
+
+export interface RenderRowHeaderEventDetail {
+  container: HTMLElement
+  row: GanttRow
+}

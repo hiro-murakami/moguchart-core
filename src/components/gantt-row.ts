@@ -1,4 +1,4 @@
-import { LitElement, html, css, unsafeCSS } from 'lit'
+import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { calculateTaskLanes } from '@/utils'
 import type { GanttRow, GanttChartOption } from '@/types'
@@ -40,7 +40,7 @@ export class GanttRowElement extends LitElement {
       box-sizing: border-box;
       background: inherit;
     }
-    .label {
+    .row-header {
       font-size: 13px;
       padding-left: 15px;
       border-right: 1px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
@@ -58,6 +58,34 @@ export class GanttRowElement extends LitElement {
       position: relative;
     }
   `
+
+  protected updated(changedProperties: PropertyValues): void {
+    super.updated(changedProperties)
+
+    const rowHeaderEl = this.shadowRoot?.querySelector(
+      '.row-header',
+    ) as HTMLElement
+    if (rowHeaderEl) {
+      // Clear content to avoid conflict with Lit rendering and allow customization
+      rowHeaderEl.innerHTML = ''
+
+      this.dispatchEvent(
+        new CustomEvent('render-row-header', {
+          detail: {
+            container: rowHeaderEl,
+            row: this.row,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+
+      // If no content was added by the event listener, show the default label
+      if (rowHeaderEl.innerHTML === '') {
+        rowHeaderEl.textContent = this.row.label
+      }
+    }
+  }
 
   render() {
     const { tasksWithLanes, laneCount } = calculateTaskLanes(this.row.tasks)
@@ -77,13 +105,11 @@ export class GanttRowElement extends LitElement {
     return html`
       <div class="row-container">
         <div
-          class="label"
+          class="row-header"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_LABEL_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
-        >
-          ${this.row.label}
-        </div>
+        ></div>
         <div
           class="bars-container"
           style="${backgroundStyle}; width: ${this.totalDays *
