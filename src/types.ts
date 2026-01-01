@@ -46,6 +46,7 @@ export interface GanttChartOption {
   }
   readOnly?: boolean
   tooltipDelay?: number
+  showDragInfoOverlay?: boolean
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
@@ -86,4 +87,17 @@ export interface TaskClickEventDetail {
 export interface TaskContextMenuEventDetail {
   task: GanttTask
   event: MouseEvent
+}
+
+export interface RenderDragInfoEventDetail {
+  container: HTMLElement
+  task: {
+    id: string
+    name?: string
+    start: Date
+    end: Date
+  }
+  newStart: Date
+  newEnd: Date
+  targetRow?: GanttRow
 }

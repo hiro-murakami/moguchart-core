@@ -5,6 +5,7 @@ import type {
   GanttRow,
   RenderBarContentEventDetail,
   RenderRowHeaderEventDetail,
+  RenderDragInfoEventDetail,
   RenderTooltipEventDetail,
   TaskClickEventDetail,
   TaskContextMenuEventDetail,
@@ -23,6 +24,7 @@ const barCornerRadius = 4
 let rowHeaderWidth = 200
 let isReadOnly = false
 let tooltipDelay = 500
+let showDragInfoOverlay = true
 
 const renderApp = () => {
   const option: GanttChartOption = {
@@ -40,6 +42,7 @@ const renderApp = () => {
     },
     readOnly: isReadOnly,
     tooltipDelay,
+    showDragInfoOverlay,
   }
 
   const template = html`
@@ -60,6 +63,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           表示専用モード
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showDragInfoOverlay}"
+            @change="${(e: Event) => {
+              showDragInfoOverlay = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          ドラッグ情報を表示
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -153,6 +169,7 @@ const renderApp = () => {
         @render-tooltip="${handleRenderTooltip}"
         @task-dblclick="${handleTaskDblClick}"
         @task-contextmenu="${handleTaskContextMenu}"
+        @render-drag-info="${handleRenderDragInfo}"
       />
     </div>
   `
@@ -285,6 +302,16 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
   requestAnimationFrame(() => {
     document.addEventListener('click', closeMenu)
   })
+}
+
+const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
+  const { container, task, newStart, newEnd, targetRow } = e.detail
+  // サンプル: ドラッグ情報のカスタマイズ
+  container.innerHTML = `
+    <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
+    <div style="font-size: 12px;">${newStart.toLocaleDateString()} - ${newEnd.toLocaleDateString()}</div>
+    ${targetRow ? `<div style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">移動先: ${targetRow.label}</div>` : ''}
+  `
 }
 
 renderApp()

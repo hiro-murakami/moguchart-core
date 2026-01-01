@@ -25,8 +25,14 @@ export class GanttChartElement extends LitElement {
 
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
-  @state() private draggingTask: { id: string; start: Date; end: Date } | null =
-    null
+  @state() private draggingTask: {
+    id: string
+    name?: string
+    start: Date
+    end: Date
+    currentStart: Date
+    currentEnd: Date
+  } | null = null
   @state() private viewportHeight = 400
   @state() private calendarHeight = 0
   @state() private tooltip: { task: GanttTask; x: number; y: number } | null =
@@ -86,6 +92,29 @@ export class GanttChartElement extends LitElement {
       border-width: 4px;
       border-style: solid;
       border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+    }
+    .drag-info-overlay {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+    }
+    .drag-info-sub {
+      font-size: 12px;
+      color: #cbd5e1;
     }
   `
 
@@ -149,6 +178,58 @@ export class GanttChartElement extends LitElement {
               ${formatDate(this.tooltip.task.end)}
             </div>
             <div class="tooltip-row">所要日数: ${duration}日</div>`
+        }
+      }
+    }
+
+    if (this.draggingTask && this.option.showDragInfoOverlay !== false) {
+      const dragInfoEl = this.shadowRoot?.querySelector(
+        '.drag-info-overlay',
+      ) as HTMLElement
+      if (dragInfoEl) {
+        dragInfoEl.innerHTML = ''
+
+        const targetRow =
+          this.dragTargetRowIndex !== null
+            ? this.rows[this.dragTargetRowIndex]
+            : undefined
+
+        this.dispatchEvent(
+          new CustomEvent('render-drag-info', {
+            detail: {
+              container: dragInfoEl,
+              task: {
+                id: this.draggingTask.id,
+                name: this.draggingTask.name,
+                start: this.draggingTask.start,
+                end: this.draggingTask.end,
+              },
+              newStart: this.draggingTask.currentStart,
+              newEnd: this.draggingTask.currentEnd,
+              targetRow,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+
+        if (dragInfoEl.innerHTML === '') {
+          const formatDate = (d: Date) => {
+            return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+          }
+          dragInfoEl.innerHTML = `
+              <div style="font-weight: bold;">
+                ${this.draggingTask.name || 'No Title'}
+              </div>
+              <div class="drag-info-sub">
+                ${formatDate(this.draggingTask.currentStart)} -
+                ${formatDate(this.draggingTask.currentEnd)}
+              </div>
+              ${
+                targetRow
+                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid #666; padding-top: 4px; width: 100%;">移動先: ${targetRow.label}</div>`
+                  : ''
+              }`
         }
       }
     }
@@ -295,7 +376,20 @@ export class GanttChartElement extends LitElement {
     )
 
     if (isDragging) {
-      this.draggingTask = { id, start, end } // 元の日付を保持（表示ズレ防止）
+      // ドラッグ中はツールチップを非表示にする
+      if (this.hoverTimer !== undefined) {
+        window.clearTimeout(this.hoverTimer)
+      }
+      this.tooltip = null
+
+      this.draggingTask = {
+        id,
+        name: e.detail.name,
+        start,
+        end,
+        currentStart: newStart,
+        currentEnd: newEnd,
+      } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
       this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
       return
     }
@@ -335,6 +429,10 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {
+    // ドラッグ中はツールチップを表示しない
+    if (this.draggingTask) {
+      return
+    }
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
     }
@@ -452,6 +550,9 @@ export class GanttChartElement extends LitElement {
         <div style="height: ${paddingBottom}px; width: 1px;"></div>
       </div>
 
+      ${this.draggingTask && this.option.showDragInfoOverlay !== false
+        ? html` <div class="drag-info-overlay"></div> `
+        : ''}
       ${this.tooltip
         ? html`
             <div

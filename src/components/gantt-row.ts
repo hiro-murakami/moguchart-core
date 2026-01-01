@@ -21,6 +21,9 @@ export class GanttRowElement extends LitElement {
     id: string
     start: Date
     end: Date
+    name?: string
+    currentStart?: Date
+    currentEnd?: Date
   } | null = null
 
   static styles = css`
