@@ -34,9 +34,23 @@ export class GanttChartElement extends LitElement {
     currentEnd: Date
   } | null = null
   @state() private viewportHeight = 400
+  @state() private dragOverlayInfo: {
+    id: string
+    name?: string
+    start: Date
+    end: Date
+    currentStart: Date
+    currentEnd: Date
+    targetRow?: GanttRow
+    visible: boolean
+  } | null = null
   @state() private calendarHeight = 0
-  @state() private tooltip: { task: GanttTask; x: number; y: number } | null =
-    null
+  @state() private tooltip: {
+    task: GanttTask
+    x: number
+    y: number
+    visible: boolean
+  } | null = null
   private hoverTimer: number | undefined
 
   private resizeObserver: ResizeObserver | null = null
@@ -79,6 +93,11 @@ export class GanttChartElement extends LitElement {
       margin-top: -6px;
       text-align: left;
       line-height: 1.4;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .tooltip.visible {
+      opacity: 1;
     }
     .tooltip-row {
       display: block;
@@ -111,6 +130,11 @@ export class GanttChartElement extends LitElement {
       align-items: center;
       gap: 4px;
       text-align: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .drag-info-overlay.visible {
+      opacity: 1;
     }
     .drag-info-sub {
       font-size: 12px;
@@ -182,30 +206,26 @@ export class GanttChartElement extends LitElement {
       }
     }
 
-    if (this.draggingTask && this.option.showDragInfoOverlay !== false) {
+    if (this.dragOverlayInfo && this.option.showDragInfoOverlay !== false) {
       const dragInfoEl = this.shadowRoot?.querySelector(
         '.drag-info-overlay',
       ) as HTMLElement
       if (dragInfoEl) {
         dragInfoEl.innerHTML = ''
 
-        const targetRow =
-          this.dragTargetRowIndex !== null
-            ? this.rows[this.dragTargetRowIndex]
-            : undefined
-
+        const { targetRow } = this.dragOverlayInfo
         this.dispatchEvent(
           new CustomEvent('render-drag-info', {
             detail: {
               container: dragInfoEl,
               task: {
-                id: this.draggingTask.id,
-                name: this.draggingTask.name,
-                start: this.draggingTask.start,
-                end: this.draggingTask.end,
+                id: this.dragOverlayInfo.id,
+                name: this.dragOverlayInfo.name,
+                start: this.dragOverlayInfo.start,
+                end: this.dragOverlayInfo.end,
               },
-              newStart: this.draggingTask.currentStart,
-              newEnd: this.draggingTask.currentEnd,
+              newStart: this.dragOverlayInfo.currentStart,
+              newEnd: this.dragOverlayInfo.currentEnd,
               targetRow,
             },
             bubbles: true,
@@ -219,11 +239,11 @@ export class GanttChartElement extends LitElement {
           }
           dragInfoEl.innerHTML = `
               <div style="font-weight: bold;">
-                ${this.draggingTask.name || 'No Title'}
+                ${this.dragOverlayInfo.name || 'No Title'}
               </div>
               <div class="drag-info-sub">
-                ${formatDate(this.draggingTask.currentStart)} -
-                ${formatDate(this.draggingTask.currentEnd)}
+                ${formatDate(this.dragOverlayInfo.currentStart)} -
+                ${formatDate(this.dragOverlayInfo.currentEnd)}
               </div>
               ${
                 targetRow
@@ -242,7 +262,9 @@ export class GanttChartElement extends LitElement {
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
     }
-    this.tooltip = null
+    if (this.tooltip) {
+      this.tooltip = { ...this.tooltip, visible: false }
+    }
   }
 
   private updateScrollTop = throttle((scrollTop: number) => {
@@ -380,7 +402,9 @@ export class GanttChartElement extends LitElement {
       if (this.hoverTimer !== undefined) {
         window.clearTimeout(this.hoverTimer)
       }
-      this.tooltip = null
+      if (this.tooltip) {
+        this.tooltip = { ...this.tooltip, visible: false }
+      }
 
       this.draggingTask = {
         id,
@@ -391,12 +415,26 @@ export class GanttChartElement extends LitElement {
         currentEnd: newEnd,
       } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
       this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
+
+      this.dragOverlayInfo = {
+        id,
+        name: e.detail.name,
+        start,
+        end,
+        currentStart: newStart,
+        currentEnd: newEnd,
+        targetRow: targetRowIndex >= 0 ? this.rows[targetRowIndex] : undefined,
+        visible: true,
+      }
       return
     }
 
     // ドロップ時の処理
     this.draggingTask = null
     this.dragTargetRowIndex = null
+    if (this.dragOverlayInfo) {
+      this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
+    }
 
     const newRows = [...this.rows]
     const sourceRow = { ...newRows[sourceRowIndex] }
@@ -429,8 +467,8 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {
-    // ドラッグ中はツールチップを表示しない
-    if (this.draggingTask) {
+    // ドラッグ中、またはshowTooltipがfalseの場合はツールチップを表示しない
+    if (this.draggingTask || this.option.showTooltip === false) {
       return
     }
     if (this.hoverTimer !== undefined) {
@@ -439,10 +477,10 @@ export class GanttChartElement extends LitElement {
     const delay = this.option.tooltipDelay ?? 0
     if (delay > 0) {
       this.hoverTimer = window.setTimeout(() => {
-        this.tooltip = { ...e.detail }
+        this.tooltip = { ...e.detail, visible: true }
       }, delay)
     } else {
-      this.tooltip = { ...e.detail }
+      this.tooltip = { ...e.detail, visible: true }
     }
   }
 
@@ -450,7 +488,9 @@ export class GanttChartElement extends LitElement {
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
     }
-    this.tooltip = null
+    if (this.tooltip) {
+      this.tooltip = { ...this.tooltip, visible: false }
+    }
   }
 
   render() {
@@ -550,13 +590,19 @@ export class GanttChartElement extends LitElement {
         <div style="height: ${paddingBottom}px; width: 1px;"></div>
       </div>
 
-      ${this.draggingTask && this.option.showDragInfoOverlay !== false
-        ? html` <div class="drag-info-overlay"></div> `
+      ${this.dragOverlayInfo && this.option.showDragInfoOverlay !== false
+        ? html`
+            <div
+              class="drag-info-overlay ${this.dragOverlayInfo.visible
+                ? 'visible'
+                : ''}"
+            ></div>
+          `
         : ''}
       ${this.tooltip
         ? html`
             <div
-              class="tooltip"
+              class="tooltip ${this.tooltip.visible ? 'visible' : ''}"
               style="top: ${this.tooltip.y}px; left: ${this.tooltip.x}px;"
             />
           `

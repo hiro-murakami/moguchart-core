@@ -34,18 +34,21 @@ export interface GanttChartOptionColor {
   holiday?: string
 }
 
+export interface GanttChartOptionCalendar {
+  start: Date
+  color?: GanttChartOptionColor
+  pxPerDay: number
+  monthFormat?: string
+  showRowBackground?: boolean
+}
+
 export interface GanttChartOption {
   bar?: GanttChartOptionBar
   rowHeader?: GanttChartOptionRowHeader
-  calendar: {
-    start: Date
-    color?: GanttChartOptionColor
-    pxPerDay: number
-    monthFormat?: string
-    showRowBackground?: boolean
-  }
+  calendar: GanttChartOptionCalendar
   readOnly?: boolean
   tooltipDelay?: number
+  showTooltip?: boolean
   showDragInfoOverlay?: boolean
 }
 
@@ -91,12 +94,7 @@ export interface TaskContextMenuEventDetail {
 
 export interface RenderDragInfoEventDetail {
   container: HTMLElement
-  task: {
-    id: string
-    name?: string
-    start: Date
-    end: Date
-  }
+  task: GanttTask
   newStart: Date
   newEnd: Date
   targetRow?: GanttRow
