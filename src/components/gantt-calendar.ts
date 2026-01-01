@@ -2,7 +2,7 @@ import { LitElement, html, css, unsafeCSS } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
 import {
-  DEFAULT_LABEL_WIDTH,
+  DEFAULT_ROW_HEADER_WIDTH,
   DEFAULT_COLOR,
   DEFAULT_MONTH_FORMAT,
 } from '@/constants'
@@ -99,7 +99,7 @@ export class GanttCalendarElement extends LitElement {
       <div
         class="label-placeholder"
         style="width: ${this.option.rowHeader?.width ??
-        DEFAULT_LABEL_WIDTH}px; background-color: ${this.option.rowHeader
+        DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
           ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
       ></div>
       <div class="calendar-group">

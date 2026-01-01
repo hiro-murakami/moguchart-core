@@ -1,4 +1,4 @@
-export const DEFAULT_LABEL_WIDTH = 150
+export const DEFAULT_ROW_HEADER_WIDTH = 150
 export const DEFAULT_MONTH_FORMAT = 'YYYY年M月'
 
 export const DEFAULT_BAR_HEIGHT = 28

@@ -12,12 +12,12 @@ import { testRows } from './test-data'
 let rows: GanttRow[] = testRows
 
 const chartStart = new Date()
-const pxPerDay = 30 // 共通のスケール
+let pxPerDay = 24
 const totalDays = 200 // 表示する日数
-const barHeight = 28
+let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
-const labelWidth = 250
+let rowHeaderWidth = 200
 let isReadOnly = false
 
 const renderApp = () => {
@@ -28,7 +28,7 @@ const renderApp = () => {
       cornerRadius: barCornerRadius,
     },
     rowHeader: {
-      width: labelWidth,
+      width: rowHeaderWidth,
     },
     calendar: {
       start: chartStart,
@@ -39,10 +39,12 @@ const renderApp = () => {
 
   const template = html`
     <div style="padding: 50px; font-family: sans-serif; color: #333;">
-      <h2>Moguchart 2</h2>
+      <h2>MoguChart 2</h2>
 
-      <div style="margin-bottom: 16px;">
-        <label>
+      <div
+        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center;"
+      >
+        <label style="display: flex; align-items: center; cursor: pointer;">
           <input
             type="checkbox"
             .checked="${isReadOnly}"
@@ -50,8 +52,66 @@ const renderApp = () => {
               isReadOnly = (e.target as HTMLInputElement).checked
               renderApp()
             }}"
+            style="margin-right: 6px;"
           />
           表示専用モード
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          バーの高さ:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              barHeight = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[20, 28, 40, 50, 60].map(
+              (h) => html`
+                <option value="${h}" ?selected="${barHeight === h}">
+                  ${h}px
+                </option>
+              `,
+            )}
+          </select>
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          1日の幅:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              pxPerDay = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[12, 24, 32, 48, 64].map(
+              (w) => html`
+                <option value="${w}" ?selected="${pxPerDay === w}">
+                  ${w}px
+                </option>
+              `,
+            )}
+          </select>
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          行ヘッダーの幅:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              rowHeaderWidth = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[150, 200, 250, 300, 350].map(
+              (w) => html`
+                <option value="${w}" ?selected="${rowHeaderWidth === w}">
+                  ${w}px
+                </option>
+              `,
+            )}
+          </select>
         </label>
       </div>
 

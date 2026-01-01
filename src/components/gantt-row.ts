@@ -5,7 +5,7 @@ import type { GanttRow, GanttChartOption } from '@/types'
 import './gantt-bar'
 import './gantt-row-background'
 import {
-  DEFAULT_LABEL_WIDTH,
+  DEFAULT_ROW_HEADER_WIDTH,
   DEFAULT_COLOR,
   DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
@@ -104,7 +104,7 @@ export class GanttRowElement extends LitElement {
         <div
           class="row-header"
           style="width: ${this.option.rowHeader?.width ??
-          DEFAULT_LABEL_WIDTH}px; background-color: ${this.option.rowHeader
+          DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
         ></div>
         <div
