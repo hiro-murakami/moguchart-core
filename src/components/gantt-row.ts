@@ -30,9 +30,6 @@ export class GanttRowElement extends LitElement {
       min-width: 100%;
       border-bottom: 1px solid #f1f5f9;
       box-sizing: border-box;
-      transition:
-        height 0.2s ease-out,
-        background-color 0.2s;
     }
     .row-container {
       display: flex;

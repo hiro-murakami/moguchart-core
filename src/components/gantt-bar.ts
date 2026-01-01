@@ -37,7 +37,6 @@ export class GanttBarElement extends LitElement {
       z-index: 15;
     }
     .bar {
-      transition: background-color 0.3s;
       cursor: grab;
       width: 100%;
       height: 100%;
