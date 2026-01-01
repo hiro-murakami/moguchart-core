@@ -24,9 +24,6 @@ pnpm add @mogura/moguchart
 npm install @mogura/moguchart
 ```
 
-| `render-tooltip` | `RenderTooltipEventDetail` | ツールチップの中身をカスタマイズするために発火します。 |
-| `render-drag-info` | `RenderDragInfoEventDetail` | ドラッグ中のオーバーレイ情報をカスタマイズするために発火します。 |
-
 ## Vue.js での使用例
 
 Vue.js (Vue 3) で使用する場合のサンプルです。
@@ -83,4 +80,84 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
     ></gantt-chart>
   </div>
 </template>
+```
+
+## React での使用例
+
+React で使用する場合のサンプルです。
+Web Components のプロパティやイベントを扱うため、`ref` を使用して実装します。
+
+```tsx
+import { useEffect, useRef, useState } from 'react'
+import '@mogura/moguchart'
+import type {
+  GanttRow,
+  GanttChartOption,
+  TaskUpdateEventDetail,
+} from '@mogura/moguchart'
+
+// TypeScript で使用する場合の型定義
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'gantt-chart': any
+    }
+  }
+}
+
+export default function App() {
+  const chartRef = useRef<any>(null)
+
+  const [rows] = useState<GanttRow[]>([
+    {
+      id: 'row-1',
+      label: 'Project A',
+      tasks: [
+        {
+          id: 't-1',
+          name: 'Task 1',
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-05'),
+          style: 'background-color: #60a5fa',
+        },
+      ],
+    },
+  ])
+
+  const [option] = useState<GanttChartOption>({
+    calendar: {
+      start: new Date('2024-01-01'),
+      pxPerDay: 30,
+    },
+    bar: { height: 28 },
+    rowHeader: { width: 200 },
+  })
+
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    // プロパティの設定
+    chart.rows = rows
+    chart.option = option
+
+    // イベントリスナーの設定
+    const handleTaskUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<TaskUpdateEventDetail>).detail
+      console.log('Task updated:', detail)
+    }
+
+    chart.addEventListener('task-update', handleTaskUpdate)
+
+    return () => {
+      chart.removeEventListener('task-update', handleTaskUpdate)
+    }
+  }, [rows, option])
+
+  return (
+    <div style={{ height: '500px' }}>
+      <gantt-chart ref={chartRef}></gantt-chart>
+    </div>
+  )
+}
 ```
