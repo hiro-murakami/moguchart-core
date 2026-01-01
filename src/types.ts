@@ -23,7 +23,7 @@ export interface GanttChartOptionBar {
   cornerRadius?: number
 }
 
-export interface GanttChartOptionLabel {
+export interface GanttChartOptionRowHeader {
   width?: number
   backgroundColor?: string
 }
@@ -36,7 +36,7 @@ export interface GanttChartOptionColor {
 
 export interface GanttChartOption {
   bar?: GanttChartOptionBar
-  label?: GanttChartOptionLabel
+  rowHeader?: GanttChartOptionRowHeader
   calendar: {
     start: Date
     color?: GanttChartOptionColor

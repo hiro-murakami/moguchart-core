@@ -26,7 +26,7 @@ const renderApp = () => {
       margin: barMargin,
       cornerRadius: barCornerRadius,
     },
-    label: {
+    rowHeader: {
       width: labelWidth,
     },
     calendar: {

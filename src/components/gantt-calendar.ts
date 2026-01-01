@@ -98,8 +98,8 @@ export class GanttCalendarElement extends LitElement {
     return html`
       <div
         class="label-placeholder"
-        style="width: ${this.option.label?.width ??
-        DEFAULT_LABEL_WIDTH}px; background-color: ${this.option.label
+        style="width: ${this.option.rowHeader?.width ??
+        DEFAULT_LABEL_WIDTH}px; background-color: ${this.option.rowHeader
           ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
       ></div>
       <div class="calendar-group">

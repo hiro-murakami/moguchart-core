@@ -100,7 +100,7 @@ export class GanttChartElement extends LitElement {
 
   private calculateLayout() {
     let top = 0
-    const labelWidth = this.option.label?.width ?? DEFAULT_LABEL_WIDTH
+    const labelWidth = this.option.rowHeader?.width ?? DEFAULT_LABEL_WIDTH
     const taskCoords = new Map<
       string,
       {
@@ -260,7 +260,7 @@ export class GanttChartElement extends LitElement {
       taskCoords,
       totalHeight,
     } = this.calculateLayout()
-    const labelWidth = this.option.label?.width ?? DEFAULT_LABEL_WIDTH
+    const labelWidth = this.option.rowHeader?.width ?? DEFAULT_LABEL_WIDTH
 
     const buffer = 5
     let startIndex = 0
