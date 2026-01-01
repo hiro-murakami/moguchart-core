@@ -6,6 +6,8 @@ import type {
   RenderBarContentEventDetail,
   RenderRowHeaderEventDetail,
   RenderTooltipEventDetail,
+  TaskClickEventDetail,
+  TaskContextMenuEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
 import { testRows } from './test-data'
@@ -149,6 +151,8 @@ const renderApp = () => {
         @render-bar-content="${handleRenderBarContent}"
         @render-row-header="${handleRenderRowHeader}"
         @render-tooltip="${handleRenderTooltip}"
+        @task-dblclick="${handleTaskDblClick}"
+        @task-contextmenu="${handleTaskContextMenu}"
       />
     </div>
   `
@@ -215,6 +219,72 @@ const handleRenderTooltip = (e: CustomEvent<RenderTooltipEventDetail>) => {
     <div style="font-size: 10px;">${task.start.toLocaleDateString()} - ${task.end.toLocaleDateString()}</div>
     <div style="font-size: 10px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">ID: ${task.id}</div>
   `
+}
+
+const handleTaskDblClick = (e: CustomEvent<TaskClickEventDetail>) => {
+  const { task } = e.detail
+  alert(`詳細編集: ${task.name} (ID: ${task.id})`)
+}
+
+const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
+  const { task, event } = e.detail
+
+  // 既存のメニューを削除
+  const oldMenu = document.getElementById('custom-context-menu')
+  if (oldMenu) {
+    oldMenu.remove()
+  }
+
+  const menu = document.createElement('div')
+  menu.id = 'custom-context-menu'
+  menu.style.cssText = `
+    position: fixed;
+    top: ${event.clientY}px;
+    left: ${event.clientX}px;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 9999;
+    border-radius: 4px;
+    padding: 4px 0;
+    min-width: 150px;
+  `
+
+  const items = [
+    { label: '編集', action: () => alert(`編集: ${task.name}`) },
+    { label: '複製', action: () => alert(`複製: ${task.name}`) },
+    { label: '削除', action: () => alert(`削除: ${task.name}`), color: 'red' },
+  ]
+
+  items.forEach((item) => {
+    const el = document.createElement('div')
+    el.textContent = item.label
+    el.style.cssText = `
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: ${item.color || '#333'};
+    `
+    el.onmouseenter = () => (el.style.background = '#f5f5f5')
+    el.onmouseleave = () => (el.style.background = 'transparent')
+    el.onclick = () => {
+      item.action()
+      menu.remove()
+    }
+    menu.appendChild(el)
+  })
+
+  document.body.appendChild(menu)
+
+  const closeMenu = () => {
+    menu.remove()
+    document.removeEventListener('click', closeMenu)
+  }
+
+  // 少し遅延させてクリックイベントを登録しないと、即座に閉じてしまう可能性がある
+  requestAnimationFrame(() => {
+    document.addEventListener('click', closeMenu)
+  })
 }
 
 renderApp()

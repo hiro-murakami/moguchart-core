@@ -77,3 +77,13 @@ export interface RenderTooltipEventDetail {
   x: number
   y: number
 }
+
+export interface TaskClickEventDetail {
+  task: GanttTask
+  event: MouseEvent
+}
+
+export interface TaskContextMenuEventDetail {
+  task: GanttTask
+  event: MouseEvent
+}

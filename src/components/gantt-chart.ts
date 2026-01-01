@@ -157,6 +157,11 @@ export class GanttChartElement extends LitElement {
   private handleScroll = (e: Event) => {
     const target = e.target as HTMLElement
     this.updateScrollTop(target.scrollTop)
+
+    if (this.hoverTimer !== undefined) {
+      window.clearTimeout(this.hoverTimer)
+    }
+    this.tooltip = null
   }
 
   private updateScrollTop = throttle((scrollTop: number) => {

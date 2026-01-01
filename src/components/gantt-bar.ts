@@ -298,6 +298,11 @@ export class GanttBarElement extends LitElement {
             this.option.calendar.pxPerDay
           const finalDeltaY = upEvent.clientY - startY
 
+          // 移動量が閾値以下の場合はイベントを発火しない（クリック対策）
+          if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
+            return
+          }
+
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
@@ -364,6 +369,33 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onDblClick(e: MouseEvent) {
+    this.dispatchEvent(
+      new CustomEvent('task-dblclick', {
+        detail: {
+          task: this.task,
+          event: e,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private onContextMenu(e: MouseEvent) {
+    e.preventDefault()
+    this.dispatchEvent(
+      new CustomEvent('task-contextmenu', {
+        detail: {
+          task: this.task,
+          event: e,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   render() {
     if (!this.task || !this.option) return html``
 
@@ -388,6 +420,8 @@ export class GanttBarElement extends LitElement {
         "
         @mouseenter="${this.onMouseEnter}"
         @mouseleave="${this.onMouseLeave}"
+        @dblclick="${this.onDblClick}"
+        @contextmenu="${this.onContextMenu}"
       >
         <div
           class="bar"
