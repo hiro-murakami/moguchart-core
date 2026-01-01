@@ -90,4 +90,11 @@ export const testRows: GanttRow[] = [
   ...generateProject('p1', 'Alpha', 0),
   ...generateProject('p2', 'Beta', 15),
   ...generateProject('p3', 'Gamma', 30),
+  ...generateProject('p4', 'Delta', 45),
+  ...generateProject('p5', 'Epsilon', 60),
+  ...generateProject('p6', 'Zeta', 75),
+  ...generateProject('p7', 'Eta', 90),
+  ...generateProject('p8', 'Theta', 105),
+  ...generateProject('p9', 'Iota', 120),
+  ...generateProject('p10', 'Kappa', 135),
 ]
