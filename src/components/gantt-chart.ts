@@ -302,7 +302,7 @@ export class GanttChartElement extends LitElement {
             const midX = (startX + endX) / 2
 
             lines.push(
-              svg`<path d="M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}" stroke="#cbd5e1" stroke-width="2" fill="none" />`,
+              svg`<path d="M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}" stroke="#cbd5e1" stroke-width="2" fill="none" />`,
             )
           }
         }
