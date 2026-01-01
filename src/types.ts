@@ -45,6 +45,7 @@ export interface GanttChartOption {
     showRowBackground?: boolean
   }
   readOnly?: boolean
+  tooltipDelay?: number
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
@@ -62,4 +63,17 @@ export interface RenderBarContentEventDetail {
 export interface RenderRowHeaderEventDetail {
   container: HTMLElement
   row: GanttRow
+}
+
+export interface BarHoverEventDetail {
+  task: GanttTask
+  x: number
+  y: number
+}
+
+export interface RenderTooltipEventDetail {
+  container: HTMLElement
+  task: GanttTask
+  x: number
+  y: number
 }

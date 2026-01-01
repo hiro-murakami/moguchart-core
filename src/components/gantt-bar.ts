@@ -77,45 +77,6 @@ export class GanttBarElement extends LitElement {
       white-space: nowrap;
       z-index: 5;
     }
-    .tooltip {
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      white-space: nowrap;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s;
-      z-index: 40;
-      margin-bottom: 6px;
-      text-align: left;
-      line-height: 1.4;
-    }
-    .tooltip-row {
-      display: block;
-    }
-    .tooltip::after {
-      content: '';
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      margin-left: -4px;
-      border-width: 4px;
-      border-style: solid;
-      border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
-    }
-    .task-group:hover .tooltip {
-      opacity: 1;
-    }
-    .task-group.dragging .tooltip {
-      opacity: 0;
-      display: none;
-    }
   `
 
   private getX(date: Date) {
@@ -375,6 +336,34 @@ export class GanttBarElement extends LitElement {
     }
   }
 
+  private onMouseEnter(e: MouseEvent) {
+    const target = e.currentTarget as HTMLElement
+    if (target.classList.contains('dragging')) {
+      return
+    }
+    const rect = target.getBoundingClientRect()
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseenter', {
+        detail: {
+          task: this.task,
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private onMouseLeave() {
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseleave', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   render() {
     if (!this.task || !this.option) return html``
 
@@ -387,14 +376,6 @@ export class GanttBarElement extends LitElement {
 
     const y = this.lane * (barHeight + barMargin) + barMargin
     const isReadOnly = this.option.readOnly
-    const duration = Math.round(
-      (this.task.end.getTime() - this.task.start.getTime()) /
-        (1000 * 60 * 60 * 24),
-    )
-
-    const formatDate = (d: Date) => {
-      return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
-    }
 
     return html`
       <div
@@ -405,14 +386,9 @@ export class GanttBarElement extends LitElement {
           width: ${width}px;
           height: ${barHeight}px;
         "
+        @mouseenter="${this.onMouseEnter}"
+        @mouseleave="${this.onMouseLeave}"
       >
-        <div class="tooltip">
-          <div style="font-weight: bold;">${this.task.name}</div>
-          <div class="tooltip-row">
-            ${formatDate(this.task.start)} - ${formatDate(this.task.end)}
-          </div>
-          <div class="tooltip-row">所要日数: ${duration}日</div>
-        </div>
         <div
           class="bar"
           style="border-radius: ${barCornerRadius}px; ${this.task.style ||

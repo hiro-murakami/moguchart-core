@@ -5,6 +5,7 @@ import type {
   GanttRow,
   RenderBarContentEventDetail,
   RenderRowHeaderEventDetail,
+  RenderTooltipEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
 import { testRows } from './test-data'
@@ -19,6 +20,7 @@ const barMargin = 4
 const barCornerRadius = 4
 let rowHeaderWidth = 200
 let isReadOnly = false
+let tooltipDelay = 500
 
 const renderApp = () => {
   const option: GanttChartOption = {
@@ -35,6 +37,7 @@ const renderApp = () => {
       pxPerDay,
     },
     readOnly: isReadOnly,
+    tooltipDelay,
   }
 
   const template = html`
@@ -113,6 +116,25 @@ const renderApp = () => {
             )}
           </select>
         </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          ツールチップ遅延:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              tooltipDelay = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[0, 500, 1000].map(
+              (d) => html`
+                <option value="${d}" ?selected="${tooltipDelay === d}">
+                  ${d}ms
+                </option>
+              `,
+            )}
+          </select>
+        </label>
       </div>
 
       <gantt-chart
@@ -126,6 +148,7 @@ const renderApp = () => {
         @task-update="${handleTaskUpdate}"
         @render-bar-content="${handleRenderBarContent}"
         @render-row-header="${handleRenderRowHeader}"
+        @render-tooltip="${handleRenderTooltip}"
       />
     </div>
   `
@@ -182,6 +205,16 @@ const handleRenderRowHeader = (e: CustomEvent<RenderRowHeaderEventDetail>) => {
       <div style="font-weight: bold;">${row.label}</div>
       <div style="font-size: 10px; color: #666;">${row.id}</div>
     </div>`
+}
+
+const handleRenderTooltip = (e: CustomEvent<RenderTooltipEventDetail>) => {
+  const { container, task } = e.detail
+  // サンプル: ツールチップの内容をカスタマイズ
+  container.innerHTML = `
+    <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">${task.name}</div>
+    <div style="font-size: 10px;">${task.start.toLocaleDateString()} - ${task.end.toLocaleDateString()}</div>
+    <div style="font-size: 10px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">ID: ${task.id}</div>
+  `
 }
 
 renderApp()

@@ -1,20 +1,21 @@
-import { LitElement, html, css, svg } from 'lit'
-import { customElement, property, state } from 'lit/decorators.js'
-import { throttle } from 'lodash'
-import './gantt-row'
-import './gantt-calendar'
-import type {
-  GanttRow,
-  GanttChartOption,
-  TaskUpdateEventDetail,
-  GanttTask,
-} from '@/types'
-import { calculateTaskLanes } from '@/utils'
 import {
   DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
   DEFAULT_ROW_HEADER_WIDTH,
 } from '@/constants'
+import type {
+  BarHoverEventDetail,
+  GanttChartOption,
+  GanttRow,
+  GanttTask,
+  TaskUpdateEventDetail,
+} from '@/types'
+import { calculateTaskLanes } from '@/utils'
+import { LitElement, css, html, svg, type PropertyValues } from 'lit'
+import { customElement, property, state } from 'lit/decorators.js'
+import { throttle } from 'lodash'
+import './gantt-calendar'
+import './gantt-row'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -28,6 +29,9 @@ export class GanttChartElement extends LitElement {
     null
   @state() private viewportHeight = 400
   @state() private calendarHeight = 0
+  @state() private tooltip: { task: GanttTask; x: number; y: number } | null =
+    null
+  private hoverTimer: number | undefined
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -55,6 +59,34 @@ export class GanttChartElement extends LitElement {
       pointer-events: none;
       z-index: 10;
     }
+    .tooltip {
+      position: fixed;
+      transform: translate(-50%, -100%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1000;
+      margin-top: -6px;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .tooltip-row {
+      display: block;
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -4px;
+      border-width: 4px;
+      border-style: solid;
+      border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+    }
   `
 
   protected firstUpdated() {
@@ -77,6 +109,49 @@ export class GanttChartElement extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this.resizeObserver?.disconnect()
+  }
+
+  protected updated(changedProperties: PropertyValues): void {
+    super.updated(changedProperties)
+
+    if (this.tooltip) {
+      const tooltipEl = this.shadowRoot?.querySelector(
+        '.tooltip',
+      ) as HTMLElement
+      if (tooltipEl) {
+        tooltipEl.innerHTML = ''
+        this.dispatchEvent(
+          new CustomEvent('render-tooltip', {
+            detail: {
+              container: tooltipEl,
+              task: this.tooltip.task,
+              x: this.tooltip.x,
+              y: this.tooltip.y,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+
+        if (tooltipEl.innerHTML === '') {
+          const formatDate = (d: Date) => {
+            return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+          }
+          const duration = Math.round(
+            (this.tooltip.task.end.getTime() -
+              this.tooltip.task.start.getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
+          tooltipEl.innerHTML = `
+            <div style="font-weight: bold;">${this.tooltip.task.name}</div>
+            <div class="tooltip-row">
+              ${formatDate(this.tooltip.task.start)} -
+              ${formatDate(this.tooltip.task.end)}
+            </div>
+            <div class="tooltip-row">所要日数: ${duration}日</div>`
+        }
+      }
+    }
   }
 
   private handleScroll = (e: Event) => {
@@ -254,6 +329,27 @@ export class GanttChartElement extends LitElement {
     )
   }
 
+  private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {
+    if (this.hoverTimer !== undefined) {
+      window.clearTimeout(this.hoverTimer)
+    }
+    const delay = this.option.tooltipDelay ?? 0
+    if (delay > 0) {
+      this.hoverTimer = window.setTimeout(() => {
+        this.tooltip = { ...e.detail }
+      }, delay)
+    } else {
+      this.tooltip = { ...e.detail }
+    }
+  }
+
+  private handleBarMouseLeave() {
+    if (this.hoverTimer !== undefined) {
+      window.clearTimeout(this.hoverTimer)
+    }
+    this.tooltip = null
+  }
+
   render() {
     const {
       layouts: rowLayouts,
@@ -310,7 +406,12 @@ export class GanttChartElement extends LitElement {
     }
 
     return html`
-      <div class="scroll-container" @scroll="${this.handleScroll}">
+      <div
+        class="scroll-container"
+        @scroll="${this.handleScroll}"
+        @bar-mouseenter="${this.handleBarMouseEnter}"
+        @bar-mouseleave="${this.handleBarMouseLeave}"
+      >
         <gantt-calendar
           id="calendar"
           .option="${this.option}"
@@ -345,6 +446,15 @@ export class GanttChartElement extends LitElement {
 
         <div style="height: ${paddingBottom}px; width: 1px;"></div>
       </div>
+
+      ${this.tooltip
+        ? html`
+            <div
+              class="tooltip"
+              style="top: ${this.tooltip.y}px; left: ${this.tooltip.x}px;"
+            />
+          `
+        : ''}
     `
   }
 }
