@@ -1,9 +1,26 @@
+export type BarPattern =
+  | 'diagonal-stripe'
+  | 'vertical-stripe'
+  | 'horizontal-stripe'
+  | 'checkerboard'
+  | 'dots'
+  | 'triangle'
+  | 'circle'
+  | 'grid'
+
+export interface GanttTaskPattern {
+  type: BarPattern
+  color?: string
+  size?: string
+}
+
 export interface GanttTask {
   id: string
   name?: string
   start: Date
   end: Date
   style?: string
+  pattern?: GanttTaskPattern
   dependencies?: string[]
 }
 

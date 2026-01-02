@@ -1,4 +1,11 @@
 import type { GanttRow } from '@/types'
+import {
+  PATTERN_CHECKERBOARD,
+  PATTERN_GRID,
+  PATTERN_DIAGONAL_STRIPE,
+  PATTERN_DOTS,
+  PATTERN_VERTICAL_STRIPE,
+} from '@/patterns'
 
 const today = new Date()
 today.setHours(0, 0, 0, 0)
@@ -28,6 +35,7 @@ const generateProject = (
           start: d(0),
           end: d(10), // 10日間
           style: 'background-color: #60a5fa; border: 1px solid silver', // blue
+          pattern: PATTERN_DIAGONAL_STRIPE,
         },
         {
           id: `${idPrefix}-t-2`,
@@ -36,6 +44,7 @@ const generateProject = (
           end: d(24), // 12日間
           dependencies: [`${idPrefix}-t-1`],
           style: 'background-color: #34d399', // green
+          pattern: PATTERN_DOTS,
         },
       ],
     },
@@ -50,6 +59,7 @@ const generateProject = (
           end: d(46), // 20日間
           dependencies: [`${idPrefix}-t-2`],
           style: 'background-color: #818cf8', // indigo
+          pattern: { ...PATTERN_VERTICAL_STRIPE, size: '4px' },
         },
         {
           id: `${idPrefix}-t-4`,
@@ -58,6 +68,11 @@ const generateProject = (
           end: d(48), // 20日間
           dependencies: [`${idPrefix}-t-2`],
           style: 'background-color: #f472b6', // pink
+          pattern: {
+            ...PATTERN_CHECKERBOARD,
+            color: 'rgba(255, 255, 255, 0.5)',
+            size: '12px',
+          },
         },
       ],
     },
@@ -72,6 +87,7 @@ const generateProject = (
           end: d(60), // 10日間
           dependencies: [`${idPrefix}-t-3`, `${idPrefix}-t-4`],
           style: 'background-color: #fbbf24', // amber
+          pattern: PATTERN_GRID,
         },
         {
           id: `${idPrefix}-t-6`,

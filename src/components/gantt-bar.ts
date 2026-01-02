@@ -1,6 +1,6 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption } from '@/types'
+import type { GanttTask, GanttChartOption, GanttTaskPattern } from '@/types'
 import {
   DEFAULT_BAR_COLOR,
   DEFAULT_BAR_HEIGHT,
@@ -322,6 +322,58 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private getPatternStyle(pattern?: GanttTaskPattern): string {
+    if (!pattern?.type) return ''
+    const color = pattern.color || 'rgba(255, 255, 255, 0.3)'
+    const size = pattern.size || (pattern.type === 'dots' ? '6px' : '8px')
+
+    switch (pattern.type) {
+      case 'diagonal-stripe':
+        return `
+          background-image: linear-gradient(45deg, ${color} 25%, transparent 25%, transparent 50%, ${color} 50%, ${color} 75%, transparent 75%, transparent);
+          background-size: ${size} ${size};
+        `
+      case 'vertical-stripe':
+        return `
+          background-image: linear-gradient(90deg, ${color} 50%, transparent 50%);
+          background-size: ${size} ${size};
+        `
+      case 'horizontal-stripe':
+        return `
+          background-image: linear-gradient(0deg, ${color} 50%, transparent 50%);
+          background-size: ${size} ${size};
+        `
+      case 'checkerboard':
+        return `
+          background-image: linear-gradient(45deg, ${color} 25%, transparent 25%, transparent 75%, ${color} 75%, ${color}), linear-gradient(45deg, ${color} 25%, transparent 25%, transparent 75%, ${color} 75%, ${color});
+          background-position: 0 0, calc(${size} / 2) calc(${size} / 2);
+          background-size: ${size} ${size};
+        `
+      case 'dots':
+        return `
+          background-image: radial-gradient(${color} 20%, transparent 20%);
+          background-size: ${size} ${size};
+        `
+      case 'triangle':
+        return `
+          background-image: conic-gradient(from 150deg at 50% 35%, ${color} 60deg, transparent 60deg);
+          background-size: ${size} ${size};
+        `
+      case 'circle':
+        return `
+          background-image: radial-gradient(circle, transparent 50%, ${color} 50%, ${color} 70%, transparent 70%);
+          background-size: ${size} ${size};
+        `
+      case 'grid':
+        return `
+          background-image: linear-gradient(${color} 1px, transparent 1px), linear-gradient(90deg, ${color} 1px, transparent 1px);
+          background-size: ${size} ${size};
+        `
+      default:
+        return ''
+    }
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
@@ -426,7 +478,9 @@ export class GanttBarElement extends LitElement {
         <div
           class="bar"
           style="border-radius: ${barCornerRadius}px; ${this.task.style ||
-          ''}; ${isReadOnly ? 'cursor: default;' : ''}"
+          ''}; ${this.getPatternStyle(this.task.pattern)}; ${isReadOnly
+            ? 'cursor: default;'
+            : ''}"
           @pointerdown="${isReadOnly ? undefined : this.onMoveStart}"
         ></div>
         ${this.task.name
