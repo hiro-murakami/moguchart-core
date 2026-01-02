@@ -1,6 +1,6 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { calculateTaskLanes } from '@/utils'
+import { calculateTaskLanes, getThemeColors } from '@/utils'
 import type { GanttRow, GanttChartOption } from '@/types'
 import './gantt-bar'
 import './gantt-row-background'
@@ -10,7 +10,6 @@ import {
   DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
 } from '@/constants'
-import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
@@ -89,7 +88,7 @@ export class GanttRowElement extends LitElement {
   }
 
   render() {
-    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+    const colors = getThemeColors(this.theme, this.option.customTheme)
     const { tasksWithLanes, laneCount } = calculateTaskLanes(this.row.tasks)
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN

@@ -10,13 +10,12 @@ import type {
   GanttTask,
   TaskUpdateEventDetail,
 } from '@/types'
-import { calculateTaskLanes } from '@/utils'
+import { calculateTaskLanes, getThemeColors } from '@/utils'
 import { LitElement, css, html, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { throttle } from 'lodash'
 import './gantt-calendar'
 import './gantt-row'
-import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -172,7 +171,7 @@ export class GanttChartElement extends LitElement {
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
-    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+    const colors = getThemeColors(this.theme, this.option.customTheme)
 
     if (this.tooltip) {
       const tooltipEl = this.shadowRoot?.querySelector(
@@ -501,7 +500,7 @@ export class GanttChartElement extends LitElement {
   }
 
   render() {
-    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+    const colors = getThemeColors(this.theme, this.option.customTheme)
 
     const {
       layouts: rowLayouts,

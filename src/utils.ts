@@ -1,4 +1,4 @@
-import type { GanttTask, TaskWithLane } from '@/types'
+import type { GanttTask, TaskWithLane, ThemeColorPalette } from '@/types'
 import * as holiday_jp from '@holiday-jp/holiday_jp'
 import { THEME_COLORS } from '@/theme'
 
@@ -60,20 +60,39 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   }
 }
 
+export const getThemeColors = (
+  theme: 'light' | 'dark',
+  customTheme?: Partial<ThemeColorPalette>,
+): ThemeColorPalette => {
+  const base = THEME_COLORS[theme] || THEME_COLORS.light
+  return { ...base, ...customTheme }
+}
+
 export const getCalendarColor = (
   date: Date,
-  theme: 'light' | 'dark' = 'light',
+  colors: ThemeColorPalette,
 ): string => {
   const dayOfWeek = date.getDay()
   const isHolidayDay = holiday_jp.isHoliday(date)
-  const colors = THEME_COLORS[theme] || THEME_COLORS.light
 
   if (isHolidayDay) {
     return colors.holiday
-  } else if (dayOfWeek === 0) {
-    return colors.sunday
-  } else if (dayOfWeek === 6) {
-    return colors.saturday
+  }
+  switch (dayOfWeek) {
+    case 0:
+      return colors.sunday
+    case 6:
+      return colors.saturday
+    case 1:
+      return colors.monday ?? ''
+    case 2:
+      return colors.tuesday ?? ''
+    case 3:
+      return colors.wednesday ?? ''
+    case 4:
+      return colors.thursday ?? ''
+    case 5:
+      return colors.friday ?? ''
   }
   return ''
 }

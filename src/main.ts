@@ -11,6 +11,7 @@ import type {
   TaskContextMenuEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
+import type { ThemeColorPalette } from '@/types'
 import { testRows } from './test-data'
 
 let rows: GanttRow[] = testRows
@@ -26,8 +27,15 @@ let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
 let theme: 'light' | 'dark' = 'light'
+let highlightWednesday = false
 
 const renderApp = () => {
+  const customTheme: Partial<ThemeColorPalette> = {}
+  if (highlightWednesday) {
+    customTheme.wednesday =
+      theme === 'dark' ? 'rgba(253, 224, 71, 0.15)' : '#fef08a'
+  }
+
   const option: GanttChartOption = {
     bar: {
       height: barHeight,
@@ -45,6 +53,7 @@ const renderApp = () => {
     tooltipDelay,
     showDragInfoOverlay,
     theme,
+    customTheme,
   }
 
   const appStyles =
@@ -85,6 +94,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           ドラッグ情報を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${highlightWednesday}"
+            @change="${(e: Event) => {
+              highlightWednesday = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          水曜日を強調
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">

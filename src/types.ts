@@ -44,6 +44,7 @@ export interface GanttChartOption {
   showTooltip?: boolean
   showDragInfoOverlay?: boolean
   theme?: 'light' | 'dark'
+  customTheme?: Partial<ThemeColorPalette>
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
@@ -112,6 +113,11 @@ export interface ThemeColorPalette {
   sunday: string
   holiday: string
   rowHeaderBg: string
+  monday?: string
+  tuesday?: string
+  wednesday?: string
+  thursday?: string
+  friday?: string
 }
 
 export interface ThemeColors {

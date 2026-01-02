@@ -2,9 +2,8 @@ import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
 import { DEFAULT_ROW_HEADER_WIDTH, DEFAULT_MONTH_FORMAT } from '@/constants'
-import { getCalendarColor } from '@/utils'
+import { getCalendarColor, getThemeColors } from '@/utils'
 import dayjs from 'dayjs'
-import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-calendar')
 export class GanttCalendarElement extends LitElement {
@@ -65,7 +64,7 @@ export class GanttCalendarElement extends LitElement {
   `
 
   render() {
-    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+    const colors = getThemeColors(this.theme, this.option.customTheme)
 
     const days = Array.from({ length: this.totalDays }, (_, i) => {
       const d = new Date(this.option.calendar.start)
@@ -130,7 +129,7 @@ export class GanttCalendarElement extends LitElement {
         </div>
         <div class="days-container" style="${backgroundStyle}">
           ${days.map((day) => {
-            const backgroundColor = getCalendarColor(day, this.theme)
+            const backgroundColor = getCalendarColor(day, colors)
             return html`
               <div
                 class="day-cell"
