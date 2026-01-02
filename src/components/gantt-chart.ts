@@ -23,7 +23,7 @@ import type { GanttRowElement } from './gantt-row'
 export class GanttChartElement extends LitElement {
   @property({ type: Array }) rows: GanttRow[] = []
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: String, reflect: true, attribute: 'data-theme' })
+  @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
 
   @state() private virtualScrollTop = 0

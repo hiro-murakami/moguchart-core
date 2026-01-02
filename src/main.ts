@@ -240,7 +240,7 @@ const renderApp = () => {
         style="height: 50vh;"
         .rows="${rows}"
         .option="${option}"
-        data-theme="${theme}"
+        theme="${theme}"
         @rows-change="${(e: CustomEvent) => {
           rows = e.detail
         }}"

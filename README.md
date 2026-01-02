@@ -24,6 +24,10 @@ pnpm add @mogura/moguchart
 npm install @mogura/moguchart
 ```
 
+## APIリファレンス
+
+詳細な API リファレンスは [API.md](./API.md) を参照してください。
+
 ## Vue.js での使用例
 
 Vue.js (Vue 3) で使用する場合のサンプルです。
@@ -72,10 +76,9 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 
 <template>
   <div style="height: 500px;">
-    <!-- .prop 修飾子を使用してオブジェクトをプロパティとして渡します -->
     <gantt-chart
-      .rows="rows"
-      .option="option"
+      :rows="rows"
+      :option="option"
       @task-update="handleTaskUpdate"
     ></gantt-chart>
   </div>
