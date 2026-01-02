@@ -52,14 +52,14 @@ export class GanttBarElement extends LitElement {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 20px;
+      width: 10px;
       z-index: 10;
     }
     .handle-left {
-      left: -10px;
+      left: 0px;
     }
     .handle-right {
-      right: -10px;
+      right: 0px;
     }
     .handle-left:hover,
     .handle-right:hover {

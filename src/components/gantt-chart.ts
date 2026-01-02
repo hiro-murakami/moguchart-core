@@ -16,12 +16,15 @@ import { customElement, property, state } from 'lit/decorators.js'
 import { throttle } from 'lodash'
 import './gantt-calendar'
 import './gantt-row'
+import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
   @property({ type: Array }) rows: GanttRow[] = []
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) totalDays = 60
+  @property({ type: String, reflect: true, attribute: 'data-theme' })
+  theme: 'light' | 'dark' = 'light'
 
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
@@ -61,8 +64,6 @@ export class GanttChartElement extends LitElement {
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      background: white;
-      border: 1px solid #e2e8f0;
       position: relative;
     }
     .scroll-container {
@@ -82,8 +83,6 @@ export class GanttChartElement extends LitElement {
     .tooltip {
       position: fixed;
       transform: translate(-50%, -100%);
-      background-color: rgba(0, 0, 0, 0.8);
-      color: white;
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 11px;
@@ -110,15 +109,12 @@ export class GanttChartElement extends LitElement {
       margin-left: -4px;
       border-width: 4px;
       border-style: solid;
-      border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
     }
     .drag-info-overlay {
       position: fixed;
       top: 80px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
       padding: 10px 20px;
       border-radius: 8px;
       font-size: 14px;
@@ -138,7 +134,10 @@ export class GanttChartElement extends LitElement {
     }
     .drag-info-sub {
       font-size: 12px;
-      color: #cbd5e1;
+    }
+    .dependency-line {
+      stroke-width: 2;
+      fill: none;
     }
   `
 
@@ -164,8 +163,16 @@ export class GanttChartElement extends LitElement {
     this.resizeObserver?.disconnect()
   }
 
+  protected willUpdate(changedProperties: PropertyValues): void {
+    if (changedProperties.has('option') && this.option?.theme) {
+      this.theme = this.option.theme
+    }
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
+
+    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
 
     if (this.tooltip) {
       const tooltipEl = this.shadowRoot?.querySelector(
@@ -247,7 +254,7 @@ export class GanttChartElement extends LitElement {
               </div>
               ${
                 targetRow
-                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid #666; padding-top: 4px; width: 100%;">移動先: ${targetRow.label}</div>`
+                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.label}</div>`
                   : ''
               }`
         }
@@ -494,6 +501,8 @@ export class GanttChartElement extends LitElement {
   }
 
   render() {
+    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+
     const {
       layouts: rowLayouts,
       taskCoords,
@@ -541,7 +550,7 @@ export class GanttChartElement extends LitElement {
             const midX = (startX + endX) / 2
 
             lines.push(
-              svg`<path d="M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}" stroke="#cbd5e1" stroke-width="2" fill="none" />`,
+              svg`<path class="dependency-line" d="M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}" />`,
             )
           }
         }
@@ -549,6 +558,30 @@ export class GanttChartElement extends LitElement {
     }
 
     return html`
+      <style>
+        :host {
+          background: ${colors.bg};
+          border: 1px solid ${colors.border};
+          color: ${colors.text};
+        }
+        .tooltip {
+          background-color: ${colors.tooltipBg};
+          color: ${colors.tooltipText};
+        }
+        .tooltip::after {
+          border-color: ${colors.tooltipBg} transparent transparent transparent;
+        }
+        .drag-info-overlay {
+          background: ${colors.dragOverlayBg};
+          color: ${colors.dragOverlayText};
+        }
+        .drag-info-sub {
+          color: ${colors.dragOverlaySubText};
+        }
+        .dependency-line {
+          stroke: ${colors.dependencyLine};
+        }
+      </style>
       <div
         class="scroll-container"
         @scroll="${this.handleScroll}"
@@ -559,6 +592,7 @@ export class GanttChartElement extends LitElement {
           id="calendar"
           .option="${this.option}"
           .totalDays="${this.totalDays}"
+          .theme="${this.theme}"
         ></gantt-calendar>
 
         <svg
@@ -582,6 +616,7 @@ export class GanttChartElement extends LitElement {
               .totalDays="${this.totalDays}"
               .isDragTarget="${this.dragTargetRowIndex === originalIndex}"
               .draggingTask="${this.draggingTask}"
+              .theme="${this.theme}"
               @task-update="${this.handleTaskUpdate}"
             />
           `

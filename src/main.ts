@@ -25,6 +25,7 @@ let rowHeaderWidth = 200
 let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
+let theme: 'light' | 'dark' = 'light'
 
 const renderApp = () => {
   const option: GanttChartOption = {
@@ -43,10 +44,18 @@ const renderApp = () => {
     readOnly: isReadOnly,
     tooltipDelay,
     showDragInfoOverlay,
+    theme,
   }
 
+  const appStyles =
+    theme === 'dark'
+      ? 'background-color: #0f172a; color: #f8fafc;'
+      : 'background-color: #ffffff; color: #333;'
+
   const template = html`
-    <div style="padding: 50px; font-family: sans-serif; color: #333;">
+    <div
+      style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}"
+    >
       <h2>MoguChart 2</h2>
 
       <div
@@ -76,6 +85,22 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           ドラッグ情報を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          テーマ:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              theme = (e.target as HTMLSelectElement).value as 'light' | 'dark'
+              renderApp()
+            }}"
+          >
+            <option value="light" ?selected="${theme === 'light'}">
+              Light
+            </option>
+            <option value="dark" ?selected="${theme === 'dark'}">Dark</option>
+          </select>
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -160,6 +185,7 @@ const renderApp = () => {
         .rows="${rows}"
         .option="${option}"
         .totalDays="${totalDays}"
+        data-theme="${theme}"
         @rows-change="${(e: CustomEvent) => {
           rows = e.detail
         }}"

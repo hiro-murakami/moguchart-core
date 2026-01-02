@@ -1,26 +1,23 @@
-import { LitElement, html, css, unsafeCSS } from 'lit'
+import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
-import {
-  DEFAULT_ROW_HEADER_WIDTH,
-  DEFAULT_COLOR,
-  DEFAULT_MONTH_FORMAT,
-} from '@/constants'
+import { DEFAULT_ROW_HEADER_WIDTH, DEFAULT_MONTH_FORMAT } from '@/constants'
 import { getCalendarColor } from '@/utils'
 import dayjs from 'dayjs'
+import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-calendar')
 export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) totalDays = 30
+  @property({ type: String })
+  theme: 'light' | 'dark' = 'light'
 
   static styles = css`
     :host {
       display: flex;
       width: fit-content;
       min-width: 100%;
-      background: #f8fafc;
-      border-bottom: 2px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
       box-sizing: border-box;
       position: sticky;
       top: 0;
@@ -28,7 +25,6 @@ export class GanttCalendarElement extends LitElement {
     }
     .label-placeholder {
       flex-shrink: 0;
-      border-right: 1px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
       box-sizing: border-box;
       position: sticky;
       left: 0;
@@ -41,15 +37,12 @@ export class GanttCalendarElement extends LitElement {
     }
     .months-container {
       display: flex;
-      background: #fff;
-      border-bottom: 1px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
     }
     .month-cell {
       box-sizing: border-box;
       padding: 4px 8px;
       font-size: 12px;
       font-weight: bold;
-      border-right: 1px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
       white-space: nowrap;
       overflow: hidden;
     }
@@ -72,6 +65,8 @@ export class GanttCalendarElement extends LitElement {
   `
 
   render() {
+    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
+
     const days = Array.from({ length: this.totalDays }, (_, i) => {
       const d = new Date(this.option.calendar.start)
       d.setDate(d.getDate() + i)
@@ -91,16 +86,33 @@ export class GanttCalendarElement extends LitElement {
     })
 
     const backgroundStyle = `
-      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${DEFAULT_COLOR.BORDER} ${this.option.calendar.pxPerDay - 1}px);
+      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.border} ${this.option.calendar.pxPerDay - 1}px);
       background-size: ${this.option.calendar.pxPerDay}px 100%;
     `
 
     return html`
+      <style>
+        :host {
+          background: ${colors.calendarBg};
+          border-bottom: 2px solid ${colors.border};
+          color: ${colors.text};
+        }
+        .label-placeholder {
+          border-right: 1px solid ${colors.border};
+        }
+        .months-container {
+          background: ${colors.bg};
+          border-bottom: 1px solid ${colors.border};
+        }
+        .month-cell {
+          border-right: 1px solid ${colors.border};
+        }
+      </style>
       <div
         class="label-placeholder"
         style="width: ${this.option.rowHeader?.width ??
         DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
-          ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
+          ?.backgroundColor ?? colors.rowHeaderBg};"
       ></div>
       <div class="calendar-group">
         <div class="months-container">
@@ -118,7 +130,7 @@ export class GanttCalendarElement extends LitElement {
         </div>
         <div class="days-container" style="${backgroundStyle}">
           ${days.map((day) => {
-            const backgroundColor = getCalendarColor(day, this.option)
+            const backgroundColor = getCalendarColor(day, this.theme)
             return html`
               <div
                 class="day-cell"

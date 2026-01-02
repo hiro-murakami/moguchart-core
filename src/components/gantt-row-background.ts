@@ -7,6 +7,8 @@ import type { GanttChartOption } from '@/types'
 export class GanttRowBackgroundElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) totalDays = 30
+  @property({ type: String })
+  theme: 'light' | 'dark' = 'light'
 
   static styles = css`
     :host {
@@ -29,7 +31,7 @@ export class GanttRowBackgroundElement extends LitElement {
 
     return html`
       ${days.map((day) => {
-        const color = getCalendarColor(day, this.option)
+        const color = getCalendarColor(day, this.theme)
         return html`<div
           style="width: ${this.option.calendar
             .pxPerDay}px; background-color: ${color}; flex-shrink: 0;"

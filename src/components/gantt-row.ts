@@ -10,6 +10,7 @@ import {
   DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
 } from '@/constants'
+import { THEME_COLORS } from '@/theme'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
@@ -25,13 +26,14 @@ export class GanttRowElement extends LitElement {
     currentStart?: Date
     currentEnd?: Date
   } | null = null
+  @property({ type: String })
+  theme: 'light' | 'dark' = 'light'
 
   static styles = css`
     :host {
       display: block;
       width: fit-content;
       min-width: 100%;
-      border-bottom: 1px solid #f1f5f9;
       box-sizing: border-box;
     }
     .row-container {
@@ -43,7 +45,6 @@ export class GanttRowElement extends LitElement {
     .row-header {
       font-size: 13px;
       padding-left: 15px;
-      border-right: 1px solid ${unsafeCSS(DEFAULT_COLOR.BORDER)};
       display: flex;
       align-items: center;
       flex-shrink: 0;
@@ -88,6 +89,7 @@ export class GanttRowElement extends LitElement {
   }
 
   render() {
+    const colors = THEME_COLORS[this.theme] || THEME_COLORS.light
     const { tasksWithLanes, laneCount } = calculateTaskLanes(this.row.tasks)
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
@@ -95,20 +97,31 @@ export class GanttRowElement extends LitElement {
     const rowHeight = laneCount * (barHeight + barMargin) + barMargin
 
     this.style.height = `${rowHeight}px`
-    this.style.backgroundColor = this.isDragTarget ? '#f0f9ff' : '#fff'
 
     const backgroundStyle = `
-      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, #f1f5f9 ${this.option.calendar.pxPerDay - 1}px);
+      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.gridLine} ${this.option.calendar.pxPerDay - 1}px);
       background-size: ${this.option.calendar.pxPerDay}px 100%;
     `
 
     return html`
+      <style>
+        :host {
+          background-color: ${this.isDragTarget
+            ? colors.dragTarget
+            : colors.bg};
+          border-bottom: 1px solid ${colors.border};
+          color: ${colors.text};
+        }
+        .row-header {
+          border-right: 1px solid ${colors.border};
+        }
+      </style>
       <div class="row-container">
         <div
           class="row-header"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
-            ?.backgroundColor ?? DEFAULT_COLOR.LABEL_BACKGROUND};"
+            ?.backgroundColor ?? colors.rowHeaderBg};"
         ></div>
         <div
           class="bars-container"
@@ -119,6 +132,7 @@ export class GanttRowElement extends LitElement {
             ? html`<gantt-row-background
                 .option="${this.option}"
                 .totalDays="${this.totalDays}"
+                .theme="${this.theme}"
               /> `
             : ''}
           ${tasksWithLanes.map((task) => {

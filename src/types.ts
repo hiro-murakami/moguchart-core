@@ -28,15 +28,8 @@ export interface GanttChartOptionRowHeader {
   backgroundColor?: string
 }
 
-export interface GanttChartOptionColor {
-  sunday?: string
-  saturday?: string
-  holiday?: string
-}
-
 export interface GanttChartOptionCalendar {
   start: Date
-  color?: GanttChartOptionColor
   pxPerDay: number
   monthFormat?: string
   showRowBackground?: boolean
@@ -50,6 +43,7 @@ export interface GanttChartOption {
   tooltipDelay?: number
   showTooltip?: boolean
   showDragInfoOverlay?: boolean
+  theme?: 'light' | 'dark'
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
@@ -98,4 +92,29 @@ export interface RenderDragInfoEventDetail {
   newStart: Date
   newEnd: Date
   targetRow?: GanttRow
+}
+
+export interface ThemeColorPalette {
+  bg: string
+  text: string
+  border: string
+  gridLine: string
+  dragTarget: string
+  tooltipBg: string
+  tooltipText: string
+  dragOverlayBg: string
+  dragOverlayText: string
+  dragOverlaySubText: string
+  dragOverlayDivider: string
+  dependencyLine: string
+  calendarBg: string
+  saturday: string
+  sunday: string
+  holiday: string
+  rowHeaderBg: string
+}
+
+export interface ThemeColors {
+  light: ThemeColorPalette
+  dark: ThemeColorPalette
 }
