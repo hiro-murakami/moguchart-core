@@ -23,7 +23,6 @@ import type { GanttRowElement } from './gantt-row'
 export class GanttChartElement extends LitElement {
   @property({ type: Array }) rows: GanttRow[] = []
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: Number }) totalDays = 60
   @property({ type: String, reflect: true, attribute: 'data-theme' })
   theme: 'light' | 'dark' = 'light'
 
@@ -731,14 +730,14 @@ export class GanttChartElement extends LitElement {
         <gantt-calendar
           id="calendar"
           .option="${this.option}"
-          .totalDays="${this.totalDays}"
           .theme="${this.theme}"
         ></gantt-calendar>
 
         <svg
           class="dependency-lines"
           style="top: ${this.calendarHeight}px;"
-          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) +
+          width="${this.option.calendar.totalDays *
+            (this.option.calendar.pxPerDay ?? 50) +
           labelWidth}"
           height="${totalHeight}"
         >
@@ -756,7 +755,6 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${this.option}"
-                .totalDays="${this.totalDays}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex}"
                 .draggingTask="${this.draggingTask}"
                 .theme="${this.theme}"

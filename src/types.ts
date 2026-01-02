@@ -48,6 +48,7 @@ export interface GanttChartOptionRowHeader {
 export interface GanttChartOptionCalendar {
   start: Date
   pxPerDay: number
+  totalDays: number
   monthFormat?: string
   showRowBackground?: boolean
 }

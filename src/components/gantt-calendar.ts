@@ -8,7 +8,6 @@ import dayjs from 'dayjs'
 @customElement('gantt-calendar')
 export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: Number }) totalDays = 30
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
 
@@ -66,11 +65,14 @@ export class GanttCalendarElement extends LitElement {
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    const days = Array.from({ length: this.totalDays }, (_, i) => {
-      const d = new Date(this.option.calendar.start)
-      d.setDate(d.getDate() + i)
-      return d
-    })
+    const days = Array.from(
+      { length: this.option.calendar.totalDays },
+      (_, i) => {
+        const d = new Date(this.option.calendar.start)
+        d.setDate(d.getDate() + i)
+        return d
+      },
+    )
 
     const months: { year: number; month: number; count: number }[] = []
     days.forEach((day) => {

@@ -49,6 +49,7 @@ const renderApp = () => {
     calendar: {
       start: chartStart,
       pxPerDay,
+      totalDays,
     },
     readOnly: isReadOnly,
     tooltipDelay,
@@ -239,7 +240,6 @@ const renderApp = () => {
         style="height: 50vh;"
         .rows="${rows}"
         .option="${option}"
-        .totalDays="${totalDays}"
         data-theme="${theme}"
         @rows-change="${(e: CustomEvent) => {
           rows = e.detail

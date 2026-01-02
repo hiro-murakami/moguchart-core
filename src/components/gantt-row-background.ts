@@ -6,7 +6,6 @@ import type { GanttChartOption } from '@/types'
 @customElement('gantt-row-background')
 export class GanttRowBackgroundElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: Number }) totalDays = 30
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
 
@@ -24,12 +23,14 @@ export class GanttRowBackgroundElement extends LitElement {
 
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
-
-    const days = Array.from({ length: this.totalDays }, (_, i) => {
-      const d = new Date(this.option.calendar.start)
-      d.setDate(d.getDate() + i)
-      return d
-    })
+    const days = Array.from(
+      { length: this.option.calendar.totalDays },
+      (_, i) => {
+        const d = new Date(this.option.calendar.start)
+        d.setDate(d.getDate() + i)
+        return d
+      },
+    )
 
     return html`
       ${days.map((day) => {

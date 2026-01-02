@@ -14,7 +14,6 @@ import './gantt-row-background'
 export class GanttRowElement extends LitElement {
   @property({ type: Object }) row!: GanttRow
   @property({ type: Object }) option!: GanttChartOption
-  @property({ type: Number }) totalDays = 30
   @property({ type: Boolean }) isDragTarget = false
   @property({ type: Object }) draggingTask: {
     id: string
@@ -171,13 +170,12 @@ export class GanttRowElement extends LitElement {
         ></div>
         <div
           class="bars-container"
-          style="${backgroundStyle}; width: ${this.totalDays *
+          style="${backgroundStyle}; width: ${this.option.calendar.totalDays *
           this.option.calendar.pxPerDay}px"
         >
           ${this.option.calendar.showRowBackground !== false
             ? html`<gantt-row-background
                 .option="${this.option}"
-                .totalDays="${this.totalDays}"
                 .theme="${this.theme}"
               /> `
             : ''}
