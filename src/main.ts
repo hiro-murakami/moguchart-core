@@ -70,7 +70,7 @@ const renderApp = () => {
       <h2>MoguChart 2</h2>
 
       <div
-        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center;"
+        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
       >
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
@@ -124,21 +124,39 @@ const renderApp = () => {
           行の並び替えを有効化
         </label>
 
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          テーマ:
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              theme = (e.target as HTMLSelectElement).value as 'light' | 'dark'
-              renderApp()
-            }}"
+        <div style="display: flex; align-items: center;">
+          <span style="margin-right: 8px;">テーマ:</span>
+          <label
+            style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;"
           >
-            <option value="light" ?selected="${theme === 'light'}">
-              Light
-            </option>
-            <option value="dark" ?selected="${theme === 'dark'}">Dark</option>
-          </select>
-        </label>
+            <input
+              type="radio"
+              name="theme"
+              value="light"
+              .checked="${theme === 'light'}"
+              @change="${() => {
+                theme = 'light'
+                renderApp()
+              }}"
+              style="margin-right: 4px;"
+            />
+            Light
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input
+              type="radio"
+              name="theme"
+              value="dark"
+              .checked="${theme === 'dark'}"
+              @change="${() => {
+                theme = 'dark'
+                renderApp()
+              }}"
+              style="margin-right: 4px;"
+            />
+            Dark
+          </label>
+        </div>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
           バーの高さ:
