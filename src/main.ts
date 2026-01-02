@@ -28,6 +28,7 @@ let tooltipDelay = 500
 let showDragInfoOverlay = true
 let theme: 'light' | 'dark' = 'light'
 let highlightWednesday = false
+let enableRowReordering = true
 
 const renderApp = () => {
   const customTheme: Partial<ThemeColorPalette> = {}
@@ -54,6 +55,7 @@ const renderApp = () => {
     showDragInfoOverlay,
     theme,
     customTheme,
+    enableRowReordering,
   }
 
   const appStyles =
@@ -107,6 +109,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           水曜日を強調
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${enableRowReordering}"
+            @change="${(e: Event) => {
+              enableRowReordering = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          行の並び替えを有効化
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">

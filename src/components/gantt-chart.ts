@@ -13,9 +13,11 @@ import type {
 import { calculateTaskLanes, getThemeColors } from '@/utils'
 import { LitElement, css, html, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
+import { repeat } from 'lit/directives/repeat.js'
 import { throttle } from 'lodash'
 import './gantt-calendar'
 import './gantt-row'
+import type { GanttRowElement } from './gantt-row'
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -53,6 +55,8 @@ export class GanttChartElement extends LitElement {
     y: number
     visible: boolean
   } | null = null
+  @state() private dragOverRowId: string | null = null
+  @state() private dragOverPosition: 'top' | 'bottom' | null = null
   private hoverTimer: number | undefined
 
   private resizeObserver: ResizeObserver | null = null
@@ -499,6 +503,140 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  private async reorderRows(
+    sourceId: string,
+    targetId: string,
+    position: 'top' | 'bottom',
+  ) {
+    const rowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as GanttRowElement[]
+    const positions = new Map<string, number>()
+    rowElements.forEach((el) => {
+      if (el.row) {
+        positions.set(el.row.id, el.getBoundingClientRect().top)
+      }
+    })
+
+    const newRows = [...this.rows]
+    const sourceIndex = newRows.findIndex((r) => r.id === sourceId)
+    if (sourceIndex === -1) return
+
+    const [removed] = newRows.splice(sourceIndex, 1)
+
+    let targetIndex = newRows.findIndex((r) => r.id === targetId)
+    if (targetIndex === -1) return
+
+    if (position === 'bottom') {
+      targetIndex++
+    }
+
+    newRows.splice(targetIndex, 0, removed)
+
+    this.rows = newRows
+
+    await this.updateComplete
+
+    const newRowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as GanttRowElement[]
+
+    newRowElements.forEach((el) => {
+      if (el.row) {
+        const oldTop = positions.get(el.row.id)
+        if (oldTop !== undefined) {
+          const newTop = el.getBoundingClientRect().top
+          const dy = oldTop - newTop
+          if (dy !== 0) {
+            el.animate(
+              [
+                { transform: `translateY(${dy}px)`, zIndex: '1' },
+                { transform: 'translateY(0)', zIndex: '1' },
+              ],
+              {
+                duration: 300,
+                easing: 'ease-out',
+              },
+            )
+          }
+        }
+      }
+    })
+
+    this.dispatchEvent(
+      new CustomEvent('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private handleContainerDragOver(e: DragEvent) {
+    e.preventDefault()
+    if (!this.option.enableRowReordering) return
+    const container = this.shadowRoot?.querySelector(
+      '.scroll-container',
+    ) as HTMLElement
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const y = e.clientY - rect.top + container.scrollTop
+    const yInRows = y - this.calendarHeight
+
+    const { layouts } = this.calculateLayout()
+
+    let foundIndex = -1
+    for (let i = 0; i < layouts.length; i++) {
+      const layout = layouts[i]
+      if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
+        foundIndex = i
+        break
+      }
+    }
+
+    if (foundIndex !== -1) {
+      const row = this.rows[foundIndex]
+      const layout = layouts[foundIndex]
+      const relativeY = yInRows - layout.top
+      const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
+
+      if (this.dragOverRowId !== row.id || this.dragOverPosition !== position) {
+        this.dragOverRowId = row.id
+        this.dragOverPosition = position
+      }
+    } else {
+      this.dragOverRowId = null
+      this.dragOverPosition = null
+    }
+  }
+
+  private handleContainerDragLeave(e: DragEvent) {
+    const container = this.shadowRoot?.querySelector(
+      '.scroll-container',
+    ) as HTMLElement
+    const related = e.relatedTarget as HTMLElement
+    if (container && container.contains(related)) return
+
+    this.dragOverRowId = null
+    this.dragOverPosition = null
+  }
+
+  private handleContainerDrop(e: DragEvent) {
+    e.preventDefault()
+    if (!this.option.enableRowReordering) return
+    const sourceId = e.dataTransfer?.getData('text/plain')
+    const targetId = this.dragOverRowId
+    const position = this.dragOverPosition
+
+    this.dragOverRowId = null
+    this.dragOverPosition = null
+
+    if (sourceId && targetId && sourceId !== targetId && position) {
+      this.reorderRows(sourceId, targetId, position)
+    }
+  }
+
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
@@ -586,6 +724,9 @@ export class GanttChartElement extends LitElement {
         @scroll="${this.handleScroll}"
         @bar-mouseenter="${this.handleBarMouseEnter}"
         @bar-mouseleave="${this.handleBarMouseLeave}"
+        @dragover="${this.handleContainerDragOver}"
+        @dragleave="${this.handleContainerDragLeave}"
+        @drop="${this.handleContainerDrop}"
       >
         <gantt-calendar
           id="calendar"
@@ -606,20 +747,27 @@ export class GanttChartElement extends LitElement {
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 
-        ${visibleRows.map((row, index) => {
-          const originalIndex = startIndex + index
-          return html`
-            <gantt-row
-              .row="${row}"
-              .option="${this.option}"
-              .totalDays="${this.totalDays}"
-              .isDragTarget="${this.dragTargetRowIndex === originalIndex}"
-              .draggingTask="${this.draggingTask}"
-              .theme="${this.theme}"
-              @task-update="${this.handleTaskUpdate}"
-            />
-          `
-        })}
+        ${repeat(
+          visibleRows,
+          (row) => row.id,
+          (row, index) => {
+            const originalIndex = startIndex + index
+            return html`
+              <gantt-row
+                .row="${row}"
+                .option="${this.option}"
+                .totalDays="${this.totalDays}"
+                .isDragTarget="${this.dragTargetRowIndex === originalIndex}"
+                .draggingTask="${this.draggingTask}"
+                .theme="${this.theme}"
+                .dropPosition="${this.dragOverRowId === row.id
+                  ? this.dragOverPosition
+                  : null}"
+                @task-update="${this.handleTaskUpdate}"
+              />
+            `
+          },
+        )}
 
         <div style="height: ${paddingBottom}px; width: 1px;"></div>
       </div>

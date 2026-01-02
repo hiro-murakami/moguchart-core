@@ -62,6 +62,7 @@ export interface GanttChartOption {
   showDragInfoOverlay?: boolean
   theme?: 'light' | 'dark'
   customTheme?: Partial<ThemeColorPalette>
+  enableRowReordering?: boolean
 }
 
 export interface TaskUpdateEventDetail extends GanttTask {
@@ -110,6 +111,12 @@ export interface RenderDragInfoEventDetail {
   newStart: Date
   newEnd: Date
   targetRow?: GanttRow
+}
+
+export interface RowReorderEventDetail {
+  sourceId: string
+  targetId: string
+  position?: 'top' | 'bottom'
 }
 
 export interface ThemeColorPalette {

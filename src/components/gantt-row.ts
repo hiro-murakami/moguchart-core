@@ -27,6 +27,9 @@ export class GanttRowElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
 
+  @property({ type: String })
+  dropPosition: 'top' | 'bottom' | null = null
+
   static styles = css`
     :host {
       display: block;
@@ -39,6 +42,29 @@ export class GanttRowElement extends LitElement {
       height: 100%;
       box-sizing: border-box;
       background: inherit;
+      position: relative;
+    }
+    .row-container.drop-top::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #3b82f6;
+      z-index: 70;
+      pointer-events: none;
+    }
+    .row-container.drop-bottom::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #3b82f6;
+      z-index: 70;
+      pointer-events: none;
     }
     .row-header {
       font-size: 13px;
@@ -52,11 +78,25 @@ export class GanttRowElement extends LitElement {
       z-index: 60;
       background: inherit;
     }
+    .row-header.draggable {
+      cursor: grab;
+    }
+    .row-header.draggable:active {
+      cursor: grabbing;
+    }
     .bars-container {
       flex: none;
       position: relative;
     }
   `
+
+  private handleDragStart(e: DragEvent) {
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', this.row.id)
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setDragImage(this, e.offsetX, e.offsetY)
+    }
+  }
 
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
@@ -114,12 +154,20 @@ export class GanttRowElement extends LitElement {
           border-right: 1px solid ${colors.border};
         }
       </style>
-      <div class="row-container">
+      <div
+        class="row-container ${this.dropPosition
+          ? `drop-${this.dropPosition}`
+          : ''}"
+      >
         <div
-          class="row-header"
+          class="row-header ${this.option.enableRowReordering
+            ? 'draggable'
+            : ''}"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ?? colors.rowHeaderBg};"
+          draggable="${this.option.enableRowReordering ? 'true' : 'false'}"
+          @dragstart="${this.handleDragStart}"
         ></div>
         <div
           class="bars-container"
