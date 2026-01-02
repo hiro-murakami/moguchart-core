@@ -1,15 +1,14 @@
-import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-import { calculateTaskLanes, getThemeColors } from '@/utils'
-import type { GanttRow, GanttChartOption } from '@/types'
-import './gantt-bar'
-import './gantt-row-background'
 import {
-  DEFAULT_ROW_HEADER_WIDTH,
-  DEFAULT_COLOR,
   DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
+  DEFAULT_ROW_HEADER_WIDTH,
 } from '@/constants'
+import type { GanttChartOption, GanttRow } from '@/types'
+import { calculateTaskLanes, getThemeColors } from '@/utils'
+import { LitElement, css, html, type PropertyValues } from 'lit'
+import { customElement, property } from 'lit/decorators.js'
+import './gantt-bar'
+import './gantt-row-background'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
