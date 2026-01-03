@@ -131,7 +131,11 @@ export class GanttCalendarElement extends LitElement {
         </div>
         <div class="days-container" style="${backgroundStyle}">
           ${days.map((day) => {
-            const backgroundColor = getCalendarColor(day, colors)
+            const backgroundColor = getCalendarColor(
+              day,
+              colors,
+              this.option.calendar.isHoliday,
+            )
             return html`
               <div
                 class="day-cell"

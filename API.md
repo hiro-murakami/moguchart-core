@@ -39,6 +39,7 @@ interface GanttChartOption {
     start: Date // 表示開始日
     pxPerDay: number // 1日あたりの幅 (px)
     totalDays: number // カレンダーに表示する総日数
+    isHoliday?: (date: Date) => boolean // 祝日判定ロジック
   }
   /** 読み取り専用モードかどうか */
   readOnly: boolean

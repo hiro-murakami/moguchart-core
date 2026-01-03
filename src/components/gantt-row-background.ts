@@ -34,7 +34,11 @@ export class GanttRowBackgroundElement extends LitElement {
 
     return html`
       ${days.map((day) => {
-        const color = getCalendarColor(day, colors)
+        const color = getCalendarColor(
+          day,
+          colors,
+          this.option.calendar.isHoliday,
+        )
         return html`<div
           style="width: ${this.option.calendar
             .pxPerDay}px; background-color: ${color}; flex-shrink: 0;"

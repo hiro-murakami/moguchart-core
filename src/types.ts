@@ -101,6 +101,8 @@ export interface GanttChartOptionCalendar {
   monthFormat?: string
   /** 行の背景を表示するかどうか */
   showRowBackground?: boolean
+  /** 祝日判定ロジック (trueを返すと祝日として扱われる) */
+  isHoliday?: (date: Date) => boolean
 }
 
 /**

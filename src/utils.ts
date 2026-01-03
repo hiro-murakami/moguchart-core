@@ -1,8 +1,13 @@
 import type { GanttTask, TaskWithLane, ThemeColorPalette } from '@/types'
-import * as holiday_jp from '@holiday-jp/holiday_jp'
 import { THEME_COLORS } from '@/theme'
 
-// ユーティリティ: 日付からX座標を計算
+/**
+ * 指定された日付のチャート上のX座標（ピクセル）を計算します。
+ * @param date 対象の日付
+ * @param startDate チャートの開始日
+ * @param pxPerDay 1日あたりのピクセル幅
+ * @returns 開始日からのピクセル距離
+ */
 export const dateToX = (date: Date, startDate: Date, pxPerDay: number) => {
   const diffTime = date.getTime() - startDate.getTime()
   const diffDays = diffTime / (1000 * 60 * 60 * 24)
@@ -27,13 +32,16 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     (a, b) => a.start.getTime() - b.start.getTime(),
   )
 
-  const lanes: Date[] = [] // 各レーンに最後に配置されたタスクの終了日を保持
+  // 各レーンの「最後尾のタスクの終了日時」を保持する配列
+  // インデックスがレーン番号に対応します
+  const lanes: Date[] = []
   const taskLaneMap = new Map<string, number>()
 
   for (const task of sortedTasks) {
     let assignedLane = -1
     // 既存のレーンに空きがあるか探す
     for (let i = 0; i < lanes.length; i++) {
+      // このレーンの最後のタスク終了日よりも、現在のタスク開始日が後であれば配置可能
       if (task.start >= lanes[i]) {
         lanes[i] = task.end // レーンの終了日を更新
         assignedLane = i
@@ -60,6 +68,12 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   }
 }
 
+/**
+ * 現在のテーマ設定とカスタムテーマをマージして、最終的なカラーパレットを生成します。
+ * @param theme ベースとなるテーマ名 ('light' | 'dark')
+ * @param customTheme 上書きするカスタムカラー設定
+ * @returns マージされたカラーパレット
+ */
 export const getThemeColors = (
   theme: 'light' | 'dark',
   customTheme?: Partial<ThemeColorPalette>,
@@ -68,31 +82,33 @@ export const getThemeColors = (
   return { ...base, ...customTheme }
 }
 
+/**
+ * 指定された日付に対応する背景色（休日、土日など）を取得します。
+ * @param date 対象の日付
+ * @param colors カラーパレット
+ * @param isHoliday 祝日判定関数 (オプション)。指定がない場合は @holiday-jp/holiday_jp を使用します。
+ * @returns 背景色のCSSカラー文字列。平日の場合は空文字を返すことがあります。
+ */
 export const getCalendarColor = (
   date: Date,
   colors: ThemeColorPalette,
+  isHoliday?: (date: Date) => boolean,
 ): string => {
   const dayOfWeek = date.getDay()
-  const isHolidayDay = holiday_jp.isHoliday(date)
+  const isHolidayDay = isHoliday ? isHoliday(date) : false
 
   if (isHolidayDay) {
     return colors.holiday
   }
-  switch (dayOfWeek) {
-    case 0:
-      return colors.sunday
-    case 6:
-      return colors.saturday
-    case 1:
-      return colors.monday ?? ''
-    case 2:
-      return colors.tuesday ?? ''
-    case 3:
-      return colors.wednesday ?? ''
-    case 4:
-      return colors.thursday ?? ''
-    case 5:
-      return colors.friday ?? ''
-  }
-  return ''
+  // 曜日ごとの色定義テーブル (0: 日曜, ..., 6: 土曜)
+  const weekColors = [
+    colors.sunday,
+    colors.monday ?? '',
+    colors.tuesday ?? '',
+    colors.wednesday ?? '',
+    colors.thursday ?? '',
+    colors.friday ?? '',
+    colors.saturday,
+  ]
+  return weekColors[dayOfWeek]
 }

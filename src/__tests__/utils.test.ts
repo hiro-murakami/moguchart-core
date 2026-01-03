@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
+import * as holiday_jp from '@holiday-jp/holiday_jp'
 import {
   dateToX,
   calculateTaskLanes,
   getThemeColors,
   getCalendarColor,
-} from './utils'
+} from '@/utils'
 import { THEME_COLORS } from '@/theme'
 import type { GanttTask } from '@/types'
 
@@ -124,12 +125,16 @@ describe('utils', () => {
 
     it('returns holiday color', () => {
       const date = new Date('2024-01-01') // New Year's Day (Holiday in Japan)
-      expect(getCalendarColor(date, colors)).toBe(colors.holiday)
+      expect(getCalendarColor(date, colors, holiday_jp.isHoliday)).toBe(
+        colors.holiday,
+      )
     })
 
     it('prioritizes holiday over sunday', () => {
       const date = new Date('2024-05-05') // Children's Day (Sunday)
-      expect(getCalendarColor(date, colors)).toBe(colors.holiday)
+      expect(getCalendarColor(date, colors, holiday_jp.isHoliday)).toBe(
+        colors.holiday,
+      )
     })
 
     it('returns empty string for normal weekday', () => {
@@ -141,6 +146,14 @@ describe('utils', () => {
       const customColors = { ...colors, wednesday: '#abcdef' }
       const date = new Date('2024-01-03') // Wednesday
       expect(getCalendarColor(date, customColors)).toBe('#abcdef')
+    })
+
+    it('uses custom holiday logic', () => {
+      const date = new Date('2024-01-04') // Thursday (Not holiday)
+      const customIsHoliday = () => true
+      expect(getCalendarColor(date, colors, customIsHoliday)).toBe(
+        colors.holiday,
+      )
     })
   })
 })

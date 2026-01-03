@@ -1,5 +1,6 @@
 import { html, render } from 'lit'
 import '@/components/gantt-chart'
+import * as holiday_jp from '@holiday-jp/holiday_jp'
 import type {
   GanttChartOption,
   GanttRow,
@@ -26,7 +27,7 @@ let rowHeaderWidth = 200
 let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
-let theme: 'light' | 'dark' = 'light'
+let theme: 'light' | 'dark' = 'dark'
 let highlightWednesday = false
 let enableRowReordering = true
 
@@ -50,6 +51,7 @@ const renderApp = () => {
       start: chartStart,
       pxPerDay,
       totalDays,
+      isHoliday: holiday_jp.isHoliday,
     },
     readOnly: isReadOnly,
     tooltipDelay,
