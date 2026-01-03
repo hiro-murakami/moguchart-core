@@ -18,15 +18,21 @@
     "dev": "vite",
     "build": "vite build && pnpm exec tsc",
     "build:demo": "BUILD_MODE=demo vite build && pnpm exec tsc",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.21",
     "@types/node": "^25.0.3",
+    "jsdom": "^27.4.0",
     "lit": "^3.3.2",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0"
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16"
   },
   "dependencies": {
     "@holiday-jp/holiday_jp": "^2.5.1",

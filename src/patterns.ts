@@ -4,6 +4,10 @@ export const PATTERN_DIAGONAL_STRIPE: GanttTaskPattern = {
   type: 'diagonal-stripe',
 }
 
+export const PATTERN_DIAGONAL_STRIPE_REVERSE: GanttTaskPattern = {
+  type: 'diagonal-stripe-reverse',
+}
+
 export const PATTERN_VERTICAL_STRIPE: GanttTaskPattern = {
   type: 'vertical-stripe',
 }
@@ -30,6 +34,10 @@ export const PATTERN_CIRCLE: GanttTaskPattern = {
 
 export const PATTERN_GRID: GanttTaskPattern = {
   type: 'grid',
+}
+
+export const PATTERN_DIAGONAL_GRID: GanttTaskPattern = {
+  type: 'diagonal-grid',
 }
 
 export const PATTERN_STRIPE_THIN: GanttTaskPattern = {

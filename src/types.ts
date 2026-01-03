@@ -3,6 +3,7 @@
  */
 export type BarPattern =
   | 'diagonal-stripe'
+  | 'diagonal-stripe-reverse'
   | 'vertical-stripe'
   | 'horizontal-stripe'
   | 'checkerboard'
@@ -10,6 +11,7 @@ export type BarPattern =
   | 'triangle'
   | 'circle'
   | 'grid'
+  | 'diagonal-grid'
 
 /**
  * タスクのバーのパターン設定
