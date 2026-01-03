@@ -103,7 +103,7 @@ interface GanttTask {
 ```typescript
 interface GanttTaskPattern {
   // パターンの種類
-  // 指定可能な値: 'diagonal-stripe' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'triangle' | 'circle' | 'grid'
+  // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
   color?: string // パターンの色
   size?: string // パターンのサイズ
