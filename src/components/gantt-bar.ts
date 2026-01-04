@@ -127,6 +127,20 @@ export class GanttBarElement extends LitElement {
     e.stopPropagation()
     const target = e.target as HTMLElement
 
+    const movable = this.task.movable ?? 'both'
+    const resizable = this.task.resizable
+
+    let canResize = !this.option.readOnly
+    if (canResize) {
+      if (resizable !== undefined) {
+        canResize = resizable
+      } else {
+        canResize = !(movable === 'y' || movable === 'none')
+      }
+    }
+
+    if (!canResize) return
+
     const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
     if (!barEl) {
       return
@@ -233,6 +247,9 @@ export class GanttBarElement extends LitElement {
       return
     }
 
+    const movable = this.task.movable ?? 'both'
+    if (movable === 'none') return
+
     target.style.cursor = 'grabbing'
     target.setPointerCapture(e.pointerId)
     taskGroup.classList.add('dragging')
@@ -247,8 +264,11 @@ export class GanttBarElement extends LitElement {
       target,
       e.pointerId,
       (moveEvent) => {
-        const deltaX = moveEvent.clientX - startX
-        const deltaY = moveEvent.clientY - startY
+        let deltaX = moveEvent.clientX - startX
+        let deltaY = moveEvent.clientY - startY
+
+        if (movable === 'y') deltaX = 0
+        if (movable === 'x') deltaY = 0
 
         // 横方向のスナップ処理
         const translateX =
@@ -409,6 +429,18 @@ export class GanttBarElement extends LitElement {
 
     const y = this.lane * (barHeight + barMargin) + barMargin
     const isReadOnly = this.option.readOnly
+    const movable = this.task.movable ?? 'both'
+    const resizable = this.task.resizable
+    const canMove = !isReadOnly && movable !== 'none'
+
+    let canResize = !isReadOnly
+    if (canResize) {
+      if (resizable !== undefined) {
+        canResize = resizable
+      } else {
+        canResize = !(movable === 'y' || movable === 'none')
+      }
+    }
 
     return html`
       <div
@@ -427,15 +459,15 @@ export class GanttBarElement extends LitElement {
         <div
           class="bar"
           style="border-radius: ${barCornerRadius}px; ${this.task.style ||
-          ''}; ${getPatternStyle(this.task.pattern)}; ${isReadOnly
+          ''}; ${getPatternStyle(this.task.pattern)}; ${!canMove
             ? 'cursor: default;'
             : ''}"
-          @pointerdown="${isReadOnly ? undefined : this.onMoveStart}"
+          @pointerdown="${canMove ? this.onMoveStart : undefined}"
         ></div>
         ${this.task.name
           ? html`<div class="bar-label">${this.task.name}</div>`
           : ''}
-        ${!isReadOnly
+        ${canResize
           ? html`
               <div
                 class="handle-left"

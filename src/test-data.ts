@@ -113,4 +113,51 @@ export const testRows: GanttRow[] = [
   ...generateProject('p8', 'Theta', 105),
   ...generateProject('p9', 'Iota', 120),
   ...generateProject('p10', 'Kappa', 135),
+  {
+    id: 'movable-test-row',
+    label: 'Movable Test',
+    tasks: [
+      {
+        id: 'movable-x',
+        name: 'Only X (Horizontal)',
+        start: getDate(today, 150),
+        end: getDate(today, 155),
+        movable: 'x',
+        style: 'background-color: #8b5cf6', // violet
+      },
+      {
+        id: 'movable-y',
+        name: 'Only Y (Vertical)',
+        start: getDate(today, 157),
+        end: getDate(today, 162),
+        movable: 'y',
+        style: 'background-color: #ec4899', // pink
+      },
+      {
+        id: 'movable-none',
+        name: 'Fixed (None)',
+        start: getDate(today, 164),
+        end: getDate(today, 169),
+        movable: 'none',
+        style: 'background-color: #64748b', // slate
+      },
+      {
+        id: 'resizable-false',
+        name: 'Resizable: False',
+        start: getDate(today, 171),
+        end: getDate(today, 176),
+        resizable: false,
+        style: 'background-color: #ef4444', // red
+      },
+      {
+        id: 'fixed-but-resizable',
+        name: 'Fixed but Resizable',
+        start: getDate(today, 178),
+        end: getDate(today, 183),
+        movable: 'none',
+        resizable: true,
+        style: 'background-color: #10b981', // emerald
+      },
+    ],
+  },
 ]

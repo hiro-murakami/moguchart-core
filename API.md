@@ -96,6 +96,8 @@ interface GanttTask {
   style?: string // バーのカスタムスタイル (CSS文字列)
   pattern?: GanttTaskPattern // バーの塗りつぶしパターン
   dependencies?: string[] // 依存関係にあるタスクのID配列
+  movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)
+  resizable?: boolean // リサイズ可否 (未指定時はmovable設定に準拠)
 }
 ```
 

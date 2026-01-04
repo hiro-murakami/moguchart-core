@@ -43,6 +43,16 @@ export interface GanttTask {
   pattern?: GanttTaskPattern
   /** 依存関係にあるタスクのID配列 */
   dependencies?: string[]
+  /**
+   * ドラッグによる移動の許可設定
+   * 'both': 縦横移動可能 (デフォルト)
+   * 'x': 横移動のみ可能
+   * 'y': 縦移動のみ可能
+   * 'none': 移動不可
+   */
+  movable?: 'both' | 'x' | 'y' | 'none'
+  /** リサイズ可否 (指定がない場合はmovableの設定に準ずる) */
+  resizable?: boolean
 }
 
 /**
