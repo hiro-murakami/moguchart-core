@@ -86,7 +86,7 @@ export const getThemeColors = (
  * 指定された日付に対応する背景色（休日、土日など）を取得します。
  * @param date 対象の日付
  * @param colors カラーパレット
- * @param isHoliday 祝日判定関数 (オプション)。指定がない場合は @holiday-jp/holiday_jp を使用します。
+ * @param isHoliday 祝日判定関数 (オプション)。指定がない場合は祝日判定を行いません。
  * @returns 背景色のCSSカラー文字列。平日の場合は空文字を返すことがあります。
  */
 export const getCalendarColor = (
