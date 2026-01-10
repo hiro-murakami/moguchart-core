@@ -115,6 +115,16 @@ export interface GanttChartOptionCalendar {
   isHoliday?: (date: Date) => boolean
   /** 時間単位のグリッドを表示するかどうか */
   showTime?: boolean
+  /** 年月を表示するかどうか */
+  showMonths?: boolean
+  /** 日付を表示するかどうか */
+  showDays?: boolean
+  /** 現在時刻線を表示するかどうか */
+  showCurrentTime?: boolean
+  /** 現在時刻バッジを表示するかどうか */
+  showCurrentTimeBadge?: boolean
+  /** 現在時刻線を自動更新する間隔（ミリ秒）。0または未指定の場合は更新しない */
+  currentTimeUpdateInterval?: number
 }
 
 /**
@@ -269,6 +279,8 @@ export interface ThemeColorPalette {
   border: string
   /** グリッド線色 */
   gridLine: string
+  /** サブグリッド線色（スナップ単位など） */
+  subGridLine: string
   /** ドラッグ対象の背景色 */
   dragTarget: string
   /** ツールチップの背景色 */
@@ -295,6 +307,10 @@ export interface ThemeColorPalette {
   holiday: string
   /** 行ヘッダーの背景色 */
   rowHeaderBg: string
+  /** 現在時刻線の色 */
+  currentTimeLine: string
+  /** 現在時刻線のバッジテキスト色 */
+  currentTimeLineText: string
   /** 月曜日の背景色 (オプション) */
   monday?: string
   /** 火曜日の背景色 (オプション) */

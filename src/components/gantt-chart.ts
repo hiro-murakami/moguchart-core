@@ -57,6 +57,7 @@ export class GanttChartElement extends LitElement {
   @state() private dragOverRowId: string | null = null
   @state() private dragOverPosition: 'top' | 'bottom' | null = null
   private hoverTimer: number | undefined
+  @state() private currentTime = new Date()
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -141,9 +142,17 @@ export class GanttChartElement extends LitElement {
       stroke-width: 2;
       fill: none;
     }
+    .current-time-line {
+      position: absolute;
+      width: 2px;
+      z-index: 20;
+      pointer-events: none;
+    }
   `
 
   protected firstUpdated() {
+    this.setupCurrentTimeTimer()
+
     const calendar = this.shadowRoot?.getElementById('calendar')
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -163,11 +172,15 @@ export class GanttChartElement extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this.resizeObserver?.disconnect()
+    this.stopCurrentTimeTimer()
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('option') && this.option?.theme) {
       this.theme = this.option.theme
+    }
+    if (changedProperties.has('option')) {
+      this.setupCurrentTimeTimer()
     }
   }
 
@@ -268,6 +281,25 @@ export class GanttChartElement extends LitElement {
               }`
         }
       }
+    }
+  }
+
+  private currentTimeTimer: number | undefined
+
+  private setupCurrentTimeTimer() {
+    this.stopCurrentTimeTimer()
+    const interval = this.option.calendar.currentTimeUpdateInterval
+    if (interval && interval > 0) {
+      this.currentTimeTimer = window.setInterval(() => {
+        this.currentTime = new Date()
+      }, interval)
+    }
+  }
+
+  private stopCurrentTimeTimer() {
+    if (this.currentTimeTimer !== undefined) {
+      window.clearInterval(this.currentTimeTimer)
+      this.currentTimeTimer = undefined
     }
   }
 
@@ -739,6 +771,7 @@ export class GanttChartElement extends LitElement {
           id="calendar"
           .option="${this.option}"
           .theme="${this.theme}"
+          .currentTime="${this.currentTime}"
         ></gantt-calendar>
 
         <svg
@@ -751,6 +784,20 @@ export class GanttChartElement extends LitElement {
         >
           ${lines}
         </svg>
+
+        ${this.option.calendar.showCurrentTime
+          ? html`
+              <div
+                class="current-time-line"
+                style="
+                  top: ${this.calendarHeight}px;
+                  left: ${this.getDateX(this.currentTime) + labelWidth}px;
+                  height: ${totalHeight}px;
+                  background-color: ${colors.currentTimeLine};
+                "
+              ></div>
+            `
+          : ''}
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 

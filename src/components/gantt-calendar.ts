@@ -10,6 +10,7 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
+  @property({ type: Object }) currentTime = new Date()
 
   static styles = css`
     :host {
@@ -32,6 +33,7 @@ export class GanttCalendarElement extends LitElement {
     .calendar-group {
       display: flex;
       flex-direction: column;
+      position: relative;
     }
     .months-container {
       display: flex;
@@ -72,13 +74,39 @@ export class GanttCalendarElement extends LitElement {
       box-sizing: border-box;
       overflow: hidden;
     }
+    .current-time-badge {
+      position: absolute;
+      bottom: 0;
+      transform: translateX(-50%);
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+    }
   `
+
+  private getDateX(date: Date) {
+    const d = new Date(date)
+    const start = new Date(this.option.calendar.start)
+    start.setHours(0, 0, 0, 0)
+    const diff = d.getTime() - start.getTime()
+    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
+  }
+
+  private formatTime(date: Date) {
+    const h = date.getHours().toString().padStart(2, '0')
+    const m = date.getMinutes().toString().padStart(2, '0')
+    return `${h}:${m}`
+  }
 
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
     const days = Array.from(
-      { length: this.option.calendar.totalDays },
+      { length: Math.ceil(this.option.calendar.totalDays) },
       (_, i) => {
         const d = new Date(this.option.calendar.start)
         d.setDate(d.getDate() + i)
@@ -110,6 +138,9 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${hourWidth}px 100%;
     `
 
+    const totalWidth =
+      this.option.calendar.totalDays * this.option.calendar.pxPerDay
+
     return html`
       <style>
         :host {
@@ -137,40 +168,52 @@ export class GanttCalendarElement extends LitElement {
         DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
           ?.backgroundColor ?? colors.rowHeaderBg};"
       ></div>
-      <div class="calendar-group">
-        <div class="months-container">
-          ${months.map((m) => {
-            const format =
-              this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
-            const text = dayjs(new Date(m.year, m.month)).format(format)
-            return html`<div
-              class="month-cell"
-              style="width: ${m.count * this.option.calendar.pxPerDay}px"
-            >
-              ${text}
+      <div
+        class="calendar-group"
+        style="width: ${totalWidth}px; overflow: hidden;"
+      >
+        ${this.option.calendar.showMonths !== false
+          ? html`<div class="months-container">
+              ${months.map((m) => {
+                const format =
+                  this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
+                const text = dayjs(new Date(m.year, m.month)).format(format)
+                return html`<div
+                  class="month-cell"
+                  style="width: ${m.count * this.option.calendar.pxPerDay}px"
+                >
+                  ${text}
+                </div>`
+              })}
             </div>`
-          })}
-        </div>
-        <div class="days-container" style="${backgroundStyle}">
-          ${days.map((day) => {
-            const backgroundColor = getCalendarColor(
-              day,
-              colors,
-              this.option.calendar.isHoliday,
-            )
-            return html`
-              <div
-                class="day-cell"
-                style="width: ${this.option.calendar
-                  .pxPerDay}px; ${backgroundColor
-                  ? `background-color: ${backgroundColor};`
-                  : ''}"
-              >
-                ${day.getDate()}
-              </div>
-            `
-          })}
-        </div>
+          : ''}
+        ${this.option.calendar.showDays !== false
+          ? html`<div class="days-container" style="${backgroundStyle}">
+              ${days.map((day, index) => {
+                let width = this.option.calendar.pxPerDay
+                if (index + 1 > this.option.calendar.totalDays) {
+                  width =
+                    (this.option.calendar.totalDays - index) *
+                    this.option.calendar.pxPerDay
+                }
+                const backgroundColor = getCalendarColor(
+                  day,
+                  colors,
+                  this.option.calendar.isHoliday,
+                )
+                return html`
+                  <div
+                    class="day-cell"
+                    style="width: ${width}px; ${backgroundColor
+                      ? `background-color: ${backgroundColor};`
+                      : ''}"
+                  >
+                    ${day.getDate()}
+                  </div>
+                `
+              })}
+            </div>`
+          : ''}
         ${this.option.calendar.showTime
           ? html`
               <div class="hours-container" style="${hourBackgroundStyle}">
@@ -183,6 +226,21 @@ export class GanttCalendarElement extends LitElement {
                     `,
                   ),
                 )}
+              </div>
+            `
+          : ''}
+        ${this.option.calendar.showCurrentTime &&
+        this.option.calendar.showCurrentTimeBadge !== false
+          ? html`
+              <div
+                class="current-time-badge"
+                style="
+                  left: ${this.getDateX(this.currentTime)}px;
+                  background-color: ${colors.currentTimeLine};
+                  color: ${colors.currentTimeLineText};
+                "
+              >
+                ${this.formatTime(this.currentTime)}
               </div>
             `
           : ''}

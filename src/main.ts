@@ -13,14 +13,112 @@ import type {
   TaskUpdateEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
-import { testRows } from './test-data'
 import dayjs from 'dayjs'
 
-let rows: GanttRow[] = testRows
-
 const chartStart = new Date()
-let pxPerDay = 24
-const totalDays = 200 // 表示する日数
+chartStart.setHours(0, 0, 0, 0)
+
+const generateDayModeData = (): GanttRow[] => {
+  const start = new Date(chartStart)
+  const rows: GanttRow[] = []
+  for (let i = 1; i <= 50; i++) {
+    const offset = (i - 1) % 10
+    rows.push({
+      id: `row${i}`,
+      label: `プロジェクト ${i}`,
+      tasks: [
+        {
+          id: `t${i}-1`,
+          name: '要件定義',
+          start: new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate() + offset,
+          ),
+          end: new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate() + offset + 5,
+          ),
+          pattern:
+            i % 3 === 0
+              ? { type: 'diagonal-stripe', color: '#3b82f6' }
+              : undefined,
+        },
+        {
+          id: `t${i}-2`,
+          name: '設計',
+          start: new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate() + offset + 6,
+          ),
+          end: new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate() + offset + 15,
+          ),
+          dependencies: [`t${i}-1`],
+        },
+      ],
+    })
+  }
+  return rows
+}
+
+const generateHourModeData = (): GanttRow[] => {
+  const start = new Date(chartStart)
+  const setTime = (d: Date, h: number, m: number) => {
+    const newDate = new Date(d)
+    newDate.setHours(h, m, 0, 0)
+    return newDate
+  }
+
+  const rows: GanttRow[] = []
+  for (let i = 1; i <= 30; i++) {
+    const shift = (i - 1) % 3
+    rows.push({
+      id: `user${i}`,
+      label: `担当者 ${i}`,
+      tasks: [
+        {
+          id: `h${i}-1`,
+          name: '朝会',
+          start: setTime(start, 9, 0),
+          end: setTime(start, 10, 0),
+          movable: 'none',
+          style: 'background-color: #ef4444;',
+        },
+        {
+          id: `h${i}-2`,
+          name: 'タスクA',
+          start: setTime(start, 10 + shift, 0),
+          end: setTime(start, 12 + shift, 0),
+        },
+        {
+          id: `h${i}-3`,
+          name: '休憩',
+          start: setTime(start, 12, 0),
+          end: setTime(start, 13, 0),
+          pattern: { type: 'dots', color: '#aaa' },
+        },
+        {
+          id: `h${i}-4`,
+          name: 'タスクB',
+          start: setTime(start, 13, 0),
+          end: setTime(start, 16 + shift, 30),
+        },
+      ],
+    })
+  }
+  return rows
+}
+
+let rows: GanttRow[] = []
+let viewMode: 'day' | 'hour' = 'day'
+
+let pxPerDay = 48
+let totalDays = 60 // 表示する日数
 let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
@@ -29,16 +127,53 @@ let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
 let theme: 'light' | 'dark' = 'dark'
-let highlightWednesday = false
 let enableRowReordering = true
 let snapDuration = 1440
 let showTime = false
+let showMonths = true
+let showDays = true
+let showCurrentTime = true
+let showCurrentTimeBadge = false
+let currentTimeUpdateInterval = 1000
+let enableCustomRendering = true
+
+const setViewMode = (mode: 'day' | 'hour') => {
+  viewMode = mode
+  if (mode === 'day') {
+    pxPerDay = 48
+    snapDuration = 1440
+    showTime = false
+    showMonths = true
+    showDays = true
+    showCurrentTime = true
+    showCurrentTimeBadge = false
+    currentTimeUpdateInterval = 1000
+    totalDays = 60
+    rows = generateDayModeData()
+  } else {
+    // 時間単位モード: 1時間あたり40px (960px/日)
+    pxPerDay = 960
+    snapDuration = 15
+    showTime = true
+    showMonths = false
+    showDays = true
+    showCurrentTime = true
+    showCurrentTimeBadge = true
+    currentTimeUpdateInterval = 1000
+    totalDays = 1.5
+    rows = generateHourModeData()
+  }
+  renderApp()
+}
 
 const renderApp = () => {
   const customTheme: Partial<ThemeColorPalette> = {}
-  if (highlightWednesday) {
-    customTheme.wednesday =
-      theme === 'dark' ? 'rgba(253, 224, 71, 0.15)' : '#fef08a'
+
+  // 時間単位モードのときは土日・祝日のハイライトを無効化（透明にする）
+  if (viewMode === 'hour') {
+    customTheme.saturday = 'transparent'
+    customTheme.sunday = 'transparent'
+    customTheme.holiday = 'transparent'
   }
 
   const option: GanttChartOption = {
@@ -56,6 +191,11 @@ const renderApp = () => {
       totalDays,
       isHoliday: holiday_jp.isHoliday,
       showTime,
+      showMonths,
+      showDays,
+      showCurrentTime,
+      showCurrentTimeBadge,
+      currentTimeUpdateInterval,
     },
     readOnly: isReadOnly,
     tooltipDelay,
@@ -75,94 +215,40 @@ const renderApp = () => {
     <div
       style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}"
     >
-      <h2>MoguChart 2</h2>
+      <h2>MoguChart</h2>
 
       <div
         style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
       >
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${isReadOnly}"
-            @change="${(e: Event) => {
-              isReadOnly = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          表示専用モード
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showDragInfoOverlay}"
-            @change="${(e: Event) => {
-              showDragInfoOverlay = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ドラッグ情報を表示
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${highlightWednesday}"
-            @change="${(e: Event) => {
-              highlightWednesday = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          水曜日を強調
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${enableRowReordering}"
-            @change="${(e: Event) => {
-              enableRowReordering = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          行の並び替えを有効化
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          スナップ単位:
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              snapDuration = Number((e.target as HTMLSelectElement).value)
-              renderApp()
-            }}"
+        <div
+          style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;"
+        >
+          <span style="margin-right: 8px; font-weight: bold;">表示モード:</span>
+          <label
+            style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;"
           >
-            ${[15, 30, 60, 180, 720, 1440].map(
-              (d) => html`
-                <option value="${d}" ?selected="${snapDuration === d}">
-                  ${d === 1440 ? '1日' : `${d}分`}
-                </option>
-              `,
-            )}
-          </select>
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showTime}"
-            @change="${(e: Event) => {
-              showTime = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          時間を表示
-        </label>
+            <input
+              type="radio"
+              name="viewMode"
+              value="day"
+              .checked="${viewMode === 'day'}"
+              @change="${() => setViewMode('day')}"
+              style="margin-right: 4px;"
+            />
+            日単位
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input
+              type="radio"
+              name="viewMode"
+              value="hour"
+              .checked="${viewMode === 'hour'}"
+              @change="${() => setViewMode('hour')}"
+              style="margin-right: 4px;"
+            />
+            時間単位
+          </label>
+        </div>
 
         <div style="display: flex; align-items: center;">
           <span style="margin-right: 8px;">テーマ:</span>
@@ -197,6 +283,189 @@ const renderApp = () => {
             Dark
           </label>
         </div>
+      </div>
+
+      <div
+        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
+      >
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${isReadOnly}"
+            @change="${(e: Event) => {
+              isReadOnly = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          表示専用モード
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showDragInfoOverlay}"
+            @change="${(e: Event) => {
+              showDragInfoOverlay = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          ドラッグ情報を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${enableRowReordering}"
+            @change="${(e: Event) => {
+              enableRowReordering = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          行の並び替えを有効化
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${currentTimeUpdateInterval > 0}"
+            @change="${(e: Event) => {
+              currentTimeUpdateInterval = (e.target as HTMLInputElement).checked
+                ? 1000
+                : 0
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          現在時刻を自動更新
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          ${viewMode === 'day' ? '表示日数:' : '表示時間:'}
+          <input
+            type="number"
+            min="1"
+            style="font-size: 16px; padding: 4px; margin-left: 6px; width: 60px;"
+            .value="${viewMode === 'day' ? totalDays : totalDays * 24}"
+            @change="${(e: Event) => {
+              const val = Number((e.target as HTMLInputElement).value)
+              if (viewMode === 'day') {
+                totalDays = val
+              } else {
+                totalDays = val / 24
+              }
+              renderApp()
+            }}"
+          />
+          ${viewMode === 'day' ? '日' : '時間'}
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${enableCustomRendering}"
+            @change="${(e: Event) => {
+              enableCustomRendering = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          カスタムレンダリング有効
+        </label>
+      </div>
+
+      <div
+        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
+      >
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showTime}"
+            @change="${(e: Event) => {
+              showTime = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          時間を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showMonths}"
+            @change="${(e: Event) => {
+              showMonths = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          年月を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showDays}"
+            @change="${(e: Event) => {
+              showDays = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          日付を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showCurrentTime}"
+            @change="${(e: Event) => {
+              showCurrentTime = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          現在時刻線を表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showCurrentTimeBadge}"
+            @change="${(e: Event) => {
+              showCurrentTimeBadge = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          現在時刻バッジを表示
+        </label>
+      </div>
+
+      <div
+        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
+      >
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          スナップ単位:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              snapDuration = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[6, 15, 30, 60, 180, 720, 1440].map(
+              (d) => html`
+                <option value="${d}" ?selected="${snapDuration === d}">
+                  ${d === 1440 ? '1日' : `${d}分`}
+                </option>
+              `,
+            )}
+          </select>
+        </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
           バーの高さ:
@@ -226,7 +495,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[24, 48, 96, 144, 240, 480, 720].map(
+            ${[24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
               (w) => html`
                 <option value="${w}" ?selected="${pxPerDay === w}">
                   ${w}px
@@ -284,12 +553,20 @@ const renderApp = () => {
           rows = e.detail
         }}"
         @task-update="${handleTaskUpdate}"
-        @render-bar-content="${handleRenderBarContent}"
-        @render-row-header="${handleRenderRowHeader}"
-        @render-tooltip="${handleRenderTooltip}"
+        @render-bar-content="${enableCustomRendering
+          ? handleRenderBarContent
+          : undefined}"
+        @render-row-header="${enableCustomRendering
+          ? handleRenderRowHeader
+          : undefined}"
+        @render-tooltip="${enableCustomRendering
+          ? handleRenderTooltip
+          : undefined}"
         @task-dblclick="${handleTaskDblClick}"
         @task-contextmenu="${handleTaskContextMenu}"
-        @render-drag-info="${handleRenderDragInfo}"
+        @render-drag-info="${enableCustomRendering
+          ? handleRenderDragInfo
+          : undefined}"
       />
     </div>
   `
@@ -446,4 +723,4 @@ const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
   `
 }
 
-renderApp()
+setViewMode('day')
