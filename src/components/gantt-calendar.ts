@@ -60,6 +60,18 @@ export class GanttCalendarElement extends LitElement {
       align-items: center;
       justify-content: center;
     }
+    .hours-container {
+      display: flex;
+      background-position: -1px 0;
+    }
+    .hour-cell {
+      text-align: center;
+      font-size: 9px;
+      padding: 2px 0;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
   `
 
   render() {
@@ -91,6 +103,13 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${this.option.calendar.pxPerDay}px 100%;
     `
 
+    const hours = Array.from({ length: 24 }, (_, i) => i)
+    const hourWidth = this.option.calendar.pxPerDay / 24
+    const hourBackgroundStyle = `
+      background-image: linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.border} ${hourWidth - 1}px);
+      background-size: ${hourWidth}px 100%;
+    `
+
     return html`
       <style>
         :host {
@@ -107,6 +126,9 @@ export class GanttCalendarElement extends LitElement {
         }
         .month-cell {
           border-right: 1px solid ${colors.border};
+        }
+        .hours-container {
+          border-top: 1px solid ${colors.border};
         }
       </style>
       <div
@@ -149,6 +171,21 @@ export class GanttCalendarElement extends LitElement {
             `
           })}
         </div>
+        ${this.option.calendar.showTime
+          ? html`
+              <div class="hours-container" style="${hourBackgroundStyle}">
+                ${days.map(() =>
+                  hours.map(
+                    (h) => html`
+                      <div class="hour-cell" style="width: ${hourWidth}px;">
+                        ${h}
+                      </div>
+                    `,
+                  ),
+                )}
+              </div>
+            `
+          : ''}
       </div>
     `
   }

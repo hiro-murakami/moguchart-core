@@ -135,9 +135,13 @@ export class GanttRowElement extends LitElement {
 
     this.style.height = `${rowHeight}px`
 
+    const gridWidth = this.option.calendar.showTime
+      ? this.option.calendar.pxPerDay / 24
+      : this.option.calendar.pxPerDay
+
     const backgroundStyle = `
-      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.gridLine} ${this.option.calendar.pxPerDay - 1}px);
-      background-size: ${this.option.calendar.pxPerDay}px 100%;
+      background-image: linear-gradient(90deg, transparent ${gridWidth - 1}px, ${colors.gridLine} ${gridWidth - 1}px);
+      background-size: ${gridWidth}px 100%;
     `
 
     return html`

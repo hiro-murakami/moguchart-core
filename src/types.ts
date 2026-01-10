@@ -113,6 +113,8 @@ export interface GanttChartOptionCalendar {
   showRowBackground?: boolean
   /** 祝日判定ロジック (trueを返すと祝日として扱われる) */
   isHoliday?: (date: Date) => boolean
+  /** 時間単位のグリッドを表示するかどうか */
+  showTime?: boolean
 }
 
 /**

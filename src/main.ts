@@ -32,6 +32,7 @@ let theme: 'light' | 'dark' = 'dark'
 let highlightWednesday = false
 let enableRowReordering = true
 let snapDuration = 1440
+let showTime = false
 
 const renderApp = () => {
   const customTheme: Partial<ThemeColorPalette> = {}
@@ -54,6 +55,7 @@ const renderApp = () => {
       pxPerDay,
       totalDays,
       isHoliday: holiday_jp.isHoliday,
+      showTime,
     },
     readOnly: isReadOnly,
     tooltipDelay,
@@ -149,6 +151,19 @@ const renderApp = () => {
           </select>
         </label>
 
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showTime}"
+            @change="${(e: Event) => {
+              showTime = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          時間を表示
+        </label>
+
         <div style="display: flex; align-items: center;">
           <span style="margin-right: 8px;">テーマ:</span>
           <label
@@ -211,7 +226,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[12, 24, 48, 96, 144, 240].map(
+            ${[24, 48, 96, 144, 240, 480, 720].map(
               (w) => html`
                 <option value="${w}" ?selected="${pxPerDay === w}">
                   ${w}px
