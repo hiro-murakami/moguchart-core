@@ -139,6 +139,8 @@ export interface GanttChartOption {
   customTheme?: Partial<ThemeColorPalette>
   /** 行の並び替えを有効にするかどうか */
   enableRowReordering?: boolean
+  /** スナップする時間単位（分）。デフォルトは1440（1日） */
+  snapDuration?: number
 }
 
 /**
@@ -153,6 +155,10 @@ export interface TaskUpdateEventDetail extends GanttTask {
   isDragging: boolean
   /** ドロップ先の行ID */
   targetRowId?: string
+  /** マウスのX座標（ドラッグ中のみ） */
+  x?: number
+  /** マウスのY座標（ドラッグ中のみ） */
+  y?: number
 }
 
 /**

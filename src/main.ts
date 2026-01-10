@@ -14,6 +14,7 @@ import type {
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import { testRows } from './test-data'
+import dayjs from 'dayjs'
 
 let rows: GanttRow[] = testRows
 
@@ -30,6 +31,7 @@ let showDragInfoOverlay = true
 let theme: 'light' | 'dark' = 'dark'
 let highlightWednesday = false
 let enableRowReordering = true
+let snapDuration = 1440
 
 const renderApp = () => {
   const customTheme: Partial<ThemeColorPalette> = {}
@@ -59,6 +61,7 @@ const renderApp = () => {
     theme,
     customTheme,
     enableRowReordering,
+    snapDuration,
   }
 
   const appStyles =
@@ -127,6 +130,25 @@ const renderApp = () => {
           行の並び替えを有効化
         </label>
 
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          スナップ単位:
+          <select
+            style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            @change="${(e: Event) => {
+              snapDuration = Number((e.target as HTMLSelectElement).value)
+              renderApp()
+            }}"
+          >
+            ${[15, 30, 60, 180, 720, 1440].map(
+              (d) => html`
+                <option value="${d}" ?selected="${snapDuration === d}">
+                  ${d === 1440 ? '1日' : `${d}分`}
+                </option>
+              `,
+            )}
+          </select>
+        </label>
+
         <div style="display: flex; align-items: center;">
           <span style="margin-right: 8px;">テーマ:</span>
           <label
@@ -189,7 +211,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[12, 24, 32, 48, 64].map(
+            ${[12, 24, 48, 96, 144, 240].map(
               (w) => html`
                 <option value="${w}" ?selected="${pxPerDay === w}">
                   ${w}px
@@ -389,10 +411,22 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
 
 const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
   const { container, task, newStart, newEnd, targetRow } = e.detail
+  const formatDateTime = (d: Date) => {
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) {
+      return d.toLocaleDateString()
+    }
+    return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m
+      .toString()
+      .padStart(2, '0')}`
+  }
+  const period = dayjs(newEnd).diff(dayjs(newStart), 'day')
+
   // サンプル: ドラッグ情報のカスタマイズ
   container.innerHTML = `
     <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
-    <div style="font-size: 12px;">${newStart.toLocaleDateString()} - ${newEnd.toLocaleDateString()}</div>
+    <div style="font-size: 12px;">${formatDateTime(newStart)} - ${formatDateTime(newEnd)} (${period})</div>
     ${targetRow ? `<div style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">移動先: ${targetRow.label}</div>` : ''}
   `
 }
