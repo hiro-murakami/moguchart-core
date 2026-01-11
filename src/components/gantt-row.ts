@@ -69,7 +69,8 @@ export class GanttRowElement extends LitElement {
       font-size: 13px;
       padding-left: 15px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
+      padding-top: 6px;
       flex-shrink: 0;
       box-sizing: border-box;
       position: sticky;

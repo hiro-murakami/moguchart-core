@@ -72,9 +72,8 @@ export class GanttBarElement extends LitElement {
       pointer-events: none;
       user-select: none;
       position: absolute;
-      top: 50%;
+      top: 2px;
       left: 6px;
-      transform: translateY(-50%);
       white-space: nowrap;
       z-index: 5;
     }
