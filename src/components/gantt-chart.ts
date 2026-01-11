@@ -57,6 +57,7 @@ export class GanttChartElement extends LitElement {
   @state() private dragOverRowId: string | null = null
   @state() private dragOverPosition: 'top' | 'bottom' | null = null
   private hoverTimer: number | undefined
+  @state() private currentTime = new Date()
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -141,9 +142,17 @@ export class GanttChartElement extends LitElement {
       stroke-width: 2;
       fill: none;
     }
+    .current-time-line {
+      position: absolute;
+      width: 2px;
+      z-index: 20;
+      pointer-events: none;
+    }
   `
 
   protected firstUpdated() {
+    this.setupCurrentTimeTimer()
+
     const calendar = this.shadowRoot?.getElementById('calendar')
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -163,11 +172,15 @@ export class GanttChartElement extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this.resizeObserver?.disconnect()
+    this.stopCurrentTimeTimer()
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('option') && this.option?.theme) {
       this.theme = this.option.theme
+    }
+    if (changedProperties.has('option')) {
+      this.setupCurrentTimeTimer()
     }
   }
 
@@ -244,7 +257,14 @@ export class GanttChartElement extends LitElement {
 
         if (dragInfoEl.innerHTML === '') {
           const formatDate = (d: Date) => {
-            return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+            const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+            const h = d.getHours()
+            const m = d.getMinutes()
+            if (h === 0 && m === 0) return date
+            const time = `${h.toString().padStart(2, '0')}:${m
+              .toString()
+              .padStart(2, '0')}`
+            return `${date} ${time}`
           }
           dragInfoEl.innerHTML = `
               <div style="font-weight: bold;">
@@ -261,6 +281,25 @@ export class GanttChartElement extends LitElement {
               }`
         }
       }
+    }
+  }
+
+  private currentTimeTimer: number | undefined
+
+  private setupCurrentTimeTimer() {
+    this.stopCurrentTimeTimer()
+    const interval = this.option.calendar.currentTimeUpdateInterval
+    if (interval && interval > 0) {
+      this.currentTimeTimer = window.setInterval(() => {
+        this.currentTime = new Date()
+      }, interval)
+    }
+  }
+
+  private stopCurrentTimeTimer() {
+    if (this.currentTimeTimer !== undefined) {
+      window.clearInterval(this.currentTimeTimer)
+      this.currentTimeTimer = undefined
     }
   }
 
@@ -282,7 +321,6 @@ export class GanttChartElement extends LitElement {
 
   private getDateX(date: Date) {
     const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
     const start = new Date(this.option.calendar.start)
     start.setHours(0, 0, 0, 0)
     const diff = d.getTime() - start.getTime()
@@ -340,11 +378,10 @@ export class GanttChartElement extends LitElement {
     let newEnd = end
 
     if (dx !== undefined) {
-      const daysDiff = Math.round(dx / this.option.calendar.pxPerDay)
-      newStart = new Date(start)
-      newStart.setDate(start.getDate() + daysDiff)
-      newEnd = new Date(end)
-      newEnd.setDate(end.getDate() + daysDiff)
+      const msPerPx = (24 * 60 * 60 * 1000) / this.option.calendar.pxPerDay
+      const timeDiff = dx * msPerPx
+      newStart = new Date(start.getTime() + timeDiff)
+      newEnd = new Date(end.getTime() + timeDiff)
     }
 
     let sourceRowIndex = -1
@@ -407,10 +444,10 @@ export class GanttChartElement extends LitElement {
     )
 
     if (isDragging) {
-      // ドラッグ中はツールチップを非表示にする
       if (this.hoverTimer !== undefined) {
         window.clearTimeout(this.hoverTimer)
       }
+      // ドラッグ中はツールチップを非表示にする
       if (this.tooltip) {
         this.tooltip = { ...this.tooltip, visible: false }
       }
@@ -443,6 +480,9 @@ export class GanttChartElement extends LitElement {
     this.dragTargetRowIndex = null
     if (this.dragOverlayInfo) {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
+    }
+    if (this.tooltip) {
+      this.tooltip = { ...this.tooltip, visible: false }
     }
 
     const newRows = [...this.rows]
@@ -731,6 +771,7 @@ export class GanttChartElement extends LitElement {
           id="calendar"
           .option="${this.option}"
           .theme="${this.theme}"
+          .currentTime="${this.currentTime}"
         ></gantt-calendar>
 
         <svg
@@ -743,6 +784,20 @@ export class GanttChartElement extends LitElement {
         >
           ${lines}
         </svg>
+
+        ${this.option.calendar.showCurrentTime
+          ? html`
+              <div
+                class="current-time-line"
+                style="
+                  top: ${this.calendarHeight}px;
+                  left: ${this.getDateX(this.currentTime) + labelWidth}px;
+                  height: ${totalHeight}px;
+                  background-color: ${colors.currentTimeLine};
+                "
+              ></div>
+            `
+          : ''}
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 

@@ -82,7 +82,6 @@ export class GanttBarElement extends LitElement {
 
   private getX(date: Date) {
     const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
     const start = new Date(this.option.calendar.start)
     start.setHours(0, 0, 0, 0)
     const diff = d.getTime() - start.getTime()
@@ -157,27 +156,36 @@ export class GanttBarElement extends LitElement {
     let currentStart = new Date(originalStart)
     let currentEnd = new Date(originalEnd)
 
+    const snapDuration = this.option.snapDuration ?? 1440
+    const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
+    const snapPx = pxPerMinute * snapDuration
+
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
         const deltaX = moveEvent.clientX - startX
-        const daysDiff = Math.round(deltaX / this.option.calendar.pxPerDay)
+        const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
+        const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
 
         let newStart = new Date(originalStart)
         let newEnd = new Date(originalEnd)
 
         if (handle === 'left') {
-          newStart.setDate(originalStart.getDate() + daysDiff)
+          newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
           if (newStart >= newEnd) {
-            // 終了日を越えないように1日前に制限
-            newStart = new Date(newEnd.getTime() - 86400000)
+            // 終了日を越えないように制限
+            newStart = new Date(
+              newEnd.getTime() - Math.max(snapDuration, 1) * 60 * 1000,
+            )
           }
         } else {
-          newEnd.setDate(originalEnd.getDate() + daysDiff)
+          newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
           if (newEnd <= newStart) {
-            // 開始日より前にならないように1日後に制限
-            newEnd = new Date(newStart.getTime() + 86400000)
+            // 開始日より前にならないように制限
+            newEnd = new Date(
+              newStart.getTime() + Math.max(snapDuration, 1) * 60 * 1000,
+            )
           }
         }
 
@@ -192,6 +200,8 @@ export class GanttBarElement extends LitElement {
               end: newEnd,
               dy: 0,
               isDragging: true,
+              x: moveEvent.clientX,
+              y: moveEvent.clientY,
             },
             bubbles: true,
             composed: true,
@@ -260,6 +270,10 @@ export class GanttBarElement extends LitElement {
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
 
+    const snapDuration = this.option.snapDuration ?? 1440
+    const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
+    const snapPx = pxPerMinute * snapDuration
+
     this.setupDragEvents(
       target,
       e.pointerId,
@@ -271,9 +285,7 @@ export class GanttBarElement extends LitElement {
         if (movable === 'x') deltaY = 0
 
         // 横方向のスナップ処理
-        const translateX =
-          Math.round(deltaX / this.option.calendar.pxPerDay) *
-          this.option.calendar.pxPerDay
+        const translateX = Math.round(deltaX / snapPx) * snapPx
 
         taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
 
@@ -286,6 +298,8 @@ export class GanttBarElement extends LitElement {
               dx: translateX,
               dy: deltaY,
               isDragging: true,
+              x: moveEvent.clientX,
+              y: moveEvent.clientY,
             },
             bubbles: true,
             composed: true,
@@ -314,9 +328,7 @@ export class GanttBarElement extends LitElement {
           )
         } else if (upEvent) {
           const finalDeltaX = upEvent.clientX - startX
-          const finalTranslateX =
-            Math.round(finalDeltaX / this.option.calendar.pxPerDay) *
-            this.option.calendar.pxPerDay
+          const finalTranslateX = Math.round(finalDeltaX / snapPx) * snapPx
           const finalDeltaY = upEvent.clientY - startY
 
           // 移動量が閾値以下の場合はイベントを発火しない（クリック対策）

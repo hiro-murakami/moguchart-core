@@ -87,6 +87,14 @@ export class GanttRowElement extends LitElement {
       flex: none;
       position: relative;
     }
+    .grid-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
   `
 
   private handleDragStart(e: DragEvent) {
@@ -135,10 +143,30 @@ export class GanttRowElement extends LitElement {
 
     this.style.height = `${rowHeight}px`
 
-    const backgroundStyle = `
-      background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.gridLine} ${this.option.calendar.pxPerDay - 1}px);
-      background-size: ${this.option.calendar.pxPerDay}px 100%;
-    `
+    let backgroundStyle
+    if (this.option.calendar.showTime) {
+      const hourWidth = this.option.calendar.pxPerDay / 24
+      const snapMinutes = this.option.snapDuration ?? 60
+      const snapWidth =
+        (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
+
+      const gradients = [
+        `linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.gridLine} ${hourWidth - 1}px)`,
+        `linear-gradient(90deg, transparent ${snapWidth - 1}px, ${colors.subGridLine} ${snapWidth - 1}px)`,
+      ]
+      const sizes = [`${hourWidth}px 100%`, `${snapWidth}px 100%`]
+
+      backgroundStyle = `
+        background-image: ${gradients.join(', ')};
+        background-size: ${sizes.join(', ')};
+      `
+    } else {
+      const gridWidth = this.option.calendar.pxPerDay
+      backgroundStyle = `
+        background-image: linear-gradient(90deg, transparent ${gridWidth - 1}px, ${colors.gridLine} ${gridWidth - 1}px);
+        background-size: ${gridWidth}px 100%;
+      `
+    }
 
     return html`
       <style>
@@ -170,7 +198,7 @@ export class GanttRowElement extends LitElement {
         ></div>
         <div
           class="bars-container"
-          style="${backgroundStyle}; width: ${this.option.calendar.totalDays *
+          style="width: ${this.option.calendar.totalDays *
           this.option.calendar.pxPerDay}px"
         >
           ${this.option.calendar.showRowBackground !== false
@@ -179,6 +207,7 @@ export class GanttRowElement extends LitElement {
                 .theme="${this.theme}"
               /> `
             : ''}
+          <div class="grid-background" style="${backgroundStyle}"></div>
           ${tasksWithLanes.map((task) => {
             const isDragging = this.draggingTask?.id === task.id
             const displayTask = isDragging
