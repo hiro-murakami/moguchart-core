@@ -3,7 +3,7 @@ import {
   DEFAULT_BAR_MARGIN,
   DEFAULT_ROW_HEADER_WIDTH,
 } from '@/constants'
-import type { GanttChartOption, GanttRow } from '@/types'
+import type { GanttChartOption, GanttRow, GanttTask } from '@/types'
 import { calculateTaskLanes, getThemeColors } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -22,6 +22,11 @@ export class GanttRowElement extends LitElement {
     name?: string
     currentStart?: Date
     currentEnd?: Date
+  } | null = null
+  @property({ type: Object }) externalDragTask: {
+    task: GanttTask
+    currentStart: Date
+    currentEnd: Date
   } | null = null
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
@@ -136,7 +141,19 @@ export class GanttRowElement extends LitElement {
 
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
-    const { tasksWithLanes, laneCount } = calculateTaskLanes(this.row.tasks)
+
+    let displayTasks = this.row.tasks
+    if (this.externalDragTask) {
+      const ghostTask: GanttTask = {
+        ...this.externalDragTask.task,
+        start: this.externalDragTask.currentStart,
+        end: this.externalDragTask.currentEnd,
+        style: `${this.externalDragTask.task.style || ''}; opacity: 0.6; pointer-events: none;`,
+      }
+      displayTasks = [...displayTasks, ghostTask]
+    }
+
+    const { tasksWithLanes, laneCount } = calculateTaskLanes(displayTasks)
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 

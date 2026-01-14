@@ -256,6 +256,18 @@ export interface RenderDragInfoEventDetail {
 }
 
 /**
+ * タスクドロップイベントの詳細
+ */
+export interface TaskDropEventDetail {
+  /** ドロップされたタスク情報 */
+  task: GanttTask
+  /** ドロップ位置の日時 */
+  dropDate: Date
+  /** ドロップ先の行ID */
+  targetRowId: string
+}
+
+/**
  * 行の並び替えイベント詳細
  */
 export interface RowReorderEventDetail {

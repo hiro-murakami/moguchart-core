@@ -11,9 +11,12 @@ import type {
   TaskClickEventDetail,
   TaskContextMenuEventDetail,
   TaskUpdateEventDetail,
+  GanttTask,
+  TaskDropEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
+import { getPatternStyle } from '@/pattern-utils'
 
 const chartStart = new Date()
 chartStart.setHours(0, 0, 0, 0)
@@ -136,6 +139,40 @@ let showCurrentTime = true
 let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
 let enableCustomRendering = true
+let showUnassignedTasks = true
+
+// 追加候補のタスク一覧
+let unassignedTasks: GanttTask[] = [
+  {
+    id: 'new-1',
+    name: '新規タスクA',
+    start: new Date(), // 期間計算用のダミー
+    end: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2日間
+    style: 'background-color: #8b5cf6;',
+  },
+  {
+    id: 'new-2',
+    name: '新規タスクB',
+    start: new Date(),
+    end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5日間
+    style: 'background-color: #ec4899;',
+  },
+  {
+    id: 'new-3',
+    name: '会議設定',
+    start: new Date(),
+    end: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1時間
+    style: 'background-color: #10b981;',
+  },
+  {
+    id: 'new-4',
+    name: 'パターン付きタスク',
+    start: new Date(),
+    end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3日間
+    style: 'background-color: #f59e0b;',
+    pattern: { type: 'diagonal-stripe', color: 'rgba(255, 255, 255, 0.5)' },
+  },
+]
 
 const setViewMode = (mode: 'day' | 'hour') => {
   viewMode = mode
@@ -212,6 +249,24 @@ const renderApp = () => {
       : 'background-color: #ffffff; color: #333;'
 
   const template = html`
+    <style>
+      @keyframes pop-in {
+        0% {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes fade-out {
+        to {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+      }
+    </style>
     <div
       style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}"
     >
@@ -373,6 +428,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           カスタムレンダリング有効
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showUnassignedTasks}"
+            @change="${(e: Event) => {
+              showUnassignedTasks = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          追加候補リストを表示
         </label>
       </div>
 
@@ -544,33 +612,242 @@ const renderApp = () => {
         </label>
       </div>
 
-      <gantt-chart
-        style="height: 50vh;"
-        .rows="${rows}"
-        .option="${option}"
-        theme="${theme}"
-        @rows-change="${(e: CustomEvent) => {
-          rows = e.detail
-        }}"
-        @task-update="${handleTaskUpdate}"
-        @render-bar-content="${enableCustomRendering
-          ? handleRenderBarContent
-          : undefined}"
-        @render-row-header="${enableCustomRendering
-          ? handleRenderRowHeader
-          : undefined}"
-        @render-tooltip="${enableCustomRendering
-          ? handleRenderTooltip
-          : undefined}"
-        @task-dblclick="${handleTaskDblClick}"
-        @task-contextmenu="${handleTaskContextMenu}"
-        @render-drag-info="${enableCustomRendering
-          ? handleRenderDragInfo
-          : undefined}"
-      />
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="flex-grow: 1; min-width: 0;">
+          <gantt-chart
+            style="height: 50vh;"
+            .rows="${rows}"
+            .option="${option}"
+            theme="${theme}"
+            @rows-change="${(e: CustomEvent) => {
+              rows = e.detail
+            }}"
+            @task-update="${handleTaskUpdate}"
+            @render-bar-content="${enableCustomRendering
+              ? handleRenderBarContent
+              : undefined}"
+            @render-row-header="${enableCustomRendering
+              ? handleRenderRowHeader
+              : undefined}"
+            @render-tooltip="${enableCustomRendering
+              ? handleRenderTooltip
+              : undefined}"
+            @task-dblclick="${handleTaskDblClick}"
+            @task-contextmenu="${handleTaskContextMenu}"
+            @render-drag-info="${enableCustomRendering
+              ? handleRenderDragInfo
+              : undefined}"
+            id="gantt-chart-instance"
+            @task-drop="${handleTaskDrop}"
+          />
+        </div>
+
+        ${showUnassignedTasks
+          ? html`
+              <div
+                style="
+                  width: 240px;
+                  flex-shrink: 0;
+                  background: ${theme === 'dark' ? '#1e293b' : '#f8fafc'};
+                  border: 1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'};
+                  border-radius: 8px;
+                  padding: 16px;
+                  height: 50vh;
+                  overflow-y: auto;
+                "
+              >
+                <h3
+                  style="margin-top: 0; font-size: 16px; margin-bottom: 12px;"
+                >
+                  追加候補タスク
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  ${unassignedTasks.map(
+                    (task) => html`
+                      <div
+                        draggable="true"
+                        @dragstart="${(e: DragEvent) =>
+                          handleTaskDragStart(e, task)}"
+                        @dragend="${handleTaskDragEnd}"
+                        style="
+                          padding: 12px;
+                          background: ${theme === 'dark' ? '#334155' : 'white'};
+                          border: 1px solid ${theme === 'dark'
+                          ? '#475569'
+                          : '#cbd5e1'};
+                          border-radius: 4px;
+                          cursor: grab;
+                          user-select: none;
+                          box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                        "
+                      >
+                        <div
+                          style="
+                            height: 16px;
+                            width: 100%;
+                            border-radius: 2px;
+                            margin-bottom: 8px;
+                            ${task.style || ''};
+                            ${getPatternStyle(task.pattern)};
+                          "
+                        ></div>
+                        <div
+                          style="font-weight: bold; font-size: 14px; margin-bottom: 4px;"
+                        >
+                          ${task.name}
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.7;">
+                          期間:
+                          ${dayjs(task.end).diff(
+                            dayjs(task.start),
+                            viewMode === 'day' ? 'day' : 'hour',
+                          )}
+                          ${viewMode === 'day' ? '日' : '時間'}
+                        </div>
+                      </div>
+                    `,
+                  )}
+                  ${unassignedTasks.length === 0
+                    ? html`<div
+                        style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;"
+                      >
+                        タスクはありません
+                      </div>`
+                    : ''}
+                </div>
+              </div>
+            `
+          : ''}
+      </div>
     </div>
   `
   render(template, document.getElementById('app')!)
+}
+
+const handleTaskDragStart = (e: DragEvent, task: GanttTask) => {
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('application/json', JSON.stringify(task))
+    e.dataTransfer.effectAllowed = 'copy'
+
+    // ドラッグイメージをカスタマイズ
+    const dragImage = document.createElement('div')
+    dragImage.id = 'custom-drag-image'
+    dragImage.style.cssText = `
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+      width: 180px;
+      height: ${barHeight}px;
+      border-radius: 4px;
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      background-color: #3b82f6;
+      ${task.style || ''};
+      ${getPatternStyle(task.pattern)};
+    `
+    dragImage.textContent = task.name || ''
+    document.body.appendChild(dragImage)
+
+    e.dataTransfer.setDragImage(dragImage, 0, 0)
+  }
+  // チャートコンポーネントにドラッグ中のタスク情報を渡す
+  const chart = document.getElementById('gantt-chart-instance') as any
+  if (chart) {
+    chart.externalDraggingTask = task
+  }
+}
+
+const handleTaskDragEnd = () => {
+  const chart = document.getElementById('gantt-chart-instance') as any
+  if (chart) {
+    chart.externalDraggingTask = null
+  }
+  const dragImage = document.getElementById('custom-drag-image')
+  if (dragImage) {
+    dragImage.remove()
+  }
+}
+
+const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
+  const { task, dropDate, targetRowId } = e.detail
+  try {
+    // コンポーネントから受け取った日時を使用
+    const newStart = new Date(dropDate)
+
+    // 過去の日付にならないように調整（必要であれば）
+    // if (newStart < chartStart) return
+
+    // タスクの日時を更新
+    const duration =
+      new Date(task.end).getTime() - new Date(task.start).getTime()
+
+    // スナップ処理（簡易）
+    if (viewMode === 'day') {
+      newStart.setHours(0, 0, 0, 0)
+    } else {
+      // 時間モードなら分をスナップ単位に合わせるなどの処理が可能
+      const minutes = newStart.getMinutes()
+      const snappedMinutes = Math.round(minutes / snapDuration) * snapDuration
+      newStart.setMinutes(snappedMinutes, 0, 0)
+    }
+
+    const newEnd = new Date(newStart.getTime() + duration)
+
+    // 新しいタスクオブジェクトを作成
+    const newTask: GanttTask = {
+      ...task,
+      id: `${task.id}-${Date.now()}`, // IDを一意にする
+      start: newStart,
+      end: newEnd,
+      style: `${task.style || ''}; transform-origin: center; animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;`,
+    }
+
+    // 行データを更新
+    rows = rows.map((row) => {
+      if (row.id === targetRowId) {
+        return {
+          ...row,
+          tasks: [...row.tasks, newTask],
+        }
+      }
+      return row
+    })
+
+    // 候補リストから削除
+    unassignedTasks = unassignedTasks.filter((t) => t.id !== task.id)
+
+    renderApp()
+
+    // アニメーション終了後にスタイルをクリーンアップ
+    // (仮想スクロールなどで再描画された際に再度アニメーションしないようにするため)
+    setTimeout(() => {
+      rows = rows.map((row) => {
+        if (row.id === targetRowId) {
+          return {
+            ...row,
+            tasks: row.tasks.map((t) => {
+              if (t.id === newTask.id) {
+                // animationプロパティを除去
+                const newStyle =
+                  t.style?.replace(/animation:[^;]+;?/g, '') || ''
+                return { ...t, style: newStyle }
+              }
+              return t
+            }),
+          }
+        }
+        return row
+      })
+      renderApp()
+    }, 500)
+  } catch (err) {
+    console.error('Failed to drop task:', err)
+  }
 }
 
 const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
@@ -667,7 +944,35 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
   const items = [
     { label: '編集', action: () => alert(`編集: ${task.name}`) },
     { label: '複製', action: () => alert(`複製: ${task.name}`) },
-    { label: '削除', action: () => alert(`削除: ${task.name}`), color: 'red' },
+    {
+      label: '削除',
+      action: () => {
+        // 1. 削除アニメーションを適用
+        rows = rows.map((row) => ({
+          ...row,
+          tasks: row.tasks.map((t) => {
+            if (t.id === task.id) {
+              return {
+                ...t,
+                style: `${t.style || ''}; animation: fade-out 0.3s ease-out forwards; pointer-events: none;`,
+              }
+            }
+            return t
+          }),
+        }))
+        renderApp()
+
+        // 2. アニメーション終了後にデータを削除
+        setTimeout(() => {
+          rows = rows.map((row) => ({
+            ...row,
+            tasks: row.tasks.filter((t) => t.id !== task.id),
+          }))
+          renderApp()
+        }, 300)
+      },
+      color: 'red',
+    },
   ]
 
   items.forEach((item) => {

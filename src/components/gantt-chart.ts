@@ -25,6 +25,8 @@ export class GanttChartElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
+  @property({ attribute: false })
+  externalDraggingTask: GanttTask | null = null
 
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
@@ -58,6 +60,12 @@ export class GanttChartElement extends LitElement {
   @state() private dragOverPosition: 'top' | 'bottom' | null = null
   private hoverTimer: number | undefined
   @state() private currentTime = new Date()
+  @state() private dragPreview: {
+    task: GanttTask
+    currentStart: Date
+    currentEnd: Date
+    rowId: string
+  } | null = null
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -613,7 +621,15 @@ export class GanttChartElement extends LitElement {
 
   private handleContainerDragOver(e: DragEvent) {
     e.preventDefault()
-    if (!this.option.enableRowReordering) return
+    // JSONデータが含まれているか、またはプロパティ経由でタスクが渡されている場合
+    const isExternalTask =
+      e.dataTransfer && e.dataTransfer.types.includes('application/json')
+
+    if (isExternalTask) {
+      e.dataTransfer!.dropEffect = 'copy'
+    }
+
+    if (!this.option.enableRowReordering && !isExternalTask) return
     const container = this.shadowRoot?.querySelector(
       '.scroll-container',
     ) as HTMLElement
@@ -636,17 +652,61 @@ export class GanttChartElement extends LitElement {
 
     if (foundIndex !== -1) {
       const row = this.rows[foundIndex]
-      const layout = layouts[foundIndex]
-      const relativeY = yInRows - layout.top
-      const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
 
-      if (this.dragOverRowId !== row.id || this.dragOverPosition !== position) {
-        this.dragOverRowId = row.id
-        this.dragOverPosition = position
+      if (isExternalTask) {
+        if (this.dragOverRowId !== row.id || this.dragOverPosition !== null) {
+          this.dragOverRowId = row.id
+          this.dragOverPosition = null
+        }
+
+        // ゴースト表示の計算
+        if (this.externalDraggingTask) {
+          const labelWidth =
+            this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+          const scrollLeft = container.scrollLeft
+          const x = e.clientX - rect.left + scrollLeft - labelWidth
+          const pxPerDay = this.option.calendar.pxPerDay ?? 50
+
+          // スナップ計算
+          const snapDuration = this.option.snapDuration ?? 1440
+          const pxPerMinute = pxPerDay / (24 * 60)
+          const snapPx = pxPerMinute * snapDuration
+          const snappedX = Math.round(x / snapPx) * snapPx
+
+          // 日時計算
+          const daysFromStart = snappedX / pxPerDay
+          const currentStart = new Date(
+            this.option.calendar.start.getTime() +
+              daysFromStart * 24 * 60 * 60 * 1000,
+          )
+          const durationMs =
+            this.externalDraggingTask.end.getTime() -
+            this.externalDraggingTask.start.getTime()
+          const currentEnd = new Date(currentStart.getTime() + durationMs)
+
+          this.dragPreview = {
+            task: this.externalDraggingTask,
+            currentStart,
+            currentEnd,
+            rowId: row.id,
+          }
+        }
+      } else {
+        const layout = layouts[foundIndex]
+        const relativeY = yInRows - layout.top
+        const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
+        if (
+          this.dragOverRowId !== row.id ||
+          this.dragOverPosition !== position
+        ) {
+          this.dragOverRowId = row.id
+          this.dragOverPosition = position
+        }
       }
     } else {
       this.dragOverRowId = null
       this.dragOverPosition = null
+      this.dragPreview = null
     }
   }
 
@@ -659,10 +719,21 @@ export class GanttChartElement extends LitElement {
 
     this.dragOverRowId = null
     this.dragOverPosition = null
+    this.dragPreview = null
   }
 
   private handleContainerDrop(e: DragEvent) {
     e.preventDefault()
+
+    const taskJson = e.dataTransfer?.getData('application/json')
+    if (taskJson) {
+      this.handleExternalTaskDrop(e, taskJson)
+      this.dragOverRowId = null
+      this.dragOverPosition = null
+      this.dragPreview = null
+      return
+    }
+
     if (!this.option.enableRowReordering) return
     const sourceId = e.dataTransfer?.getData('text/plain')
     const targetId = this.dragOverRowId
@@ -670,9 +741,61 @@ export class GanttChartElement extends LitElement {
 
     this.dragOverRowId = null
     this.dragOverPosition = null
+    this.dragPreview = null
 
     if (sourceId && targetId && sourceId !== targetId && position) {
       this.reorderRows(sourceId, targetId, position)
+    }
+  }
+
+  private handleExternalTaskDrop(e: DragEvent, taskJson: string) {
+    try {
+      const task = JSON.parse(taskJson) as GanttTask
+      const container = this.shadowRoot?.querySelector(
+        '.scroll-container',
+      ) as HTMLElement
+      if (!container) return
+
+      const rect = container.getBoundingClientRect()
+      const scrollLeft = container.scrollLeft
+      const scrollTop = container.scrollTop
+      const labelWidth =
+        this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+
+      // X座標 -> 日時
+      const x = e.clientX - rect.left + scrollLeft - labelWidth
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const daysFromStart = x / pxPerDay
+      const dropDate = new Date(
+        this.option.calendar.start.getTime() +
+          daysFromStart * 24 * 60 * 60 * 1000,
+      )
+
+      // Y座標 -> 行
+      const yInRows = e.clientY - rect.top + scrollTop - this.calendarHeight
+
+      const { layouts } = this.calculateLayout()
+      let targetRowId: string | undefined
+
+      for (let i = 0; i < layouts.length; i++) {
+        const layout = layouts[i]
+        if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
+          targetRowId = this.rows[i].id
+          break
+        }
+      }
+
+      if (targetRowId) {
+        this.dispatchEvent(
+          new CustomEvent('task-drop', {
+            detail: { task, dropDate, targetRowId },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    } catch (err) {
+      console.warn('Failed to parse dropped task data', err)
     }
   }
 
@@ -810,11 +933,16 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${this.option}"
-                .isDragTarget="${this.dragTargetRowIndex === originalIndex}"
+                .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
+                (this.dragOverRowId === row.id &&
+                  this.dragOverPosition === null)}"
                 .draggingTask="${this.draggingTask}"
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id
                   ? this.dragOverPosition
+                  : null}"
+                .externalDragTask="${this.dragPreview?.rowId === row.id
+                  ? this.dragPreview
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
               />
