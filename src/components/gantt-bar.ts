@@ -76,6 +76,9 @@ export class GanttBarElement extends LitElement {
       left: 6px;
       white-space: nowrap;
       z-index: 5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: calc(100% - 12px);
     }
     @keyframes pop-in {
       0% {

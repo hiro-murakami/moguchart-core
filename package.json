@@ -22,7 +22,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "refresh:packages": "rm -rf node_modules pnpm-lock.yaml && pnpm i"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.21",
@@ -33,6 +34,9 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
     "vitest": "^4.0.16"
+  },
+  "peerDependencies": {
+    "lit": "^3.0.0"
   },
   "dependencies": {
     "@holiday-jp/holiday_jp": "^2.5.1",
