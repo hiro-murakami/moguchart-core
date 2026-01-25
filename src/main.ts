@@ -28,7 +28,7 @@ const generateDayModeData = (): GanttRow[] => {
     const offset = (i - 1) % 10
     rows.push({
       id: `row${i}`,
-      label: `プロジェクト ${i}`,
+      name: `プロジェクト ${i}`,
       tasks: [
         {
           id: `t${i}-1`,
@@ -82,7 +82,7 @@ const generateHourModeData = (): GanttRow[] => {
     const shift = (i - 1) % 3
     rows.push({
       id: `user${i}`,
-      label: `担当者 ${i}`,
+      name: `担当者 ${i}`,
       tasks: [
         {
           id: `h${i}-1`,
@@ -897,7 +897,7 @@ const handleRenderRowHeader = (e: CustomEvent<RenderRowHeaderEventDetail>) => {
   // サンプル: ラベルを太字にして、IDを小さく表示する
   container.innerHTML = `
     <div style="display: flex; flex-direction: column;">
-      <div style="font-weight: bold;">${row.label}</div>
+      <div style="font-weight: bold;">${row.name}</div>
       <div style="font-size: 10px; color: #666;">${row.id}</div>
     </div>`
 }
@@ -1024,7 +1024,7 @@ const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
   container.innerHTML = `
     <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
     <div style="font-size: 12px;">${formatDateTime(newStart)} - ${formatDateTime(newEnd)} (${period})</div>
-    ${targetRow ? `<div style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">移動先: ${targetRow.label}</div>` : ''}
+    ${targetRow ? `<div style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">移動先: ${targetRow.name}</div>` : ''}
   `
 }
 

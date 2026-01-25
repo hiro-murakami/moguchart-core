@@ -132,9 +132,9 @@ export class GanttRowElement extends LitElement {
         }),
       )
 
-      // If no content was added by the event listener, show the default label
+      // If no content was added by the event listener, show the default name
       if (rowHeaderEl.innerHTML === '') {
-        rowHeaderEl.textContent = this.row.label
+        rowHeaderEl.textContent = this.row.name
       }
     }
   }

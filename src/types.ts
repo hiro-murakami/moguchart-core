@@ -62,7 +62,7 @@ export interface GanttRow {
   /** 行の一意なID */
   id: string
   /** 行ヘッダーに表示するラベル */
-  label: string
+  name: string
   /** この行に含まれるタスクの配列 */
   tasks: GanttTask[]
 }

@@ -284,7 +284,7 @@ export class GanttChartElement extends LitElement {
               </div>
               ${
                 targetRow
-                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.label}</div>`
+                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.name}</div>`
                   : ''
               }`
         }

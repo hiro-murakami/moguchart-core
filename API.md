@@ -80,7 +80,7 @@ interface GanttChartOption {
 ```typescript
 interface GanttRow {
   id: string // 行の一意なID
-  label: string // 行ヘッダーに表示するラベル
+  name: string // 行ヘッダーに表示するラベル
   tasks: GanttTask[] // この行に含まれるタスクの配列
 }
 ```
