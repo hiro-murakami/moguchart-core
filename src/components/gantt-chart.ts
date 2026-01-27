@@ -68,6 +68,8 @@ export class GanttChartElement extends LitElement {
     currentEnd: Date
     rowId: string
   } | null = null
+  @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
+  @state() private isResizingHeader = false
 
   private resizeObserver: ResizeObserver | null = null
 
@@ -191,6 +193,10 @@ export class GanttChartElement extends LitElement {
     }
     if (changedProperties.has('option')) {
       this.setupCurrentTimeTimer()
+      if (!this.isResizingHeader) {
+        this.currentRowHeaderWidth =
+          this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+      }
     }
   }
 
@@ -313,6 +319,38 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  private handleHeaderResizeStart(e: PointerEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    this.isResizingHeader = true
+    const startX = e.clientX
+    const startWidth = this.currentRowHeaderWidth
+    const target = e.target as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    const minWidth = this.option.rowHeader?.minWidth ?? 50
+    const maxWidth = this.option.rowHeader?.maxWidth ?? Number.MAX_SAFE_INTEGER
+
+    const handleMove = (e: PointerEvent) => {
+      const dx = e.clientX - startX
+      const newWidth = startWidth + dx
+      this.currentRowHeaderWidth = Math.max(
+        minWidth,
+        Math.min(maxWidth, newWidth),
+      )
+    }
+
+    const handleUp = () => {
+      this.isResizingHeader = false
+      target.releasePointerCapture(e.pointerId)
+      target.removeEventListener('pointermove', handleMove)
+      target.removeEventListener('pointerup', handleUp)
+    }
+
+    target.addEventListener('pointermove', handleMove)
+    target.addEventListener('pointerup', handleUp)
+  }
+
   private handleScroll = (e: Event) => {
     const target = e.target as HTMLElement
     this.updateScrollTop(target.scrollTop)
@@ -340,7 +378,7 @@ export class GanttChartElement extends LitElement {
 
   private calculateLayout() {
     let top = 0
-    const labelWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+    const labelWidth = this.currentRowHeaderWidth
     const taskCoords = new Map<
       string,
       {
@@ -699,8 +737,7 @@ export class GanttChartElement extends LitElement {
 
         // ゴースト表示の計算
         if (this.externalDraggingTask) {
-          const labelWidth =
-            this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+          const labelWidth = this.currentRowHeaderWidth
           const scrollLeft = container.scrollLeft
           const x = e.clientX - rect.left + scrollLeft - labelWidth
           const pxPerDay = this.option.calendar.pxPerDay ?? 50
@@ -797,8 +834,7 @@ export class GanttChartElement extends LitElement {
       const rect = container.getBoundingClientRect()
       const scrollLeft = container.scrollLeft
       const scrollTop = container.scrollTop
-      const labelWidth =
-        this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+      const labelWidth = this.currentRowHeaderWidth
 
       // X座標 -> 日時
       const x = e.clientX - rect.left + scrollLeft - labelWidth
@@ -845,7 +881,15 @@ export class GanttChartElement extends LitElement {
       taskCoords,
       totalHeight,
     } = this.calculateLayout()
-    const labelWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+    const labelWidth = this.currentRowHeaderWidth
+
+    const currentOption = {
+      ...this.option,
+      rowHeader: {
+        ...this.option.rowHeader,
+        width: labelWidth,
+      },
+    }
 
     const buffer = 5
     let startIndex = 0
@@ -918,6 +962,17 @@ export class GanttChartElement extends LitElement {
         .dependency-line {
           stroke: ${colors.dependencyLine};
         }
+        .header-resizer {
+          width: 4px;
+          cursor: col-resize;
+          z-index: 100;
+          background-color: transparent;
+          transition: background-color 0.2s;
+        }
+        .header-resizer:hover,
+        .header-resizer.resizing {
+          background-color: ${colors.border};
+        }
       </style>
       <div
         class="scroll-container"
@@ -928,9 +983,35 @@ export class GanttChartElement extends LitElement {
         @dragleave="${this.handleContainerDragLeave}"
         @drop="${this.handleContainerDrop}"
       >
+        ${this.option.rowHeader?.resizable !== false
+          ? html`
+              <div
+                style="
+                  position: sticky;
+                  left: ${labelWidth - 2}px;
+                  top: 0;
+                  width: 0;
+                  height: 0;
+                  z-index: 100;
+                  overflow: visible;
+                "
+              >
+                <div
+                  class="header-resizer ${this.isResizingHeader
+                    ? 'resizing'
+                    : ''}"
+                  style="height: ${Math.max(
+                    totalHeight,
+                    this.viewportHeight,
+                  )}px;"
+                  @pointerdown="${this.handleHeaderResizeStart}"
+                ></div>
+              </div>
+            `
+          : ''}
         <gantt-calendar
           id="calendar"
-          .option="${this.option}"
+          .option="${currentOption}"
           .theme="${this.theme}"
           .currentTime="${this.currentTime}"
         ></gantt-calendar>
@@ -970,7 +1051,7 @@ export class GanttChartElement extends LitElement {
             return html`
               <gantt-row
                 .row="${row}"
-                .option="${this.option}"
+                .option="${currentOption}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
                 (this.dragOverRowId === row.id &&
                   this.dragOverPosition === null)}"

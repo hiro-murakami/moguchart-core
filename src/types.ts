@@ -95,6 +95,12 @@ export interface GanttChartOptionRowHeader {
   width?: number
   /** ヘッダーの背景色 */
   backgroundColor?: string
+  /** ヘッダーのリサイズ可否 (デフォルト: true) */
+  resizable?: boolean
+  /** ヘッダーの最小幅 (px) */
+  minWidth?: number
+  /** ヘッダーの最大幅 (px) */
+  maxWidth?: number
 }
 
 /**

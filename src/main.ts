@@ -126,6 +126,7 @@ let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
 let rowHeaderWidth = 200
+let rowHeaderResizable = true
 let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
@@ -221,6 +222,9 @@ const renderApp = () => {
     },
     rowHeader: {
       width: rowHeaderWidth,
+      resizable: rowHeaderResizable,
+      maxWidth: 400,
+      minWidth: 100,
     },
     calendar: {
       start: chartStart,
@@ -441,6 +445,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           追加候補リストを表示
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${rowHeaderResizable}"
+            @change="${(e: Event) => {
+              rowHeaderResizable = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          行ヘッダーのリサイズ許可
         </label>
       </div>
 
