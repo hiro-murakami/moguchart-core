@@ -14,6 +14,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Object }) task!: GanttTask
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
+  private _currentDragCursor: string | null = null
 
   static styles = css`
     :host {
@@ -285,7 +286,9 @@ export class GanttBarElement extends LitElement {
     const movable = this.task.movable ?? 'both'
     if (movable === 'none') return
 
-    target.style.cursor = 'grabbing'
+    const initialCursor = e.ctrlKey || e.altKey ? 'copy' : 'grabbing'
+    this._currentDragCursor = initialCursor
+    target.style.cursor = initialCursor
     target.setPointerCapture(e.pointerId)
     taskGroup.classList.add('dragging')
 
@@ -303,6 +306,11 @@ export class GanttBarElement extends LitElement {
       target,
       e.pointerId,
       (moveEvent) => {
+        const newCursor =
+          moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
+        this._currentDragCursor = newCursor
+        target.style.cursor = newCursor
+
         let deltaX = moveEvent.clientX - startX
         let deltaY = moveEvent.clientY - startY
 
@@ -313,6 +321,8 @@ export class GanttBarElement extends LitElement {
         const translateX = Math.round(deltaX / snapPx) * snapPx
 
         taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
+
+        const isCopy = moveEvent.ctrlKey || moveEvent.altKey
 
         this.dispatchEvent(
           new CustomEvent('task-update', {
@@ -325,6 +335,7 @@ export class GanttBarElement extends LitElement {
               isDragging: true,
               x: moveEvent.clientX,
               y: moveEvent.clientY,
+              mode: isCopy ? 'copy' : 'move',
             },
             bubbles: true,
             composed: true,
@@ -332,6 +343,7 @@ export class GanttBarElement extends LitElement {
         )
       },
       (isCancel, upEvent) => {
+        this._currentDragCursor = null
         taskGroup.classList.remove('dragging')
         taskGroup.style.transform = ''
         target.style.cursor = ''
@@ -361,6 +373,8 @@ export class GanttBarElement extends LitElement {
             return
           }
 
+          const isCopy = upEvent.ctrlKey || upEvent.altKey
+
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
@@ -370,6 +384,7 @@ export class GanttBarElement extends LitElement {
                 dx: finalTranslateX,
                 dy: finalDeltaY,
                 isDragging: false, // ドロップしたことを示す
+                mode: isCopy ? 'copy' : 'move',
               },
               bubbles: true,
               composed: true,
@@ -383,7 +398,7 @@ export class GanttBarElement extends LitElement {
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
-    const barEl = this.shadowRoot?.querySelector('.bar')
+    const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
     if (barEl) {
       barEl.innerHTML = ''
       this.dispatchEvent(
@@ -396,6 +411,38 @@ export class GanttBarElement extends LitElement {
           composed: true,
         }),
       )
+
+      if (this._currentDragCursor) {
+        barEl.style.cursor = this._currentDragCursor
+      } else {
+        barEl.style.cursor = ''
+      }
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+  }
+
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Control' || e.key === 'Alt') {
+      this.updateCursor(true)
+    }
+  }
+
+  private handleKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'Control' || e.key === 'Alt') {
+      this.updateCursor(false)
+    }
+  }
+
+  private updateCursor(isCopy: boolean) {
+    const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
+    // ドラッグ中は処理しない
+    if (barEl && !this._currentDragCursor) {
+      barEl.style.cursor = isCopy ? 'copy' : ''
     }
   }
 
@@ -403,6 +450,11 @@ export class GanttBarElement extends LitElement {
     const target = e.currentTarget as HTMLElement
     if (target.classList.contains('dragging')) {
       return
+    }
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
+    if (e.ctrlKey || e.altKey) {
+      this.updateCursor(true)
     }
     const rect = target.getBoundingClientRect()
     this.dispatchEvent(
@@ -419,6 +471,9 @@ export class GanttBarElement extends LitElement {
   }
 
   private onMouseLeave() {
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+    this.updateCursor(false)
     this.dispatchEvent(
       new CustomEvent('bar-mouseleave', {
         bubbles: true,
@@ -441,6 +496,13 @@ export class GanttBarElement extends LitElement {
   }
 
   private onContextMenu(e: MouseEvent) {
+    // MacなどでCtrl+ドラッグ（コピー操作）を行おうとした際にコンテキストメニューが出ないようにする
+    if (e.ctrlKey) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+
     e.preventDefault()
     this.dispatchEvent(
       new CustomEvent('task-contextmenu', {

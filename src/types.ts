@@ -171,6 +171,8 @@ export interface TaskUpdateEventDetail extends GanttTask {
   x?: number
   /** マウスのY座標（ドラッグ中のみ） */
   y?: number
+  /** タスク移動モード(move/copy) */
+  mode: GanttTaskMoveMode
 }
 
 /**
@@ -342,3 +344,5 @@ export interface ThemeColors {
   light: ThemeColorPalette
   dark: ThemeColorPalette
 }
+
+export type GanttTaskMoveMode = 'copy' | 'move'

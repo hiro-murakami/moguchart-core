@@ -8,6 +8,7 @@ import type {
   GanttChartOption,
   GanttRow,
   GanttTask,
+  GanttTaskMoveMode,
   TaskUpdateEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors } from '@/utils'
@@ -37,6 +38,7 @@ export class GanttChartElement extends LitElement {
     end: Date
     currentStart: Date
     currentEnd: Date
+    mode?: GanttTaskMoveMode
   } | null = null
   @state() private viewportHeight = 400
   @state() private dragOverlayInfo: {
@@ -378,9 +380,11 @@ export class GanttChartElement extends LitElement {
     return { layouts, taskCoords, totalHeight: top }
   }
 
-  private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail>) {
+  private handleTaskUpdate(
+    e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>,
+  ) {
     e.stopPropagation()
-    const { id, start, end, dx, dy, isDragging } = e.detail
+    const { id, start, end, dx, dy, isDragging, mode } = e.detail
 
     let newStart = start
     let newEnd = end
@@ -467,6 +471,7 @@ export class GanttChartElement extends LitElement {
         end,
         currentStart: newStart,
         currentEnd: newEnd,
+        mode,
       } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
       this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
 
@@ -493,34 +498,67 @@ export class GanttChartElement extends LitElement {
       this.tooltip = { ...this.tooltip, visible: false }
     }
 
-    const newRows = [...this.rows]
-    const sourceRow = { ...newRows[sourceRowIndex] }
-    sourceRow.tasks = [...sourceRow.tasks]
-    newRows[sourceRowIndex] = sourceRow
+    if (mode === 'copy') {
+      if (targetRowIndex !== -1) {
+        const newRows = [...this.rows]
+        const targetRow = { ...newRows[targetRowIndex] }
+        targetRow.tasks = [...targetRow.tasks]
 
-    if (targetRowIndex !== -1 && sourceRowIndex !== targetRowIndex) {
-      const targetRow = { ...newRows[targetRowIndex] }
-      targetRow.tasks = [...targetRow.tasks]
-      newRows[targetRowIndex] = targetRow
+        // 新しいIDを生成
+        const newId = `task-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`
 
-      const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
-      targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
-    } else {
-      sourceRow.tasks[taskIndexInSource] = {
-        ...taskToMove,
-        start: newStart,
-        end: newEnd,
+        const newTask = {
+          ...taskToMove,
+          id: newId,
+          start: newStart,
+          end: newEnd,
+          dependencies: [],
+        }
+
+        targetRow.tasks.push(newTask)
+        newRows[targetRowIndex] = targetRow
+        this.rows = newRows
+
+        this.dispatchEvent(
+          new CustomEvent('rows-change', {
+            detail: this.rows,
+            bubbles: true,
+            composed: true,
+          }),
+        )
       }
-    }
+    } else {
+      const newRows = [...this.rows]
+      const sourceRow = { ...newRows[sourceRowIndex] }
+      sourceRow.tasks = [...sourceRow.tasks]
+      newRows[sourceRowIndex] = sourceRow
 
-    this.rows = newRows
-    this.dispatchEvent(
-      new CustomEvent('rows-change', {
-        detail: this.rows,
-        bubbles: true,
-        composed: true,
-      }),
-    )
+      if (targetRowIndex !== -1 && sourceRowIndex !== targetRowIndex) {
+        const targetRow = { ...newRows[targetRowIndex] }
+        targetRow.tasks = [...targetRow.tasks]
+        newRows[targetRowIndex] = targetRow
+
+        const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
+        targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
+      } else {
+        sourceRow.tasks[taskIndexInSource] = {
+          ...taskToMove,
+          start: newStart,
+          end: newEnd,
+        }
+      }
+
+      this.rows = newRows
+      this.dispatchEvent(
+        new CustomEvent('rows-change', {
+          detail: this.rows,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
   }
 
   private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {

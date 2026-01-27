@@ -3,10 +3,16 @@ import {
   DEFAULT_BAR_MARGIN,
   DEFAULT_ROW_HEADER_WIDTH,
 } from '@/constants'
-import type { GanttChartOption, GanttRow, GanttTask } from '@/types'
+import type {
+  GanttChartOption,
+  GanttRow,
+  GanttTask,
+  GanttTaskMoveMode,
+} from '@/types'
 import { calculateTaskLanes, getThemeColors } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
+import { repeat } from 'lit/directives/repeat.js'
 import './gantt-bar'
 import './gantt-row-background'
 
@@ -22,6 +28,7 @@ export class GanttRowElement extends LitElement {
     name?: string
     currentStart?: Date
     currentEnd?: Date
+    mode?: GanttTaskMoveMode
   } | null = null
   @property({ type: Object }) externalDragTask: {
     task: GanttTask
@@ -142,7 +149,7 @@ export class GanttRowElement extends LitElement {
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    let displayTasks = this.row.tasks
+    let displayTasks = [...this.row.tasks]
     if (this.externalDragTask) {
       const ghostTask: GanttTask = {
         ...this.externalDragTask.task,
@@ -153,7 +160,45 @@ export class GanttRowElement extends LitElement {
       displayTasks = [...displayTasks, ghostTask]
     }
 
-    const { tasksWithLanes, laneCount } = calculateTaskLanes(displayTasks)
+    let tasksWithLanes, laneCount
+
+    const originalTaskInRow = this.row.tasks.find(
+      (t) => this.draggingTask && t.id === this.draggingTask.id,
+    )
+
+    if (this.draggingTask?.mode === 'copy' && originalTaskInRow) {
+      // For lane calculation in copy mode, filter out the dragging task
+      // and add a static ghost task to prevent collision detection.
+      const tasksForLaneCalc = displayTasks.filter(
+        (t) => t.id !== this.draggingTask!.id,
+      )
+      tasksForLaneCalc.push({
+        ...originalTaskInRow,
+        id: `${originalTaskInRow.id}-static`,
+        movable: 'none',
+        resizable: false,
+        style: `${originalTaskInRow.style || ''}; opacity: 0.5;`,
+      })
+
+      const result = calculateTaskLanes(tasksForLaneCalc)
+      tasksWithLanes = result.tasksWithLanes
+      laneCount = result.laneCount
+
+      const staticTask = tasksWithLanes.find(
+        (t) => t.id === `${originalTaskInRow.id}-static`,
+      )
+      if (staticTask) {
+        // Add the actual dragging task back for rendering,
+        // using the same lane as the ghost.
+        tasksWithLanes.push({ ...originalTaskInRow, lane: staticTask.lane })
+      }
+    } else {
+      // For move mode or other cases, calculate lanes normally.
+      const result = calculateTaskLanes(displayTasks)
+      tasksWithLanes = result.tasksWithLanes
+      laneCount = result.laneCount
+    }
+
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
@@ -226,24 +271,28 @@ export class GanttRowElement extends LitElement {
               /> `
             : ''}
           <div class="grid-background" style="${backgroundStyle}"></div>
-          ${tasksWithLanes.map((task) => {
-            const isDragging = this.draggingTask?.id === task.id
-            const displayTask = isDragging
-              ? {
-                  ...task,
-                  start: this.draggingTask!.start,
-                  end: this.draggingTask!.end,
-                }
-              : task
+          ${repeat(
+            tasksWithLanes,
+            (task) => task.id,
+            (task) => {
+              const isDragging = this.draggingTask?.id === task.id
+              const displayTask = isDragging
+                ? {
+                    ...task,
+                    start: this.draggingTask!.start,
+                    end: this.draggingTask!.end,
+                  }
+                : task
 
-            return html`
-              <gantt-bar
-                .task="${displayTask}"
-                .option="${this.option}"
-                .lane="${task.lane}"
-              />
-            `
-          })}
+              return html`
+                <gantt-bar
+                  .task="${displayTask}"
+                  .option="${this.option}"
+                  .lane="${task.lane}"
+                />
+              `
+            },
+          )}
         </div>
       </div>
     `
