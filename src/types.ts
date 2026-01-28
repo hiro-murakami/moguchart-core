@@ -62,7 +62,7 @@ export interface GanttRow {
   /** 行の一意なID */
   id: string
   /** 行ヘッダーに表示するラベル */
-  label: string
+  name: string
   /** この行に含まれるタスクの配列 */
   tasks: GanttTask[]
 }
@@ -95,6 +95,12 @@ export interface GanttChartOptionRowHeader {
   width?: number
   /** ヘッダーの背景色 */
   backgroundColor?: string
+  /** ヘッダーのリサイズ可否 (デフォルト: true) */
+  resizable?: boolean
+  /** ヘッダーの最小幅 (px) */
+  minWidth?: number
+  /** ヘッダーの最大幅 (px) */
+  maxWidth?: number
 }
 
 /**
@@ -171,6 +177,8 @@ export interface TaskUpdateEventDetail extends GanttTask {
   x?: number
   /** マウスのY座標（ドラッグ中のみ） */
   y?: number
+  /** タスク移動モード(move/copy) */
+  mode: GanttTaskMoveMode
 }
 
 /**
@@ -256,6 +264,18 @@ export interface RenderDragInfoEventDetail {
 }
 
 /**
+ * タスクドロップイベントの詳細
+ */
+export interface TaskDropEventDetail {
+  /** ドロップされたタスク情報 */
+  task: GanttTask
+  /** ドロップ位置の日時 */
+  dropDate: Date
+  /** ドロップ先の行ID */
+  targetRowId: string
+}
+
+/**
  * 行の並び替えイベント詳細
  */
 export interface RowReorderEventDetail {
@@ -330,3 +350,5 @@ export interface ThemeColors {
   light: ThemeColorPalette
   dark: ThemeColorPalette
 }
+
+export type GanttTaskMoveMode = 'copy' | 'move'

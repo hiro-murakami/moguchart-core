@@ -27,7 +27,7 @@ const generateProject = (
   return [
     {
       id: `${idPrefix}-row-1`,
-      label: `${namePrefix} Planning`,
+      name: `${namePrefix} Planning`,
       tasks: [
         {
           id: `${idPrefix}-t-1`,
@@ -50,7 +50,7 @@ const generateProject = (
     },
     {
       id: `${idPrefix}-row-2`,
-      label: `${namePrefix} Dev`,
+      name: `${namePrefix} Dev`,
       tasks: [
         {
           id: `${idPrefix}-t-3`,
@@ -78,7 +78,7 @@ const generateProject = (
     },
     {
       id: `${idPrefix}-row-3`,
-      label: `${namePrefix} QA & Release`,
+      name: `${namePrefix} QA & Release`,
       tasks: [
         {
           id: `${idPrefix}-t-5`,
@@ -115,7 +115,7 @@ export const testRows: GanttRow[] = [
   ...generateProject('p10', 'Kappa', 135),
   {
     id: 'movable-test-row',
-    label: 'Movable Test',
+    name: 'Movable Test',
     tasks: [
       {
         id: 'movable-x',

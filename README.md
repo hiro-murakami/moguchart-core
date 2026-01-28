@@ -46,7 +46,7 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
   const rows = ref<GanttRow[]>([
     {
       id: 'row-1',
-      label: 'Project A',
+      name: 'Project A',
       tasks: [
         {
           id: 't-1',
@@ -114,7 +114,7 @@ export default function App() {
   const [rows] = useState<GanttRow[]>([
     {
       id: 'row-1',
-      label: 'Project A',
+      name: 'Project A',
       tasks: [
         {
           id: 't-1',

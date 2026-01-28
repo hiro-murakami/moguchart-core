@@ -24,14 +24,5 @@ export default defineConfig({
             // 出力形式
             formats: ['es', 'umd'],
           },
-          rollupOptions: {
-            // ライブラリに含めたくない依存関係（litなど）を指定
-            external: ['lit'],
-            output: {
-              globals: {
-                lit: 'Lit',
-              },
-            },
-          },
         },
 })
