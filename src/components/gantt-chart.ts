@@ -10,6 +10,7 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
   TaskUpdateEventDetail,
+  RowHeaderResizeEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors } from '@/utils'
 import { LitElement, css, html, svg, type PropertyValues } from 'lit'
@@ -345,6 +346,17 @@ export class GanttChartElement extends LitElement {
       target.releasePointerCapture(e.pointerId)
       target.removeEventListener('pointermove', handleMove)
       target.removeEventListener('pointerup', handleUp)
+
+      const finalWidth = Math.round(this.currentRowHeaderWidth)
+      this.currentRowHeaderWidth = finalWidth
+
+      this.dispatchEvent(
+        new CustomEvent<RowHeaderResizeEventDetail>('row-header-resize', {
+          detail: { width: finalWidth },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
 
     target.addEventListener('pointermove', handleMove)

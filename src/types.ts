@@ -288,6 +288,14 @@ export interface RowReorderEventDetail {
 }
 
 /**
+ * 行ヘッダーのリサイズイベント詳細
+ */
+export interface RowHeaderResizeEventDetail {
+  /** 新しい幅 (px) */
+  width: number
+}
+
+/**
  * テーマカラーパレット定義
  */
 export interface ThemeColorPalette {

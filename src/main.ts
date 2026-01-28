@@ -13,6 +13,7 @@ import type {
   TaskUpdateEventDetail,
   GanttTask,
   TaskDropEventDetail,
+  RowHeaderResizeEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -654,6 +655,7 @@ const renderApp = () => {
             @render-drag-info="${enableCustomRendering
               ? handleRenderDragInfo
               : undefined}"
+            @row-header-resize="${handleRowHeaderResize}"
             id="gantt-chart-instance"
             @task-drop="${handleTaskDrop}"
           />
@@ -872,6 +874,10 @@ const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
     return
   }
   console.log('Task Update:', e.detail)
+}
+
+const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
+  console.log('Row Header Resized:', e.detail)
 }
 
 const handleRenderBarContent = (
