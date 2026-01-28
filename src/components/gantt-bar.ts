@@ -15,6 +15,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
   private _currentDragCursor: string | null = null
+  private _dragAnimationFrame: number | null = null
 
   static styles = css`
     :host {
@@ -172,7 +173,9 @@ export class GanttBarElement extends LitElement {
     }
     barEl.style.pointerEvents = 'none'
 
-    const taskGroup = this.shadowRoot?.querySelector('.task-group')
+    const taskGroup = this.shadowRoot?.querySelector(
+      '.task-group',
+    ) as HTMLElement
     taskGroup?.classList.add('dragging')
 
     target.setPointerCapture(e.pointerId)
@@ -218,6 +221,13 @@ export class GanttBarElement extends LitElement {
         currentStart = newStart
         currentEnd = newEnd
 
+        if (taskGroup) {
+          const newX = this.getX(newStart)
+          const newWidth = this.getX(newEnd) - newX
+          taskGroup.style.left = `${newX}px`
+          taskGroup.style.width = `${newWidth}px`
+        }
+
         this.dispatchEvent(
           new CustomEvent('task-update', {
             detail: {
@@ -237,6 +247,10 @@ export class GanttBarElement extends LitElement {
       (isCancel) => {
         taskGroup?.classList.remove('dragging')
         barEl.style.pointerEvents = ''
+        if (taskGroup) {
+          taskGroup.style.left = ''
+          taskGroup.style.width = ''
+        }
 
         if (isCancel) {
           this.dispatchEvent(
@@ -322,31 +336,40 @@ export class GanttBarElement extends LitElement {
 
         taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
 
-        const isCopy = moveEvent.ctrlKey || moveEvent.altKey
+        if (this._dragAnimationFrame) {
+          cancelAnimationFrame(this._dragAnimationFrame)
+        }
 
-        this.dispatchEvent(
-          new CustomEvent('task-update', {
-            detail: {
-              ...this.task,
-              start: originalStart,
-              end: originalEnd,
-              dx: translateX,
-              dy: deltaY,
-              isDragging: true,
-              x: moveEvent.clientX,
-              y: moveEvent.clientY,
-              mode: isCopy ? 'copy' : 'move',
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        this._dragAnimationFrame = requestAnimationFrame(() => {
+          const isCopy = moveEvent.ctrlKey || moveEvent.altKey
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: originalStart,
+                end: originalEnd,
+                dx: translateX,
+                dy: deltaY,
+                isDragging: true,
+                x: moveEvent.clientX,
+                y: moveEvent.clientY,
+                mode: isCopy ? 'copy' : 'move',
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
       },
       (isCancel, upEvent) => {
         this._currentDragCursor = null
         taskGroup.classList.remove('dragging')
         taskGroup.style.transform = ''
         target.style.cursor = ''
+        if (this._dragAnimationFrame) {
+          cancelAnimationFrame(this._dragAnimationFrame)
+          this._dragAnimationFrame = null
+        }
 
         if (isCancel) {
           this.dispatchEvent(

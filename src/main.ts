@@ -837,9 +837,8 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
       return row
     })
 
-    // 候補リストから削除
-    unassignedTasks = unassignedTasks.filter((t) => t.id !== task.id)
-
+    // 候補リストから削除しないように変更
+    // unassignedTasks = unassignedTasks.filter((t) => t.id !== task.id)
     renderApp()
 
     // アニメーション終了後にスタイルをクリーンアップ

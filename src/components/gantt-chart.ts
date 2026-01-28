@@ -72,6 +72,11 @@ export class GanttChartElement extends LitElement {
   @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
   @state() private isResizingHeader = false
 
+  private _layoutCache: {
+    layouts: any[]
+    taskCoords: any
+    totalHeight: number
+  } | null = null
   private resizeObserver: ResizeObserver | null = null
 
   static styles = css`
@@ -198,6 +203,13 @@ export class GanttChartElement extends LitElement {
         this.currentRowHeaderWidth =
           this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
       }
+    }
+    if (
+      changedProperties.has('rows') ||
+      changedProperties.has('option') ||
+      changedProperties.has('currentRowHeaderWidth')
+    ) {
+      this._layoutCache = null
     }
   }
 
@@ -389,6 +401,10 @@ export class GanttChartElement extends LitElement {
   }
 
   private calculateLayout() {
+    if (this._layoutCache) {
+      return this._layoutCache
+    }
+
     let top = 0
     const labelWidth = this.currentRowHeaderWidth
     const taskCoords = new Map<
@@ -427,7 +443,9 @@ export class GanttChartElement extends LitElement {
       return layout
     })
 
-    return { layouts, taskCoords, totalHeight: top }
+    const result = { layouts, taskCoords, totalHeight: top }
+    this._layoutCache = result
+    return result
   }
 
   private handleTaskUpdate(
@@ -514,14 +532,18 @@ export class GanttChartElement extends LitElement {
         this.tooltip = { ...this.tooltip, visible: false }
       }
 
-      this.draggingTask = {
-        id,
-        name: e.detail.name,
-        start,
-        end,
-        currentStart: newStart,
-        currentEnd: newEnd,
-        mode,
+      // draggingTaskの更新は、IDが変わった時やドラッグ開始時のみ行う
+      // 座標が変わるたびに更新すると全行の再レンダリングが走ってしまうため
+      if (!this.draggingTask || this.draggingTask.id !== id) {
+        this.draggingTask = {
+          id,
+          name: e.detail.name,
+          start,
+          end,
+          currentStart: newStart,
+          currentEnd: newEnd,
+          mode,
+        }
       } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
       this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
 
@@ -784,11 +806,17 @@ export class GanttChartElement extends LitElement {
             this.externalDraggingTask.start.getTime()
           const currentEnd = new Date(currentStart.getTime() + durationMs)
 
-          this.dragPreview = {
-            task: this.externalDraggingTask,
-            currentStart,
-            currentEnd,
-            rowId: row.id,
+          if (
+            !this.dragPreview ||
+            this.dragPreview.rowId !== row.id ||
+            this.dragPreview.currentStart.getTime() !== currentStart.getTime()
+          ) {
+            this.dragPreview = {
+              task: this.externalDraggingTask,
+              currentStart,
+              currentEnd,
+              rowId: row.id,
+            }
           }
         }
       } else {
