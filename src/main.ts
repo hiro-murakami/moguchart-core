@@ -142,6 +142,7 @@ let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
 let enableCustomRendering = true
 let showUnassignedTasks = true
+let isUnassignedTasksOpen = false
 
 // 追加候補のタスク一覧
 let unassignedTasks: GanttTask[] = [
@@ -438,19 +439,6 @@ const renderApp = () => {
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
             type="checkbox"
-            .checked="${showUnassignedTasks}"
-            @change="${(e: Event) => {
-              showUnassignedTasks = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          追加候補リストを表示
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
             .checked="${rowHeaderResizable}"
             @change="${(e: Event) => {
               rowHeaderResizable = (e.target as HTMLInputElement).checked
@@ -665,75 +653,105 @@ const renderApp = () => {
           ? html`
               <div
                 style="
-                  width: 240px;
+                  width: ${isUnassignedTasksOpen ? '240px' : '50px'};
+                  padding: ${isUnassignedTasksOpen ? '16px' : '0'};
                   flex-shrink: 0;
                   background: ${theme === 'dark' ? '#1e293b' : '#f8fafc'};
                   border: 1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'};
                   border-radius: 8px;
-                  padding: 16px;
                   height: 50vh;
-                  overflow-y: auto;
+                  transition: width 0.3s ease, padding 0.3s ease;
+                  overflow: hidden;
+                  display: flex;
+                  flex-direction: column;
                 "
               >
                 <h3
-                  style="margin-top: 0; font-size: 16px; margin-bottom: 12px;"
+                  style="
+                    margin: 0;
+                    padding: ${isUnassignedTasksOpen ? '0' : '10px'};
+                    width: 100%;
+                    height: ${isUnassignedTasksOpen ? 'auto' : '100%'};
+                    box-sizing: border-box;
+                    font-size: 16px;
+                    cursor: pointer;
+                    user-select: none;
+                    writing-mode: ${isUnassignedTasksOpen
+                    ? 'horizontal-tb'
+                    : 'vertical-rl'};
+                    transform: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: 'flex-start';
+                    gap: ${isUnassignedTasksOpen ? '4px' : '8px'};
+                  "
+                  @click="${() => {
+                    isUnassignedTasksOpen = !isUnassignedTasksOpen
+                    renderApp()
+                  }}"
                 >
-                  追加候補タスク
+                  <span>◯ 追加候補タスク</span>
                 </h3>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  ${unassignedTasks.map(
-                    (task) => html`
-                      <div
-                        draggable="true"
-                        @dragstart="${(e: DragEvent) =>
-                          handleTaskDragStart(e, task)}"
-                        @dragend="${handleTaskDragEnd}"
-                        style="
-                          padding: 12px;
-                          background: ${theme === 'dark' ? '#334155' : 'white'};
-                          border: 1px solid ${theme === 'dark'
-                          ? '#475569'
-                          : '#cbd5e1'};
-                          border-radius: 4px;
-                          cursor: grab;
-                          user-select: none;
-                          box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                        "
-                      >
-                        <div
-                          style="
-                            height: 16px;
-                            width: 100%;
-                            border-radius: 2px;
-                            margin-bottom: 8px;
-                            ${task.style || ''};
-                            ${getPatternStyle(task.pattern)};
-                          "
-                        ></div>
-                        <div
-                          style="font-weight: bold; font-size: 14px; margin-bottom: 4px;"
-                        >
-                          ${task.name}
-                        </div>
-                        <div style="font-size: 12px; opacity: 0.7;">
-                          期間:
-                          ${dayjs(task.end).diff(
-                            dayjs(task.start),
-                            viewMode === 'day' ? 'day' : 'hour',
-                          )}
-                          ${viewMode === 'day' ? '日' : '時間'}
-                        </div>
-                      </div>
-                    `,
-                  )}
-                  ${unassignedTasks.length === 0
-                    ? html`<div
-                        style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;"
-                      >
-                        タスクはありません
-                      </div>`
-                    : ''}
-                </div>
+                ${isUnassignedTasksOpen
+                  ? html` <div
+                      style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex-grow: 1; margin-top: 12px;"
+                    >
+                      ${unassignedTasks.map(
+                        (task) => html`
+                          <div
+                            draggable="true"
+                            @dragstart="${(e: DragEvent) =>
+                              handleTaskDragStart(e, task)}"
+                            @dragend="${handleTaskDragEnd}"
+                            style="
+                              padding: 12px;
+                              background: ${theme === 'dark'
+                              ? '#334155'
+                              : 'white'};
+                              border: 1px solid ${theme === 'dark'
+                              ? '#475569'
+                              : '#cbd5e1'};
+                              border-radius: 4px;
+                              cursor: grab;
+                              user-select: none;
+                              box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                            "
+                          >
+                            <div
+                              style="
+                                height: 16px;
+                                width: 100%;
+                                border-radius: 2px;
+                                margin-bottom: 8px;
+                                ${task.style || ''};
+                                ${getPatternStyle(task.pattern)};
+                              "
+                            ></div>
+                            <div
+                              style="font-weight: bold; font-size: 14px; margin-bottom: 4px;"
+                            >
+                              ${task.name}
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.7;">
+                              期間:
+                              ${dayjs(task.end).diff(
+                                dayjs(task.start),
+                                viewMode === 'day' ? 'day' : 'hour',
+                              )}
+                              ${viewMode === 'day' ? '日' : '時間'}
+                            </div>
+                          </div>
+                        `,
+                      )}
+                      ${unassignedTasks.length === 0
+                        ? html`<div
+                            style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;"
+                          >
+                            タスクはありません
+                          </div>`
+                        : ''}
+                    </div>`
+                  : ''}
               </div>
             `
           : ''}
