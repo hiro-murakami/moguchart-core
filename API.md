@@ -72,7 +72,8 @@ interface GanttChartOption {
 
 | イベント名            | 詳細 (e.detail)                  | 説明                                                                                             |
 | :-------------------- | :------------------------------- | :----------------------------------------------------------------------------------------------- |
-| `rows-change`         | `GanttRow[]`                     | 行の並び替えなどにより、行データが変更されたときに発火します。新しい行データの配列が渡されます。 |
+| `rows-change`         | `GanttRow[]`                     | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                       |
+| `row-reordered`       | `RowReorderEventDetail`          | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                                     |
 | `task-update`         | `TaskUpdateEventDetail`          | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                               |
 | `task-drop`           | `TaskDropEventDetail`            | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。             |
 | `row-header-resize`   | `RowHeaderResizeEventDetail`     | 行ヘッダーの幅がリサイズされたときに発火します。                                                 |
@@ -122,6 +123,17 @@ interface GanttTaskPattern {
   type: BarPattern
   color?: string // パターンの色
   size?: string // パターンのサイズ
+}
+```
+
+### RowReorderEventDetail
+
+```typescript
+interface RowReorderEventDetail {
+  sourceId: string // 移動元の行ID
+  targetId: string // ドロップ先の行ID
+  position: 'top' | 'bottom' // ドロップ先に対する位置
+  rows: GanttRow[] // 並び替え後の新しい行データの配列
 }
 ```
 

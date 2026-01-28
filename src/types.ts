@@ -285,6 +285,8 @@ export interface RowReorderEventDetail {
   targetId: string
   /** 移動先に対する位置 ('top' | 'bottom') */
   position?: 'top' | 'bottom'
+  /** 並び替え後の行データ */
+  rows: GanttRow[]
 }
 
 /**

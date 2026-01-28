@@ -699,6 +699,19 @@ export class GanttChartElement extends LitElement {
     })
 
     this.dispatchEvent(
+      new CustomEvent('row-reordered', {
+        detail: {
+          sourceId,
+          targetId,
+          position,
+          rows: this.rows,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.dispatchEvent(
       new CustomEvent('rows-change', {
         detail: this.rows,
         bubbles: true,
