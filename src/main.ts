@@ -122,7 +122,8 @@ let rows: GanttRow[] = []
 let viewMode: 'day' | 'hour' = 'day'
 
 let pxPerDay = 48
-let totalDays = 60 // 表示する日数
+const chartEnd = new Date(chartStart)
+chartEnd.setDate(chartStart.getDate() + 60)
 let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
@@ -188,7 +189,7 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    totalDays = 60
+    chartEnd.setDate(chartStart.getDate() + 50)
     rows = generateDayModeData()
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
@@ -200,7 +201,7 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
-    totalDays = 1.5
+    chartEnd.setTime(chartStart.getTime() + 1.5 * 24 * 60 * 60 * 1000)
     rows = generateHourModeData()
   }
   renderApp()
@@ -230,8 +231,8 @@ const renderApp = () => {
     },
     calendar: {
       start: chartStart,
+      end: chartEnd,
       pxPerDay,
-      totalDays,
       isHoliday: holiday_jp.isHoliday,
       showTime,
       showMonths,
@@ -401,26 +402,6 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           現在時刻を自動更新
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          ${viewMode === 'day' ? '表示日数:' : '表示時間:'}
-          <input
-            type="number"
-            min="1"
-            style="font-size: 16px; padding: 4px; margin-left: 6px; width: 60px;"
-            .value="${viewMode === 'day' ? totalDays : totalDays * 24}"
-            @change="${(e: Event) => {
-              const val = Number((e.target as HTMLInputElement).value)
-              if (viewMode === 'day') {
-                totalDays = val
-              } else {
-                totalDays = val / 24
-              }
-              renderApp()
-            }}"
-          />
-          ${viewMode === 'day' ? '日' : '時間'}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">

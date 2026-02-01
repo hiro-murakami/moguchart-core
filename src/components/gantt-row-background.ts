@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { getCalendarColor, getThemeColors } from '@/utils'
+import { getCalendarColor, getThemeColors, getTotalDays } from '@/utils'
 import type { GanttChartOption } from '@/types'
 
 @customElement('gantt-row-background')
@@ -8,6 +8,10 @@ export class GanttRowBackgroundElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
+
+  private get totalDays() {
+    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
+  }
 
   static styles = css`
     :host {
@@ -24,7 +28,7 @@ export class GanttRowBackgroundElement extends LitElement {
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
     const days = Array.from(
-      { length: this.option.calendar.totalDays },
+      { length: Math.ceil(this.totalDays) },
       (_, i) => {
         const d = new Date(this.option.calendar.start)
         d.setDate(d.getDate() + i)

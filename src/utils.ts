@@ -112,3 +112,15 @@ export const getCalendarColor = (
   ]
   return weekColors[dayOfWeek]
 }
+
+/**
+ * 開始日と終了日から日数を計算します。
+ * @param start 開始日
+ * @param end 終了日
+ * @returns 日数
+ */
+export function getTotalDays(start: Date, end: Date): number {
+  const diffTime = end.getTime() - start.getTime()
+  const diffDays = diffTime / (1000 * 60 * 60 * 24)
+  return diffDays
+}

@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
 import { DEFAULT_ROW_HEADER_WIDTH, DEFAULT_MONTH_FORMAT } from '@/constants'
-import { getCalendarColor, getThemeColors } from '@/utils'
+import { getCalendarColor, getThemeColors, getTotalDays } from '@/utils'
 import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')
@@ -11,6 +11,10 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
   @property({ type: Object }) currentTime = new Date()
+
+  private get totalDays() {
+    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
+  }
 
   static styles = css`
     :host {
@@ -106,7 +110,7 @@ export class GanttCalendarElement extends LitElement {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
     const days = Array.from(
-      { length: Math.ceil(this.option.calendar.totalDays) },
+      { length: Math.ceil(this.totalDays) },
       (_, i) => {
         const d = new Date(this.option.calendar.start)
         d.setDate(d.getDate() + i)
@@ -139,7 +143,7 @@ export class GanttCalendarElement extends LitElement {
     `
 
     const totalWidth =
-      this.option.calendar.totalDays * this.option.calendar.pxPerDay
+      this.totalDays * this.option.calendar.pxPerDay
 
     return html`
       <style>
@@ -191,9 +195,9 @@ export class GanttCalendarElement extends LitElement {
           ? html`<div class="days-container" style="${backgroundStyle}">
               ${days.map((day, index) => {
                 let width = this.option.calendar.pxPerDay
-                if (index + 1 > this.option.calendar.totalDays) {
+                if (index + 1 > this.totalDays) {
                   width =
-                    (this.option.calendar.totalDays - index) *
+                    (this.totalDays - index) *
                     this.option.calendar.pxPerDay
                 }
                 const backgroundColor = getCalendarColor(

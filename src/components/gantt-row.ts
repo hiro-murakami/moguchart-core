@@ -9,7 +9,7 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
 } from '@/types'
-import { calculateTaskLanes, getThemeColors } from '@/utils'
+import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -40,6 +40,10 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: String })
   dropPosition: 'top' | 'bottom' | null = null
+
+  private get totalDays() {
+    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
+  }
 
   static styles = css`
     :host {
@@ -261,7 +265,7 @@ export class GanttRowElement extends LitElement {
         ></div>
         <div
           class="bars-container"
-          style="width: ${this.option.calendar.totalDays *
+          style="width: ${this.totalDays *
           this.option.calendar.pxPerDay}px"
         >
           ${this.option.calendar.showRowBackground !== false

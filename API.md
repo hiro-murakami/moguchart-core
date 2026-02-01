@@ -12,12 +12,12 @@ MoguChart は、Lit で構築されたガントチャート Web Component です
 
 コンポーネントに渡すことができるプロパティです。
 
-| プロパティ名             | 型                  | 説明                                                                                                                                                                   |
-| :----------------------- | :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rows`                   | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                   |
-| `option`                 | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                                 |
-| `theme`                  | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                         |
-| `externalDraggingTask`   | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
+| プロパティ名           | 型                  | 説明                                                                                                                                                                 |
+| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rows`                 | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
+| `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
+| `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
+| `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
 
 ## オプション設定 (GanttChartOption)
 
@@ -41,8 +41,8 @@ interface GanttChartOption {
   /** カレンダー（タイムライン）の設定 */
   calendar: {
     start: Date // 表示開始日
+    end: Date // 表示終了日
     pxPerDay: number // 1日あたりの幅 (px)
-    totalDays: number // カレンダーに表示する総日数
     isHoliday?: (date: Date) => boolean // 祝日判定ロジック
     showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
     currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 1分)
@@ -70,19 +70,19 @@ interface GanttChartOption {
 
 コンポーネントから発火されるカスタムイベントです。
 
-| イベント名            | 詳細 (e.detail)                  | 説明                                                                                             |
-| :-------------------- | :------------------------------- | :----------------------------------------------------------------------------------------------- |
-| `rows-change`         | `GanttRow[]`                     | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                       |
-| `row-reordered`       | `RowReorderEventDetail`          | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                                     |
-| `task-update`         | `TaskUpdateEventDetail`          | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                               |
-| `task-drop`           | `TaskDropEventDetail`            | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。             |
-| `row-header-resize`   | `RowHeaderResizeEventDetail`     | 行ヘッダーの幅がリサイズされたときに発火します。                                                 |
-| `render-bar-content`  | `RenderBarContentEventDetail`    | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。     |
-| `render-row-header`   | `RenderRowHeaderEventDetail`     | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。               |
-| `render-tooltip`      | `RenderTooltipEventDetail`       | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。         |
-| `task-dblclick`       | `TaskClickEventDetail`           | タスクバーをダブルクリックしたときに発火します。                                                 |
-| `task-contextmenu`    | `TaskContextMenuEventDetail`     | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。     |
-| `render-drag-info`    | `RenderDragInfoEventDetail`      | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                     |
+| イベント名           | 詳細 (e.detail)               | 説明                                                                                         |
+| :------------------- | :---------------------------- | :------------------------------------------------------------------------------------------- |
+| `rows-change`        | `GanttRow[]`                  | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
+| `row-reordered`      | `RowReorderEventDetail`       | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
+| `task-update`        | `TaskUpdateEventDetail`       | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `task-drop`          | `TaskDropEventDetail`         | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
+| `row-header-resize`  | `RowHeaderResizeEventDetail`  | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `render-bar-content` | `RenderBarContentEventDetail` | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
+| `render-row-header`  | `RenderRowHeaderEventDetail`  | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
+| `render-tooltip`     | `RenderTooltipEventDetail`    | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
+| `task-dblclick`      | `TaskClickEventDetail`        | タスクバーをダブルクリックしたときに発火します。                                             |
+| `task-contextmenu`   | `TaskContextMenuEventDetail`  | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `render-drag-info`   | `RenderDragInfoEventDetail`   | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
 
 ## 型定義 (Types)
 
@@ -223,7 +223,7 @@ interface TaskContextMenuEventDetail {
 ```typescript
 interface RenderDragInfoEventDetail {
   container: HTMLElement // 情報を描画するコンテナ要素
-  task: { id: string, name?: string, start: Date, end: Date } // ドラッグ中のタスク
+  task: { id: string; name?: string; start: Date; end: Date } // ドラッグ中のタスク
   newStart: Date // 現在のドラッグ位置における開始日
   newEnd: Date // 現在のドラッグ位置における終了日
   targetRow: GanttRow | undefined // 現在ドロップ対象となっている行

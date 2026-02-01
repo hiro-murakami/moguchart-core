@@ -109,10 +109,10 @@ export interface GanttChartOptionRowHeader {
 export interface GanttChartOptionCalendar {
   /** チャートの開始日時 */
   start: Date
+  /** チャートの終了日時 */
+  end: Date
   /** 1日あたりのピクセル幅 */
   pxPerDay: number
-  /** 表示する総日数 */
-  totalDays: number
   /** 月の表示フォーマット (例: 'YYYY年M月') */
   monthFormat?: string
   /** 行の背景を表示するかどうか */

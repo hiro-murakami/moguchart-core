@@ -12,7 +12,7 @@ import type {
   TaskUpdateEventDetail,
   RowHeaderResizeEventDetail,
 } from '@/types'
-import { calculateTaskLanes, getThemeColors } from '@/utils'
+import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -78,6 +78,10 @@ export class GanttChartElement extends LitElement {
     totalHeight: number
   } | null = null
   private resizeObserver: ResizeObserver | null = null
+
+  private get totalDays() {
+    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
+  }
 
   static styles = css`
     :host {
@@ -1072,7 +1076,7 @@ export class GanttChartElement extends LitElement {
         <svg
           class="dependency-lines"
           style="top: ${this.calendarHeight}px;"
-          width="${this.option.calendar.totalDays *
+          width="${this.totalDays *
             (this.option.calendar.pxPerDay ?? 50) +
           labelWidth}"
           height="${totalHeight}"
