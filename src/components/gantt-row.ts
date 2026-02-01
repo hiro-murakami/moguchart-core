@@ -235,6 +235,8 @@ export class GanttRowElement extends LitElement {
       `
     }
 
+    const canReorder = this.option.enableRowReordering && !this.option.readOnly;
+
     return html`
       <style>
         :host {
@@ -254,14 +256,14 @@ export class GanttRowElement extends LitElement {
           : ''}"
       >
         <div
-          class="row-header ${this.option.enableRowReordering
+          class="row-header ${canReorder
             ? 'draggable'
             : ''}"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ?? colors.rowHeaderBg};"
-          draggable="${this.option.enableRowReordering ? 'true' : 'false'}"
-          @dragstart="${this.handleDragStart}"
+          draggable="${canReorder ? 'true' : 'false'}"
+          @dragstart="${canReorder ? this.handleDragStart : undefined}"
         ></div>
         <div
           class="bars-container"

@@ -437,7 +437,7 @@ export class GanttBarElement extends LitElement {
 
       if (this._currentDragCursor) {
         barEl.style.cursor = this._currentDragCursor
-      } else {
+      } else if (!this.option.readOnly) {
         barEl.style.cursor = ''
       }
     }
@@ -474,10 +474,12 @@ export class GanttBarElement extends LitElement {
     if (target.classList.contains('dragging')) {
       return
     }
-    window.addEventListener('keydown', this.handleKeyDown)
-    window.addEventListener('keyup', this.handleKeyUp)
-    if (e.ctrlKey || e.altKey) {
-      this.updateCursor(true)
+    if (!this.option.readOnly) {
+      window.addEventListener('keydown', this.handleKeyDown)
+      window.addEventListener('keyup', this.handleKeyUp)
+      if (e.ctrlKey || e.altKey) {
+        this.updateCursor(true)
+      }
     }
     const rect = target.getBoundingClientRect()
     this.dispatchEvent(
@@ -494,9 +496,11 @@ export class GanttBarElement extends LitElement {
   }
 
   private onMouseLeave() {
-    window.removeEventListener('keydown', this.handleKeyDown)
-    window.removeEventListener('keyup', this.handleKeyUp)
-    this.updateCursor(false)
+    if (!this.option.readOnly) {
+      window.removeEventListener('keydown', this.handleKeyDown)
+      window.removeEventListener('keyup', this.handleKeyUp)
+      this.updateCursor(false)
+    }
     this.dispatchEvent(
       new CustomEvent('bar-mouseleave', {
         bubbles: true,
