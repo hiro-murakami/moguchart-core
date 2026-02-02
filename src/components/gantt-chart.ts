@@ -224,14 +224,17 @@ export class GanttChartElement extends LitElement {
 
     if (changedProperties.has('rowSelectionMode')) {
       const oldVal = changedProperties.get('rowSelectionMode')
-      if (this.rowSelectionMode && oldVal === false) {
+      if (!this.rowSelectionMode && oldVal === true) {
         this.selectedRows = new Set()
         this.dispatchEvent(
-          new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
-            detail: { selectedIds: [] },
-            bubbles: true,
-            composed: true,
-          }),
+          new CustomEvent<RowSelectionChangeEventDetail>(
+            'row-selection-change',
+            {
+              detail: { selectedIds: [] },
+              bubbles: true,
+              composed: true,
+            },
+          ),
         )
       }
     }
@@ -1129,8 +1132,7 @@ export class GanttChartElement extends LitElement {
         <svg
           class="dependency-lines"
           style="top: ${this.calendarHeight}px;"
-          width="${this.totalDays *
-            (this.option.calendar.pxPerDay ?? 50) +
+          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) +
           labelWidth}"
           height="${totalHeight}"
         >
@@ -1176,7 +1178,8 @@ export class GanttChartElement extends LitElement {
                   ? this.dragPreview
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
-                @_internal-row-selection-change="${this.handleRowSelectionChange}"
+                @_internal-row-selection-change="${this
+                  .handleRowSelectionChange}"
               />
             `
           },
