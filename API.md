@@ -17,6 +17,7 @@ MoguChart は、Lit で構築されたガントチャート Web Component です
 | `rows`                 | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
 | `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
 | `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
+| `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                                 |
 | `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
 
 ## オプション設定 (GanttChartOption)
@@ -63,6 +64,8 @@ interface GanttChartOption {
   enableRowReordering?: boolean // (デフォルト: false)
   /** タスクドラッグ時のスナップ間隔（分単位）。例えば60を指定すると1時間単位でスナップします。 */
   snapDuration?: number // (デフォルト: 1440 = 1日)
+  /** 行選択モードを有効にするか。有効にすると行ヘッダーにチェックボックスが表示されます。 */
+  rowSelectionMode?: boolean // (デフォルト: false)
 }
 ```
 
@@ -74,6 +77,7 @@ interface GanttChartOption {
 | :------------------- | :---------------------------- | :------------------------------------------------------------------------------------------- |
 | `rows-change`        | `GanttRow[]`                  | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
 | `row-reordered`      | `RowReorderEventDetail`       | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
+| `row-selection-change` | `RowSelectionChangeEventDetail` | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                  |
 | `task-update`        | `TaskUpdateEventDetail`       | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`          | `TaskDropEventDetail`         | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`  | `RowHeaderResizeEventDetail`  | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
@@ -227,5 +231,17 @@ interface RenderDragInfoEventDetail {
   newStart: Date // 現在のドラッグ位置における開始日
   newEnd: Date // 現在のドラッグ位置における終了日
   targetRow: GanttRow | undefined // 現在ドロップ対象となっている行
+}
+```
+
+### RowSelectionChangeEventDetail
+
+```typescript
+interface RowSelectionChangeEventDetail {
+  selectedIds: string[] // 現在選択されている全ての行IDの配列
+  target: {
+    id: string // 今回操作された行のID
+    checked: boolean // 今回操作された行の新しいチェック状態
+  }
 }
 ```

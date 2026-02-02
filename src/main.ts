@@ -14,6 +14,7 @@ import type {
   GanttTask,
   TaskDropEventDetail,
   RowHeaderResizeEventDetail,
+  RowSelectionChangeEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -144,6 +145,8 @@ let currentTimeUpdateInterval = 1000
 let enableCustomRendering = true
 let showUnassignedTasks = true
 let isUnassignedTasksOpen = false
+let rowSelectionMode = false
+let selectedIds: string[] = []
 
 // 追加候補のタスク一覧
 let unassignedTasks: GanttTask[] = [
@@ -272,6 +275,17 @@ const renderApp = () => {
           opacity: 0;
           transform: scale(0.9);
         }
+      }
+      button {
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #2563eb;
       }
     </style>
     <div
@@ -429,7 +443,52 @@ const renderApp = () => {
           />
           行ヘッダーのリサイズ許可
         </label>
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${rowSelectionMode}"
+            @change="${(e: Event) => {
+              rowSelectionMode = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          行選択モードを有効化
+        </label>
       </div>
+      ${rowSelectionMode
+        ? html`<div
+            style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"
+          >
+            <button
+              @click=${() => {
+                selectedIds = rows.slice(0, 3).map((r) => r.id)
+                renderApp()
+              }}
+            >
+              最初の3行を選択
+            </button>
+            <button
+              @click=${() => {
+                selectedIds = rows.slice(4, 7).map((r) => r.id)
+                renderApp()
+              }}
+            >
+              5行目から3行を選択
+            </button>
+            <button
+              @click=${() => {
+                selectedIds = []
+                renderApp()
+              }}
+            >
+              選択をクリア
+            </button>
+            <span style="font-size: 12px; margin-left: 8px;"
+              >選択中のID: ${JSON.stringify(selectedIds)}</span
+            >
+          </div>`
+        : ''}
 
       <div
         style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
@@ -605,7 +664,9 @@ const renderApp = () => {
             style="height: 50vh;"
             .rows="${rows}"
             .option="${option}"
+            .selectedRowIds="${selectedIds}"
             theme="${theme}"
+            ?row-selection-mode="${rowSelectionMode}"
             @rows-change="${(e: CustomEvent) => {
               rows = e.detail
             }}"
@@ -625,6 +686,12 @@ const renderApp = () => {
               ? handleRenderDragInfo
               : undefined}"
             @row-header-resize="${handleRowHeaderResize}"
+            @row-selection-change="${(
+              e: CustomEvent<RowSelectionChangeEventDetail>,
+            ) => {
+              selectedIds = e.detail.selectedIds
+              renderApp()
+            }}"
             id="gantt-chart-instance"
             @task-drop="${handleTaskDrop}"
           />

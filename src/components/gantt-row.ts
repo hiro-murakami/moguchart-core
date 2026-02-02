@@ -38,6 +38,12 @@ export class GanttRowElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
 
+  @property({ type: Boolean })
+  rowSelectionMode = false
+
+  @property({ type: Boolean })
+  isSelected = false
+
   @property({ type: String })
   dropPosition: 'top' | 'bottom' | null = null
 
@@ -83,16 +89,21 @@ export class GanttRowElement extends LitElement {
     }
     .row-header {
       font-size: 13px;
-      padding-left: 15px;
+      padding-left: 8px;
       display: flex;
-      align-items: flex-start;
-      padding-top: 6px;
+      align-items: center;
+      gap: 6px;
+      padding-top: 0;
       flex-shrink: 0;
       box-sizing: border-box;
       position: sticky;
       left: 0;
       z-index: 60;
       background: inherit;
+    }
+    .row-header-content {
+      flex-grow: 1;
+      padding: 6px 0;
     }
     .row-header.draggable {
       cursor: grab;
@@ -122,20 +133,34 @@ export class GanttRowElement extends LitElement {
     }
   }
 
+  private handleCheckboxChange(e: Event) {
+    const checkbox = e.target as HTMLInputElement
+    this.dispatchEvent(
+      new CustomEvent('_internal-row-selection-change', {
+        detail: {
+          rowId: this.row.id,
+          checked: checkbox.checked,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
-    const rowHeaderEl = this.shadowRoot?.querySelector(
-      '.row-header',
+    const rowHeaderContentEl = this.shadowRoot?.querySelector(
+      '.row-header-content',
     ) as HTMLElement
-    if (rowHeaderEl) {
+    if (rowHeaderContentEl) {
       // Clear content to avoid conflict with Lit rendering and allow customization
-      rowHeaderEl.innerHTML = ''
+      rowHeaderContentEl.innerHTML = ''
 
       this.dispatchEvent(
         new CustomEvent('render-row-header', {
           detail: {
-            container: rowHeaderEl,
+            container: rowHeaderContentEl,
             row: this.row,
           },
           bubbles: true,
@@ -144,8 +169,8 @@ export class GanttRowElement extends LitElement {
       )
 
       // If no content was added by the event listener, show the default name
-      if (rowHeaderEl.innerHTML === '') {
-        rowHeaderEl.textContent = this.row.name
+      if (rowHeaderContentEl.innerHTML === '') {
+        rowHeaderContentEl.textContent = this.row.name
       }
     }
   }
@@ -235,14 +260,16 @@ export class GanttRowElement extends LitElement {
       `
     }
 
-    const canReorder = this.option.enableRowReordering && !this.option.readOnly;
+    const canReorder = this.option.enableRowReordering && !this.option.readOnly
 
     return html`
       <style>
         :host {
           background-color: ${this.isDragTarget
             ? colors.dragTarget
-            : colors.bg};
+            : this.isSelected
+              ? colors.rowSelected
+              : colors.bg};
           border-bottom: 1px solid ${colors.border};
           color: ${colors.text};
         }
@@ -256,19 +283,28 @@ export class GanttRowElement extends LitElement {
           : ''}"
       >
         <div
-          class="row-header ${canReorder
-            ? 'draggable'
-            : ''}"
+          class="row-header ${canReorder ? 'draggable' : ''}"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
-            ?.backgroundColor ?? colors.rowHeaderBg};"
+            ?.backgroundColor ??
+          (this.isSelected
+            ? colors.rowSelectedHeader
+            : colors.rowHeaderBg)};"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
-        ></div>
+        >
+          ${this.rowSelectionMode
+            ? html`<input
+                type="checkbox"
+                .checked=${this.isSelected}
+                @change=${this.handleCheckboxChange}
+              />`
+            : ''}
+          <div class="row-header-content"></div>
+        </div>
         <div
           class="bars-container"
-          style="width: ${this.totalDays *
-          this.option.calendar.pxPerDay}px"
+          style="width: ${this.totalDays * this.option.calendar.pxPerDay}px"
         >
           ${this.option.calendar.showRowBackground !== false
             ? html`<gantt-row-background
