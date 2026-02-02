@@ -298,6 +298,14 @@ export interface RowHeaderResizeEventDetail {
 }
 
 /**
+ * 行選択変更イベントの詳細
+ */
+export interface RowSelectionChangeEventDetail {
+  /** 選択されている行IDの配列 */
+  selectedIds: string[]
+}
+
+/**
  * テーマカラーパレット定義
  */
 export interface ThemeColorPalette {
@@ -337,6 +345,10 @@ export interface ThemeColorPalette {
   holiday: string
   /** 行ヘッダーの背景色 */
   rowHeaderBg: string
+  /** 選択された行の背景色 */
+  rowSelected: string
+  /** 選択された行のヘッダーの背景色 */
+  rowSelectedHeader: string
   /** 現在時刻線の色 */
   currentTimeLine: string
   /** 現在時刻線のバッジテキスト色 */

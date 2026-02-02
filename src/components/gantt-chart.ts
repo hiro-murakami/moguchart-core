@@ -9,8 +9,9 @@ import type {
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
-  TaskUpdateEventDetail,
   RowHeaderResizeEventDetail,
+  RowSelectionChangeEventDetail,
+  TaskUpdateEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, svg, type PropertyValues } from 'lit'
@@ -27,9 +28,14 @@ export class GanttChartElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
+  @property({ type: Boolean, attribute: 'row-selection-mode' })
+  rowSelectionMode = false
+  @property({ type: Array })
+  selectedRowIds: string[] = []
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
+  @state() private selectedRows = new Set<string>()
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
   @state() private draggingTask: {
@@ -214,6 +220,30 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('currentRowHeaderWidth')
     ) {
       this._layoutCache = null
+    }
+
+    if (changedProperties.has('rowSelectionMode')) {
+      const oldVal = changedProperties.get('rowSelectionMode')
+      if (this.rowSelectionMode && oldVal === false) {
+        this.selectedRows = new Set()
+        this.dispatchEvent(
+          new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+            detail: { selectedIds: [] },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
+
+    if (changedProperties.has('selectedRowIds')) {
+      const newSelectedIds = new Set(this.selectedRowIds)
+      if (
+        newSelectedIds.size !== this.selectedRows.size ||
+        ![...newSelectedIds].every((id) => this.selectedRows.has(id))
+      ) {
+        this.selectedRows = newSelectedIds
+      }
     }
   }
 
@@ -930,6 +960,29 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  private handleRowSelectionChange(
+    e: CustomEvent<{ rowId: string; checked: boolean }>,
+  ) {
+    const { rowId, checked } = e.detail
+    const newSelectedRows = new Set(this.selectedRows)
+    if (checked) {
+      newSelectedRows.add(rowId)
+    } else {
+      newSelectedRows.delete(rowId)
+    }
+    this.selectedRows = newSelectedRows
+
+    this.dispatchEvent(
+      new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+        detail: {
+          selectedIds: Array.from(this.selectedRows),
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
@@ -1109,6 +1162,8 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${currentOption}"
+                .rowSelectionMode="${this.rowSelectionMode}"
+                .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
                 (this.dragOverRowId === row.id &&
                   this.dragOverPosition === null)}"
@@ -1121,6 +1176,7 @@ export class GanttChartElement extends LitElement {
                   ? this.dragPreview
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
+                @_internal-row-selection-change="${this.handleRowSelectionChange}"
               />
             `
           },
