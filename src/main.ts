@@ -16,6 +16,7 @@ import type {
   RowHeaderResizeEventDetail,
   RowSelectionChangeEventDetail,
   RowHeaderClickEventDetail,
+  RowHeaderContextMenuEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -699,6 +700,11 @@ const renderApp = () => {
               e: CustomEvent<RowHeaderClickEventDetail>,
             ) => {
               console.log('Row header clicked:', e.detail)
+            }}"
+            @row-header-contextmenu="${(
+              e: CustomEvent<RowHeaderContextMenuEventDetail>,
+            ) => {
+              console.log('Row header context menu:', e.detail)
             }}"
           />
         </div>

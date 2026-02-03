@@ -318,6 +318,20 @@ export interface RowHeaderClickEventDetail {
 }
 
 /**
+ * 行ヘッダー右クリックイベントの詳細
+ */
+export interface RowHeaderContextMenuEventDetail {
+  /** 右クリックされた行ID */
+  rowId: string
+  /** 右クリックされた行データ */
+  row: GanttRow
+  /** 元のコンテキストメニューイベント */
+  event: MouseEvent
+  /** 右クリックされたヘッダー要素 */
+  target: HTMLElement
+}
+
+/**
  * テーマカラーパレット定義
  */
 export interface ThemeColorPalette {

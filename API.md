@@ -73,21 +73,22 @@ interface GanttChartOption {
 
 コンポーネントから発火されるカスタムイベントです。
 
-| イベント名             | 詳細 (e.detail)                 | 説明                                                                                         |
-| :--------------------- | :------------------------------ | :------------------------------------------------------------------------------------------- |
-| `rows-change`          | `GanttRow[]`                    | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
-| `row-reordered`        | `RowReorderEventDetail`         | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
-| `row-selection-change` | `RowSelectionChangeEventDetail` | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                    |
-| `task-update`          | `TaskUpdateEventDetail`         | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
-| `task-drop`            | `TaskDropEventDetail`           | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
-| `row-header-resize`    | `RowHeaderResizeEventDetail`    | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
-| `row-header-click`     | `RowHeaderClickEventDetail`     | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
-| `render-bar-content`   | `RenderBarContentEventDetail`   | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
-| `render-row-header`    | `RenderRowHeaderEventDetail`    | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
-| `render-tooltip`       | `RenderTooltipEventDetail`      | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
-| `task-dblclick`        | `TaskClickEventDetail`          | タスクバーをダブルクリックしたときに発火します。                                             |
-| `task-contextmenu`     | `TaskContextMenuEventDetail`    | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `render-drag-info`     | `RenderDragInfoEventDetail`     | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
+| イベント名               | 詳細 (e.detail)                   | 説明                                                                                         |
+| :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------- |
+| `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
+| `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
+| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                    |
+| `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
+| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `render-bar-content`     | `RenderBarContentEventDetail`     | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
+| `render-row-header`      | `RenderRowHeaderEventDetail`      | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
+| `render-tooltip`         | `RenderTooltipEventDetail`        | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
+| `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                             |
+| `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `render-drag-info`       | `RenderDragInfoEventDetail`       | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
 
 ## 型定義 (Types)
 
@@ -254,5 +255,16 @@ interface RowHeaderClickEventDetail {
   rowId: string // クリックされた行ID
   row: GanttRow // クリックされた行データ
   target: HTMLElement // クリックされたヘッダー要素
+}
+```
+
+### RowHeaderContextMenuEventDetail
+
+```typescript
+interface RowHeaderContextMenuEventDetail {
+  rowId: string // 右クリックされた行ID
+  row: GanttRow // 右クリックされた行データ
+  event: MouseEvent // 元のコンテキストメニューイベント
+  target: HTMLElement // 右クリックされたヘッダー要素
 }
 ```

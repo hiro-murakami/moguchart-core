@@ -9,6 +9,7 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
   RowHeaderClickEventDetail,
+  RowHeaderContextMenuEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
@@ -190,6 +191,25 @@ export class GanttRowElement extends LitElement {
     )
   }
 
+  private handleHeaderContextMenu(e: MouseEvent) {
+    e.preventDefault()
+    this.dispatchEvent(
+      new CustomEvent<RowHeaderContextMenuEventDetail>(
+        'row-header-contextmenu',
+        {
+          detail: {
+            rowId: this.row.id,
+            row: this.row,
+            event: e,
+            target: e.currentTarget as HTMLElement,
+          },
+          bubbles: true,
+          composed: true,
+        },
+      ),
+    )
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
@@ -340,6 +360,7 @@ export class GanttRowElement extends LitElement {
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"
+          @contextmenu="${this.handleHeaderContextMenu}"
         >
           ${this.rowSelectionMode
             ? html`<input
