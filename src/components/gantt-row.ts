@@ -168,6 +168,7 @@ export class GanttRowElement extends LitElement {
         detail: {
           rowId: this.row.id,
           row: this.row,
+          event: e,
           target: e.currentTarget as HTMLElement,
         },
         bubbles: true,
@@ -207,6 +208,31 @@ export class GanttRowElement extends LitElement {
           composed: true,
         },
       ),
+    )
+  }
+
+  private handleHeaderDblClick(e: MouseEvent) {
+    const path = e.composedPath()
+    const actualTarget = path[0] as HTMLElement
+
+    if (
+      actualTarget instanceof HTMLInputElement &&
+      actualTarget.type === 'checkbox'
+    ) {
+      return
+    }
+
+    this.dispatchEvent(
+      new CustomEvent('row-header-dblclick', {
+        detail: {
+          rowId: this.row.id,
+          row: this.row,
+          event: e,
+          target: e.currentTarget as HTMLElement,
+        },
+        bubbles: true,
+        composed: true,
+      }),
     )
   }
 
@@ -360,6 +386,7 @@ export class GanttRowElement extends LitElement {
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"
+          @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
         >
           ${this.rowSelectionMode

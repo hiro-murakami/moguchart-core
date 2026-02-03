@@ -313,7 +313,23 @@ export interface RowHeaderClickEventDetail {
   rowId: string
   /** クリックされた行データ */
   row: GanttRow
+  /** 元のクリックイベント */
+  event: MouseEvent
   /** クリックされたヘッダー要素 */
+  target: HTMLElement
+}
+
+/**
+ * 行ヘッダーダブルクリックイベントの詳細
+ */
+export interface RowHeaderDblClickEventDetail {
+  /** ダブルクリックされた行ID */
+  rowId: string
+  /** ダブルクリックされた行データ */
+  row: GanttRow
+  /** 元のダブルクリックイベント */
+  event: MouseEvent
+  /** ダブルクリックされたヘッダー要素 */
   target: HTMLElement
 }
 

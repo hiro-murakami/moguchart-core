@@ -82,6 +82,7 @@ interface GanttChartOption {
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
+| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。チェックボックスクリック時は発火しません。   |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `render-bar-content`     | `RenderBarContentEventDetail`     | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
 | `render-row-header`      | `RenderRowHeaderEventDetail`      | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
@@ -254,7 +255,19 @@ interface RowSelectionChangeEventDetail {
 interface RowHeaderClickEventDetail {
   rowId: string // クリックされた行ID
   row: GanttRow // クリックされた行データ
+  event: MouseEvent // 元のクリックイベント
   target: HTMLElement // クリックされたヘッダー要素
+}
+```
+
+### RowHeaderDblClickEventDetail
+
+```typescript
+interface RowHeaderDblClickEventDetail {
+  rowId: string // ダブルクリックされた行ID
+  row: GanttRow // ダブルクリックされた行データ
+  event: MouseEvent // 元のダブルクリックイベント
+  target: HTMLElement // ダブルクリックされたヘッダー要素
 }
 ```
 
