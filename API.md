@@ -17,7 +17,7 @@ MoguChart は、Lit で構築されたガントチャート Web Component です
 | `rows`                 | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
 | `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
 | `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
-| `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                                 |
+| `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                           |
 | `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
 
 ## オプション設定 (GanttChartOption)
@@ -73,21 +73,21 @@ interface GanttChartOption {
 
 コンポーネントから発火されるカスタムイベントです。
 
-| イベント名           | 詳細 (e.detail)               | 説明                                                                                         |
-| :------------------- | :---------------------------- | :------------------------------------------------------------------------------------------- |
-| `rows-change`        | `GanttRow[]`                  | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
-| `row-reordered`      | `RowReorderEventDetail`       | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
-| `row-selection-change` | `RowSelectionChangeEventDetail` | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                  |
-| `task-update`        | `TaskUpdateEventDetail`       | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
-| `task-drop`          | `TaskDropEventDetail`         | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
-| `row-header-resize`  | `RowHeaderResizeEventDetail`  | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
-| `row-header-click`   | `RowHeaderClickEventDetail`   | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
-| `render-bar-content` | `RenderBarContentEventDetail` | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
-| `render-row-header`  | `RenderRowHeaderEventDetail`  | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
-| `render-tooltip`     | `RenderTooltipEventDetail`    | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
-| `task-dblclick`      | `TaskClickEventDetail`        | タスクバーをダブルクリックしたときに発火します。                                             |
-| `task-contextmenu`   | `TaskContextMenuEventDetail`  | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `render-drag-info`   | `RenderDragInfoEventDetail`   | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
+| イベント名             | 詳細 (e.detail)                 | 説明                                                                                         |
+| :--------------------- | :------------------------------ | :------------------------------------------------------------------------------------------- |
+| `rows-change`          | `GanttRow[]`                    | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
+| `row-reordered`        | `RowReorderEventDetail`         | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
+| `row-selection-change` | `RowSelectionChangeEventDetail` | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                    |
+| `task-update`          | `TaskUpdateEventDetail`         | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `task-drop`            | `TaskDropEventDetail`           | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
+| `row-header-resize`    | `RowHeaderResizeEventDetail`    | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-click`     | `RowHeaderClickEventDetail`     | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
+| `render-bar-content`   | `RenderBarContentEventDetail`   | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
+| `render-row-header`    | `RenderRowHeaderEventDetail`    | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
+| `render-tooltip`       | `RenderTooltipEventDetail`      | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
+| `task-dblclick`        | `TaskClickEventDetail`          | タスクバーをダブルクリックしたときに発火します。                                             |
+| `task-contextmenu`     | `TaskContextMenuEventDetail`    | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `render-drag-info`     | `RenderDragInfoEventDetail`     | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
 
 ## 型定義 (Types)
 
@@ -253,6 +253,6 @@ interface RowSelectionChangeEventDetail {
 interface RowHeaderClickEventDetail {
   rowId: string // クリックされた行ID
   row: GanttRow // クリックされた行データ
-  originalEvent: MouseEvent // 元のマウスイベント
+  target: HTMLElement // クリックされたヘッダー要素
 }
 ```

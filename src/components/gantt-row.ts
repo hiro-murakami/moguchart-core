@@ -152,7 +152,13 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleHeaderClick(e: MouseEvent) {
-    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+    const path = e.composedPath()
+    const actualTarget = path[0] as HTMLElement
+
+    if (
+      actualTarget instanceof HTMLInputElement &&
+      actualTarget.type === 'checkbox'
+    ) {
       return
     }
 
@@ -161,7 +167,7 @@ export class GanttRowElement extends LitElement {
         detail: {
           rowId: this.row.id,
           row: this.row,
-          originalEvent: e,
+          target: e.currentTarget as HTMLElement,
         },
         bubbles: true,
         composed: true,
@@ -330,9 +336,7 @@ export class GanttRowElement extends LitElement {
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ??
-          (this.isSelected
-            ? colors.rowSelectedHeader
-            : colors.rowHeaderBg)};"
+          (this.isSelected ? colors.rowSelectedHeader : colors.rowHeaderBg)};"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"

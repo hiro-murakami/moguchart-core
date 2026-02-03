@@ -15,6 +15,7 @@ import type {
   TaskDropEventDetail,
   RowHeaderResizeEventDetail,
   RowSelectionChangeEventDetail,
+  RowHeaderClickEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -694,6 +695,11 @@ const renderApp = () => {
             }}"
             id="gantt-chart-instance"
             @task-drop="${handleTaskDrop}"
+            @row-header-click="${(
+              e: CustomEvent<RowHeaderClickEventDetail>,
+            ) => {
+              console.log('Row header clicked:', e.detail)
+            }}"
           />
         </div>
 

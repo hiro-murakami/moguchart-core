@@ -313,8 +313,8 @@ export interface RowHeaderClickEventDetail {
   rowId: string
   /** クリックされた行データ */
   row: GanttRow
-  /** 元のマウスイベント */
-  originalEvent: MouseEvent
+  /** クリックされたヘッダー要素 */
+  target: HTMLElement
 }
 
 /**
