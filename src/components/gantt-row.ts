@@ -111,6 +111,9 @@ export class GanttRowElement extends LitElement {
     .row-header.draggable:active {
       cursor: grabbing;
     }
+    .row-header.selectable {
+      cursor: pointer;
+    }
     .bars-container {
       flex: none;
       position: relative;
@@ -140,6 +143,27 @@ export class GanttRowElement extends LitElement {
         detail: {
           rowId: this.row.id,
           checked: checkbox.checked,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private handleHeaderClick(e: MouseEvent) {
+    if (!this.rowSelectionMode) {
+      return
+    }
+
+    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+      return
+    }
+
+    this.dispatchEvent(
+      new CustomEvent('_internal-row-selection-change', {
+        detail: {
+          rowId: this.row.id,
+          checked: !this.isSelected,
         },
         bubbles: true,
         composed: true,
@@ -260,7 +284,10 @@ export class GanttRowElement extends LitElement {
       `
     }
 
-    const canReorder = this.option.enableRowReordering && !this.option.readOnly
+    const canReorder =
+      this.option.enableRowReordering &&
+      !this.option.readOnly &&
+      !this.rowSelectionMode
 
     return html`
       <style>
@@ -283,7 +310,10 @@ export class GanttRowElement extends LitElement {
           : ''}"
       >
         <div
-          class="row-header ${canReorder ? 'draggable' : ''}"
+          class="row-header ${canReorder ? 'draggable' : ''} ${this
+            .rowSelectionMode
+            ? 'selectable'
+            : ''}"
           style="width: ${this.option.rowHeader?.width ??
           DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
             ?.backgroundColor ??
@@ -292,6 +322,7 @@ export class GanttRowElement extends LitElement {
             : colors.rowHeaderBg)};"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
+          @click="${this.handleHeaderClick}"
         >
           ${this.rowSelectionMode
             ? html`<input

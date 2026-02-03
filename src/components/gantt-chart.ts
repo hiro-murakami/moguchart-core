@@ -787,6 +787,8 @@ export class GanttChartElement extends LitElement {
 
     if (isExternalTask) {
       e.dataTransfer!.dropEffect = 'copy'
+    } else if (this.rowSelectionMode) {
+      return
     }
 
     if (!this.option.enableRowReordering && !isExternalTask) return
@@ -893,6 +895,13 @@ export class GanttChartElement extends LitElement {
     const taskJson = e.dataTransfer?.getData('application/json')
     if (taskJson) {
       this.handleExternalTaskDrop(e, taskJson)
+      this.dragOverRowId = null
+      this.dragOverPosition = null
+      this.dragPreview = null
+      return
+    }
+
+    if (this.rowSelectionMode) {
       this.dragOverRowId = null
       this.dragOverPosition = null
       this.dragPreview = null
