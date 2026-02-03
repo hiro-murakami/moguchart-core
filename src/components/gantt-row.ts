@@ -93,7 +93,7 @@ export class GanttRowElement extends LitElement {
       font-size: 13px;
       padding-left: 8px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 6px;
       padding-top: 0;
       flex-shrink: 0;
@@ -102,6 +102,9 @@ export class GanttRowElement extends LitElement {
       left: 0;
       z-index: 60;
       background: inherit;
+    }
+    .row-header input[type='checkbox'] {
+      margin-top: 6px;
     }
     .row-header-content {
       flex-grow: 1;
