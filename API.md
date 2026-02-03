@@ -81,6 +81,7 @@ interface GanttChartOption {
 | `task-update`        | `TaskUpdateEventDetail`       | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`          | `TaskDropEventDetail`         | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`  | `RowHeaderResizeEventDetail`  | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-click`   | `RowHeaderClickEventDetail`   | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
 | `render-bar-content` | `RenderBarContentEventDetail` | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
 | `render-row-header`  | `RenderRowHeaderEventDetail`  | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
 | `render-tooltip`     | `RenderTooltipEventDetail`    | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。     |
@@ -243,5 +244,15 @@ interface RowSelectionChangeEventDetail {
     id: string // 今回操作された行のID
     checked: boolean // 今回操作された行の新しいチェック状態
   }
+}
+```
+
+### RowHeaderClickEventDetail
+
+```typescript
+interface RowHeaderClickEventDetail {
+  rowId: string // クリックされた行ID
+  row: GanttRow // クリックされた行データ
+  originalEvent: MouseEvent // 元のマウスイベント
 }
 ```

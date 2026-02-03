@@ -306,6 +306,18 @@ export interface RowSelectionChangeEventDetail {
 }
 
 /**
+ * 行ヘッダークリックイベントの詳細
+ */
+export interface RowHeaderClickEventDetail {
+  /** クリックされた行ID */
+  rowId: string
+  /** クリックされた行データ */
+  row: GanttRow
+  /** 元のマウスイベント */
+  originalEvent: MouseEvent
+}
+
+/**
  * テーマカラーパレット定義
  */
 export interface ThemeColorPalette {

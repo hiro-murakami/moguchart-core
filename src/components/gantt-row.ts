@@ -8,6 +8,7 @@ import type {
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
+  RowHeaderClickEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
@@ -151,11 +152,23 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleHeaderClick(e: MouseEvent) {
-    if (!this.rowSelectionMode) {
+    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
       return
     }
 
-    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+    this.dispatchEvent(
+      new CustomEvent<RowHeaderClickEventDetail>('row-header-click', {
+        detail: {
+          rowId: this.row.id,
+          row: this.row,
+          originalEvent: e,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    if (!this.rowSelectionMode) {
       return
     }
 
