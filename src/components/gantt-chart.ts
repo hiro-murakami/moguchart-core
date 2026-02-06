@@ -882,7 +882,6 @@ export class GanttChartElement extends LitElement {
       return
     }
 
-
     if (!this.option.enableRowReordering) return
     const sourceId = e.dataTransfer?.getData('text/plain')
     const targetId = this.dragOverRowId
@@ -976,6 +975,10 @@ export class GanttChartElement extends LitElement {
       }
       this.lastClickedRowId = rowId
     } else {
+      if (newSelectedRows.has(rowId)) {
+        this.lastClickedRowId = rowId
+        return
+      }
       newSelectedRows.clear()
       newSelectedRows.add(rowId)
       this.lastClickedRowId = rowId
@@ -986,6 +989,45 @@ export class GanttChartElement extends LitElement {
       new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
         detail: {
           selectedIds: Array.from(this.selectedRows),
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private handleRowContextMenu(
+    e: CustomEvent<{ rowId: string; event: MouseEvent }>,
+  ) {
+    if (this.selectedRows.has(e.detail.rowId)) {
+      return
+    }
+    this.handleRowClicked(e)
+  }
+
+  private handleContainerClick(e: MouseEvent) {
+    // 行ヘッダーなどのクリックイベントが伝播してきた場合はここで処理しない
+    // (gantt-row側でstopPropagationしているはずだが念のため)
+    if (e.defaultPrevented) return
+
+    this.clearSelection()
+  }
+
+  private handleContainerContextMenu(e: MouseEvent) {
+    // 行ヘッダーなどの右クリックはここで処理しない
+    if (e.defaultPrevented) return
+
+    this.clearSelection()
+  }
+
+  private clearSelection() {
+    if (this.selectedRows.size === 0) return
+
+    this.selectedRows = new Set()
+    this.dispatchEvent(
+      new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+        detail: {
+          selectedIds: [],
         },
         bubbles: true,
         composed: true,
@@ -1102,6 +1144,8 @@ export class GanttChartElement extends LitElement {
         @dragover="${this.handleContainerDragOver}"
         @dragleave="${this.handleContainerDragLeave}"
         @drop="${this.handleContainerDrop}"
+        @click="${this.handleContainerClick}"
+        @contextmenu="${this.handleContainerContextMenu}"
       >
         ${this.option.rowHeader?.resizable !== false
           ? html`
@@ -1185,6 +1229,7 @@ export class GanttChartElement extends LitElement {
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
+                @row-header-contextmenu="${this.handleRowContextMenu}"
               />
             `
           },

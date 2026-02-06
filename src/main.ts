@@ -445,37 +445,6 @@ const renderApp = () => {
           行ヘッダーのリサイズ許可
         </label>
       </div>
-      <div
-        style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"
-      >
-        <button
-          @click=${() => {
-            selectedIds = rows.slice(0, 3).map((r) => r.id)
-            renderApp()
-          }}
-        >
-          最初の3行を選択
-        </button>
-        <button
-          @click=${() => {
-            selectedIds = rows.slice(4, 7).map((r) => r.id)
-            renderApp()
-          }}
-        >
-          5行目から3行を選択
-        </button>
-        <button
-          @click=${() => {
-            selectedIds = []
-            renderApp()
-          }}
-        >
-          選択をクリア
-        </button>
-        <span style="font-size: 12px; margin-left: 8px;"
-          >選択中のID: ${JSON.stringify(selectedIds)}</span
-        >
-      </div>
 
       <div
         style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
