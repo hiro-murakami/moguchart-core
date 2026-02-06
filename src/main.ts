@@ -147,7 +147,6 @@ let currentTimeUpdateInterval = 1000
 let enableCustomRendering = true
 let showUnassignedTasks = true
 let isUnassignedTasksOpen = false
-let rowSelectionMode = false
 let selectedIds: string[] = []
 
 // 追加候補のタスク一覧
@@ -445,52 +444,38 @@ const renderApp = () => {
           />
           行ヘッダーのリサイズ許可
         </label>
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${rowSelectionMode}"
-            @change="${(e: Event) => {
-              rowSelectionMode = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          行選択モードを有効化
-        </label>
       </div>
-      ${rowSelectionMode
-        ? html`<div
-            style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"
-          >
-            <button
-              @click=${() => {
-                selectedIds = rows.slice(0, 3).map((r) => r.id)
-                renderApp()
-              }}
-            >
-              最初の3行を選択
-            </button>
-            <button
-              @click=${() => {
-                selectedIds = rows.slice(4, 7).map((r) => r.id)
-                renderApp()
-              }}
-            >
-              5行目から3行を選択
-            </button>
-            <button
-              @click=${() => {
-                selectedIds = []
-                renderApp()
-              }}
-            >
-              選択をクリア
-            </button>
-            <span style="font-size: 12px; margin-left: 8px;"
-              >選択中のID: ${JSON.stringify(selectedIds)}</span
-            >
-          </div>`
-        : ''}
+      <div
+        style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"
+      >
+        <button
+          @click=${() => {
+            selectedIds = rows.slice(0, 3).map((r) => r.id)
+            renderApp()
+          }}
+        >
+          最初の3行を選択
+        </button>
+        <button
+          @click=${() => {
+            selectedIds = rows.slice(4, 7).map((r) => r.id)
+            renderApp()
+          }}
+        >
+          5行目から3行を選択
+        </button>
+        <button
+          @click=${() => {
+            selectedIds = []
+            renderApp()
+          }}
+        >
+          選択をクリア
+        </button>
+        <span style="font-size: 12px; margin-left: 8px;"
+          >選択中のID: ${JSON.stringify(selectedIds)}</span
+        >
+      </div>
 
       <div
         style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
@@ -668,7 +653,6 @@ const renderApp = () => {
             .option="${option}"
             .selectedRowIds="${selectedIds}"
             theme="${theme}"
-            ?row-selection-mode="${rowSelectionMode}"
             @rows-change="${(e: CustomEvent) => {
               rows = e.detail
             }}"

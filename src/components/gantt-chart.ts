@@ -28,8 +28,7 @@ export class GanttChartElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
-  @property({ type: Boolean, attribute: 'row-selection-mode' })
-  rowSelectionMode = false
+
   @property({ type: Array })
   selectedRowIds: string[] = []
   @property({ attribute: false })
@@ -220,23 +219,6 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('currentRowHeaderWidth')
     ) {
       this._layoutCache = null
-    }
-
-    if (changedProperties.has('rowSelectionMode')) {
-      const oldVal = changedProperties.get('rowSelectionMode')
-      if (!this.rowSelectionMode && oldVal === true) {
-        this.selectedRows = new Set()
-        this.dispatchEvent(
-          new CustomEvent<RowSelectionChangeEventDetail>(
-            'row-selection-change',
-            {
-              detail: { selectedIds: [] },
-              bubbles: true,
-              composed: true,
-            },
-          ),
-        )
-      }
     }
 
     if (changedProperties.has('selectedRowIds')) {
@@ -787,8 +769,6 @@ export class GanttChartElement extends LitElement {
 
     if (isExternalTask) {
       e.dataTransfer!.dropEffect = 'copy'
-    } else if (this.rowSelectionMode) {
-      return
     }
 
     if (!this.option.enableRowReordering && !isExternalTask) return
@@ -901,12 +881,6 @@ export class GanttChartElement extends LitElement {
       return
     }
 
-    if (this.rowSelectionMode) {
-      this.dragOverRowId = null
-      this.dragOverPosition = null
-      this.dragPreview = null
-      return
-    }
 
     if (!this.option.enableRowReordering) return
     const sourceId = e.dataTransfer?.getData('text/plain')
@@ -1173,7 +1147,6 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${currentOption}"
-                .rowSelectionMode="${this.rowSelectionMode}"
                 .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
                 (this.dragOverRowId === row.id &&

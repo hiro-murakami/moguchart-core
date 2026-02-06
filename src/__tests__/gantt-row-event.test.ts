@@ -61,7 +61,6 @@ describe('GanttRowElement', () => {
     const el = document.createElement('gantt-row') as GanttRowElement
     el.row = row
     el.option = option
-    el.rowSelectionMode = true // Enable checkbox
     document.body.appendChild(el)
 
     await el.updateComplete

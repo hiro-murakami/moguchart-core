@@ -40,10 +40,7 @@ export class GanttRowElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
 
-  @property({ type: Boolean })
-  rowSelectionMode = false
-
-  @property({ type: Boolean })
+  @property({ type: Boolean, reflect: true })
   isSelected = false
 
   @property({ type: String })
@@ -59,6 +56,7 @@ export class GanttRowElement extends LitElement {
       width: fit-content;
       min-width: 100%;
       box-sizing: border-box;
+      background-color: transparent;
     }
     .row-container {
       display: flex;
@@ -91,33 +89,39 @@ export class GanttRowElement extends LitElement {
     }
     .row-header {
       font-size: 13px;
-      padding-left: 8px;
       display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      padding-top: 0;
+      align-items: center;
+      gap: 0;
       flex-shrink: 0;
       box-sizing: border-box;
       position: sticky;
       left: 0;
       z-index: 60;
-      background: inherit;
     }
-    .row-header input[type='checkbox'] {
-      margin-top: 6px;
+    .row-header-button {
+      width: 32px;
+      height: 100%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .row-header-button::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      box-sizing: border-box;
+      transition: background-color 0.2s, border-color 0.2s;
     }
     .row-header-content {
       flex-grow: 1;
-      padding: 6px 0;
-    }
-    .row-header.draggable {
-      cursor: grab;
-    }
-    .row-header.draggable:active {
-      cursor: grabbing;
-    }
-    .row-header.selectable {
-      cursor: pointer;
+      padding: 6px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .bars-container {
       flex: none;
@@ -141,31 +145,25 @@ export class GanttRowElement extends LitElement {
     }
   }
 
-  private handleCheckboxChange(e: Event) {
-    const checkbox = e.target as HTMLInputElement
-    this.dispatchEvent(
-      new CustomEvent('_internal-row-selection-change', {
-        detail: {
-          rowId: this.row.id,
-          checked: checkbox.checked,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-  }
-
   private handleHeaderClick(e: MouseEvent) {
     const path = e.composedPath()
-    const actualTarget = path[0] as HTMLElement
+    const button = this.shadowRoot?.querySelector('.row-header-button')
 
-    if (
-      actualTarget instanceof HTMLInputElement &&
-      actualTarget.type === 'checkbox'
-    ) {
-      return
+    // Dispatch selection change only if the button itself was clicked
+    if (button && path.includes(button)) {
+      this.dispatchEvent(
+        new CustomEvent('_internal-row-selection-change', {
+          detail: {
+            rowId: this.row.id,
+            checked: !this.isSelected,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
 
+    // Always dispatch the general header click event
     this.dispatchEvent(
       new CustomEvent<RowHeaderClickEventDetail>('row-header-click', {
         detail: {
@@ -173,21 +171,6 @@ export class GanttRowElement extends LitElement {
           row: this.row,
           event: e,
           target: e.currentTarget as HTMLElement,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    if (!this.rowSelectionMode) {
-      return
-    }
-
-    this.dispatchEvent(
-      new CustomEvent('_internal-row-selection-change', {
-        detail: {
-          rowId: this.row.id,
-          checked: !this.isSelected,
         },
         bubbles: true,
         composed: true,
@@ -215,16 +198,6 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleHeaderDblClick(e: MouseEvent) {
-    const path = e.composedPath()
-    const actualTarget = path[0] as HTMLElement
-
-    if (
-      actualTarget instanceof HTMLInputElement &&
-      actualTarget.type === 'checkbox'
-    ) {
-      return
-    }
-
     this.dispatchEvent(
       new CustomEvent('row-header-dblclick', {
         detail: {
@@ -288,8 +261,6 @@ export class GanttRowElement extends LitElement {
     )
 
     if (this.draggingTask?.mode === 'copy' && originalTaskInRow) {
-      // For lane calculation in copy mode, filter out the dragging task
-      // and add a static ghost task to prevent collision detection.
       const tasksForLaneCalc = displayTasks.filter(
         (t) => t.id !== this.draggingTask!.id,
       )
@@ -309,12 +280,9 @@ export class GanttRowElement extends LitElement {
         (t) => t.id === `${originalTaskInRow.id}-static`,
       )
       if (staticTask) {
-        // Add the actual dragging task back for rendering,
-        // using the same lane as the ghost.
         tasksWithLanes.push({ ...originalTaskInRow, lane: staticTask.lane })
       }
     } else {
-      // For move mode or other cases, calculate lanes normally.
       const result = calculateTaskLanes(displayTasks)
       tasksWithLanes = result.tasksWithLanes
       laneCount = result.laneCount
@@ -352,24 +320,39 @@ export class GanttRowElement extends LitElement {
       `
     }
 
-    const canReorder =
-      this.option.enableRowReordering &&
-      !this.option.readOnly &&
-      !this.rowSelectionMode
+    const canReorder = this.option.enableRowReordering && !this.option.readOnly
 
     return html`
       <style>
         :host {
-          background-color: ${this.isDragTarget
-            ? colors.dragTarget
-            : this.isSelected
-              ? colors.rowSelected
-              : colors.bg};
-          border-bottom: 1px solid ${colors.border};
           color: ${colors.text};
+          border-bottom: 1px solid ${colors.border};
+        }
+        :host([isselected]) {
+          background-color: ${colors.rowSelected};
         }
         .row-header {
+          cursor: ${canReorder ? 'grab' : 'pointer'};
+          background-color: ${this.isSelected
+            ? colors.rowSelectedHeader
+            : colors.rowHeaderBg};
           border-right: 1px solid ${colors.border};
+        }
+        .row-header:active {
+          cursor: ${canReorder ? 'grabbing' : 'pointer'};
+        }
+        .row-header:hover .row-header-button {
+          background-color: rgba(0, 0, 0, 0.05);
+        }
+        .row-header-button::before {
+          border: 1.5px solid ${colors.dependencyLine};
+          background-color: ${this.isSelected ? '#3b82f6' : 'transparent'};
+        }
+        :host([isselected]) .row-header-button::before {
+          border-color: #3b82f6;
+        }
+        .row-header:hover .row-header-button::before {
+          border-color: ${colors.text};
         }
       </style>
       <div
@@ -378,27 +361,16 @@ export class GanttRowElement extends LitElement {
           : ''}"
       >
         <div
-          class="row-header ${canReorder ? 'draggable' : ''} ${this
-            .rowSelectionMode
-            ? 'selectable'
-            : ''}"
+          class="row-header"
           style="width: ${this.option.rowHeader?.width ??
-          DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
-            ?.backgroundColor ??
-          (this.isSelected ? colors.rowSelectedHeader : colors.rowHeaderBg)};"
+          DEFAULT_ROW_HEADER_WIDTH}px;"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"
           @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
         >
-          ${this.rowSelectionMode
-            ? html`<input
-                type="checkbox"
-                .checked=${this.isSelected}
-                @change=${this.handleCheckboxChange}
-              />`
-            : ''}
+          <div class="row-header-button"></div>
           <div class="row-header-content"></div>
         </div>
         <div
