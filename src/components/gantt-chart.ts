@@ -28,14 +28,14 @@ export class GanttChartElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
-  @property({ type: Boolean, attribute: 'row-selection-mode' })
-  rowSelectionMode = false
+
   @property({ type: Array })
   selectedRowIds: string[] = []
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
   @state() private selectedRows = new Set<string>()
+  @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
   @state() private draggingTask: {
@@ -220,23 +220,6 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('currentRowHeaderWidth')
     ) {
       this._layoutCache = null
-    }
-
-    if (changedProperties.has('rowSelectionMode')) {
-      const oldVal = changedProperties.get('rowSelectionMode')
-      if (!this.rowSelectionMode && oldVal === true) {
-        this.selectedRows = new Set()
-        this.dispatchEvent(
-          new CustomEvent<RowSelectionChangeEventDetail>(
-            'row-selection-change',
-            {
-              detail: { selectedIds: [] },
-              bubbles: true,
-              composed: true,
-            },
-          ),
-        )
-      }
     }
 
     if (changedProperties.has('selectedRowIds')) {
@@ -787,8 +770,6 @@ export class GanttChartElement extends LitElement {
 
     if (isExternalTask) {
       e.dataTransfer!.dropEffect = 'copy'
-    } else if (this.rowSelectionMode) {
-      return
     }
 
     if (!this.option.enableRowReordering && !isExternalTask) return
@@ -901,12 +882,6 @@ export class GanttChartElement extends LitElement {
       return
     }
 
-    if (this.rowSelectionMode) {
-      this.dragOverRowId = null
-      this.dragOverPosition = null
-      this.dragPreview = null
-      return
-    }
 
     if (!this.option.enableRowReordering) return
     const sourceId = e.dataTransfer?.getData('text/plain')
@@ -972,18 +947,41 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private handleRowSelectionChange(
-    e: CustomEvent<{ rowId: string; checked: boolean }>,
+  private handleRowClicked(
+    e: CustomEvent<{ rowId: string; event: MouseEvent }>,
   ) {
-    const { rowId, checked } = e.detail
-    const newSelectedRows = new Set(this.selectedRows)
-    if (checked) {
-      newSelectedRows.add(rowId)
-    } else {
-      newSelectedRows.delete(rowId)
-    }
-    this.selectedRows = newSelectedRows
+    const { rowId, event } = e.detail
+    const { shiftKey, ctrlKey, metaKey } = event
 
+    const newSelectedRows = new Set(this.selectedRows)
+
+    if (shiftKey && this.lastClickedRowId) {
+      const lastIndex = this.rows.findIndex(
+        (r) => r.id === this.lastClickedRowId,
+      )
+      const currentIndex = this.rows.findIndex((r) => r.id === rowId)
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex)
+        const end = Math.max(lastIndex, currentIndex)
+        for (let i = start; i <= end; i++) {
+          newSelectedRows.add(this.rows[i].id)
+        }
+      }
+    } else if (ctrlKey || metaKey) {
+      if (newSelectedRows.has(rowId)) {
+        newSelectedRows.delete(rowId)
+      } else {
+        newSelectedRows.add(rowId)
+      }
+      this.lastClickedRowId = rowId
+    } else {
+      newSelectedRows.clear()
+      newSelectedRows.add(rowId)
+      this.lastClickedRowId = rowId
+    }
+
+    this.selectedRows = newSelectedRows
     this.dispatchEvent(
       new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
         detail: {
@@ -1173,7 +1171,6 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${currentOption}"
-                .rowSelectionMode="${this.rowSelectionMode}"
                 .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
                 (this.dragOverRowId === row.id &&
@@ -1187,8 +1184,7 @@ export class GanttChartElement extends LitElement {
                   ? this.dragPreview
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
-                @_internal-row-selection-change="${this
-                  .handleRowSelectionChange}"
+                @row-clicked="${this.handleRowClicked}"
               />
             `
           },
