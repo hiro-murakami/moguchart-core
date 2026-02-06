@@ -1,0 +1,16 @@
+# 依存関係
+node_modules/
+.pnpm-store/
+
+# ビルド成果物
+dist/
+build/
+.output/
+
+# ログ・キャッシュ
+.git/
+.cache/
+npm-debug.log*
+
+# 環境変数（セキュリティのため）
+.env*

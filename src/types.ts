@@ -65,6 +65,8 @@ export interface GanttRow {
   name: string
   /** この行に含まれるタスクの配列 */
   tasks: GanttTask[]
+  /** 行を表示するかどうか (デフォルト: true) */
+  visible?: boolean
 }
 
 /**
@@ -159,6 +161,8 @@ export interface GanttChartOption {
   enableRowReordering?: boolean
   /** スナップする時間単位（分）。デフォルトは1440（1日） */
   snapDuration?: number
+  /** 非表示に設定された行を表示するかどうか (デフォルト: false) */
+  showHiddenRows?: boolean
 }
 
 /**
@@ -391,6 +395,8 @@ export interface ThemeColorPalette {
   rowSelected: string
   /** 選択された行のヘッダーの背景色 */
   rowSelectedHeader: string
+  /** 非表示設定されている行の背景色 */
+  rowHiddenBg: string
   /** 現在時刻線の色 */
   currentTimeLine: string
   /** 現在時刻線のバッジテキスト色 */

@@ -70,6 +70,8 @@ interface GanttChartOption {
   enableRowReordering?: boolean // (デフォルト: false)
   /** タスクドラッグ時のスナップ間隔（分単位）。例えば60を指定すると1時間単位でスナップします。 */
   snapDuration?: number // (デフォルト: 1440 = 1日)
+  /** 非表示に設定された行（visible: false）を表示するかどうか */
+  showHiddenRows?: boolean // (デフォルト: false)
 }
 ```
 
@@ -105,6 +107,7 @@ interface GanttRow {
   id: string // 行の一意なID
   name: string // 行ヘッダーに表示するラベル
   tasks: GanttTask[] // この行に含まれるタスクの配列
+  visible?: boolean // 行を表示するかどうか (デフォルト: true)
 }
 ```
 
@@ -271,5 +274,42 @@ interface RowHeaderContextMenuEventDetail {
   row: GanttRow // 右クリックされた行データ
   event: MouseEvent // 元のコンテキストメニューイベント
   target: HTMLElement // 右クリックされたヘッダー要素
+}
+```
+
+### ThemeColorPalette
+
+テーマカラーをカスタマイズする際に使用するキー定義です。
+
+```typescript
+interface ThemeColorPalette {
+  bg: string // 背景色
+  text: string // テキスト色
+  border: string // ボーダー色
+  gridLine: string // グリッド線色
+  subGridLine: string // サブグリッド線色
+  dragTarget: string // ドラッグ対象の背景色
+  tooltipBg: string // ツールチップの背景色
+  tooltipText: string // ツールチップのテキスト色
+  dragOverlayBg: string // ドラッグオーバーレイの背景色
+  dragOverlayText: string // ドラッグオーバーレイのテキスト色
+  dragOverlaySubText: string // ドラッグオーバーレイのサブテキスト色
+  dragOverlayDivider: string // ドラッグオーバーレイの区切り線色
+  dependencyLine: string // 依存関係線の色
+  calendarBg: string // カレンダー領域の背景色
+  saturday: string // 土曜日の背景色
+  sunday: string // 日曜日の背景色
+  holiday: string // 祝日の背景色
+  rowHeaderBg: string // 行ヘッダーの背景色
+  rowSelected: string // 選択された行の背景色
+  rowSelectedHeader: string // 選択された行のヘッダーの背景色
+  rowHiddenBg: string // 非表示設定されている行の背景色
+  currentTimeLine: string // 現在時刻線の色
+  currentTimeLineText: string // 現在時刻線のバッジテキスト色
+  monday?: string // 月曜日の背景色 (オプション)
+  tuesday?: string // 火曜日の背景色 (オプション)
+  wednesday?: string // 水曜日の背景色 (オプション)
+  thursday?: string // 木曜日の背景色 (オプション)
+  friday?: string // 金曜日の背景色 (オプション)
 }
 ```

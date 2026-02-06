@@ -89,6 +89,13 @@ export class GanttChartElement extends LitElement {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
   }
 
+  private get displayRows() {
+    if (this.option.showHiddenRows) {
+      return this.rows
+    }
+    return this.rows.filter((row) => row.visible !== false)
+  }
+
   static styles = css`
     :host {
       display: block;
@@ -438,7 +445,7 @@ export class GanttChartElement extends LitElement {
       }
     >()
 
-    const layouts = this.rows.map((row) => {
+    const layouts = this.displayRows.map((row) => {
       const { tasksWithLanes, laneCount } = calculateTaskLanes(row.tasks)
       const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
       const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
@@ -502,7 +509,12 @@ export class GanttChartElement extends LitElement {
     if (sourceRowIndex === -1 || !taskToMove) return
 
     const { layouts: rowLayouts } = this.calculateLayout()
-    const dragStartRowTop = rowLayouts[sourceRowIndex].top
+    const sourceRowIndexInDisplay = this.displayRows.findIndex(
+      (r) => r.id === this.rows[sourceRowIndex].id,
+    )
+    if (sourceRowIndexInDisplay === -1) return
+
+    const dragStartRowTop = rowLayouts[sourceRowIndexInDisplay].top
 
     const { tasksWithLanes } = calculateTaskLanes(
       this.rows[sourceRowIndex].tasks,
@@ -528,7 +540,7 @@ export class GanttChartElement extends LitElement {
     }
 
     const targetRowId =
-      targetRowIndex !== -1 ? this.rows[targetRowIndex].id : undefined
+      targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
 
     this.dispatchEvent(
       new CustomEvent('task-update', {
@@ -574,7 +586,8 @@ export class GanttChartElement extends LitElement {
         end,
         currentStart: newStart,
         currentEnd: newEnd,
-        targetRow: targetRowIndex >= 0 ? this.rows[targetRowIndex] : undefined,
+        targetRow:
+          targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
         visible: true,
       }
       return
@@ -794,7 +807,7 @@ export class GanttChartElement extends LitElement {
     }
 
     if (foundIndex !== -1) {
-      const row = this.rows[foundIndex]
+      const row = this.displayRows[foundIndex]
 
       if (isExternalTask) {
         if (this.dragOverRowId !== row.id || this.dragOverPosition !== null) {
@@ -927,7 +940,7 @@ export class GanttChartElement extends LitElement {
       for (let i = 0; i < layouts.length; i++) {
         const layout = layouts[i]
         if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
-          targetRowId = this.rows[i].id
+          targetRowId = this.displayRows[i].id
           break
         }
       }
@@ -1055,7 +1068,7 @@ export class GanttChartElement extends LitElement {
 
     const buffer = 5
     let startIndex = 0
-    let endIndex = this.rows.length - 1
+    let endIndex = this.displayRows.length - 1
 
     for (let i = 0; i < rowLayouts.length; i++) {
       if (rowLayouts[i].top + rowLayouts[i].height > this.virtualScrollTop) {
@@ -1066,12 +1079,12 @@ export class GanttChartElement extends LitElement {
 
     for (let i = startIndex; i < rowLayouts.length; i++) {
       if (rowLayouts[i].top > this.virtualScrollTop + this.viewportHeight) {
-        endIndex = Math.min(this.rows.length - 1, i + buffer)
+        endIndex = Math.min(this.displayRows.length - 1, i + buffer)
         break
       }
     }
 
-    const visibleRows = this.rows.slice(startIndex, endIndex + 1)
+    const visibleRows = this.displayRows.slice(startIndex, endIndex + 1)
     const paddingTop = rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0
     const lastVisibleRowLayout = rowLayouts[endIndex]
     const renderedBottom = lastVisibleRowLayout

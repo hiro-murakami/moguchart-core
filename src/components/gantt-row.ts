@@ -290,6 +290,20 @@ export class GanttRowElement extends LitElement {
 
     const canReorder = this.option.enableRowReordering && !this.option.readOnly
 
+    const isHidden = this.row.visible === false
+
+    const headerBg = this.isSelected
+      ? colors.rowSelectedHeader
+      : isHidden
+        ? colors.rowHiddenBg
+        : colors.rowHeaderBg
+
+    // Check if it's a gradient/image or simple color
+    const isHeaderGradient = headerBg.includes('gradient')
+    const headerStyle = isHeaderGradient
+      ? `background: ${headerBg};`
+      : `background-color: ${headerBg};`
+
     return html`
       <style>
         :host {
@@ -304,13 +318,20 @@ export class GanttRowElement extends LitElement {
         }
         .row-header {
           cursor: ${canReorder ? 'grab' : 'pointer'};
-          background-color: ${this.isSelected
-            ? colors.rowSelectedHeader
-            : colors.rowHeaderBg};
           border-right: 1px solid ${colors.border};
         }
         .row-header:active {
           cursor: ${canReorder ? 'grabbing' : 'pointer'};
+        }
+        .hidden-row-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 5;
+          pointer-events: none;
+          opacity: 0.5;
         }
       </style>
       <div
@@ -321,7 +342,7 @@ export class GanttRowElement extends LitElement {
         <div
           class="row-header"
           style="width: ${this.option.rowHeader?.width ??
-          DEFAULT_ROW_HEADER_WIDTH}px;"
+          DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"
@@ -342,6 +363,12 @@ export class GanttRowElement extends LitElement {
               /> `
             : ''}
           <div class="grid-background" style="${backgroundStyle}"></div>
+          ${isHidden
+            ? html`<div
+                class="hidden-row-overlay"
+                style="background: ${colors.rowHiddenBg};"
+              ></div>`
+            : ''}
           ${repeat(
             tasksWithLanes,
             (task) => task.id,

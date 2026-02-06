@@ -68,6 +68,7 @@ const generateDayModeData = (): GanttRow[] => {
           dependencies: [`t${i}-1`],
         },
       ],
+      visible: i % 5 !== 0,
     })
   }
   return rows
@@ -148,6 +149,7 @@ let enableCustomRendering = true
 let showUnassignedTasks = true
 let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
+let showHiddenRows = false
 
 // 追加候補のタスク一覧
 let unassignedTasks: GanttTask[] = [
@@ -252,6 +254,7 @@ const renderApp = () => {
     customTheme,
     enableRowReordering,
     snapDuration,
+    showHiddenRows,
   }
 
   const appStyles =
@@ -443,6 +446,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           行ヘッダーのリサイズ許可
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showHiddenRows}"
+            @change="${(e: Event) => {
+              showHiddenRows = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          非表示行を表示 (5行おき)
         </label>
       </div>
 

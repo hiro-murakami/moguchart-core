@@ -1,0 +1,11 @@
+{
+  "agent": {
+    "model": "gemini-3-pro",
+    "defaultLanguage": "Japanese",
+    "systemPrompt": "すべての回答とコードの解説は日本語で行ってください。技術用語はそのままで構いませんが、説明は自然な日本語を用いてください。"
+  },
+  "features": {
+    "terminalAutoExecute": false,
+    "indexing": true
+  }
+}
