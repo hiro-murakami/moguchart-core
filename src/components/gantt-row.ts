@@ -310,12 +310,12 @@ export class GanttRowElement extends LitElement {
           color: ${colors.text};
           border-bottom: 1px solid ${colors.border};
         }
-        :host([isselected]) {
-          background-color: ${colors.rowSelected};
+        :host {
+          color: ${colors.text};
+          border-bottom: 1px solid ${colors.border};
+          background-color: ${isHidden ? colors.rowHiddenBg : 'transparent'};
         }
-        :host([isselected]) .row-header {
-          color: white;
-        }
+
         .row-header {
           cursor: ${canReorder ? 'grab' : 'pointer'};
           border-right: 1px solid ${colors.border};
@@ -331,6 +331,17 @@ export class GanttRowElement extends LitElement {
           height: 100%;
           z-index: 5;
           pointer-events: none;
+          opacity: 0.5;
+        }
+        .selected-row-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 1;
+          pointer-events: none;
+          background-color: ${colors.rowSelected};
           opacity: 0.5;
         }
       </style>
@@ -361,6 +372,9 @@ export class GanttRowElement extends LitElement {
                 .option="${this.option}"
                 .theme="${this.theme}"
               /> `
+            : ''}
+          ${this.isSelected
+            ? html`<div class="selected-row-overlay"></div>`
             : ''}
           <div class="grid-background" style="${backgroundStyle}"></div>
           ${isHidden
