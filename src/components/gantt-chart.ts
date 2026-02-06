@@ -35,6 +35,7 @@ export class GanttChartElement extends LitElement {
   externalDraggingTask: GanttTask | null = null
 
   @state() private selectedRows = new Set<string>()
+  @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
   @state() private draggingTask: {
@@ -946,18 +947,41 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private handleRowSelectionChange(
-    e: CustomEvent<{ rowId: string; checked: boolean }>,
+  private handleRowClicked(
+    e: CustomEvent<{ rowId: string; event: MouseEvent }>,
   ) {
-    const { rowId, checked } = e.detail
-    const newSelectedRows = new Set(this.selectedRows)
-    if (checked) {
-      newSelectedRows.add(rowId)
-    } else {
-      newSelectedRows.delete(rowId)
-    }
-    this.selectedRows = newSelectedRows
+    const { rowId, event } = e.detail
+    const { shiftKey, ctrlKey, metaKey } = event
 
+    const newSelectedRows = new Set(this.selectedRows)
+
+    if (shiftKey && this.lastClickedRowId) {
+      const lastIndex = this.rows.findIndex(
+        (r) => r.id === this.lastClickedRowId,
+      )
+      const currentIndex = this.rows.findIndex((r) => r.id === rowId)
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex)
+        const end = Math.max(lastIndex, currentIndex)
+        for (let i = start; i <= end; i++) {
+          newSelectedRows.add(this.rows[i].id)
+        }
+      }
+    } else if (ctrlKey || metaKey) {
+      if (newSelectedRows.has(rowId)) {
+        newSelectedRows.delete(rowId)
+      } else {
+        newSelectedRows.add(rowId)
+      }
+      this.lastClickedRowId = rowId
+    } else {
+      newSelectedRows.clear()
+      newSelectedRows.add(rowId)
+      this.lastClickedRowId = rowId
+    }
+
+    this.selectedRows = newSelectedRows
     this.dispatchEvent(
       new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
         detail: {
@@ -1160,8 +1184,7 @@ export class GanttChartElement extends LitElement {
                   ? this.dragPreview
                   : null}"
                 @task-update="${this.handleTaskUpdate}"
-                @_internal-row-selection-change="${this
-                  .handleRowSelectionChange}"
+                @row-clicked="${this.handleRowClicked}"
               />
             `
           },

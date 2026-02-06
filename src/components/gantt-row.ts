@@ -99,26 +99,11 @@ export class GanttRowElement extends LitElement {
       z-index: 60;
     }
     .row-header-button {
-      width: 32px;
-      height: 100%;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    .row-header-button::before {
-      content: '';
-      width: 14px;
-      height: 14px;
-      border-radius: 4px;
-      box-sizing: border-box;
-      transition: background-color 0.2s, border-color 0.2s;
+      display: none;
     }
     .row-header-content {
       flex-grow: 1;
-      padding: 6px 8px;
+      padding: 6px 12px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -146,36 +131,20 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleHeaderClick(e: MouseEvent) {
-    const path = e.composedPath()
-    const button = this.shadowRoot?.querySelector('.row-header-button')
-
-    // Dispatch selection change only if the button itself was clicked
-    if (button && path.includes(button)) {
-      this.dispatchEvent(
-        new CustomEvent('_internal-row-selection-change', {
-          detail: {
-            rowId: this.row.id,
-            checked: !this.isSelected,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-
-    // Always dispatch the general header click event
     this.dispatchEvent(
-      new CustomEvent<RowHeaderClickEventDetail>('row-header-click', {
+      new CustomEvent('row-clicked', {
         detail: {
           rowId: this.row.id,
-          row: this.row,
           event: e,
-          target: e.currentTarget as HTMLElement,
         },
         bubbles: true,
         composed: true,
       }),
-    )
+    );
+
+    // Stop propagation to prevent other potential parent handlers from firing,
+    // as we are now handling selection logic centrally in gantt-chart.
+    e.stopPropagation();
   }
 
   private handleHeaderContextMenu(e: MouseEvent) {
@@ -331,6 +300,9 @@ export class GanttRowElement extends LitElement {
         :host([isselected]) {
           background-color: ${colors.rowSelected};
         }
+        :host([isselected]) .row-header {
+          color: white;
+        }
         .row-header {
           cursor: ${canReorder ? 'grab' : 'pointer'};
           background-color: ${this.isSelected
@@ -340,19 +312,6 @@ export class GanttRowElement extends LitElement {
         }
         .row-header:active {
           cursor: ${canReorder ? 'grabbing' : 'pointer'};
-        }
-        .row-header:hover .row-header-button {
-          background-color: rgba(0, 0, 0, 0.05);
-        }
-        .row-header-button::before {
-          border: 1.5px solid ${colors.dependencyLine};
-          background-color: ${this.isSelected ? '#3b82f6' : 'transparent'};
-        }
-        :host([isselected]) .row-header-button::before {
-          border-color: #3b82f6;
-        }
-        .row-header:hover .row-header-button::before {
-          border-color: ${colors.text};
         }
       </style>
       <div
