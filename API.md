@@ -44,8 +44,14 @@ interface GanttChartOption {
     start: Date // 表示開始日
     end: Date // 表示終了日
     pxPerDay: number // 1日あたりの幅 (px)
+    monthFormat?: string // 月の表示フォーマット (例: 'YYYY年M月')
+    showRowBackground?: boolean // 行の背景を表示するかどうか
     isHoliday?: (date: Date) => boolean // 祝日判定ロジック
+    showTime?: boolean // 時間単位のグリッドを表示するかどうか
+    showMonths?: boolean // 年月を表示するかどうか
+    showDays?: boolean // 日付を表示するかどうか
     showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
+    showCurrentTimeBadge?: boolean // 現在時刻バッジを表示するかどうか
     currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 1分)
   }
   /** 読み取り専用モードかどうか */
@@ -64,8 +70,6 @@ interface GanttChartOption {
   enableRowReordering?: boolean // (デフォルト: false)
   /** タスクドラッグ時のスナップ間隔（分単位）。例えば60を指定すると1時間単位でスナップします。 */
   snapDuration?: number // (デフォルト: 1440 = 1日)
-  /** 行選択モードを有効にするか。有効にすると行ヘッダーにチェックボックスが表示されます。 */
-  rowSelectionMode?: boolean // (デフォルト: false)
 }
 ```
 
@@ -81,8 +85,7 @@ interface GanttChartOption {
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
-| `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。チェックボックスクリック時は発火しません。         |
-| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。チェックボックスクリック時は発火しません。   |
+| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `render-bar-content`     | `RenderBarContentEventDetail`     | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。 |
 | `render-row-header`      | `RenderRowHeaderEventDetail`      | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。           |
@@ -246,17 +249,6 @@ interface RowSelectionChangeEventDetail {
     id: string // 今回操作された行のID
     checked: boolean // 今回操作された行の新しいチェック状態
   }
-}
-```
-
-### RowHeaderClickEventDetail
-
-```typescript
-interface RowHeaderClickEventDetail {
-  rowId: string // クリックされた行ID
-  row: GanttRow // クリックされた行データ
-  event: MouseEvent // 元のクリックイベント
-  target: HTMLElement // クリックされたヘッダー要素
 }
 ```
 
