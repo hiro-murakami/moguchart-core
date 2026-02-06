@@ -8,7 +8,6 @@ import type {
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
-  RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
@@ -140,11 +139,11 @@ export class GanttRowElement extends LitElement {
         bubbles: true,
         composed: true,
       }),
-    );
+    )
 
     // Stop propagation to prevent other potential parent handlers from firing,
     // as we are now handling selection logic centrally in gantt-chart.
-    e.stopPropagation();
+    e.stopPropagation()
   }
 
   private handleHeaderContextMenu(e: MouseEvent) {
