@@ -3,11 +3,14 @@
  */
 export type BarPattern =
   | 'diagonal-stripe'
+  | 'diagonal-stripe-thin'
+  | 'diagonal-stripe-thick'
   | 'diagonal-stripe-reverse'
   | 'vertical-stripe'
   | 'horizontal-stripe'
   | 'checkerboard'
   | 'dots'
+  | 'dots-dense'
   | 'triangle'
   | 'circle'
   | 'grid'
@@ -21,8 +24,6 @@ export interface GanttTaskPattern {
   type: BarPattern
   /** パターンの色 (CSS color string) */
   color?: string
-  /** パターンのサイズ (例: '4px') */
-  size?: string
 }
 
 /**

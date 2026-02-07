@@ -1,4 +1,20 @@
-import type { GanttTaskPattern } from '@/types'
+import type { GanttTaskPattern, BarPattern } from '@/types'
+
+export const ALL_BAR_PATTERNS: BarPattern[] = [
+  'diagonal-stripe',
+  'diagonal-stripe-thin',
+  'diagonal-stripe-thick',
+  'diagonal-stripe-reverse',
+  'vertical-stripe',
+  'horizontal-stripe',
+  'checkerboard',
+  'dots',
+  'dots-dense',
+  'triangle',
+  'circle',
+  'grid',
+  'diagonal-grid',
+]
 
 export const PATTERN_DIAGONAL_STRIPE: GanttTaskPattern = {
   type: 'diagonal-stripe',
@@ -41,16 +57,13 @@ export const PATTERN_DIAGONAL_GRID: GanttTaskPattern = {
 }
 
 export const PATTERN_STRIPE_THIN: GanttTaskPattern = {
-  type: 'diagonal-stripe',
-  size: '4px',
+  type: 'diagonal-stripe-thin',
 }
 
 export const PATTERN_STRIPE_THICK: GanttTaskPattern = {
-  type: 'diagonal-stripe',
-  size: '16px',
+  type: 'diagonal-stripe-thick',
 }
 
 export const PATTERN_DOTS_DENSE: GanttTaskPattern = {
-  type: 'dots',
-  size: '4px',
+  type: 'dots-dense',
 }

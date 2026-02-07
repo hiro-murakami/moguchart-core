@@ -11,20 +11,17 @@ describe('getPatternStyle', () => {
     expect(getPatternStyle({})).toBe('')
   })
 
-  it('uses default color and size when not provided', () => {
+  it('uses default color when not provided', () => {
     const result = getPatternStyle({ type: 'diagonal-stripe' })
     expect(result).toContain('rgba(255, 255, 255, 0.3)')
-    expect(result).toContain('8px 8px')
   })
 
-  it('uses provided color and size', () => {
+  it('uses provided color', () => {
     const result = getPatternStyle({
       type: 'diagonal-stripe',
       color: '#ff0000',
-      size: '12px',
     })
     expect(result).toContain('#ff0000')
-    expect(result).toContain('12px 12px')
   })
 
   it('uses specific default size for dots pattern', () => {
@@ -36,6 +33,22 @@ describe('getPatternStyle', () => {
     it('diagonal-stripe', () => {
       const result = getPatternStyle({ type: 'diagonal-stripe' })
       expect(result).toContain('linear-gradient(45deg')
+    })
+
+    it('diagonal-stripe-thin', () => {
+      const result = getPatternStyle({ type: 'diagonal-stripe-thin' })
+      expect(result).toContain('linear-gradient(45deg')
+      expect(result).toContain('4px 4px')
+    })
+    it('diagonal-stripe-thick', () => {
+      const result = getPatternStyle({ type: 'diagonal-stripe-thick' })
+      expect(result).toContain('linear-gradient(45deg')
+      expect(result).toContain('16px 16px')
+    })
+    it('dots-dense', () => {
+      const result = getPatternStyle({ type: 'dots-dense' })
+      expect(result).toContain('radial-gradient')
+      expect(result).toContain('4px 4px')
     })
 
     it('diagonal-stripe-reverse', () => {

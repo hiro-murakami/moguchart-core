@@ -35,6 +35,7 @@ interface GanttChartOption {
   /** 行ヘッダーの設定 */
   rowHeader?: {
     width?: number // 行ヘッダーの幅 (px)
+    backgroundColor?: string // 行ヘッダーの背景色
     resizable?: boolean // 幅のリサイズを有効にするか (デフォルト: true)
     minWidth?: number // リサイズ可能な最小幅 (デフォルト: 50)
     maxWidth?: number // リサイズ可能な最大幅 (デフォルト: 無制限)
@@ -132,10 +133,9 @@ interface GanttTask {
 ```typescript
 interface GanttTaskPattern {
   // パターンの種類
-  // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
+  // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
   color?: string // パターンの色
-  size?: string // パターンのサイズ
 }
 ```
 
