@@ -37,34 +37,16 @@ const generateDayModeData = (): GanttRow[] => {
         {
           id: `t${i}-1`,
           name: '要件定義',
-          start: new Date(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate() + offset,
-          ),
-          end: new Date(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate() + offset + 5,
-          ),
-          pattern:
-            i % 3 === 0
-              ? { type: 'diagonal-stripe', color: '#3b82f6' }
-              : undefined,
+          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset),
+          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 5),
+          pattern: i % 3 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
+          labelStyle: i === 1 ? 'font-weight: bold; color: red;' : undefined,
         },
         {
           id: `t${i}-2`,
           name: '設計',
-          start: new Date(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate() + offset + 6,
-          ),
-          end: new Date(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate() + offset + 15,
-          ),
+          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 6),
+          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 15),
           dependencies: [`t${i}-1`],
         },
       ],
@@ -145,7 +127,7 @@ let showDays = true
 let showCurrentTime = true
 let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
-let enableCustomRendering = true
+let enableCustomRendering = false
 let showUnassignedTasks = true
 let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
@@ -181,6 +163,14 @@ let unassignedTasks: GanttTask[] = [
     end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3日間
     style: 'background-color: #f59e0b;',
     pattern: { type: 'diagonal-stripe', color: 'rgba(255, 255, 255, 0.5)' },
+  },
+  {
+    id: 'new-5',
+    name: 'ラベルスタイル付き',
+    start: new Date(),
+    end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // 4日間
+    style: 'background-color: #3b82f6;',
+    labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
   },
 ]
 
@@ -258,9 +248,7 @@ const renderApp = () => {
   }
 
   const appStyles =
-    theme === 'dark'
-      ? 'background-color: #0f172a; color: #f8fafc;'
-      : 'background-color: #ffffff; color: #333;'
+    theme === 'dark' ? 'background-color: #0f172a; color: #f8fafc;' : 'background-color: #ffffff; color: #333;'
 
   const template = html`
     <style>
@@ -292,21 +280,13 @@ const renderApp = () => {
         background-color: #2563eb;
       }
     </style>
-    <div
-      style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}"
-    >
+    <div style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}">
       <h2>MoguChart</h2>
 
-      <div
-        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
-      >
-        <div
-          style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;"
-        >
+      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;">
           <span style="margin-right: 8px; font-weight: bold;">表示モード:</span>
-          <label
-            style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;"
-          >
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
             <input
               type="radio"
               name="viewMode"
@@ -332,9 +312,7 @@ const renderApp = () => {
 
         <div style="display: flex; align-items: center;">
           <span style="margin-right: 8px;">テーマ:</span>
-          <label
-            style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;"
-          >
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
             <input
               type="radio"
               name="theme"
@@ -365,9 +343,7 @@ const renderApp = () => {
         </div>
       </div>
 
-      <div
-        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
-      >
+      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
             type="checkbox"
@@ -412,9 +388,7 @@ const renderApp = () => {
             type="checkbox"
             .checked="${currentTimeUpdateInterval > 0}"
             @change="${(e: Event) => {
-              currentTimeUpdateInterval = (e.target as HTMLInputElement).checked
-                ? 1000
-                : 0
+              currentTimeUpdateInterval = (e.target as HTMLInputElement).checked ? 1000 : 0
               renderApp()
             }}"
             style="margin-right: 6px;"
@@ -462,9 +436,7 @@ const renderApp = () => {
         </label>
       </div>
 
-      <div
-        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
-      >
+      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
             type="checkbox"
@@ -531,9 +503,7 @@ const renderApp = () => {
         </label>
       </div>
 
-      <div
-        style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;"
-      >
+      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <label style="display: flex; align-items: center; cursor: pointer;">
           スナップ単位:
           <select
@@ -545,9 +515,7 @@ const renderApp = () => {
           >
             ${[6, 15, 30, 60, 180, 720, 1440].map(
               (d) => html`
-                <option value="${d}" ?selected="${snapDuration === d}">
-                  ${d === 1440 ? '1日' : `${d}分`}
-                </option>
+                <option value="${d}" ?selected="${snapDuration === d}">${d === 1440 ? '1日' : `${d}分`}</option>
               `,
             )}
           </select>
@@ -563,11 +531,7 @@ const renderApp = () => {
             }}"
           >
             ${[20, 28, 40, 50, 60].map(
-              (h) => html`
-                <option value="${h}" ?selected="${barHeight === h}">
-                  ${h}px
-                </option>
-              `,
+              (h) => html` <option value="${h}" ?selected="${barHeight === h}">${h}px</option> `,
             )}
           </select>
         </label>
@@ -582,11 +546,7 @@ const renderApp = () => {
             }}"
           >
             ${[24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
-              (w) => html`
-                <option value="${w}" ?selected="${pxPerDay === w}">
-                  ${w}px
-                </option>
-              `,
+              (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
             )}
           </select>
         </label>
@@ -601,11 +561,7 @@ const renderApp = () => {
             }}"
           >
             ${[150, 200, 250, 300, 350].map(
-              (w) => html`
-                <option value="${w}" ?selected="${rowHeaderWidth === w}">
-                  ${w}px
-                </option>
-              `,
+              (w) => html` <option value="${w}" ?selected="${rowHeaderWidth === w}">${w}px</option> `,
             )}
           </select>
         </label>
@@ -619,13 +575,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[0, 500, 1000].map(
-              (d) => html`
-                <option value="${d}" ?selected="${tooltipDelay === d}">
-                  ${d}ms
-                </option>
-              `,
-            )}
+            ${[0, 500, 1000].map((d) => html` <option value="${d}" ?selected="${tooltipDelay === d}">${d}ms</option> `)}
           </select>
         </label>
       </div>
@@ -642,37 +592,23 @@ const renderApp = () => {
               rows = e.detail
             }}"
             @task-update="${handleTaskUpdate}"
-            @render-bar-content="${enableCustomRendering
-              ? handleRenderBarContent
-              : undefined}"
-            @render-row-header="${enableCustomRendering
-              ? handleRenderRowHeader
-              : undefined}"
-            @render-tooltip="${enableCustomRendering
-              ? handleRenderTooltip
-              : undefined}"
+            @render-bar-content="${enableCustomRendering ? handleRenderBarContent : undefined}"
+            @render-row-header="${enableCustomRendering ? handleRenderRowHeader : undefined}"
+            @render-tooltip="${enableCustomRendering ? handleRenderTooltip : undefined}"
             @task-dblclick="${handleTaskDblClick}"
             @task-contextmenu="${handleTaskContextMenu}"
-            @render-drag-info="${enableCustomRendering
-              ? handleRenderDragInfo
-              : undefined}"
+            @render-drag-info="${enableCustomRendering ? handleRenderDragInfo : undefined}"
             @row-header-resize="${handleRowHeaderResize}"
-            @row-selection-change="${(
-              e: CustomEvent<RowSelectionChangeEventDetail>,
-            ) => {
+            @row-selection-change="${(e: CustomEvent<RowSelectionChangeEventDetail>) => {
               selectedIds = e.detail.selectedIds
               renderApp()
             }}"
             id="gantt-chart-instance"
             @task-drop="${handleTaskDrop}"
-            @row-header-click="${(
-              e: CustomEvent<RowHeaderClickEventDetail>,
-            ) => {
+            @row-header-click="${(e: CustomEvent<RowHeaderClickEventDetail>) => {
               console.log('Row header clicked:', e.detail)
             }}"
-            @row-header-contextmenu="${(
-              e: CustomEvent<RowHeaderContextMenuEventDetail>,
-            ) => {
+            @row-header-contextmenu="${(e: CustomEvent<RowHeaderContextMenuEventDetail>) => {
               console.log('Row header context menu:', e.detail)
             }}"
           />
@@ -705,9 +641,7 @@ const renderApp = () => {
                     font-size: 16px;
                     cursor: pointer;
                     user-select: none;
-                    writing-mode: ${isUnassignedTasksOpen
-                    ? 'horizontal-tb'
-                    : 'vertical-rl'};
+                    writing-mode: ${isUnassignedTasksOpen ? 'horizontal-tb' : 'vertical-rl'};
                     transform: none;
                     display: flex;
                     align-items: center;
@@ -729,17 +663,12 @@ const renderApp = () => {
                         (task) => html`
                           <div
                             draggable="true"
-                            @dragstart="${(e: DragEvent) =>
-                              handleTaskDragStart(e, task)}"
+                            @dragstart="${(e: DragEvent) => handleTaskDragStart(e, task)}"
                             @dragend="${handleTaskDragEnd}"
                             style="
                               padding: 12px;
-                              background: ${theme === 'dark'
-                              ? '#334155'
-                              : 'white'};
-                              border: 1px solid ${theme === 'dark'
-                              ? '#475569'
-                              : '#cbd5e1'};
+                              background: ${theme === 'dark' ? '#334155' : 'white'};
+                              border: 1px solid ${theme === 'dark' ? '#475569' : '#cbd5e1'};
                               border-radius: 4px;
                               cursor: grab;
                               user-select: none;
@@ -756,26 +685,16 @@ const renderApp = () => {
                                 ${getPatternStyle(task.pattern)};
                               "
                             ></div>
-                            <div
-                              style="font-weight: bold; font-size: 14px; margin-bottom: 4px;"
-                            >
-                              ${task.name}
-                            </div>
+                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${task.name}</div>
                             <div style="font-size: 12px; opacity: 0.7;">
-                              期間:
-                              ${dayjs(task.end).diff(
-                                dayjs(task.start),
-                                viewMode === 'day' ? 'day' : 'hour',
-                              )}
+                              期間: ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
                               ${viewMode === 'day' ? '日' : '時間'}
                             </div>
                           </div>
                         `,
                       )}
                       ${unassignedTasks.length === 0
-                        ? html`<div
-                            style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;"
-                          >
+                        ? html`<div style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;">
                             タスクはありません
                           </div>`
                         : ''}
@@ -849,8 +768,7 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
     // if (newStart < chartStart) return
 
     // タスクの日時を更新
-    const duration =
-      new Date(task.end).getTime() - new Date(task.start).getTime()
+    const duration = new Date(task.end).getTime() - new Date(task.start).getTime()
 
     // スナップ処理（簡易）
     if (viewMode === 'day') {
@@ -898,8 +816,7 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
             tasks: row.tasks.map((t) => {
               if (t.id === newTask.id) {
                 // animationプロパティを除去
-                const newStyle =
-                  t.style?.replace(/animation:[^;]+;?/g, '') || ''
+                const newStyle = t.style?.replace(/animation:[^;]+;?/g, '') || ''
                 return { ...t, style: newStyle }
               }
               return t
@@ -926,9 +843,7 @@ const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
   console.log('Row Header Resized:', e.detail)
 }
 
-const handleRenderBarContent = (
-  e: CustomEvent<RenderBarContentEventDetail>,
-) => {
+const handleRenderBarContent = (e: CustomEvent<RenderBarContentEventDetail>) => {
   const { container, task } = e.detail
 
   // サンプル: バーの中に進捗状況を表示する（ダミーデータ）
@@ -1083,9 +998,7 @@ const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
     if (h === 0 && m === 0) {
       return d.toLocaleDateString()
     }
-    return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m
-      .toString()
-      .padStart(2, '0')}`
+    return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   }
   const period = dayjs(newEnd).diff(dayjs(newStart), 'day')
 

@@ -2,12 +2,7 @@ import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '@/types'
 import { getPatternStyle } from '@/pattern-utils'
-import {
-  DEFAULT_BAR_COLOR,
-  DEFAULT_BAR_HEIGHT,
-  DEFAULT_BAR_MARGIN,
-  DEFAULT_BAR_CORNER_RADIUS,
-} from '@/constants'
+import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '@/constants'
 
 @customElement('gantt-bar')
 export class GanttBarElement extends LitElement {
@@ -173,9 +168,7 @@ export class GanttBarElement extends LitElement {
     }
     barEl.style.pointerEvents = 'none'
 
-    const taskGroup = this.shadowRoot?.querySelector(
-      '.task-group',
-    ) as HTMLElement
+    const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     taskGroup?.classList.add('dragging')
 
     target.setPointerCapture(e.pointerId)
@@ -204,17 +197,13 @@ export class GanttBarElement extends LitElement {
           newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
           if (newStart >= newEnd) {
             // 終了日を越えないように制限
-            newStart = new Date(
-              newEnd.getTime() - Math.max(snapDuration, 1) * 60 * 1000,
-            )
+            newStart = new Date(newEnd.getTime() - Math.max(snapDuration, 1) * 60 * 1000)
           }
         } else {
           newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
           if (newEnd <= newStart) {
             // 開始日より前にならないように制限
-            newEnd = new Date(
-              newStart.getTime() + Math.max(snapDuration, 1) * 60 * 1000,
-            )
+            newEnd = new Date(newStart.getTime() + Math.max(snapDuration, 1) * 60 * 1000)
           }
         }
 
@@ -289,9 +278,7 @@ export class GanttBarElement extends LitElement {
   private onMoveStart(e: PointerEvent) {
     e.stopPropagation()
     const target = e.target as HTMLElement
-    const taskGroup = this.shadowRoot?.querySelector(
-      '.task-group',
-    ) as HTMLElement
+    const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
 
     if (!target || !taskGroup) {
       return
@@ -320,8 +307,7 @@ export class GanttBarElement extends LitElement {
       target,
       e.pointerId,
       (moveEvent) => {
-        const newCursor =
-          moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
+        const newCursor = moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
         this._currentDragCursor = newCursor
         target.style.cursor = newCursor
 
@@ -550,8 +536,7 @@ export class GanttBarElement extends LitElement {
     const width = this.getX(this.task.end) - x
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
-    const barCornerRadius =
-      this.option.bar?.cornerRadius ?? DEFAULT_BAR_CORNER_RADIUS
+    const barCornerRadius = this.option.bar?.cornerRadius ?? DEFAULT_BAR_CORNER_RADIUS
 
     const y = this.lane * (barHeight + barMargin) + barMargin
     const isReadOnly = this.option.readOnly
@@ -584,27 +569,18 @@ export class GanttBarElement extends LitElement {
       >
         <div
           class="bar"
-          style="border-radius: ${barCornerRadius}px; ${this.task.style ||
-          ''}; ${getPatternStyle(this.task.pattern)}; ${!canMove
-            ? 'cursor: default;'
-            : ''}"
+          style="border-radius: ${barCornerRadius}px; ${this.task.style || ''}; ${getPatternStyle(
+            this.task.pattern,
+          )}; ${!canMove ? 'cursor: default;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
         ></div>
         ${this.task.name
-          ? html`<div class="bar-label">${this.task.name}</div>`
+          ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
           : ''}
         ${canResize
           ? html`
-              <div
-                class="handle-left"
-                @pointerdown="${(e: PointerEvent) =>
-                  this.onResizeStart(e, 'left')}"
-              ></div>
-              <div
-                class="handle-right"
-                @pointerdown="${(e: PointerEvent) =>
-                  this.onResizeStart(e, 'right')}"
-              ></div>
+              <div class="handle-left" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"></div>
+              <div class="handle-right" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"></div>
             `
           : ''}
       </div>
