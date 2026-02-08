@@ -25,6 +25,13 @@ import { getPatternStyle } from '@/pattern-utils'
 const chartStart = new Date()
 chartStart.setHours(0, 0, 0, 0)
 
+// windowオブジェクトの型拡張
+declare global {
+  interface Window {
+    _systemThemeListenerAdded: boolean
+  }
+}
+
 const generateDayModeData = (): GanttRow[] => {
   const start = new Date(chartStart)
   const rows: GanttRow[] = []
@@ -118,7 +125,7 @@ let rowHeaderResizable = true
 let isReadOnly = false
 let tooltipDelay = 500
 let showDragInfoOverlay = true
-let theme: 'light' | 'dark' = 'dark'
+let theme: 'light' | 'dark' | undefined = undefined // Default to Auto (System)
 let enableRowReordering = true
 let snapDuration = 1440
 let showTime = false
@@ -247,8 +254,22 @@ const renderApp = () => {
     showHiddenRows,
   }
 
+  const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  const effectiveTheme = theme || (systemThemeQuery.matches ? 'dark' : 'light')
+
+  // システムテーマ変更時に再レンダリングするリスナーを設定（一度だけ）
+  if (!window._systemThemeListenerAdded) {
+    systemThemeQuery.addEventListener('change', () => {
+      // Auto設定の場合のみ再レンダリング
+      if (theme === undefined) {
+        renderApp()
+      }
+    })
+    window._systemThemeListenerAdded = true
+  }
+
   const appStyles =
-    theme === 'dark' ? 'background-color: #0f172a; color: #f8fafc;' : 'background-color: #ffffff; color: #333;'
+    effectiveTheme === 'dark' ? 'background-color: #0f172a; color: #f8fafc;' : 'background-color: #ffffff; color: #333;'
 
   const template = html`
     <style>
@@ -312,6 +333,20 @@ const renderApp = () => {
 
         <div style="display: flex; align-items: center;">
           <span style="margin-right: 8px;">テーマ:</span>
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
+            <input
+              type="radio"
+              name="theme"
+              value="auto"
+              .checked="${theme === undefined}"
+              @change="${() => {
+                theme = undefined
+                renderApp()
+              }}"
+              style="margin-right: 4px;"
+            />
+            Auto
+          </label>
           <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
             <input
               type="radio"
@@ -621,8 +656,8 @@ const renderApp = () => {
                   width: ${isUnassignedTasksOpen ? '240px' : '50px'};
                   padding: ${isUnassignedTasksOpen ? '16px' : '0'};
                   flex-shrink: 0;
-                  background: ${theme === 'dark' ? '#1e293b' : '#f8fafc'};
-                  border: 1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'};
+                  background: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'};
+                  border: 1px solid ${effectiveTheme === 'dark' ? '#334155' : '#e2e8f0'};
                   border-radius: 8px;
                   height: 50vh;
                   transition: width 0.3s ease, padding 0.3s ease;
@@ -667,8 +702,8 @@ const renderApp = () => {
                             @dragend="${handleTaskDragEnd}"
                             style="
                               padding: 12px;
-                              background: ${theme === 'dark' ? '#334155' : 'white'};
-                              border: 1px solid ${theme === 'dark' ? '#475569' : '#cbd5e1'};
+                              background: ${effectiveTheme === 'dark' ? '#334155' : 'white'};
+                              border: 1px solid ${effectiveTheme === 'dark' ? '#475569' : '#cbd5e1'};
                               border-radius: 4px;
                               cursor: grab;
                               user-select: none;

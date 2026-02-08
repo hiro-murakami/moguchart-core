@@ -1,8 +1,4 @@
-import {
-  DEFAULT_BAR_HEIGHT,
-  DEFAULT_BAR_MARGIN,
-  DEFAULT_ROW_HEADER_WIDTH,
-} from '@/constants'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
 import type {
   BarHoverEventDetail,
   GanttChartOption,
@@ -77,6 +73,7 @@ export class GanttChartElement extends LitElement {
   } | null = null
   @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
   @state() private isResizingHeader = false
+  private _systemThemeMediaQuery: MediaQueryList | null = null
 
   private _layoutCache: {
     layouts: any[]
@@ -204,21 +201,41 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  connectedCallback(): void {
+    super.connectedCallback()
+    this._systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    this._systemThemeMediaQuery.addEventListener('change', this.handleSystemThemeChange)
+    // 初期テーマ設定（optionがまだセットされていない、またはoption.themeがない場合）
+    if (!this.option?.theme) {
+      this.theme = this._systemThemeMediaQuery.matches ? 'dark' : 'light'
+    }
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback()
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
+    this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
+  }
+
+  private handleSystemThemeChange = (e: MediaQueryListEvent) => {
+    if (!this.option?.theme) {
+      this.theme = e.matches ? 'dark' : 'light'
+    }
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
-    if (changedProperties.has('option') && this.option?.theme) {
-      this.theme = this.option.theme
+    if (changedProperties.has('option')) {
+      if (this.option?.theme) {
+        this.theme = this.option.theme
+      } else if (this._systemThemeMediaQuery) {
+        this.theme = this._systemThemeMediaQuery.matches ? 'dark' : 'light'
+      }
     }
     if (changedProperties.has('option')) {
       this.setupCurrentTimeTimer()
       if (!this.isResizingHeader) {
-        this.currentRowHeaderWidth =
-          this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+        this.currentRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
       }
     }
     if (
@@ -246,9 +263,7 @@ export class GanttChartElement extends LitElement {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
     if (this.tooltip) {
-      const tooltipEl = this.shadowRoot?.querySelector(
-        '.tooltip',
-      ) as HTMLElement
+      const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
       if (tooltipEl) {
         tooltipEl.innerHTML = ''
         this.dispatchEvent(
@@ -269,9 +284,7 @@ export class GanttChartElement extends LitElement {
             return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
           }
           const duration = Math.round(
-            (this.tooltip.task.end.getTime() -
-              this.tooltip.task.start.getTime()) /
-              (1000 * 60 * 60 * 24),
+            (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
           )
           tooltipEl.innerHTML = `
             <div style="font-weight: bold;">${this.tooltip.task.name}</div>
@@ -285,9 +298,7 @@ export class GanttChartElement extends LitElement {
     }
 
     if (this.dragOverlayInfo && this.option.showDragInfoOverlay !== false) {
-      const dragInfoEl = this.shadowRoot?.querySelector(
-        '.drag-info-overlay',
-      ) as HTMLElement
+      const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
       if (dragInfoEl) {
         dragInfoEl.innerHTML = ''
 
@@ -317,9 +328,7 @@ export class GanttChartElement extends LitElement {
             const h = d.getHours()
             const m = d.getMinutes()
             if (h === 0 && m === 0) return date
-            const time = `${h.toString().padStart(2, '0')}:${m
-              .toString()
-              .padStart(2, '0')}`
+            const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
             return `${date} ${time}`
           }
           dragInfoEl.innerHTML = `
@@ -374,10 +383,7 @@ export class GanttChartElement extends LitElement {
     const handleMove = (e: PointerEvent) => {
       const dx = e.clientX - startX
       const newWidth = startWidth + dx
-      this.currentRowHeaderWidth = Math.max(
-        minWidth,
-        Math.min(maxWidth, newWidth),
-      )
+      this.currentRowHeaderWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
     }
 
     const handleUp = () => {
@@ -475,9 +481,7 @@ export class GanttChartElement extends LitElement {
     return result
   }
 
-  private handleTaskUpdate(
-    e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>,
-  ) {
+  private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>) {
     e.stopPropagation()
     const { id, start, end, dx, dy, isDragging, mode } = e.detail
 
@@ -509,16 +513,12 @@ export class GanttChartElement extends LitElement {
     if (sourceRowIndex === -1 || !taskToMove) return
 
     const { layouts: rowLayouts } = this.calculateLayout()
-    const sourceRowIndexInDisplay = this.displayRows.findIndex(
-      (r) => r.id === this.rows[sourceRowIndex].id,
-    )
+    const sourceRowIndexInDisplay = this.displayRows.findIndex((r) => r.id === this.rows[sourceRowIndex].id)
     if (sourceRowIndexInDisplay === -1) return
 
     const dragStartRowTop = rowLayouts[sourceRowIndexInDisplay].top
 
-    const { tasksWithLanes } = calculateTaskLanes(
-      this.rows[sourceRowIndex].tasks,
-    )
+    const { tasksWithLanes } = calculateTaskLanes(this.rows[sourceRowIndex].tasks)
     const taskWithLane = tasksWithLanes.find((t) => t.id === id)
     const lane = taskWithLane ? taskWithLane.lane : 0
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
@@ -530,17 +530,13 @@ export class GanttChartElement extends LitElement {
     let targetRowIndex = -1
     for (let i = 0; i < rowLayouts.length; i++) {
       const rowLayout = rowLayouts[i]
-      if (
-        currentY >= rowLayout.top &&
-        currentY < rowLayout.top + rowLayout.height
-      ) {
+      if (currentY >= rowLayout.top && currentY < rowLayout.top + rowLayout.height) {
         targetRowIndex = i
         break
       }
     }
 
-    const targetRowId =
-      targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
+    const targetRowId = targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
 
     this.dispatchEvent(
       new CustomEvent('task-update', {
@@ -586,8 +582,7 @@ export class GanttChartElement extends LitElement {
         end,
         currentStart: newStart,
         currentEnd: newEnd,
-        targetRow:
-          targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
+        targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
         visible: true,
       }
       return
@@ -610,9 +605,7 @@ export class GanttChartElement extends LitElement {
         targetRow.tasks = [...targetRow.tasks]
 
         // 新しいIDを生成
-        const newId = `task-${Date.now()}-${Math.random()
-          .toString(36)
-          .substr(2, 9)}`
+        const newId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
         const newTask = {
           ...taskToMove,
@@ -693,14 +686,8 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private async reorderRows(
-    sourceId: string,
-    targetId: string,
-    position: 'top' | 'bottom',
-  ) {
-    const rowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as GanttRowElement[]
+  private async reorderRows(sourceId: string, targetId: string, position: 'top' | 'bottom') {
+    const rowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
     const positions = new Map<string, number>()
     rowElements.forEach((el) => {
       if (el.row) {
@@ -727,9 +714,7 @@ export class GanttChartElement extends LitElement {
 
     await this.updateComplete
 
-    const newRowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as GanttRowElement[]
+    const newRowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
 
     newRowElements.forEach((el) => {
       if (el.row) {
@@ -778,17 +763,14 @@ export class GanttChartElement extends LitElement {
   private handleContainerDragOver(e: DragEvent) {
     e.preventDefault()
     // JSONデータが含まれているか、またはプロパティ経由でタスクが渡されている場合
-    const isExternalTask =
-      e.dataTransfer && e.dataTransfer.types.includes('application/json')
+    const isExternalTask = e.dataTransfer && e.dataTransfer.types.includes('application/json')
 
     if (isExternalTask) {
       e.dataTransfer!.dropEffect = 'copy'
     }
 
     if (!this.option.enableRowReordering && !isExternalTask) return
-    const container = this.shadowRoot?.querySelector(
-      '.scroll-container',
-    ) as HTMLElement
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
     if (!container) return
 
     const rect = container.getBoundingClientRect()
@@ -830,13 +812,8 @@ export class GanttChartElement extends LitElement {
 
           // 日時計算
           const daysFromStart = snappedX / pxPerDay
-          const currentStart = new Date(
-            this.option.calendar.start.getTime() +
-              daysFromStart * 24 * 60 * 60 * 1000,
-          )
-          const durationMs =
-            this.externalDraggingTask.end.getTime() -
-            this.externalDraggingTask.start.getTime()
+          const currentStart = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+          const durationMs = this.externalDraggingTask.end.getTime() - this.externalDraggingTask.start.getTime()
           const currentEnd = new Date(currentStart.getTime() + durationMs)
 
           if (
@@ -856,10 +833,7 @@ export class GanttChartElement extends LitElement {
         const layout = layouts[foundIndex]
         const relativeY = yInRows - layout.top
         const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
-        if (
-          this.dragOverRowId !== row.id ||
-          this.dragOverPosition !== position
-        ) {
+        if (this.dragOverRowId !== row.id || this.dragOverPosition !== position) {
           this.dragOverRowId = row.id
           this.dragOverPosition = position
         }
@@ -872,9 +846,7 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleContainerDragLeave(e: DragEvent) {
-    const container = this.shadowRoot?.querySelector(
-      '.scroll-container',
-    ) as HTMLElement
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
     const related = e.relatedTarget as HTMLElement
     if (container && container.contains(related)) return
 
@@ -912,9 +884,7 @@ export class GanttChartElement extends LitElement {
   private handleExternalTaskDrop(e: DragEvent, taskJson: string) {
     try {
       const task = JSON.parse(taskJson) as GanttTask
-      const container = this.shadowRoot?.querySelector(
-        '.scroll-container',
-      ) as HTMLElement
+      const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
       if (!container) return
 
       const rect = container.getBoundingClientRect()
@@ -926,10 +896,7 @@ export class GanttChartElement extends LitElement {
       const x = e.clientX - rect.left + scrollLeft - labelWidth
       const pxPerDay = this.option.calendar.pxPerDay ?? 50
       const daysFromStart = x / pxPerDay
-      const dropDate = new Date(
-        this.option.calendar.start.getTime() +
-          daysFromStart * 24 * 60 * 60 * 1000,
-      )
+      const dropDate = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
 
       // Y座標 -> 行
       const yInRows = e.clientY - rect.top + scrollTop - this.calendarHeight
@@ -959,18 +926,14 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private handleRowClicked(
-    e: CustomEvent<{ rowId: string; event: MouseEvent }>,
-  ) {
+  private handleRowClicked(e: CustomEvent<{ rowId: string; event: MouseEvent }>) {
     const { rowId, event } = e.detail
     const { shiftKey, ctrlKey, metaKey } = event
 
     const newSelectedRows = new Set(this.selectedRows)
 
     if (shiftKey && this.lastClickedRowId) {
-      const lastIndex = this.rows.findIndex(
-        (r) => r.id === this.lastClickedRowId,
-      )
+      const lastIndex = this.rows.findIndex((r) => r.id === this.lastClickedRowId)
       const currentIndex = this.rows.findIndex((r) => r.id === rowId)
 
       if (lastIndex !== -1 && currentIndex !== -1) {
@@ -1009,9 +972,7 @@ export class GanttChartElement extends LitElement {
     )
   }
 
-  private handleRowContextMenu(
-    e: CustomEvent<{ rowId: string; event: MouseEvent }>,
-  ) {
+  private handleRowContextMenu(e: CustomEvent<{ rowId: string; event: MouseEvent }>) {
     if (this.selectedRows.has(e.detail.rowId)) {
       return
     }
@@ -1051,11 +1012,7 @@ export class GanttChartElement extends LitElement {
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    const {
-      layouts: rowLayouts,
-      taskCoords,
-      totalHeight,
-    } = this.calculateLayout()
+    const { layouts: rowLayouts, taskCoords, totalHeight } = this.calculateLayout()
     const labelWidth = this.currentRowHeaderWidth
 
     const currentOption = {
@@ -1087,9 +1044,7 @@ export class GanttChartElement extends LitElement {
     const visibleRows = this.displayRows.slice(startIndex, endIndex + 1)
     const paddingTop = rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0
     const lastVisibleRowLayout = rowLayouts[endIndex]
-    const renderedBottom = lastVisibleRowLayout
-      ? lastVisibleRowLayout.top + lastVisibleRowLayout.height
-      : 0
+    const renderedBottom = lastVisibleRowLayout ? lastVisibleRowLayout.top + lastVisibleRowLayout.height : 0
     const paddingBottom = Math.max(0, totalHeight - renderedBottom)
 
     // タスク間の接続線を描く
@@ -1174,13 +1129,8 @@ export class GanttChartElement extends LitElement {
                 "
               >
                 <div
-                  class="header-resizer ${this.isResizingHeader
-                    ? 'resizing'
-                    : ''}"
-                  style="height: ${Math.max(
-                    totalHeight,
-                    this.viewportHeight,
-                  )}px;"
+                  class="header-resizer ${this.isResizingHeader ? 'resizing' : ''}"
+                  style="height: ${Math.max(totalHeight, this.viewportHeight)}px;"
                   @pointerdown="${this.handleHeaderResizeStart}"
                 ></div>
               </div>
@@ -1196,8 +1146,7 @@ export class GanttChartElement extends LitElement {
         <svg
           class="dependency-lines"
           style="top: ${this.calendarHeight}px;"
-          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) +
-          labelWidth}"
+          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) + labelWidth}"
           height="${totalHeight}"
         >
           ${lines}
@@ -1230,16 +1179,11 @@ export class GanttChartElement extends LitElement {
                 .option="${currentOption}"
                 .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
-                (this.dragOverRowId === row.id &&
-                  this.dragOverPosition === null)}"
+                (this.dragOverRowId === row.id && this.dragOverPosition === null)}"
                 .draggingTask="${this.draggingTask}"
                 .theme="${this.theme}"
-                .dropPosition="${this.dragOverRowId === row.id
-                  ? this.dragOverPosition
-                  : null}"
-                .externalDragTask="${this.dragPreview?.rowId === row.id
-                  ? this.dragPreview
-                  : null}"
+                .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
+                .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
@@ -1252,13 +1196,7 @@ export class GanttChartElement extends LitElement {
       </div>
 
       ${this.dragOverlayInfo && this.option.showDragInfoOverlay !== false
-        ? html`
-            <div
-              class="drag-info-overlay ${this.dragOverlayInfo.visible
-                ? 'visible'
-                : ''}"
-            ></div>
-          `
+        ? html` <div class="drag-info-overlay ${this.dragOverlayInfo.visible ? 'visible' : ''}"></div> `
         : ''}
       ${this.tooltip
         ? html`
