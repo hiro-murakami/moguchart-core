@@ -121,6 +121,7 @@ interface GanttTask {
   start: Date // 開始日時
   end: Date // 終了日時
   style?: string // バーのカスタムスタイル (CSS文字列)
+  labelStyle?: string // バーのラベルのカスタムスタイル (CSS文字列)
   pattern?: GanttTaskPattern // バーの塗りつぶしパターン
   dependencies?: string[] // 依存関係にあるタスクのID配列
   movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)

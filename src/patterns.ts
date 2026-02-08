@@ -9,7 +9,7 @@ export const ALL_BAR_PATTERNS: BarPattern[] = [
   'horizontal-stripe',
   'checkerboard',
   'dots',
-  'dots-dense',
+  // 'dots-dense',
   'triangle',
   'circle',
   'grid',

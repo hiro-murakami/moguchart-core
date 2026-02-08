@@ -40,6 +40,8 @@ export interface GanttTask {
   end: Date
   /** バーのカスタムスタイル (CSS文字列) */
   style?: string
+  /** バーのラベルのカスタムスタイル (CSS文字列) */
+  labelStyle?: string
   /** バーの塗りつぶしパターン */
   pattern?: GanttTaskPattern
   /** 依存関係にあるタスクのID配列 */
