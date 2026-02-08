@@ -53,7 +53,7 @@ interface GanttChartOption {
     showDays?: boolean // 日付を表示するかどうか
     showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
     showCurrentTimeBadge?: boolean // 現在時刻バッジを表示するかどうか
-    currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 1分)
+    currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 0 = 更新しない)
   }
   /** 読み取り専用モードかどうか */
   readOnly?: boolean
@@ -63,8 +63,8 @@ interface GanttChartOption {
   tooltipDelay?: number // (デフォルト: 0)
   /** ドラッグ中に情報オーバーレイを表示するかどうか */
   showDragInfoOverlay?: boolean // (デフォルト: true)
-  /** テーマ設定 ('light' または 'dark') */
-  theme?: 'light' | 'dark'
+  /** テーマ設定 ('light', 'dark', 'system') */
+  theme?: 'light' | 'dark' | 'system'
   /** カスタムテーマカラー（特定の色を上書きする場合に使用） */
   customTheme?: Partial<ThemeColorPalette>
   /** 行のドラッグ＆ドロップによる並び替えを有効にするか */
@@ -84,7 +84,8 @@ interface GanttChartOption {
 | :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------- |
 | `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
 | `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
-| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックスが操作された（チェック/非チェック）ときに発火します。                    |
+| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
+| `row-clicked`            | `RowClickEventDetail`             | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
@@ -161,7 +162,8 @@ interface TaskUpdateEventDetail {
   end: Date // 新しい終了日
   targetRowId: string | undefined // 移動先の行ID（行をまたぐ移動の場合）
   isDragging: boolean // ドラッグ操作中かどうか
-  // dx, dy, modeなどの内部的なプロパティも含まれます
+  mode: 'move' | 'copy' // 移動モード
+  // dx, dy, x, y などの内部的なプロパティも含まれます
 }
 ```
 
@@ -189,8 +191,6 @@ interface RowHeaderResizeEventDetail {
 interface RenderBarContentEventDetail {
   container: HTMLElement // コンテンツを描画するコンテナ要素
   task: GanttTask // 対象のタスクデータ
-  width: number // バーの幅
-  height: number // バーの高さ
 }
 ```
 
@@ -249,10 +249,15 @@ interface RenderDragInfoEventDetail {
 ```typescript
 interface RowSelectionChangeEventDetail {
   selectedIds: string[] // 現在選択されている全ての行IDの配列
-  target: {
-    id: string // 今回操作された行のID
-    checked: boolean // 今回操作された行の新しいチェック状態
-  }
+}
+```
+
+### RowClickEventDetail
+
+```typescript
+interface RowClickEventDetail {
+  rowId: string // クリックされた行ID
+  event: MouseEvent // 元のクリックイベント
 }
 ```
 

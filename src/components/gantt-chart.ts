@@ -205,9 +205,11 @@ export class GanttChartElement extends LitElement {
     super.connectedCallback()
     this._systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     this._systemThemeMediaQuery.addEventListener('change', this.handleSystemThemeChange)
-    // 初期テーマ設定（optionがまだセットされていない、またはoption.themeがない場合）
-    if (!this.option?.theme) {
+    // 初期テーマ設定
+    if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
       this.theme = this._systemThemeMediaQuery.matches ? 'dark' : 'light'
+    } else {
+      this.theme = this.option.theme
     }
   }
 
@@ -219,16 +221,17 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleSystemThemeChange = (e: MediaQueryListEvent) => {
-    if (!this.option?.theme) {
+    if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
       this.theme = e.matches ? 'dark' : 'light'
     }
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('option')) {
-      if (this.option?.theme) {
+      if (this.option?.theme === 'light' || this.option?.theme === 'dark') {
         this.theme = this.option.theme
       } else if (this._systemThemeMediaQuery) {
+        // 'system' or undefined
         this.theme = this._systemThemeMediaQuery.matches ? 'dark' : 'light'
       }
     }

@@ -159,4 +159,35 @@ describe('GanttChartElement Theme', () => {
 
     document.body.removeChild(element)
   })
+
+  it('uses system theme when option.theme is "system"', async () => {
+    // システムはダーク
+    mediaQueryListMock.matches = true
+    // オプションでsystem指定
+    element.option = { ...element.option, theme: 'system' }
+
+    document.body.appendChild(element)
+    await element.updateComplete
+    expect(element.theme).toBe('dark')
+
+    // システムがライトに変更
+    listener({ matches: false } as any)
+    await element.updateComplete
+    expect(element.theme).toBe('light')
+
+    document.body.removeChild(element)
+  })
+
+  it('uses system theme when option.theme is invalid value (as any)', async () => {
+    // システムはライト
+    mediaQueryListMock.matches = false
+    // オプションで無効な値指定
+    element.option = { ...element.option, theme: 'invalid' as any }
+
+    document.body.appendChild(element)
+    await element.updateComplete
+    expect(element.theme).toBe('light')
+
+    document.body.removeChild(element)
+  })
 })

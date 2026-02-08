@@ -156,8 +156,8 @@ export interface GanttChartOption {
   showTooltip?: boolean
   /** ドラッグ中の情報オーバーレイを表示するかどうか */
   showDragInfoOverlay?: boolean
-  /** テーマ ('light' | 'dark') */
-  theme?: 'light' | 'dark'
+  /** テーマ ('light' | 'dark' | 'system') */
+  theme?: 'light' | 'dark' | 'system'
   /** カスタムテーマカラー */
   customTheme?: Partial<ThemeColorPalette>
   /** 行の並び替えを有効にするかどうか */
