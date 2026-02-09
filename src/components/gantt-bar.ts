@@ -283,6 +283,8 @@ export class GanttBarElement extends LitElement {
 
   // --- 追加: 移動（Move）ロジック ---
   private onMoveStart(e: PointerEvent) {
+    // 右クリック（button === 2）はコンテキストメニュー用なので無視
+    if (e.button === 2) return
     e.stopPropagation()
     const target = e.target as HTMLElement
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
@@ -398,6 +400,8 @@ export class GanttBarElement extends LitElement {
                 composed: true,
               }),
             )
+            // onClickでの重複発火を防止
+            this._wasDragging = true
             return
           }
 
@@ -531,6 +535,7 @@ export class GanttBarElement extends LitElement {
   }
 
   private onClick(e: MouseEvent) {
+    e.stopPropagation()
     // ドラッグ後のクリックは無視
     if (this._wasDragging) {
       this._wasDragging = false
@@ -558,6 +563,7 @@ export class GanttBarElement extends LitElement {
     }
 
     e.preventDefault()
+    e.stopPropagation()
     this.dispatchEvent(
       new CustomEvent('task-contextmenu', {
         detail: {

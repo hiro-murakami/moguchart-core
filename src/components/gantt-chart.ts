@@ -1084,6 +1084,27 @@ export class GanttChartElement extends LitElement {
     )
   }
 
+  private handleBarContextMenu(e: CustomEvent<{ task: GanttTask; event: MouseEvent }>) {
+    const { task } = e.detail
+
+    // 選択済みバーの右クリックは選択を保持
+    if (this.selectedTasks.has(task.id)) {
+      return
+    }
+
+    // 未選択バーの右クリックは単一選択に切り替え
+    this.selectedTasks = new Set([task.id])
+    this.dispatchEvent(
+      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+        detail: {
+          selectedIds: [task.id],
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
@@ -1266,6 +1287,7 @@ export class GanttChartElement extends LitElement {
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
                 @bar-click="${this.handleBarClick}"
+                @task-contextmenu="${this.handleBarContextMenu}"
               />
             `
           },
