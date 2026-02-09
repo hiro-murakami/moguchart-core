@@ -109,14 +109,11 @@ export class GanttCalendarElement extends LitElement {
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    const days = Array.from(
-      { length: Math.ceil(this.totalDays) },
-      (_, i) => {
-        const d = new Date(this.option.calendar.start)
-        d.setDate(d.getDate() + i)
-        return d
-      },
-    )
+    const days = Array.from({ length: Math.ceil(this.totalDays) }, (_, i) => {
+      const d = new Date(this.option.calendar.start)
+      d.setDate(d.getDate() + i)
+      return d
+    })
 
     const months: { year: number; month: number; count: number }[] = []
     days.forEach((day) => {
@@ -142,8 +139,7 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${hourWidth}px 100%;
     `
 
-    const totalWidth =
-      this.totalDays * this.option.calendar.pxPerDay
+    const totalWidth = this.totalDays * this.option.calendar.pxPerDay
 
     return html`
       <style>
@@ -168,24 +164,16 @@ export class GanttCalendarElement extends LitElement {
       </style>
       <div
         class="label-placeholder"
-        style="width: ${this.option.rowHeader?.width ??
-        DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option.rowHeader
-          ?.backgroundColor ?? colors.rowHeaderBg};"
+        style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option
+          .rowHeader?.backgroundColor ?? colors.rowHeaderBg};"
       ></div>
-      <div
-        class="calendar-group"
-        style="width: ${totalWidth}px; overflow: hidden;"
-      >
+      <div class="calendar-group" style="width: ${totalWidth}px; overflow: hidden;">
         ${this.option.calendar.showMonths !== false
           ? html`<div class="months-container">
               ${months.map((m) => {
-                const format =
-                  this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
+                const format = this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
                 const text = dayjs(new Date(m.year, m.month)).format(format)
-                return html`<div
-                  class="month-cell"
-                  style="width: ${m.count * this.option.calendar.pxPerDay}px"
-                >
+                return html`<div class="month-cell" style="width: ${m.count * this.option.calendar.pxPerDay}px">
                   ${text}
                 </div>`
               })}
@@ -196,21 +184,13 @@ export class GanttCalendarElement extends LitElement {
               ${days.map((day, index) => {
                 let width = this.option.calendar.pxPerDay
                 if (index + 1 > this.totalDays) {
-                  width =
-                    (this.totalDays - index) *
-                    this.option.calendar.pxPerDay
+                  width = (this.totalDays - index) * this.option.calendar.pxPerDay
                 }
-                const backgroundColor = getCalendarColor(
-                  day,
-                  colors,
-                  this.option.calendar.isHoliday,
-                )
+                const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
                 return html`
                   <div
                     class="day-cell"
-                    style="width: ${width}px; ${backgroundColor
-                      ? `background-color: ${backgroundColor};`
-                      : ''}"
+                    style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
                   >
                     ${day.getDate()}
                   </div>
@@ -222,19 +202,12 @@ export class GanttCalendarElement extends LitElement {
           ? html`
               <div class="hours-container" style="${hourBackgroundStyle}">
                 ${days.map(() =>
-                  hours.map(
-                    (h) => html`
-                      <div class="hour-cell" style="width: ${hourWidth}px;">
-                        ${h}
-                      </div>
-                    `,
-                  ),
+                  hours.map((h) => html` <div class="hour-cell" style="width: ${hourWidth}px;">${h}</div> `),
                 )}
               </div>
             `
           : ''}
-        ${this.option.calendar.showCurrentTime &&
-        this.option.calendar.showCurrentTimeBadge !== false
+        ${this.option.calendar.showCurrentTime && this.option.calendar.showCurrentTimeBadge === true
           ? html`
               <div
                 class="current-time-badge"

@@ -183,7 +183,7 @@ export class GanttChartElement extends LitElement {
     .current-time-line::before {
       content: '';
       position: absolute;
-      top: -4px;
+      top: -8px;
       left: 50%;
       transform: translateX(-50%);
       width: 8px;
