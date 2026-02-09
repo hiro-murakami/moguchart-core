@@ -177,8 +177,19 @@ export class GanttChartElement extends LitElement {
     .current-time-line {
       position: absolute;
       width: 2px;
-      z-index: 20;
+      z-index: 80;
       pointer-events: none;
+    }
+    .current-time-line::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: inherit;
     }
   `
 
