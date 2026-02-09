@@ -9,8 +9,10 @@ export class GanttBarElement extends LitElement {
   @property({ type: Object }) task!: GanttTask
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
+  @property({ type: Boolean, reflect: true }) selected = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
+  private _wasDragging = false
 
   static styles = css`
     :host {
@@ -42,6 +44,11 @@ export class GanttBarElement extends LitElement {
       top: 0;
       left: 0;
       background-color: ${unsafeCSS(DEFAULT_BAR_COLOR)};
+    }
+    :host([selected]) .bar {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
     }
     .handle-left,
     .handle-right {
@@ -377,12 +384,27 @@ export class GanttBarElement extends LitElement {
           const finalTranslateX = Math.round(finalDeltaX / snapPx) * snapPx
           const finalDeltaY = upEvent.clientY - startY
 
-          // 移動量が閾値以下の場合はイベントを発火しない（クリック対策）
+          // 移動量が閾値以下の場合はクリックとして扱う
           if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
+            // クリックイベントを発火
+            this.dispatchEvent(
+              new CustomEvent('bar-click', {
+                detail: {
+                  task: this.task,
+                  event: upEvent,
+                  isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
             return
           }
 
           const isCopy = upEvent.ctrlKey || upEvent.altKey
+
+          // 実際にドラッグが行われたのでフラグを設定
+          this._wasDragging = true
 
           this.dispatchEvent(
             new CustomEvent('task-update', {
@@ -508,6 +530,25 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onClick(e: MouseEvent) {
+    // ドラッグ後のクリックは無視
+    if (this._wasDragging) {
+      this._wasDragging = false
+      return
+    }
+    this.dispatchEvent(
+      new CustomEvent('bar-click', {
+        detail: {
+          task: this.task,
+          event: e,
+          isMultiSelect: e.metaKey || e.ctrlKey,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   private onContextMenu(e: MouseEvent) {
     // MacなどでCtrl+ドラッグ（コピー操作）を行おうとした際にコンテキストメニューが出ないようにする
     if (e.ctrlKey) {
@@ -564,6 +605,7 @@ export class GanttBarElement extends LitElement {
         "
         @mouseenter="${this.onMouseEnter}"
         @mouseleave="${this.onMouseLeave}"
+        @click="${this.onClick}"
         @dblclick="${this.onDblClick}"
         @contextmenu="${this.onContextMenu}"
       >

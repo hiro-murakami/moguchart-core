@@ -1,15 +1,5 @@
-import {
-  DEFAULT_BAR_HEIGHT,
-  DEFAULT_BAR_MARGIN,
-  DEFAULT_ROW_HEADER_WIDTH,
-} from '@/constants'
-import type {
-  GanttChartOption,
-  GanttRow,
-  GanttTask,
-  GanttTaskMoveMode,
-  RowHeaderContextMenuEventDetail,
-} from '@/types'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
+import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, RowHeaderContextMenuEventDetail } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -44,6 +34,9 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: String })
   dropPosition: 'top' | 'bottom' | null = null
+
+  @property({ type: Array })
+  selectedTaskIds: string[] = []
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
@@ -149,19 +142,16 @@ export class GanttRowElement extends LitElement {
   private handleHeaderContextMenu(e: MouseEvent) {
     e.preventDefault()
     this.dispatchEvent(
-      new CustomEvent<RowHeaderContextMenuEventDetail>(
-        'row-header-contextmenu',
-        {
-          detail: {
-            rowId: this.row.id,
-            row: this.row,
-            event: e,
-            target: e.currentTarget as HTMLElement,
-          },
-          bubbles: true,
-          composed: true,
+      new CustomEvent<RowHeaderContextMenuEventDetail>('row-header-contextmenu', {
+        detail: {
+          rowId: this.row.id,
+          row: this.row,
+          event: e,
+          target: e.currentTarget as HTMLElement,
         },
-      ),
+        bubbles: true,
+        composed: true,
+      }),
     )
   }
 
@@ -183,9 +173,7 @@ export class GanttRowElement extends LitElement {
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
-    const rowHeaderContentEl = this.shadowRoot?.querySelector(
-      '.row-header-content',
-    ) as HTMLElement
+    const rowHeaderContentEl = this.shadowRoot?.querySelector('.row-header-content') as HTMLElement
     if (rowHeaderContentEl) {
       // Clear content to avoid conflict with Lit rendering and allow customization
       rowHeaderContentEl.innerHTML = ''
@@ -224,14 +212,10 @@ export class GanttRowElement extends LitElement {
 
     let tasksWithLanes, laneCount
 
-    const originalTaskInRow = this.row.tasks.find(
-      (t) => this.draggingTask && t.id === this.draggingTask.id,
-    )
+    const originalTaskInRow = this.row.tasks.find((t) => this.draggingTask && t.id === this.draggingTask.id)
 
     if (this.draggingTask?.mode === 'copy' && originalTaskInRow) {
-      const tasksForLaneCalc = displayTasks.filter(
-        (t) => t.id !== this.draggingTask!.id,
-      )
+      const tasksForLaneCalc = displayTasks.filter((t) => t.id !== this.draggingTask!.id)
       tasksForLaneCalc.push({
         ...originalTaskInRow,
         id: `${originalTaskInRow.id}-static`,
@@ -244,9 +228,7 @@ export class GanttRowElement extends LitElement {
       tasksWithLanes = result.tasksWithLanes
       laneCount = result.laneCount
 
-      const staticTask = tasksWithLanes.find(
-        (t) => t.id === `${originalTaskInRow.id}-static`,
-      )
+      const staticTask = tasksWithLanes.find((t) => t.id === `${originalTaskInRow.id}-static`)
       if (staticTask) {
         tasksWithLanes.push({ ...originalTaskInRow, lane: staticTask.lane })
       }
@@ -267,8 +249,7 @@ export class GanttRowElement extends LitElement {
     if (this.option.calendar.showTime) {
       const hourWidth = this.option.calendar.pxPerDay / 24
       const snapMinutes = this.option.snapDuration ?? 60
-      const snapWidth =
-        (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
+      const snapWidth = (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
 
       const gradients = [
         `linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.gridLine} ${hourWidth - 1}px)`,
@@ -292,17 +273,11 @@ export class GanttRowElement extends LitElement {
 
     const isHidden = this.row.visible === false
 
-    const headerBg = this.isSelected
-      ? colors.rowSelectedHeader
-      : isHidden
-        ? colors.rowHiddenBg
-        : colors.rowHeaderBg
+    const headerBg = this.isSelected ? colors.rowSelectedHeader : isHidden ? colors.rowHiddenBg : colors.rowHeaderBg
 
     // Check if it's a gradient/image or simple color
     const isHeaderGradient = headerBg.includes('gradient')
-    const headerStyle = isHeaderGradient
-      ? `background: ${headerBg};`
-      : `background-color: ${headerBg};`
+    const headerStyle = isHeaderGradient ? `background: ${headerBg};` : `background-color: ${headerBg};`
 
     return html`
       <style>
@@ -345,15 +320,10 @@ export class GanttRowElement extends LitElement {
           opacity: 0.5;
         }
       </style>
-      <div
-        class="row-container ${this.dropPosition
-          ? `drop-${this.dropPosition}`
-          : ''}"
-      >
+      <div class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}">
         <div
           class="row-header"
-          style="width: ${this.option.rowHeader?.width ??
-          DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
+          style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @click="${this.handleHeaderClick}"
@@ -363,26 +333,13 @@ export class GanttRowElement extends LitElement {
           <div class="row-header-button"></div>
           <div class="row-header-content"></div>
         </div>
-        <div
-          class="bars-container"
-          style="width: ${this.totalDays * this.option.calendar.pxPerDay}px"
-        >
+        <div class="bars-container" style="width: ${this.totalDays * this.option.calendar.pxPerDay}px">
           ${this.option.calendar.showRowBackground !== false
-            ? html`<gantt-row-background
-                .option="${this.option}"
-                .theme="${this.theme}"
-              /> `
+            ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}
-          ${this.isSelected
-            ? html`<div class="selected-row-overlay"></div>`
-            : ''}
+          ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
           <div class="grid-background" style="${backgroundStyle}"></div>
-          ${isHidden
-            ? html`<div
-                class="hidden-row-overlay"
-                style="background: ${colors.rowHiddenBg};"
-              ></div>`
-            : ''}
+          ${isHidden ? html`<div class="hidden-row-overlay" style="background: ${colors.rowHiddenBg};"></div>` : ''}
           ${repeat(
             tasksWithLanes,
             (task) => task.id,
@@ -395,12 +352,14 @@ export class GanttRowElement extends LitElement {
                     end: this.draggingTask!.end,
                   }
                 : task
+              const isTaskSelected = this.selectedTaskIds.includes(task.id)
 
               return html`
                 <gantt-bar
                   .task="${displayTask}"
                   .option="${this.option}"
                   .lane="${task.lane}"
+                  .selected="${isTaskSelected}"
                 />
               `
             },

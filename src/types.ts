@@ -313,6 +313,14 @@ export interface RowSelectionChangeEventDetail {
 }
 
 /**
+ * バー選択変更イベントの詳細
+ */
+export interface BarSelectionChangeEventDetail {
+  /** 選択されているタスクIDの配列 */
+  selectedIds: string[]
+}
+
+/**
  * 行ヘッダークリックイベントの詳細
  */
 export interface RowHeaderClickEventDetail {

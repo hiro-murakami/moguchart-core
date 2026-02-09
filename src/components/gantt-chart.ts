@@ -1,6 +1,7 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
 import type {
   BarHoverEventDetail,
+  BarSelectionChangeEventDetail,
   GanttChartOption,
   GanttRow,
   GanttTask,
@@ -27,10 +28,13 @@ export class GanttChartElement extends LitElement {
 
   @property({ type: Array })
   selectedRowIds: string[] = []
+  @property({ type: Array })
+  selectedTaskIds: string[] = []
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
   @state() private selectedRows = new Set<string>()
+  @state() private selectedTasks = new Set<string>()
   @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
   @state() private dragTargetRowIndex: number | null = null
@@ -267,6 +271,16 @@ export class GanttChartElement extends LitElement {
         ![...newSelectedIds].every((id) => this.selectedRows.has(id))
       ) {
         this.selectedRows = newSelectedIds
+      }
+    }
+
+    if (changedProperties.has('selectedTaskIds')) {
+      const newSelectedIds = new Set(this.selectedTaskIds)
+      if (
+        newSelectedIds.size !== this.selectedTasks.size ||
+        ![...newSelectedIds].every((id) => this.selectedTasks.has(id))
+      ) {
+        this.selectedTasks = newSelectedIds
       }
     }
   }
@@ -1009,13 +1023,60 @@ export class GanttChartElement extends LitElement {
   }
 
   private clearSelection() {
-    if (this.selectedRows.size === 0) return
+    if (this.selectedRows.size === 0 && this.selectedTasks.size === 0) return
 
-    this.selectedRows = new Set()
+    if (this.selectedRows.size > 0) {
+      this.selectedRows = new Set()
+      this.dispatchEvent(
+        new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+          detail: {
+            selectedIds: [],
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
+    if (this.selectedTasks.size > 0) {
+      this.selectedTasks = new Set()
+      this.dispatchEvent(
+        new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+          detail: {
+            selectedIds: [],
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+  }
+
+  private handleBarClick(e: CustomEvent<{ task: GanttTask; event: MouseEvent; isMultiSelect: boolean }>) {
+    e.stopPropagation()
+    const { task, isMultiSelect } = e.detail
+
+    let newSelectedTasks: Set<string>
+
+    if (isMultiSelect) {
+      // Ctrl/Cmd+クリック: トグル選択
+      newSelectedTasks = new Set(this.selectedTasks)
+      if (newSelectedTasks.has(task.id)) {
+        newSelectedTasks.delete(task.id)
+      } else {
+        newSelectedTasks.add(task.id)
+      }
+    } else {
+      // 通常クリック: 単一選択
+      newSelectedTasks = new Set([task.id])
+    }
+
+    this.selectedTasks = newSelectedTasks
+
     this.dispatchEvent(
-      new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
         detail: {
-          selectedIds: [],
+          selectedIds: [...newSelectedTasks],
         },
         bubbles: true,
         composed: true,
@@ -1200,9 +1261,11 @@ export class GanttChartElement extends LitElement {
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
+                .selectedTaskIds="${[...this.selectedTasks]}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
+                @bar-click="${this.handleBarClick}"
               />
             `
           },
