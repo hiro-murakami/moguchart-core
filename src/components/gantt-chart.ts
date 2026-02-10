@@ -654,10 +654,17 @@ export class GanttChartElement extends LitElement {
       this.tooltip = { ...this.tooltip, visible: false }
     }
 
+    // targetRowIndex は displayRows のインデックスなので、this.rows のインデックスに変換
+    let targetRowIndexInRows = -1
+    if (targetRowIndex !== -1) {
+      const targetRow = this.displayRows[targetRowIndex]
+      targetRowIndexInRows = this.rows.findIndex((r) => r.id === targetRow.id)
+    }
+
     if (mode === 'copy') {
-      if (targetRowIndex !== -1) {
+      if (targetRowIndexInRows !== -1) {
         const newRows = [...this.rows]
-        const targetRow = { ...newRows[targetRowIndex] }
+        const targetRow = { ...newRows[targetRowIndexInRows] }
         targetRow.tasks = [...targetRow.tasks]
 
         // 新しいIDを生成
@@ -672,7 +679,7 @@ export class GanttChartElement extends LitElement {
         }
 
         targetRow.tasks.push(newTask)
-        newRows[targetRowIndex] = targetRow
+        newRows[targetRowIndexInRows] = targetRow
         this.rows = newRows
 
         this.dispatchEvent(
@@ -689,10 +696,10 @@ export class GanttChartElement extends LitElement {
       sourceRow.tasks = [...sourceRow.tasks]
       newRows[sourceRowIndex] = sourceRow
 
-      if (targetRowIndex !== -1 && sourceRowIndex !== targetRowIndex) {
-        const targetRow = { ...newRows[targetRowIndex] }
+      if (targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows) {
+        const targetRow = { ...newRows[targetRowIndexInRows] }
         targetRow.tasks = [...targetRow.tasks]
-        newRows[targetRowIndex] = targetRow
+        newRows[targetRowIndexInRows] = targetRow
 
         const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
         targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
