@@ -173,6 +173,16 @@ export class GanttRowElement extends LitElement {
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
+    // ドラッグ関連プロパティのみ変更された場合はヘッダー再描画をスキップ
+    // ヘッダーの再描画は row / option が変わった時のみ必要
+    const needsHeaderUpdate =
+      changedProperties.has('row') ||
+      changedProperties.has('option') ||
+      changedProperties.has('isSelected') ||
+      changedProperties.has('theme')
+
+    if (!needsHeaderUpdate) return
+
     const rowHeaderContentEl = this.shadowRoot?.querySelector('.row-header-content') as HTMLElement
     if (rowHeaderContentEl) {
       // Clear content to avoid conflict with Lit rendering and allow customization

@@ -224,25 +224,35 @@ export class GanttBarElement extends LitElement {
           taskGroup.style.width = `${newWidth}px`
         }
 
-        this.dispatchEvent(
-          new CustomEvent('task-update', {
-            detail: {
-              ...this.task,
-              start: newStart,
-              end: newEnd,
-              dy: 0,
-              isDragging: true,
-              x: moveEvent.clientX,
-              y: moveEvent.clientY,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        if (this._dragAnimationFrame) {
+          cancelAnimationFrame(this._dragAnimationFrame)
+        }
+
+        this._dragAnimationFrame = requestAnimationFrame(() => {
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: newStart,
+                end: newEnd,
+                dy: 0,
+                isDragging: true,
+                x: moveEvent.clientX,
+                y: moveEvent.clientY,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
       },
       (isCancel) => {
         taskGroup?.classList.remove('dragging')
         barEl.style.pointerEvents = ''
+        if (this._dragAnimationFrame) {
+          cancelAnimationFrame(this._dragAnimationFrame)
+          this._dragAnimationFrame = null
+        }
         if (taskGroup) {
           taskGroup.style.left = ''
           taskGroup.style.width = ''

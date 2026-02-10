@@ -48,7 +48,7 @@ export class GanttChartElement extends LitElement {
     mode?: GanttTaskMoveMode
   } | null = null
   @state() private viewportHeight = 400
-  @state() private dragOverlayInfo: {
+  private dragOverlayInfo: {
     id: string
     name?: string
     start: Date
@@ -85,6 +85,11 @@ export class GanttChartElement extends LitElement {
     totalHeight: number
   } | null = null
   private resizeObserver: ResizeObserver | null = null
+  private _cachedSelectedTaskIds: string[] = []
+  private _cachedSelectedTasksSize = -1
+  private _cachedCurrentOption: GanttChartOption | null = null
+  private _lastOptionRef: GanttChartOption | null = null
+  private _lastLabelWidth: number = -1
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
@@ -283,12 +288,16 @@ export class GanttChartElement extends LitElement {
         this.selectedTasks = newSelectedIds
       }
     }
+
+    // selectedTasksが変化した時だけ配列を再生成する（参照が毎回変わると全行が再レンダリングされるため）
+    if (changedProperties.has('selectedTasks') || this._cachedSelectedTasksSize !== this.selectedTasks.size) {
+      this._cachedSelectedTaskIds = [...this.selectedTasks]
+      this._cachedSelectedTasksSize = this.selectedTasks.size
+    }
   }
 
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
-
-    const colors = getThemeColors(this.theme, this.option.customTheme)
 
     if (this.tooltip) {
       const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
@@ -324,56 +333,70 @@ export class GanttChartElement extends LitElement {
         }
       }
     }
+  }
 
-    if (this.dragOverlayInfo && this.option.showDragInfoOverlay !== false) {
-      const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
-      if (dragInfoEl) {
-        dragInfoEl.innerHTML = ''
+  /**
+   * ドラッグオーバーレイを直接DOM操作で更新する。
+   * @state() を使わないことで、Litの再レンダリングサイクルを回避する。
+   */
+  private updateDragOverlay() {
+    if (!this.dragOverlayInfo || this.option.showDragInfoOverlay === false) return
+    const colors = getThemeColors(this.theme, this.option.customTheme)
+    const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
+    if (!dragInfoEl) return
 
-        const { targetRow } = this.dragOverlayInfo
-        this.dispatchEvent(
-          new CustomEvent('render-drag-info', {
-            detail: {
-              container: dragInfoEl,
-              task: {
-                id: this.dragOverlayInfo.id,
-                name: this.dragOverlayInfo.name,
-                start: this.dragOverlayInfo.start,
-                end: this.dragOverlayInfo.end,
-              },
-              newStart: this.dragOverlayInfo.currentStart,
-              newEnd: this.dragOverlayInfo.currentEnd,
-              targetRow,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+    dragInfoEl.classList.toggle('visible', this.dragOverlayInfo.visible)
+    dragInfoEl.innerHTML = ''
 
-        if (dragInfoEl.innerHTML === '') {
-          const formatDate = (d: Date) => {
-            const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
-            const h = d.getHours()
-            const m = d.getMinutes()
-            if (h === 0 && m === 0) return date
-            const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-            return `${date} ${time}`
-          }
-          dragInfoEl.innerHTML = `
-              <div style="font-weight: bold;">
-                ${this.dragOverlayInfo.name || 'No Title'}
-              </div>
-              <div class="drag-info-sub">
-                ${formatDate(this.dragOverlayInfo.currentStart)} -
-                ${formatDate(this.dragOverlayInfo.currentEnd)}
-              </div>
-              ${
-                targetRow
-                  ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.name}</div>`
-                  : ''
-              }`
-        }
+    const { targetRow } = this.dragOverlayInfo
+    this.dispatchEvent(
+      new CustomEvent('render-drag-info', {
+        detail: {
+          container: dragInfoEl,
+          task: {
+            id: this.dragOverlayInfo.id,
+            name: this.dragOverlayInfo.name,
+            start: this.dragOverlayInfo.start,
+            end: this.dragOverlayInfo.end,
+          },
+          newStart: this.dragOverlayInfo.currentStart,
+          newEnd: this.dragOverlayInfo.currentEnd,
+          targetRow,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    if (dragInfoEl.innerHTML === '') {
+      const formatDate = (d: Date) => {
+        const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+        const h = d.getHours()
+        const m = d.getMinutes()
+        if (h === 0 && m === 0) return date
+        const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+        return `${date} ${time}`
       }
+      dragInfoEl.innerHTML = `
+          <div style="font-weight: bold;">
+            ${this.dragOverlayInfo.name || 'No Title'}
+          </div>
+          <div class="drag-info-sub">
+            ${formatDate(this.dragOverlayInfo.currentStart)} -
+            ${formatDate(this.dragOverlayInfo.currentEnd)}
+          </div>
+          ${
+            targetRow
+              ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.name}</div>`
+              : ''
+          }`
+    }
+  }
+
+  private hideDragOverlay() {
+    const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
+    if (dragInfoEl) {
+      dragInfoEl.classList.remove('visible')
     }
   }
 
@@ -585,7 +608,7 @@ export class GanttChartElement extends LitElement {
       }
       // ドラッグ中はツールチップを非表示にする
       if (this.tooltip) {
-        this.tooltip = { ...this.tooltip, visible: false }
+        this.tooltip = null
       }
 
       // draggingTaskの更新は、IDが変わった時やドラッグ開始時のみ行う
@@ -601,7 +624,10 @@ export class GanttChartElement extends LitElement {
           mode,
         }
       } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
-      this.dragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
+      const newDragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
+      if (this.dragTargetRowIndex !== newDragTargetRowIndex) {
+        this.dragTargetRowIndex = newDragTargetRowIndex
+      }
 
       this.dragOverlayInfo = {
         id,
@@ -613,6 +639,7 @@ export class GanttChartElement extends LitElement {
         targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
         visible: true,
       }
+      this.updateDragOverlay()
       return
     }
 
@@ -621,6 +648,7 @@ export class GanttChartElement extends LitElement {
     this.dragTargetRowIndex = null
     if (this.dragOverlayInfo) {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
+      this.hideDragOverlay()
     }
     if (this.tooltip) {
       this.tooltip = { ...this.tooltip, visible: false }
@@ -1111,13 +1139,20 @@ export class GanttChartElement extends LitElement {
     const { layouts: rowLayouts, taskCoords, totalHeight } = this.calculateLayout()
     const labelWidth = this.currentRowHeaderWidth
 
-    const currentOption = {
-      ...this.option,
-      rowHeader: {
-        ...this.option.rowHeader,
-        width: labelWidth,
-      },
+    // currentOptionはoption参照またはlabelWidthが変わった時だけ再生成
+    // 毎回新オブジェクトを作ると全gantt-rowが再レンダリングされる
+    if (this._lastOptionRef !== this.option || this._lastLabelWidth !== labelWidth) {
+      this._cachedCurrentOption = {
+        ...this.option,
+        rowHeader: {
+          ...this.option.rowHeader,
+          width: labelWidth,
+        },
+      }
+      this._lastOptionRef = this.option
+      this._lastLabelWidth = labelWidth
     }
+    const currentOption = this._cachedCurrentOption!
 
     const buffer = 5
     let startIndex = 0
@@ -1282,7 +1317,7 @@ export class GanttChartElement extends LitElement {
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
-                .selectedTaskIds="${[...this.selectedTasks]}"
+                .selectedTaskIds="${this._cachedSelectedTaskIds}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
@@ -1296,9 +1331,7 @@ export class GanttChartElement extends LitElement {
         <div style="height: ${paddingBottom}px; width: 1px;"></div>
       </div>
 
-      ${this.dragOverlayInfo && this.option.showDragInfoOverlay !== false
-        ? html` <div class="drag-info-overlay ${this.dragOverlayInfo.visible ? 'visible' : ''}"></div> `
-        : ''}
+      ${this.option.showDragInfoOverlay !== false ? html` <div class="drag-info-overlay"></div> ` : ''}
       ${this.tooltip
         ? html`
             <div
