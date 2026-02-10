@@ -18,6 +18,7 @@ MoguChart は、Lit で構築されたガントチャート Web Component です
 | `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
 | `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
 | `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                           |
+| `selectedTaskIds`      | `string[]`          | 選択状態にするタスクIDの配列。                                                                                                                                       |
 | `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
 
 ## オプション設定 (GanttChartOption)
@@ -85,7 +86,8 @@ interface GanttChartOption {
 | `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
 | `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
 | `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
-| `row-clicked`            | `RowClickEventDetail`             | 行ヘッダーがクリックされたときに発火します。                                                 |
+| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
+| `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
@@ -155,15 +157,14 @@ interface RowReorderEventDetail {
 ### TaskUpdateEventDetail
 
 ```typescript
-interface TaskUpdateEventDetail {
-  id: string // 更新されたタスクのID
-  name: string // タスク名
-  start: Date // 新しい開始日
-  end: Date // 新しい終了日
-  targetRowId: string | undefined // 移動先の行ID（行をまたぐ移動の場合）
+interface TaskUpdateEventDetail extends GanttTask {
+  dx?: number // X方向の移動量 (px)
+  dy: number // Y方向の移動量 (px)
   isDragging: boolean // ドラッグ操作中かどうか
-  mode: 'move' | 'copy' // 移動モード
-  // dx, dy, x, y などの内部的なプロパティも含まれます
+  targetRowId?: string // 移動先の行ID（行をまたぐ移動の場合）
+  x?: number // マウスのX座標（ドラッグ中のみ）
+  y?: number // マウスのY座標（ドラッグ中のみ）
+  mode: GanttTaskMoveMode // 移動モード ('move' | 'copy')
 }
 ```
 
@@ -237,10 +238,10 @@ interface TaskContextMenuEventDetail {
 ```typescript
 interface RenderDragInfoEventDetail {
   container: HTMLElement // 情報を描画するコンテナ要素
-  task: { id: string; name?: string; start: Date; end: Date } // ドラッグ中のタスク
+  task: GanttTask // ドラッグ中のタスク
   newStart: Date // 現在のドラッグ位置における開始日
   newEnd: Date // 現在のドラッグ位置における終了日
-  targetRow: GanttRow | undefined // 現在ドロップ対象となっている行
+  targetRow?: GanttRow // 現在ドロップ対象となっている行
 }
 ```
 
@@ -252,10 +253,19 @@ interface RowSelectionChangeEventDetail {
 }
 ```
 
-### RowClickEventDetail
+### BarSelectionChangeEventDetail
 
 ```typescript
-interface RowClickEventDetail {
+interface BarSelectionChangeEventDetail {
+  selectedIds: string[] // 現在選択されている全てのタスクIDの配列
+}
+```
+
+### RowClickedEventDetail
+
+```typescript
+// row-clicked イベントの詳細（gantt-row から発火）
+interface RowClickedEventDetail {
   rowId: string // クリックされた行ID
   event: MouseEvent // 元のクリックイベント
 }
@@ -318,4 +328,10 @@ interface ThemeColorPalette {
   thursday?: string // 木曜日の背景色 (オプション)
   friday?: string // 金曜日の背景色 (オプション)
 }
+```
+
+### GanttTaskMoveMode
+
+```typescript
+type GanttTaskMoveMode = 'copy' | 'move'
 ```
