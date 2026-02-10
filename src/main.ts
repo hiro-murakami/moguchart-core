@@ -17,6 +17,7 @@ import type {
   RowSelectionChangeEventDetail,
   RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
+  BarSelectionChangeEventDetail,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -138,6 +139,7 @@ let enableCustomRendering = false
 let showUnassignedTasks = true
 let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
+let selectedTaskIds: string[] = []
 let showHiddenRows = false
 
 // 追加候補のタスク一覧
@@ -638,6 +640,11 @@ const renderApp = () => {
               selectedIds = e.detail.selectedIds
               renderApp()
             }}"
+            .selectedTaskIds="${selectedTaskIds}"
+            @bar-selection-change="${(e: CustomEvent<BarSelectionChangeEventDetail>) => {
+              selectedTaskIds = e.detail.selectedIds
+              renderApp()
+            }}"
             id="gantt-chart-instance"
             @task-drop="${handleTaskDrop}"
             @row-header-click="${(e: CustomEvent<RowHeaderClickEventDetail>) => {
@@ -966,11 +973,15 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
     {
       label: '削除',
       action: () => {
+        const selectedIds = selectedTaskIds
+        const isMultiDelete = selectedIds.includes(task.id)
+        const targetIds = isMultiDelete ? selectedIds : [task.id]
+
         // 1. 削除アニメーションを適用
         rows = rows.map((row) => ({
           ...row,
           tasks: row.tasks.map((t) => {
-            if (t.id === task.id) {
+            if (targetIds.includes(t.id)) {
               return {
                 ...t,
                 style: `${t.style || ''}; animation: fade-out 0.3s ease-out forwards; pointer-events: none;`,
@@ -985,8 +996,12 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
         setTimeout(() => {
           rows = rows.map((row) => ({
             ...row,
-            tasks: row.tasks.filter((t) => t.id !== task.id),
+            tasks: row.tasks.filter((t) => !targetIds.includes(t.id)),
           }))
+          // 削除後に選択状態をクリア（必要に応じて）
+          if (isMultiDelete) {
+            selectedTaskIds = []
+          }
           renderApp()
         }, 300)
       },
