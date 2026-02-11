@@ -1,5 +1,5 @@
 import { html, render } from 'lit'
-import '@/components/gantt-chart'
+import { GanttChartElement } from '@/components/gantt-chart'
 import * as holiday_jp from '@holiday-jp/holiday_jp'
 import type {
   GanttChartOption,
@@ -783,14 +783,14 @@ const handleTaskDragStart = (e: DragEvent, task: GanttTask) => {
     e.dataTransfer.setDragImage(dragImage, 0, 0)
   }
   // チャートコンポーネントにドラッグ中のタスク情報を渡す
-  const chart = document.getElementById('gantt-chart-instance') as any
+  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
   if (chart) {
     chart.externalDraggingTask = task
   }
 }
 
 const handleTaskDragEnd = () => {
-  const chart = document.getElementById('gantt-chart-instance') as any
+  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
   if (chart) {
     chart.externalDraggingTask = null
   }
