@@ -398,22 +398,7 @@ export class GanttBarElement extends LitElement {
 
           // 移動量が閾値以下の場合はクリックとして扱う
           if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
-            // ドラッグ情報オーバーレイを確実に非表示にするため、isDragging: false を通知
-            this.dispatchEvent(
-              new CustomEvent('task-update', {
-                detail: {
-                  ...this.task,
-                  start: originalStart,
-                  end: originalEnd,
-                  dx: 0,
-                  dy: 0,
-                  isDragging: false,
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-            // クリックイベントを発火
+            // クリックイベントを発火（task-updateは発火しない）
             this.dispatchEvent(
               new CustomEvent('bar-click', {
                 detail: {

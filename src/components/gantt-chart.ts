@@ -1091,6 +1091,14 @@ export class GanttChartElement extends LitElement {
     e.stopPropagation()
     const { task, isMultiSelect } = e.detail
 
+    // ドラッグ操作がなかった（クリック扱い）場合でも、ドラッグ関連の状態をクリーンアップ
+    this.draggingTask = null
+    this.dragTargetRowIndex = null
+    if (this.dragOverlayInfo) {
+      this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
+      this.hideDragOverlay()
+    }
+
     let newSelectedTasks: Set<string>
 
     if (isMultiSelect) {
