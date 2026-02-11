@@ -730,7 +730,7 @@ export class GanttChartElement extends LitElement {
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
     }
-    const delay = this.option.tooltipDelay ?? 0
+    const delay = this.option.tooltipDelay ?? 500
     if (delay > 0) {
       this.hoverTimer = window.setTimeout(() => {
         this.tooltip = { ...e.detail, visible: true }
