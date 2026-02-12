@@ -141,6 +141,12 @@ export interface GanttChartOptionCalendar {
 /**
  * ガントチャート全体のオプション設定
  */
+export interface ChartContextMenuEventDetail {
+  event: MouseEvent
+  date: Date
+  rowId: string
+}
+
 export interface GanttChartOption {
   /** バーの設定 */
   bar?: GanttChartOptionBar

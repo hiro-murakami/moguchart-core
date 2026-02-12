@@ -1054,6 +1054,48 @@ export class GanttChartElement extends LitElement {
     // 行ヘッダーなどの右クリックはここで処理しない
     if (e.defaultPrevented) return
 
+    e.preventDefault()
+
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const scrollLeft = container.scrollLeft
+    const scrollTop = container.scrollTop
+    const labelWidth = this.currentRowHeaderWidth
+    const yInRows = e.clientY - rect.top + scrollTop - this.calendarHeight
+
+    const { layouts } = this.calculateLayout()
+    let targetRowId: string | undefined
+
+    for (let i = 0; i < layouts.length; i++) {
+      const layout = layouts[i]
+      if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
+        targetRowId = this.displayRows[i].id
+        break
+      }
+    }
+
+    if (targetRowId) {
+      // X座標 -> 日時
+      const x = e.clientX - rect.left + scrollLeft - labelWidth
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const daysFromStart = x / pxPerDay
+      const date = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+
+      this.dispatchEvent(
+        new CustomEvent('chart-contextmenu', {
+          detail: {
+            event: e,
+            date,
+            rowId: targetRowId,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
     this.clearSelection()
   }
 

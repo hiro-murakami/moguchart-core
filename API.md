@@ -99,6 +99,7 @@ interface GanttChartOption {
 | `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                             |
 | `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `render-drag-info`       | `RenderDragInfoEventDetail`       | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                 |
+| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 
 ## 型定義 (Types)
 
@@ -290,6 +291,16 @@ interface RowHeaderContextMenuEventDetail {
   row: GanttRow // 右クリックされた行データ
   event: MouseEvent // 元のコンテキストメニューイベント
   target: HTMLElement // 右クリックされたヘッダー要素
+}
+```
+
+### ChartContextMenuEventDetail
+
+```typescript
+interface ChartContextMenuEventDetail {
+  event: MouseEvent // 元のコンテキストメニューイベント
+  date: Date // クリックされた位置に対応する日時
+  rowId: string // クリックされた行ID
 }
 ```
 
