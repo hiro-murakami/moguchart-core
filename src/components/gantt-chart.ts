@@ -7,6 +7,7 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
   RowHeaderResizeEventDetail,
+  RowReorderEventDetail,
   RowSelectionChangeEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
@@ -742,7 +743,8 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private async reorderRows(sourceId: string, targetId: string, position: 'top' | 'bottom') {
+  private async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom') {
+    const ids = Array.isArray(sourceIds) ? sourceIds : [sourceIds]
     const rowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
     const positions = new Map<string, number>()
     rowElements.forEach((el) => {
@@ -752,21 +754,45 @@ export class GanttChartElement extends LitElement {
     })
 
     const newRows = [...this.rows]
-    const sourceIndex = newRows.findIndex((r) => r.id === sourceId)
-    if (sourceIndex === -1) return
-
-    const [removed] = newRows.splice(sourceIndex, 1)
-
+    const movingRows: GanttRow[] = []
     let targetIndex = newRows.findIndex((r) => r.id === targetId)
     if (targetIndex === -1) return
 
+    // 移動対象の行を抽出して削除
+    // インデックスがずれないように後ろから削除するか、filterを使う
+    // ここではまず抽出してから、元の配列から削除する
+    ids.forEach((id) => {
+      const index = newRows.findIndex((r) => r.id === id)
+      if (index !== -1) {
+        movingRows.push(newRows[index])
+      }
+    })
+
+    // ID順に並べ替える必要はなく、選択順あるいは元々の順序を維持したいが、
+    // ここでは newRows からの抽出順序（＝元々の表示順序）を維持する形で実装
+    const filteredRows = newRows.filter((r) => !ids.includes(r.id))
+
+    // ターゲット位置を再計算（削除によってインデックスが変わる可能性があるため）
+    // targetId自体が移動対象に含まれている場合はどうするか？
+    // ドラッグ＆ドロップの仕様上、ターゲットは自分自身ではないはずだが、複数選択の場合はあり得る
+    // targetId が movingRows に含まれている場合、ドロップ先として無効とみなすか、
+    // あるいは targetId の位置は「削除前の位置」を基準にするか。
+    // ここでは filteredRows における targetId の位置を探す。
+    // もし targetId も移動対象なら、targetId は filteredRows に存在しない。
+    // その場合は処理を中断するか、あるいは別のロジックが必要。
+    // 通常、ドラッグ中の要素の上にドロップはできない（pointer-events: noneなど）が、
+    // 念のためチェック。
+    if (ids.includes(targetId)) return
+
+    let newTargetIndex = filteredRows.findIndex((r) => r.id === targetId)
+
     if (position === 'bottom') {
-      targetIndex++
+      newTargetIndex++
     }
 
-    newRows.splice(targetIndex, 0, removed)
+    filteredRows.splice(newTargetIndex, 0, ...movingRows)
 
-    this.rows = newRows
+    this.rows = filteredRows
 
     await this.updateComplete
 
@@ -795,9 +821,10 @@ export class GanttChartElement extends LitElement {
     })
 
     this.dispatchEvent(
-      new CustomEvent('row-reordered', {
+      new CustomEvent<RowReorderEventDetail>('row-reordered', {
         detail: {
-          sourceId,
+          sourceId: ids[0], // 互換性のため
+          sourceIds: ids,
           targetId,
           position,
           rows: this.rows,
@@ -933,7 +960,13 @@ export class GanttChartElement extends LitElement {
     this.dragPreview = null
 
     if (sourceId && targetId && sourceId !== targetId && position) {
-      this.reorderRows(sourceId, targetId, position)
+      // 複数行選択されており、かつドラッグ開始行が選択行に含まれている場合
+      if (this.selectedRows.has(sourceId) && this.selectedRows.size > 1) {
+        const sourceIds = Array.from(this.selectedRows)
+        this.reorderRows(sourceIds, targetId, position)
+      } else {
+        this.reorderRows(sourceId, targetId, position)
+      }
     }
   }
 

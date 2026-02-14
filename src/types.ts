@@ -257,6 +257,8 @@ export interface TaskDropEventDetail {
 export interface RowReorderEventDetail {
   /** 移動元の行ID */
   sourceId: string
+  /** 移動元の行ID配列（複数選択時） */
+  sourceIds?: string[]
   /** 移動先の行ID */
   targetId: string
   /** 移動先に対する位置 ('top' | 'bottom') */

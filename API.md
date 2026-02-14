@@ -155,9 +155,10 @@ interface GanttTaskPattern {
 
 ```typescript
 interface RowReorderEventDetail {
-  sourceId: string // 移動元の行ID
+  sourceId: string // 移動元の行ID（単一選択時）
+  sourceIds?: string[] // 移動元の行ID配列（複数選択時）
   targetId: string // ドロップ先の行ID
-  position: 'top' | 'bottom' // ドロップ先に対する位置
+  position?: 'top' | 'bottom' // ドロップ先に対する位置
   rows: GanttRow[] // 並び替え後の新しい行データの配列
 }
 ```

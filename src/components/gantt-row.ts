@@ -115,10 +115,106 @@ export class GanttRowElement extends LitElement {
   `
 
   private handleDragStart(e: DragEvent) {
+    // If dragging an unselected row, trigger selection
+    if (!this.isSelected) {
+      this.dispatchEvent(
+        new CustomEvent('row-clicked', {
+          detail: {
+            rowId: this.row.id,
+            event: e,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
     if (e.dataTransfer) {
       e.dataTransfer.setData('text/plain', this.row.id)
       e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setDragImage(this, e.offsetX, e.offsetY)
+
+      // Use a consistent drag image for both single and multi-row dragging
+      // The image will be a stack of row headers
+      const colors = getThemeColors(this.theme, this.option.customTheme)
+      const container = document.createElement('div')
+      container.style.position = 'absolute'
+      container.style.top = '-1000px'
+      container.style.left = '-1000px'
+      container.style.display = 'flex'
+      container.style.flexDirection = 'column'
+      container.style.zIndex = '9999'
+      container.style.width = 'fit-content'
+      // Add a small shadow and border to the container for better visibility
+      container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      container.style.border = `1px solid ${colors.border}`
+      container.style.borderRadius = '4px'
+      container.style.overflow = 'hidden'
+
+      let rowsToClone: GanttRowElement[] = []
+
+      if (this.isSelected) {
+        // Find all selected rows
+        const root = this.getRootNode() as ShadowRoot | Document
+        const selectedRowElements = Array.from(root.querySelectorAll('gantt-row[isselected]')) as GanttRowElement[]
+        if (selectedRowElements.length > 0) {
+          rowsToClone = selectedRowElements
+        } else {
+          rowsToClone = [this]
+        }
+      } else {
+        rowsToClone = [this]
+      }
+
+      // Limit max rows to avoid huge drag image
+      const displayRows = rowsToClone.slice(0, 10)
+
+      displayRows.forEach((el, index) => {
+        const originalHeader = el.shadowRoot?.querySelector('.row-header') as HTMLElement
+        if (originalHeader) {
+          const clone = originalHeader.cloneNode(true) as HTMLElement
+          const compStyle = window.getComputedStyle(originalHeader)
+
+          clone.style.width = compStyle.width
+          clone.style.minWidth = compStyle.minWidth
+          clone.style.height = `${el.offsetHeight}px`
+          clone.style.boxSizing = compStyle.boxSizing
+          clone.style.background = compStyle.backgroundColor
+          clone.style.color = compStyle.color
+          clone.style.fontSize = compStyle.fontSize
+          clone.style.display = compStyle.display
+          clone.style.alignItems = compStyle.alignItems
+          clone.style.padding = compStyle.padding
+          // Remove border from individual clones except maybe bottom, handled by container or loop
+          clone.style.border = 'none'
+          clone.style.borderBottom = index < displayRows.length - 1 ? `1px solid ${colors.border}` : 'none'
+          clone.style.cursor = 'grabbing'
+
+          // Ensure the clone has the correct content (it should from cloneNode(true))
+          // But we might need to re-apply some specific styles if they rely on external classes not captured?
+          // getComputedStyle covers most.
+
+          container.appendChild(clone)
+        }
+      })
+
+      // Add a badge if there are more rows than displayed
+      if (rowsToClone.length > 10) {
+        const badge = document.createElement('div')
+        badge.style.padding = '4px 8px'
+        badge.style.background = colors.bg
+        badge.style.color = colors.text
+        badge.style.fontSize = '11px'
+        badge.style.textAlign = 'center'
+        badge.textContent = `+ ${rowsToClone.length - 10} more`
+        container.appendChild(badge)
+      }
+
+      document.body.appendChild(container)
+      e.dataTransfer.setDragImage(container, 0, 0)
+
+      setTimeout(() => {
+        document.body.removeChild(container)
+      }, 0)
     }
   }
 
