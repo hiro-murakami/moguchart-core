@@ -172,6 +172,8 @@ export interface GanttChartOption {
   snapDuration?: number
   /** 非表示に設定された行を表示するかどうか (デフォルト: false) */
   showHiddenRows?: boolean
+  /** バーのコンテンツをレンダリングする関数 */
+  barContent?: (task: GanttTask) => string | unknown
 }
 
 /**

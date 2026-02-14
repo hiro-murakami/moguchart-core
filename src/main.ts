@@ -141,6 +141,7 @@ let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
+let enableBarContent = false
 
 // 追加候補のタスク一覧
 let unassignedTasks: GanttTask[] = [
@@ -254,6 +255,18 @@ const renderApp = () => {
     enableRowReordering,
     snapDuration,
     showHiddenRows,
+    barContent: enableBarContent
+      ? (task) => html`
+          <div
+            style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; overflow: hidden; padding: 0 4px;"
+            title="${task.name}"
+          >
+            <span style="font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              ${task.name}
+            </span>
+          </div>
+        `
+      : undefined,
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -444,6 +457,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           カスタムレンダリング有効
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${enableBarContent}"
+            @change="${(e: Event) => {
+              enableBarContent = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          barContentを使用 (ラベル内包)
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">

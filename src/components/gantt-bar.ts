@@ -445,17 +445,32 @@ export class GanttBarElement extends LitElement {
 
     const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
     if (barEl) {
-      barEl.innerHTML = ''
-      this.dispatchEvent(
-        new CustomEvent('render-bar-content', {
-          detail: {
-            container: barEl,
-            task: this.task,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      if (this.option.barContent) {
+        // barContentオプションがある場合は、それを使ってレンダリング
+        // render-bar-content イベントは発火するが、コンテンツはクリアしない
+        this.dispatchEvent(
+          new CustomEvent('render-bar-content', {
+            detail: {
+              container: barEl,
+              task: this.task,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      } else {
+        barEl.innerHTML = ''
+        this.dispatchEvent(
+          new CustomEvent('render-bar-content', {
+            detail: {
+              container: barEl,
+              task: this.task,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
 
       if (this._currentDragCursor) {
         barEl.style.cursor = this._currentDragCursor
@@ -631,7 +646,9 @@ export class GanttBarElement extends LitElement {
             this.task.pattern,
           )}; ${!canMove ? 'cursor: default;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
-        ></div>
+        >
+          ${this.option.barContent ? this.option.barContent(this.task) : ''}
+        </div>
         ${this.task.name
           ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
           : ''}
