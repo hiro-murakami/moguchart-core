@@ -445,7 +445,7 @@ export class GanttBarElement extends LitElement {
 
     const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
     if (barEl) {
-      if (this.option.barContent) {
+      if (this.option.customRendering?.barContent) {
         // barContentオプションがある場合は、それを使ってレンダリング
         // render-bar-content イベントは発火するが、コンテンツはクリアしない
         this.dispatchEvent(
@@ -459,7 +459,6 @@ export class GanttBarElement extends LitElement {
           }),
         )
       } else {
-        barEl.innerHTML = ''
         this.dispatchEvent(
           new CustomEvent('render-bar-content', {
             detail: {
@@ -647,9 +646,9 @@ export class GanttBarElement extends LitElement {
           )}; ${!canMove ? 'cursor: default;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
         >
-          ${this.option.barContent ? this.option.barContent(this.task) : ''}
+          ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
         </div>
-        ${this.task.name
+        ${!this.option.customRendering?.barContent && this.task.name
           ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
           : ''}
         ${canResize

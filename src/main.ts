@@ -4,8 +4,6 @@ import * as holiday_jp from '@holiday-jp/holiday_jp'
 import type {
   GanttChartOption,
   GanttRow,
-  RenderBarContentEventDetail,
-  RenderRowHeaderEventDetail,
   RenderDragInfoEventDetail,
   RenderTooltipEventDetail,
   TaskClickEventDetail,
@@ -141,7 +139,6 @@ let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
-let enableBarContent = false
 
 // 追加候補のタスク一覧
 let unassignedTasks: GanttTask[] = [
@@ -255,17 +252,38 @@ const renderApp = () => {
     enableRowReordering,
     snapDuration,
     showHiddenRows,
-    barContent: enableBarContent
-      ? (task) => html`
-          <div
-            style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; overflow: hidden; padding: 0 4px;"
-            title="${task.name}"
-          >
-            <span style="font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-              ${task.name}
-            </span>
-          </div>
-        `
+    customRendering: enableCustomRendering
+      ? {
+          barContent: (task) => {
+            const progressPercent = (task.id.charCodeAt(task.id.length - 1) * 13) % 100
+            return html`
+              <div
+                style="position: relative; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 4px;"
+                title="${task.name}"
+              >
+                <div
+                  style="width: ${progressPercent}%; height: 100%; background-color: rgba(255, 255, 255, 0.3); position: absolute; top: 0; left: 0;"
+                ></div>
+                <span
+                  style="font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); position: relative; z-index: 1;"
+                >
+                  ${task.name}
+                </span>
+                <span
+                  style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; color: rgba(255, 255, 255, 0.9); font-weight: bold; z-index: 2;"
+                >
+                  ${progressPercent}%
+                </span>
+              </div>
+            `
+          },
+          rowHeaderContent: (row) => html`
+            <div style="display: flex; flex-direction: column;">
+              <div style="font-weight: bold;">${row.name}</div>
+              <div style="font-size: 10px; color: #666;">${row.id}</div>
+            </div>
+          `,
+        }
       : undefined,
   }
 
@@ -462,19 +480,6 @@ const renderApp = () => {
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
             type="checkbox"
-            .checked="${enableBarContent}"
-            @change="${(e: Event) => {
-              enableBarContent = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          barContentを使用 (ラベル内包)
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
             .checked="${rowHeaderResizable}"
             @change="${(e: Event) => {
               rowHeaderResizable = (e.target as HTMLInputElement).checked
@@ -655,8 +660,6 @@ const renderApp = () => {
               rows = e.detail
             }}"
             @task-update="${handleTaskUpdate}"
-            @render-bar-content="${enableCustomRendering ? handleRenderBarContent : undefined}"
-            @render-row-header="${enableCustomRendering ? handleRenderRowHeader : undefined}"
             @render-tooltip="${enableCustomRendering ? handleRenderTooltip : undefined}"
             @task-dblclick="${handleTaskDblClick}"
             @task-contextmenu="${handleTaskContextMenu}"
@@ -909,49 +912,6 @@ const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
 
 const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
   console.log('Row Header Resized:', e.detail)
-}
-
-const handleRenderBarContent = (e: CustomEvent<RenderBarContentEventDetail>) => {
-  const { container, task } = e.detail
-
-  // サンプル: バーの中に進捗状況を表示する（ダミーデータ）
-  // IDから適当な進捗率を生成
-  const progressPercent = (task.id.charCodeAt(task.id.length - 1) * 13) % 100
-
-  // 進捗バーの背景
-  const progressBar = document.createElement('div')
-  progressBar.style.width = `${progressPercent}%`
-  progressBar.style.height = '100%'
-  progressBar.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
-  progressBar.style.position = 'absolute'
-  progressBar.style.top = '0'
-  progressBar.style.left = '0'
-
-  // 進捗率のテキスト
-  const progressText = document.createElement('span')
-  progressText.textContent = `${progressPercent}%`
-  progressText.style.position = 'absolute'
-  progressText.style.right = '4px'
-  progressText.style.top = '50%'
-  progressText.style.transform = 'translateY(-50%)'
-  progressText.style.fontSize = '10px'
-  progressText.style.color = 'rgba(255, 255, 255, 0.9)'
-  progressText.style.fontWeight = 'bold'
-
-  // コンテナに追加
-  container.style.overflow = 'hidden'
-  container.appendChild(progressBar)
-  container.appendChild(progressText)
-}
-
-const handleRenderRowHeader = (e: CustomEvent<RenderRowHeaderEventDetail>) => {
-  const { container, row } = e.detail
-  // サンプル: ラベルを太字にして、IDを小さく表示する
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column;">
-      <div style="font-weight: bold;">${row.name}</div>
-      <div style="font-size: 10px; color: #666;">${row.id}</div>
-    </div>`
 }
 
 const handleRenderTooltip = (e: CustomEvent<RenderTooltipEventDetail>) => {

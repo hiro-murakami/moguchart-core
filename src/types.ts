@@ -138,6 +138,13 @@ export interface GanttChartOptionCalendar {
   currentTimeUpdateInterval?: number
 }
 
+export interface GanttChartOptionCustomRendering {
+  /** バーのコンテンツをレンダリングする関数 */
+  barContent?: (task: GanttTask) => string | unknown
+  /** 行ヘッダーのコンテンツをレンダリングする関数 */
+  rowHeaderContent?: (row: GanttRow) => string | unknown
+}
+
 /**
  * ガントチャート全体のオプション設定
  */
@@ -172,8 +179,8 @@ export interface GanttChartOption {
   snapDuration?: number
   /** 非表示に設定された行を表示するかどうか (デフォルト: false) */
   showHiddenRows?: boolean
-  /** バーのコンテンツをレンダリングする関数 */
-  barContent?: (task: GanttTask) => string | unknown
+  /** カスタムレンダリング設定 */
+  customRendering?: GanttChartOptionCustomRendering
 }
 
 /**
@@ -194,26 +201,6 @@ export interface TaskUpdateEventDetail extends GanttTask {
   y?: number
   /** タスク移動モード(move/copy) */
   mode: GanttTaskMoveMode
-}
-
-/**
- * バーの内容をレンダリングする際のイベント詳細
- */
-export interface RenderBarContentEventDetail {
-  /** コンテンツを描画するコンテナ要素 */
-  container: HTMLElement
-  /** 対象のタスク */
-  task: GanttTask
-}
-
-/**
- * 行ヘッダーをレンダリングする際のイベント詳細
- */
-export interface RenderRowHeaderEventDetail {
-  /** ヘッダーを描画するコンテナ要素 */
-  container: HTMLElement
-  /** 対象の行 */
-  row: GanttRow
 }
 
 /**

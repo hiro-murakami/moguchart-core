@@ -74,8 +74,12 @@ interface GanttChartOption {
   snapDuration?: number // (デフォルト: 1440 = 1日)
   /** 非表示に設定された行（visible: false）を表示するかどうか */
   showHiddenRows?: boolean // (デフォルト: false)
-  /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
-  barContent?: (task: GanttTask) => string | unknown
+  customRendering?: {
+    /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    barContent?: (task: GanttTask) => string | unknown
+    /** 行ヘッダーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    rowHeaderContent?: (row: GanttRow) => string | unknown
+  }
 }
 ```
 
@@ -83,25 +87,24 @@ interface GanttChartOption {
 
 コンポーネントから発火されるカスタムイベントです。
 
-| イベント名               | 詳細 (e.detail)                   | 説明                                                                                                                                                     |
-| :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                                                                             |
-| `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                                                                                           |
-| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。                                                                     |
-| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                                                                                           |
-| `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                                                                             |
-| `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                                                                                       |
-| `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。                                                                     |
-| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                                                                                         |
-| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                                                                                         |
-| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。                                                             |
-| `render-bar-content`     | `RenderBarContentEventDetail`     | タスクバーの中身を描画するタイミングで発火します。バー内のコンテンツをカスタマイズできます。※より宣言的な方法として `option.barContent` も利用可能です。 |
-| `render-row-header`      | `RenderRowHeaderEventDetail`      | 行ヘッダーを描画するタイミングで発火します。ヘッダーの内容をカスタマイズできます。                                                                       |
-| `render-tooltip`         | `RenderTooltipEventDetail`        | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。                                                                 |
-| `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                                                                                         |
-| `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。                                                             |
-| `render-drag-info`       | `RenderDragInfoEventDetail`       | タスクドラッグ中の情報表示を描画するタイミングで発火します。                                                                                             |
-| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                                                                               |
+| イベント名               | 詳細 (e.detail)                   | 説明                                                                                         |
+| :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------- |
+| `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
+| `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
+| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
+| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
+| `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
+| `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
+| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+
+| `render-tooltip` | `RenderTooltipEventDetail` | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。 |
+| `task-dblclick` | `TaskClickEventDetail` | タスクバーをダブルクリックしたときに発火します。 |
+| `task-contextmenu` | `TaskContextMenuEventDetail` | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `render-drag-info` | `RenderDragInfoEventDetail` | タスクドラッグ中の情報表示を描画するタイミングで発火します。 |
+| `chart-contextmenu` | `ChartContextMenuEventDetail` | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。 |
 
 ## 型定義 (Types)
 
@@ -186,24 +189,6 @@ interface TaskDropEventDetail {
 ```typescript
 interface RowHeaderResizeEventDetail {
   width: number // リサイズ後の新しい幅
-}
-```
-
-### RenderBarContentEventDetail
-
-```typescript
-interface RenderBarContentEventDetail {
-  container: HTMLElement // コンテンツを描画するコンテナ要素
-  task: GanttTask // 対象のタスクデータ
-}
-```
-
-### RenderRowHeaderEventDetail
-
-```typescript
-interface RenderRowHeaderEventDetail {
-  container: HTMLElement // ヘッダーを描画するコンテナ要素
-  row: GanttRow // 対象の行データ
 }
 ```
 

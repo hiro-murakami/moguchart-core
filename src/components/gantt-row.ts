@@ -1,7 +1,7 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
 import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, RowHeaderContextMenuEventDetail } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
-import { LitElement, css, html, type PropertyValues } from 'lit'
+import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 import './gantt-bar'
@@ -188,16 +188,12 @@ export class GanttRowElement extends LitElement {
       // Clear content to avoid conflict with Lit rendering and allow customization
       rowHeaderContentEl.innerHTML = ''
 
-      this.dispatchEvent(
-        new CustomEvent('render-row-header', {
-          detail: {
-            container: rowHeaderContentEl,
-            row: this.row,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      const content = this.option.customRendering?.rowHeaderContent
+        ? this.option.customRendering.rowHeaderContent(this.row)
+        : undefined
+      if (content) {
+        render(content, rowHeaderContentEl)
+      }
 
       // If no content was added by the event listener, show the default name
       if (rowHeaderContentEl.innerHTML === '') {
