@@ -143,6 +143,10 @@ export interface GanttChartOptionCustomRendering {
   barContent?: (task: GanttTask) => string | unknown
   /** 行ヘッダーのコンテンツをレンダリングする関数 */
   rowHeaderContent?: (row: GanttRow) => string | unknown
+  /** ツールチップのコンテンツをレンダリングする関数 */
+  tooltip?: (task: GanttTask) => string | unknown
+  /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数 */
+  dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
 }
 
 /**
@@ -216,20 +220,6 @@ export interface BarHoverEventDetail {
 }
 
 /**
- * ツールチップをレンダリングする際のイベント詳細
- */
-export interface RenderTooltipEventDetail {
-  /** ツールチップを描画するコンテナ要素 */
-  container: HTMLElement
-  /** 対象のタスク */
-  task: GanttTask
-  /** 表示位置のX座標 */
-  x: number
-  /** 表示位置のY座標 */
-  y: number
-}
-
-/**
  * タスククリックイベントの詳細
  */
 export interface TaskClickEventDetail {
@@ -247,22 +237,6 @@ export interface TaskContextMenuEventDetail {
   task: GanttTask
   /** 元のマウスイベント */
   event: MouseEvent
-}
-
-/**
- * ドラッグ情報のレンダリングイベント詳細
- */
-export interface RenderDragInfoEventDetail {
-  /** 情報を描画するコンテナ要素 */
-  container: HTMLElement
-  /** 対象のタスク */
-  task: GanttTask
-  /** 新しい開始日時 */
-  newStart: Date
-  /** 新しい終了日時 */
-  newEnd: Date
-  /** 移動先の行（行移動がない場合はundefined） */
-  targetRow?: GanttRow
 }
 
 /**

@@ -4,8 +4,6 @@ import * as holiday_jp from '@holiday-jp/holiday_jp'
 import type {
   GanttChartOption,
   GanttRow,
-  RenderDragInfoEventDetail,
-  RenderTooltipEventDetail,
   TaskClickEventDetail,
   TaskContextMenuEventDetail,
   TaskUpdateEventDetail,
@@ -283,6 +281,37 @@ const renderApp = () => {
               <div style="font-size: 10px; color: #666;">${row.id}</div>
             </div>
           `,
+          tooltip: (task) => html`
+            <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">${task.name}</div>
+            <div style="font-size: 10px;">${task.start.toLocaleDateString()} - ${task.end.toLocaleDateString()}</div>
+            <div
+              style="font-size: 10px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;"
+            >
+              ID: ${task.id}
+            </div>
+          `,
+          dragInfo: (task, newStart, newEnd, targetRow) => {
+            const formatDateTime = (d: Date) => {
+              const h = d.getHours()
+              const m = d.getMinutes()
+              if (h === 0 && m === 0) {
+                return d.toLocaleDateString()
+              }
+              return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+            }
+            const period = dayjs(newEnd).diff(dayjs(newStart), 'day')
+            return html`
+              <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
+              <div style="font-size: 12px;">${formatDateTime(newStart)} - ${formatDateTime(newEnd)} (${period})</div>
+              ${targetRow
+                ? html`<div
+                    style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;"
+                  >
+                    移動先: ${targetRow.name}
+                  </div>`
+                : ''}
+            `
+          },
         }
       : undefined,
   }
@@ -660,10 +689,8 @@ const renderApp = () => {
               rows = e.detail
             }}"
             @task-update="${handleTaskUpdate}"
-            @render-tooltip="${enableCustomRendering ? handleRenderTooltip : undefined}"
             @task-dblclick="${handleTaskDblClick}"
             @task-contextmenu="${handleTaskContextMenu}"
-            @render-drag-info="${enableCustomRendering ? handleRenderDragInfo : undefined}"
             @row-header-resize="${handleRowHeaderResize}"
             @row-selection-change="${(e: CustomEvent<RowSelectionChangeEventDetail>) => {
               selectedIds = e.detail.selectedIds
@@ -914,16 +941,6 @@ const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
   console.log('Row Header Resized:', e.detail)
 }
 
-const handleRenderTooltip = (e: CustomEvent<RenderTooltipEventDetail>) => {
-  const { container, task } = e.detail
-  // サンプル: ツールチップの内容をカスタマイズ
-  container.innerHTML = `
-    <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">${task.name}</div>
-    <div style="font-size: 10px;">${task.start.toLocaleDateString()} - ${task.end.toLocaleDateString()}</div>
-    <div style="font-size: 10px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">ID: ${task.id}</div>
-  `
-}
-
 const handleTaskDblClick = (e: CustomEvent<TaskClickEventDetail>) => {
   const { task } = e.detail
   alert(`詳細編集: ${task.name} (ID: ${task.id})`)
@@ -1024,26 +1041,6 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
   requestAnimationFrame(() => {
     document.addEventListener('click', closeMenu)
   })
-}
-
-const handleRenderDragInfo = (e: CustomEvent<RenderDragInfoEventDetail>) => {
-  const { container, task, newStart, newEnd, targetRow } = e.detail
-  const formatDateTime = (d: Date) => {
-    const h = d.getHours()
-    const m = d.getMinutes()
-    if (h === 0 && m === 0) {
-      return d.toLocaleDateString()
-    }
-    return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-  }
-  const period = dayjs(newEnd).diff(dayjs(newStart), 'day')
-
-  // サンプル: ドラッグ情報のカスタマイズ
-  container.innerHTML = `
-    <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
-    <div style="font-size: 12px;">${formatDateTime(newStart)} - ${formatDateTime(newEnd)} (${period})</div>
-    ${targetRow ? `<div style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;">移動先: ${targetRow.name}</div>` : ''}
-  `
 }
 
 setViewMode('day')

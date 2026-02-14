@@ -11,7 +11,7 @@ import type {
   TaskUpdateEventDetail,
 } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
-import { LitElement, css, html, svg, type PropertyValues } from 'lit'
+import { LitElement, css, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 import { throttle } from 'lodash'
@@ -303,18 +303,12 @@ export class GanttChartElement extends LitElement {
       const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
       if (tooltipEl) {
         tooltipEl.innerHTML = ''
-        this.dispatchEvent(
-          new CustomEvent('render-tooltip', {
-            detail: {
-              container: tooltipEl,
-              task: this.tooltip.task,
-              x: this.tooltip.x,
-              y: this.tooltip.y,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        const content = this.option.customRendering?.tooltip
+          ? this.option.customRendering.tooltip(this.tooltip.task)
+          : undefined
+        if (content) {
+          render(content, tooltipEl)
+        }
 
         if (tooltipEl.innerHTML === '') {
           const formatDate = (d: Date) => {
@@ -349,24 +343,23 @@ export class GanttChartElement extends LitElement {
     dragInfoEl.innerHTML = ''
 
     const { targetRow } = this.dragOverlayInfo
-    this.dispatchEvent(
-      new CustomEvent('render-drag-info', {
-        detail: {
-          container: dragInfoEl,
-          task: {
+    const content = this.option.customRendering?.dragInfo
+      ? this.option.customRendering.dragInfo(
+          {
             id: this.dragOverlayInfo.id,
             name: this.dragOverlayInfo.name,
             start: this.dragOverlayInfo.start,
             end: this.dragOverlayInfo.end,
-          },
-          newStart: this.dragOverlayInfo.currentStart,
-          newEnd: this.dragOverlayInfo.currentEnd,
+          } as GanttTask,
+          this.dragOverlayInfo.currentStart,
+          this.dragOverlayInfo.currentEnd,
           targetRow,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+        )
+      : undefined
+
+    if (content) {
+      render(content, dragInfoEl)
+    }
 
     if (dragInfoEl.innerHTML === '') {
       const formatDate = (d: Date) => {

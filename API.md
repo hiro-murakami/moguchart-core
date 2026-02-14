@@ -79,6 +79,10 @@ interface GanttChartOption {
     barContent?: (task: GanttTask) => string | unknown
     /** 行ヘッダーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     rowHeaderContent?: (row: GanttRow) => string | unknown
+    /** ツールチップのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    tooltip?: (task: GanttTask) => string | unknown
+    /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   }
 }
 ```
@@ -100,10 +104,8 @@ interface GanttChartOption {
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 
-| `render-tooltip` | `RenderTooltipEventDetail` | ツールチップを描画するタイミングで発火します。ツールチップの内容をカスタマイズできます。 |
 | `task-dblclick` | `TaskClickEventDetail` | タスクバーをダブルクリックしたときに発火します。 |
 | `task-contextmenu` | `TaskContextMenuEventDetail` | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `render-drag-info` | `RenderDragInfoEventDetail` | タスクドラッグ中の情報表示を描画するタイミングで発火します。 |
 | `chart-contextmenu` | `ChartContextMenuEventDetail` | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。 |
 
 ## 型定義 (Types)
@@ -192,17 +194,6 @@ interface RowHeaderResizeEventDetail {
 }
 ```
 
-### RenderTooltipEventDetail
-
-```typescript
-interface RenderTooltipEventDetail {
-  container: HTMLElement // ツールチップを描画するコンテナ要素
-  task: GanttTask // 対象のタスクデータ
-  x: number // ツールチップ表示位置のX座標
-  y: number // ツールチップ表示位置のY座標
-}
-```
-
 ### TaskClickEventDetail
 
 ```typescript
@@ -218,18 +209,6 @@ interface TaskClickEventDetail {
 interface TaskContextMenuEventDetail {
   task: GanttTask // 対象のタスクデータ
   event: MouseEvent // 元のコンテキストメニューイベント（座標取得などに使用）
-}
-```
-
-### RenderDragInfoEventDetail
-
-```typescript
-interface RenderDragInfoEventDetail {
-  container: HTMLElement // 情報を描画するコンテナ要素
-  task: GanttTask // ドラッグ中のタスク
-  newStart: Date // 現在のドラッグ位置における開始日
-  newEnd: Date // 現在のドラッグ位置における終了日
-  targetRow?: GanttRow // 現在ドロップ対象となっている行
 }
 ```
 
