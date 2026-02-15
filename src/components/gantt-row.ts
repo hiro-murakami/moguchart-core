@@ -90,9 +90,6 @@ export class GanttRowElement extends LitElement {
       left: 0;
       z-index: 60;
     }
-    .row-header-button {
-      display: none;
-    }
     .row-header-content {
       flex-grow: 1;
       padding: 6px 12px;
@@ -281,20 +278,11 @@ export class GanttRowElement extends LitElement {
 
     const rowHeaderContentEl = this.shadowRoot?.querySelector('.row-header-content') as HTMLElement
     if (rowHeaderContentEl) {
-      // Clear content to avoid conflict with Lit rendering and allow customization
-      rowHeaderContentEl.innerHTML = ''
-
       const content = this.option.customRendering?.rowHeaderContent
         ? this.option.customRendering.rowHeaderContent(this.row)
-        : undefined
-      if (content) {
-        render(content, rowHeaderContentEl)
-      }
+        : this.row.name
 
-      // If no content was added by the event listener, show the default name
-      if (rowHeaderContentEl.innerHTML === '') {
-        rowHeaderContentEl.textContent = this.row.name
-      }
+      render(content, rowHeaderContentEl)
     }
   }
 
@@ -432,8 +420,10 @@ export class GanttRowElement extends LitElement {
           @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
         >
-          <div class="row-header-button"></div>
-          <div class="row-header-content"></div>
+          <div
+            class="row-header-content"
+            style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
+          ></div>
         </div>
         <div class="bars-container" style="width: ${this.totalDays * this.option.calendar.pxPerDay}px">
           ${this.option.calendar.showRowBackground !== false

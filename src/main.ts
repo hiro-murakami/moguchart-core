@@ -276,7 +276,7 @@ const renderApp = () => {
             `
           },
           rowHeaderContent: (row) => html`
-            <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; flex-direction: column; padding: 8px;">
               <div style="font-weight: bold;">${row.name}</div>
               <div style="font-size: 10px; color: #666;">${row.id}</div>
             </div>
