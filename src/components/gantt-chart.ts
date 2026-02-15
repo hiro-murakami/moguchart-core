@@ -11,10 +11,11 @@ import type {
   RowSelectionChangeEventDetail,
   TaskUpdateEventDetail,
 } from '@/types'
-import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
+import { calculateTaskLanes, getThemeColors, getTotalDays, formatDuration } from '@/utils'
 import { LitElement, css, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
+import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import { throttle } from 'lodash'
 import './gantt-calendar'
 import './gantt-row'
@@ -303,28 +304,33 @@ export class GanttChartElement extends LitElement {
     if (this.tooltip) {
       const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
       if (tooltipEl) {
-        tooltipEl.innerHTML = ''
         const content = this.option.customRendering?.tooltip
           ? this.option.customRendering.tooltip(this.tooltip.task)
           : undefined
-        if (content) {
-          render(content, tooltipEl)
-        }
 
-        if (tooltipEl.innerHTML === '') {
+        if (content) {
+          if (typeof content === 'string') {
+            render(unsafeHTML(content), tooltipEl)
+          } else {
+            render(content, tooltipEl)
+          }
+        } else {
           const formatDate = (d: Date) => {
             return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
           }
           const duration = Math.round(
             (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
           )
-          tooltipEl.innerHTML = `
-            <div style="font-weight: bold;">${this.tooltip.task.name}</div>
-            <div class="tooltip-row">
-              ${formatDate(this.tooltip.task.start)} -
-              ${formatDate(this.tooltip.task.end)}
-            </div>
-            <div class="tooltip-row">所要日数: ${duration}日</div>`
+          render(
+            html`
+              <div style="font-weight: bold;">${this.tooltip.task.name}</div>
+              <div class="tooltip-row">
+                ${formatDate(this.tooltip.task.start)} - ${formatDate(this.tooltip.task.end)}
+              </div>
+              <div class="tooltip-row">所要日数: ${duration}日</div>
+            `,
+            tooltipEl,
+          )
         }
       }
     }
@@ -378,6 +384,7 @@ export class GanttChartElement extends LitElement {
           <div class="drag-info-sub">
             ${formatDate(this.dragOverlayInfo.currentStart)} -
             ${formatDate(this.dragOverlayInfo.currentEnd)}
+            (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd)})
           </div>
           ${
             targetRow

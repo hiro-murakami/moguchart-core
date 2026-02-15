@@ -28,9 +28,7 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   }
 
   // 開始日でタスクをソート
-  const sortedTasks = [...tasks].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  )
+  const sortedTasks = [...tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
 
   // 各レーンの「最後尾のタスクの終了日時」を保持する配列
   // インデックスがレーン番号に対応します
@@ -123,4 +121,32 @@ export function getTotalDays(start: Date, end: Date): number {
   const diffTime = end.getTime() - start.getTime()
   const diffDays = diffTime / (1000 * 60 * 60 * 24)
   return diffDays
+}
+
+/**
+ * 期間を「◯日◯時間◯分」の形式でフォーマットします。
+ */
+export const formatDuration = (start: Date, end: Date): string => {
+  const diff = end.getTime() - start.getTime()
+  // 期間はミリ秒単位
+  // 日数
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const remainAfterDays = diff % (1000 * 60 * 60 * 24)
+  // 時間
+  const hours = Math.floor(remainAfterDays / (1000 * 60 * 60))
+  const remainAfterHours = remainAfterDays % (1000 * 60 * 60)
+  // 分
+  const minutes = Math.floor(remainAfterHours / (1000 * 60))
+
+  let result = ''
+  if (days > 0) {
+    result += `${days}日`
+  }
+  if (hours > 0) {
+    result += `${hours}時間`
+  }
+  if (minutes > 0) {
+    result += `${minutes}分`
+  }
+  return result || '0分'
 }
