@@ -24,20 +24,20 @@ export class GanttCalendarElement extends LitElement {
       box-sizing: border-box;
       position: sticky;
       top: 0;
-      z-index: 70;
     }
     .label-placeholder {
       flex-shrink: 0;
       box-sizing: border-box;
       position: sticky;
       left: 0;
-      z-index: 30;
+      z-index: 100;
       background: inherit;
     }
     .calendar-group {
       display: flex;
       flex-direction: column;
       position: relative;
+      z-index: 70;
     }
     .months-container {
       display: flex;

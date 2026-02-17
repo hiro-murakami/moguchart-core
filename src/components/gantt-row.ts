@@ -88,7 +88,7 @@ export class GanttRowElement extends LitElement {
       box-sizing: border-box;
       position: sticky;
       left: 0;
-      z-index: 60;
+      z-index: 100;
     }
     .row-header-content {
       flex-grow: 1;
@@ -373,20 +373,21 @@ export class GanttRowElement extends LitElement {
       <style>
         :host {
           color: ${colors.text};
-          border-bottom: 1px solid ${colors.border};
-        }
-        :host {
-          color: ${colors.text};
-          border-bottom: 1px solid ${colors.border};
           background-color: ${isHidden ? colors.rowHiddenBg : 'transparent'};
         }
 
         .row-header {
           cursor: ${canReorder ? 'grab' : 'pointer'};
           border-right: 1px solid ${colors.border};
+          border-bottom: 1px solid ${colors.border};
+          box-sizing: border-box;
         }
         .row-header:active {
           cursor: ${canReorder ? 'grabbing' : 'pointer'};
+        }
+        .bars-container {
+          border-bottom: 1px solid ${colors.border};
+          box-sizing: border-box;
         }
         .hidden-row-overlay {
           position: absolute;

@@ -188,19 +188,17 @@ export class GanttChartElement extends LitElement {
     .current-time-line {
       position: absolute;
       width: 2px;
-      z-index: 80;
+      z-index: 60;
       pointer-events: none;
     }
-    .current-time-line::before {
-      content: '';
+    .current-time-dot {
       position: absolute;
-      top: -8px;
-      left: 50%;
-      transform: translateX(-50%);
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: inherit;
+      z-index: 80;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
     }
   `
 
@@ -1318,7 +1316,7 @@ export class GanttChartElement extends LitElement {
         .header-resizer {
           width: 4px;
           cursor: col-resize;
-          z-index: 100;
+          z-index: 110;
           background-color: transparent;
           transition: background-color 0.2s;
         }
@@ -1347,7 +1345,7 @@ export class GanttChartElement extends LitElement {
                   top: 0;
                   width: 0;
                   height: 0;
-                  z-index: 100;
+                  z-index: 110;
                   overflow: visible;
                 "
               >
@@ -1383,6 +1381,14 @@ export class GanttChartElement extends LitElement {
                   top: ${this.calendarHeight}px;
                   left: ${this.getDateX(this.currentTime) + labelWidth}px;
                   height: ${totalHeight}px;
+                  background-color: ${colors.currentTimeLine};
+                "
+              ></div>
+              <div
+                class="current-time-dot"
+                style="
+                  top: ${this.calendarHeight}px;
+                  left: ${this.getDateX(this.currentTime) + labelWidth}px;
                   background-color: ${colors.currentTimeLine};
                 "
               ></div>
