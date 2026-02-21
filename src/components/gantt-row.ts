@@ -65,7 +65,7 @@ export class GanttRowElement extends LitElement {
       right: 0;
       height: 2px;
       background-color: #3b82f6;
-      z-index: 70;
+      z-index: 110;
       pointer-events: none;
     }
     .row-container.drop-bottom::after {
@@ -76,7 +76,7 @@ export class GanttRowElement extends LitElement {
       right: 0;
       height: 2px;
       background-color: #3b82f6;
-      z-index: 70;
+      z-index: 110;
       pointer-events: none;
     }
     .row-header {
