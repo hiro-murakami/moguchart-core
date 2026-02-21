@@ -115,7 +115,8 @@ export class GanttChartElement extends LitElement {
     .scroll-container {
       width: 100%;
       height: 100%;
-      overflow: auto;
+      overflow-x: auto;
+      overflow-y: auto;
       position: relative;
       overflow-anchor: none;
     }
@@ -1264,7 +1265,12 @@ export class GanttChartElement extends LitElement {
     const paddingTop = rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0
     const lastVisibleRowLayout = rowLayouts[endIndex]
     const renderedBottom = lastVisibleRowLayout ? lastVisibleRowLayout.top + lastVisibleRowLayout.height : 0
+    // Windowsの横スクロールバーの重なりを防ぎつつ、余分な余白を最小限にする（17px）
     const paddingBottom = Math.max(0, totalHeight - renderedBottom)
+
+    // コンテンツの高さがビューポートより大きい場合のみ縦スクロールを有効にする
+    // 横スクロールバーが表示される場合はその高さ分(17px)を差し引いて判定
+    const needsVerticalScroll = totalHeight > this.viewportHeight
 
     // タスク間の接続線を描く
     const lines = []
@@ -1327,6 +1333,7 @@ export class GanttChartElement extends LitElement {
       </style>
       <div
         class="scroll-container"
+        style="overflow-y: ${needsVerticalScroll ? 'auto' : 'hidden'};"
         @scroll="${this.handleScroll}"
         @bar-mouseenter="${this.handleBarMouseEnter}"
         @bar-mouseleave="${this.handleBarMouseLeave}"
