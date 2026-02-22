@@ -2,7 +2,7 @@ import type { ThemeColors } from '@/types'
 
 export const THEME_COLORS: ThemeColors = {
   light: {
-    bg: '#ffffff',
+    bg: '#f1f5f9',
     text: '#0f172a',
     border: '#cbd5e1',
     gridLine: '#cbd5e1',
@@ -15,15 +15,14 @@ export const THEME_COLORS: ThemeColors = {
     dragOverlaySubText: '#cbd5e1',
     dragOverlayDivider: '#666',
     dependencyLine: '#94a3b8',
-    calendarBg: '#f1f5f9',
+    calendarBg: '#e2e8f0',
     saturday: '#dbeafe',
     sunday: '#fee2e2',
     holiday: '#fee2e2',
-    rowHeaderBg: '#f1f5f9',
+    rowHeaderBg: '#e2e8f0',
     rowSelected: '#bfdbfe',
     rowSelectedHeader: '#dbeafe',
-    rowHiddenBg:
-      'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
+    rowHiddenBg: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
   },
@@ -48,8 +47,7 @@ export const THEME_COLORS: ThemeColors = {
     rowHeaderBg: '#0f172a',
     rowSelected: '#283548',
     rowSelectedHeader: '#1c2738',
-    rowHiddenBg:
-      'repeating-linear-gradient(45deg, #0f172a, #0f172a 10px, #1e293b 10px, #1e293b 20px)',
+    rowHiddenBg: 'repeating-linear-gradient(45deg, #0f172a, #0f172a 10px, #1e293b 10px, #1e293b 20px)',
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
   },
