@@ -643,7 +643,7 @@ export class GanttBarElement extends LitElement {
           class="bar"
           style="border-radius: ${barCornerRadius}px; ${this.task.style || ''}; ${getPatternStyle(
             this.task.pattern,
-          )}; ${!canMove ? 'cursor: default;' : ''}"
+          )}; ${!canMove ? 'cursor: pointer;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
         >
           ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
