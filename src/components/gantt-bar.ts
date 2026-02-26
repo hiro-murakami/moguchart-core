@@ -107,6 +107,17 @@ export class GanttBarElement extends LitElement {
         opacity: 0;
       }
     }
+    @keyframes collab-pulse {
+      0%,
+      100% {
+        outline-offset: 2px;
+        filter: brightness(1);
+      }
+      50% {
+        outline-offset: 3px;
+        filter: brightness(1.08);
+      }
+    }
   `
 
   private getX(date: Date) {
