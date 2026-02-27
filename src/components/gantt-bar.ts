@@ -265,11 +265,14 @@ export class GanttBarElement extends LitElement {
           this._dragAnimationFrame = null
         }
         if (taskGroup) {
-          taskGroup.style.left = ''
-          taskGroup.style.width = ''
+          const originalX = this.getX(originalStart)
+          const originalWidth = this.getX(originalEnd) - originalX
+          taskGroup.style.left = `${originalX}px`
+          taskGroup.style.width = `${originalWidth}px`
         }
 
         if (isCancel) {
+          this.requestUpdate()
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
@@ -388,6 +391,7 @@ export class GanttBarElement extends LitElement {
         }
 
         if (isCancel) {
+          this.requestUpdate()
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
