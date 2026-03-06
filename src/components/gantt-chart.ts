@@ -194,8 +194,8 @@ export class GanttChartElement extends LitElement {
     }
     .current-time-dot {
       position: absolute;
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       z-index: 80;
       pointer-events: none;
@@ -224,11 +224,11 @@ export class GanttChartElement extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback()
-    this._systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    this._systemThemeMediaQuery.addEventListener('change', this.handleSystemThemeChange)
+    this._systemThemeMediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null
+    this._systemThemeMediaQuery?.addEventListener('change', this.handleSystemThemeChange)
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
-      this.theme = this._systemThemeMediaQuery.matches ? 'dark' : 'light'
+      this.theme = this._systemThemeMediaQuery?.matches ? 'dark' : 'light'
     } else {
       this.theme = this.option.theme
     }
@@ -1322,7 +1322,7 @@ export class GanttChartElement extends LitElement {
         .header-resizer {
           width: 4px;
           cursor: col-resize;
-          z-index: 110;
+          z-index: 510;
           background-color: transparent;
           transition: background-color 0.2s;
         }
@@ -1352,7 +1352,7 @@ export class GanttChartElement extends LitElement {
                   top: 0;
                   width: 0;
                   height: 0;
-                  z-index: 110;
+                  z-index: 510;
                   overflow: visible;
                 "
               >
@@ -1394,8 +1394,8 @@ export class GanttChartElement extends LitElement {
               <div
                 class="current-time-dot"
                 style="
-                  top: ${this.calendarHeight}px;
-                  left: ${this.getDateX(this.currentTime) + labelWidth}px;
+                  top: ${this.calendarHeight + 3}px;
+                  left: ${this.getDateX(this.currentTime) + labelWidth + 1}px;
                   background-color: ${colors.currentTimeLine};
                 "
               ></div>

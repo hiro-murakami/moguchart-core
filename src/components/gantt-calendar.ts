@@ -24,6 +24,7 @@ export class GanttCalendarElement extends LitElement {
       box-sizing: border-box;
       position: sticky;
       top: 0;
+      z-index: 500;
     }
     .label-placeholder {
       flex-shrink: 0;
