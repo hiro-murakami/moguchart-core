@@ -1222,6 +1222,74 @@ export class GanttChartElement extends LitElement {
     )
   }
 
+  /**
+   * 外部からタスクIDを指定してタスクを選択状態にし、
+   * 表示範囲外の場合はスクロールして表示する。
+   * @param taskId 選択するタスクのID
+   * @returns タスクが見つかり選択できた場合はtrue、見つからなかった場合はfalse
+   */
+  public selectTask(taskId: string): boolean {
+    // タスクの存在確認
+    let found = false
+    for (const row of this.displayRows) {
+      if (row.tasks.some((t) => t.id === taskId)) {
+        found = true
+        break
+      }
+    }
+    if (!found) return false
+
+    // 選択状態の更新
+    this.selectedTasks = new Set([taskId])
+    this.dispatchEvent(
+      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+        detail: { selectedIds: [taskId] },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    // スクロール位置の調整
+    this.scrollToTask(taskId)
+    return true
+  }
+
+  /**
+   * 指定タスクが表示範囲外の場合にスクロールして表示する
+   */
+  private scrollToTask(taskId: string): void {
+    const { taskCoords } = this.calculateLayout()
+    const coords = taskCoords.get(taskId)
+    if (!coords) return
+
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return
+
+    const labelWidth = this.currentRowHeaderWidth
+
+    // 縦スクロール: カレンダーヘッダー分を考慮
+    const taskTopInContent = coords.y + this.calendarHeight
+    const taskBottomInContent = taskTopInContent + coords.height
+    const visibleTop = container.scrollTop
+    const visibleBottom = container.scrollTop + container.clientHeight
+
+    if (taskTopInContent < visibleTop || taskBottomInContent > visibleBottom) {
+      const targetScrollTop = taskTopInContent - container.clientHeight / 2 + coords.height / 2
+      container.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' })
+    }
+
+    // 横スクロール: 行ヘッダー幅を考慮
+    const taskLeftInContent = coords.x
+    const taskRightInContent = coords.x + coords.width
+    const visibleLeft = container.scrollLeft + labelWidth
+    const visibleRight = container.scrollLeft + container.clientWidth
+
+    if (taskLeftInContent < visibleLeft || taskRightInContent > visibleRight) {
+      const targetScrollLeft = taskLeftInContent - labelWidth - 20
+      container.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' })
+    }
+  }
+
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 

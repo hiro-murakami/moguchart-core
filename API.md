@@ -108,6 +108,29 @@ interface GanttChartOption {
 | `task-contextmenu` | `TaskContextMenuEventDetail` | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `chart-contextmenu` | `ChartContextMenuEventDetail` | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。 |
 
+## メソッド (Methods)
+
+コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
+
+| メソッド名   | シグネチャ                    | 説明                                                                                                                                                                           |
+| :----------- | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask` | `(taskId: string) => boolean` | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。 |
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// タスクを選択して表示位置までスクロール
+const success = chart.selectTask('task-1')
+
+if (!success) {
+  console.warn('指定したタスクが見つかりません')
+}
+```
+
+> **Note:** `selectTask` を呼び出すと、`bar-selection-change` イベントも発火されます。
+
 ## 型定義 (Types)
 
 イベント詳細などで使用される主要な型定義です。
