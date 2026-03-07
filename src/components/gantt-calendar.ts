@@ -53,7 +53,6 @@ export class GanttCalendarElement extends LitElement {
     }
     .days-container {
       display: flex;
-      background-position: -1px 0;
     }
     .day-cell {
       text-align: center;
@@ -69,7 +68,6 @@ export class GanttCalendarElement extends LitElement {
     }
     .hours-container {
       display: flex;
-      background-position: -1px 0;
     }
     .hour-cell {
       text-align: center;
