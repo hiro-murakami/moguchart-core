@@ -1131,6 +1131,41 @@ export class GanttChartElement extends LitElement {
     this.clearSelection()
   }
 
+  /**
+   * クライアント座標から対応する行IDと日付を返す。
+   * コンポーネント外部から呼び出すための公開メソッド。
+   */
+  public hitTest(clientX: number, clientY: number): { rowId: string; date: Date } | null {
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return null
+
+    const rect = container.getBoundingClientRect()
+    const scrollLeft = container.scrollLeft
+    const scrollTop = container.scrollTop
+    const labelWidth = this.currentRowHeaderWidth
+    const yInRows = clientY - rect.top + scrollTop - this.calendarHeight
+
+    const { layouts } = this.calculateLayout()
+    let targetRowId: string | undefined
+
+    for (let i = 0; i < layouts.length; i++) {
+      const layout = layouts[i]
+      if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
+        targetRowId = this.displayRows[i].id
+        break
+      }
+    }
+
+    if (!targetRowId) return null
+
+    const x = clientX - rect.left + scrollLeft - labelWidth
+    const pxPerDay = this.option.calendar.pxPerDay ?? 50
+    const daysFromStart = x / pxPerDay
+    const date = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+
+    return { rowId: targetRowId, date }
+  }
+
   private clearSelection() {
     if (this.selectedRows.size === 0 && this.selectedTasks.size === 0) return
 
