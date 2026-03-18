@@ -205,6 +205,8 @@ export interface TaskUpdateEventDetail extends GanttTask {
   y?: number
   /** タスク移動モード(move/copy) */
   mode: GanttTaskMoveMode
+  /** 複数選択移動時の対象タスクID配列 */
+  selectedTaskIds?: string[]
 }
 
 /**

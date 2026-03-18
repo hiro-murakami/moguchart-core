@@ -10,6 +10,8 @@ export class GanttBarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
   @property({ type: Boolean, reflect: true }) selected = false
+  @property({ type: Number }) multiDragDx = 0
+  @property({ type: Boolean }) multiDragActive = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
@@ -348,7 +350,7 @@ export class GanttBarElement extends LitElement {
         let deltaY = moveEvent.clientY - startY
 
         if (movable === 'y') deltaX = 0
-        if (movable === 'x') deltaY = 0
+        if (movable === 'x' || this.multiDragActive) deltaY = 0
 
         // 横方向のスナップ処理
         const translateX = Math.round(deltaX / snapPx) * snapPx
@@ -490,6 +492,22 @@ export class GanttBarElement extends LitElement {
         barEl.style.cursor = this._currentDragCursor
       } else if (!this.option.readOnly) {
         barEl.style.cursor = ''
+      }
+    }
+
+    // 複数ドラッグ中の選択バーに水平移動を適用
+    if (changedProperties.has('multiDragDx')) {
+      const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
+      if (taskGroup) {
+        if (this.multiDragDx !== 0) {
+          taskGroup.style.transform = `translateX(${this.multiDragDx}px)`
+          taskGroup.style.opacity = '0.6'
+          taskGroup.style.pointerEvents = 'none'
+        } else {
+          taskGroup.style.transform = ''
+          taskGroup.style.opacity = ''
+          taskGroup.style.pointerEvents = ''
+        }
       }
     }
   }

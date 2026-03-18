@@ -49,6 +49,8 @@ export class GanttChartElement extends LitElement {
     currentEnd: Date
     mode?: GanttTaskMoveMode
   } | null = null
+  @state() private draggingTaskIds: string[] = []
+  @state() private multiDragDx = 0
   @state() private viewportHeight = 400
   private dragOverlayInfo: {
     id: string
@@ -532,9 +534,25 @@ export class GanttChartElement extends LitElement {
     return result
   }
 
+  /**
+   * 複数バー移動かどうかを判定する。
+   * ドラッグ中のバーが選択中バーに含まれ、選択数が2以上の場合にtrue。
+   */
+  private isMultiDrag(taskId: string): boolean {
+    return this.selectedTasks.size >= 2 && this.selectedTasks.has(taskId)
+  }
+
   private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>) {
     e.stopPropagation()
-    const { id, start, end, dx, dy, isDragging, mode } = e.detail
+    const { id, start, end, dx, isDragging, mode } = e.detail
+    let { dy } = e.detail
+
+    const isMulti = this.isMultiDrag(id)
+
+    // 複数選択移動時はdy=0に固定（行移動を無効化）
+    if (isMulti) {
+      dy = 0
+    }
 
     let newStart = start
     let newEnd = end
@@ -589,13 +607,18 @@ export class GanttChartElement extends LitElement {
 
     const targetRowId = targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
 
+    // 外部に通知するイベントに複数選択情報を含める
+    const selectedIds = isMulti ? [...this.selectedTasks] : undefined
+
     this.dispatchEvent(
       new CustomEvent('task-update', {
         detail: {
           ...e.detail,
+          dy,
           start: newStart,
           end: newEnd,
           targetRowId,
+          selectedTaskIds: selectedIds,
         },
         bubbles: true,
         composed: true,
@@ -623,28 +646,62 @@ export class GanttChartElement extends LitElement {
           currentEnd: newEnd,
           mode,
         }
-      } // 元の日付を保持（表示ズレ防止）しつつ、現在の日付も保持
-      const newDragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
-      if (this.dragTargetRowIndex !== newDragTargetRowIndex) {
-        this.dragTargetRowIndex = newDragTargetRowIndex
+
+        // 複数選択時はドラッグ中のタスクIDリストを設定
+        if (isMulti) {
+          this.draggingTaskIds = [...this.selectedTasks]
+        } else {
+          this.draggingTaskIds = []
+        }
       }
 
-      this.dragOverlayInfo = {
-        id,
-        name: e.detail.name,
-        start,
-        end,
-        currentStart: newStart,
-        currentEnd: newEnd,
-        targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
-        visible: true,
+      // 複数ドラッグ中のdx値は毎フレーム更新（ゴースト表示位置の追従のため）
+      if (isMulti) {
+        this.multiDragDx = dx ?? 0
+      } else if (this.multiDragDx !== 0) {
+        this.multiDragDx = 0
+      }
+
+      // 複数選択移動時はtargetRowIndexを更新しない（行移動なし）
+      if (!isMulti) {
+        const newDragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
+        if (this.dragTargetRowIndex !== newDragTargetRowIndex) {
+          this.dragTargetRowIndex = newDragTargetRowIndex
+        }
+      }
+
+      // ドラッグオーバーレイ: 複数選択時は件数を表示
+      if (isMulti) {
+        this.dragOverlayInfo = {
+          id,
+          name: `${this.selectedTasks.size}件のタスクを移動中`,
+          start,
+          end,
+          currentStart: newStart,
+          currentEnd: newEnd,
+          visible: true,
+        }
+      } else {
+        this.dragOverlayInfo = {
+          id,
+          name: e.detail.name,
+          start,
+          end,
+          currentStart: newStart,
+          currentEnd: newEnd,
+          targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
+          visible: true,
+        }
       }
       this.updateDragOverlay()
       return
     }
 
     // ドロップ時の処理
+    const droppedMulti = this.draggingTaskIds.length >= 2
     this.draggingTask = null
+    this.draggingTaskIds = []
+    this.multiDragDx = 0
     this.dragTargetRowIndex = null
     if (this.dragOverlayInfo) {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
@@ -659,6 +716,39 @@ export class GanttChartElement extends LitElement {
     if (targetRowIndex !== -1) {
       const targetRow = this.displayRows[targetRowIndex]
       targetRowIndexInRows = this.rows.findIndex((r) => r.id === targetRow.id)
+    }
+
+    // 複数バー移動のドロップ処理
+    if (droppedMulti && dx !== undefined) {
+      const msPerPx = (24 * 60 * 60 * 1000) / this.option.calendar.pxPerDay
+      const timeDiff = dx * msPerPx
+
+      const newRows = this.rows.map((row) => {
+        const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
+        if (!hasSelectedTask) return row
+
+        return {
+          ...row,
+          tasks: row.tasks.map((t) => {
+            if (!this.selectedTasks.has(t.id)) return t
+            return {
+              ...t,
+              start: new Date(t.start.getTime() + timeDiff),
+              end: new Date(t.end.getTime() + timeDiff),
+            }
+          }),
+        }
+      })
+
+      this.rows = newRows
+      this.dispatchEvent(
+        new CustomEvent('rows-change', {
+          detail: this.rows,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+      return
     }
 
     if (mode === 'copy') {
@@ -1520,6 +1610,8 @@ export class GanttChartElement extends LitElement {
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
                 (this.dragOverRowId === row.id && this.dragOverPosition === null)}"
                 .draggingTask="${this.draggingTask}"
+                .draggingTaskIds="${this.draggingTaskIds}"
+                .multiDragDx="${this.multiDragDx}"
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"

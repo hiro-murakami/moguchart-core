@@ -216,6 +216,7 @@ interface TaskUpdateEventDetail extends GanttTask {
   x?: number // マウスのX座標（ドラッグ中のみ）
   y?: number // マウスのY座標（ドラッグ中のみ）
   mode: GanttTaskMoveMode // 移動モード ('move' | 'copy')
+  selectedTaskIds?: string[] // 複数選択移動時の対象タスクID配列
 }
 ```
 
@@ -354,4 +355,33 @@ interface ThemeColorPalette {
 
 ```typescript
 type GanttTaskMoveMode = 'copy' | 'move'
+```
+
+## 複数タスクの選択とドラッグ
+
+`Ctrl`（Mac: `Cmd`）キーを押しながらタスクバーをクリックすることで、複数のタスクを選択できます。選択状態は `bar-selection-change` イベントで通知されます。
+
+### 複数選択時のドラッグ動作
+
+複数のタスクバーが選択された状態で、いずれか1つのバーをドラッグすると、選択された全バーが連動して移動します。
+
+- **水平方向のみ移動**: 複数選択時のドラッグは水平方向（日付方向）のみに制限されます。行間の移動（縦方向）はできません。
+- **ゴースト表示**: ドラッグ中、直接ドラッグしているバー以外の選択されたバーは半透明のゴーストとして表示され、同じ水平移動量で連動して動きます。
+- **`task-update` イベント**: ドロップ時に発火する `task-update` イベントの `selectedTaskIds` フィールドに、選択中の全タスクIDが含まれます。利用側はこのIDリストを参照して、全選択タスクに同じ `dx` を適用してください。
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.addEventListener('task-update', (e) => {
+  const detail = e.detail
+
+  if (!detail.isDragging && detail.selectedTaskIds?.length > 1) {
+    // 複数選択ドラッグのドロップ: 全選択タスクに同じdxを適用
+    for (const taskId of detail.selectedTaskIds) {
+      applyDxToTask(taskId, detail.dx)
+    }
+  }
+})
 ```

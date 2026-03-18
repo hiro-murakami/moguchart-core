@@ -21,6 +21,8 @@ export class GanttRowElement extends LitElement {
     currentEnd?: Date
     mode?: GanttTaskMoveMode
   } | null = null
+  @property({ type: Array }) draggingTaskIds: string[] = []
+  @property({ type: Number }) multiDragDx = 0
   @property({ type: Object }) externalDragTask: {
     task: GanttTask
     currentStart: Date
@@ -438,6 +440,7 @@ export class GanttRowElement extends LitElement {
             (task) => task.id,
             (task) => {
               const isDragging = this.draggingTask?.id === task.id
+              const isMultiDragging = !isDragging && this.draggingTaskIds.length >= 2 && this.draggingTaskIds.includes(task.id)
               const displayTask = isDragging
                 ? {
                     ...task,
@@ -446,6 +449,8 @@ export class GanttRowElement extends LitElement {
                   }
                 : task
               const isTaskSelected = this.selectedTaskIds.includes(task.id)
+              const barMultiDragDx = isMultiDragging ? this.multiDragDx : 0
+              const isPrimaryDrag = isDragging && this.draggingTaskIds.length >= 2
 
               return html`
                 <gantt-bar
@@ -453,6 +458,8 @@ export class GanttRowElement extends LitElement {
                   .option="${this.option}"
                   .lane="${task.lane}"
                   .selected="${isTaskSelected}"
+                  .multiDragDx="${barMultiDragDx}"
+                  .multiDragActive="${isPrimaryDrag}"
                 />
               `
             },
