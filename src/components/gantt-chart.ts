@@ -81,6 +81,7 @@ export class GanttChartElement extends LitElement {
   } | null = null
   @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
   @state() private isResizingHeader = false
+  @state() private hoveredMilestoneId: string | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
 
   private _layoutCache: {
@@ -202,6 +203,13 @@ export class GanttChartElement extends LitElement {
       z-index: 80;
       pointer-events: none;
       transform: translate(-50%, -50%);
+    }
+    .milestone-line {
+      position: absolute;
+      z-index: 59;
+      pointer-events: auto;
+      transition: opacity 0.2s ease;
+      cursor: default;
     }
   `
 
@@ -1562,6 +1570,10 @@ export class GanttChartElement extends LitElement {
           .option="${currentOption}"
           .theme="${this.theme}"
           .currentTime="${this.currentTime}"
+          .hoveredMilestoneId="${this.hoveredMilestoneId}"
+          @milestone-hover-change="${(e: CustomEvent) => {
+            this.hoveredMilestoneId = e.detail.milestoneId
+          }}"
         ></gantt-calendar>
 
         <svg
@@ -1594,6 +1606,25 @@ export class GanttChartElement extends LitElement {
               ></div>
             `
           : ''}
+
+        ${(this.option.calendar.milestones ?? []).map(
+          (ms) => html`
+            <div
+              class="milestone-line"
+              style="
+                top: ${this.calendarHeight}px;
+                left: ${this.getDateX(ms.start) + labelWidth}px;
+                height: ${totalHeight}px;
+                width: ${ms.width ?? 2}px;
+                background-color: ${ms.color};
+                opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
+                ${ms.style ?? ''}
+              "
+              @mouseenter="${() => { this.hoveredMilestoneId = ms.id }}"
+              @mouseleave="${() => { this.hoveredMilestoneId = null }}"
+            ></div>
+          `,
+        )}
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 

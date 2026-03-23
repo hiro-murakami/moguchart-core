@@ -11,6 +11,7 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
   @property({ type: Object }) currentTime = new Date()
+  @property({ type: String }) hoveredMilestoneId: string | null = null
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
@@ -88,6 +89,31 @@ export class GanttCalendarElement extends LitElement {
       white-space: nowrap;
       z-index: 10;
       pointer-events: none;
+    }
+    .milestone-badge {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      white-space: nowrap;
+      z-index: 9;
+      pointer-events: auto;
+      color: #ffffff;
+      transition: opacity 0.2s ease;
+      cursor: default;
+    }
+    .milestone-connector {
+      position: absolute;
+      top: 19px;
+      bottom: 0px;
+      transform: translateX(-50%);
+      z-index: 8;
+      pointer-events: auto;
+      transition: opacity 0.2s ease;
+      cursor: default;
     }
   `
 
@@ -220,6 +246,65 @@ export class GanttCalendarElement extends LitElement {
               </div>
             `
           : ''}
+        ${(this.option.calendar.milestones ?? []).map(
+          (ms) => html`
+            <div
+              class="milestone-connector"
+              style="
+                left: ${this.getDateX(ms.start) + 1}px;
+                width: ${ms.width ?? 2}px;
+                background-color: ${ms.color};
+                opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
+              "
+              @mouseenter="${() => {
+                this.dispatchEvent(
+                  new CustomEvent('milestone-hover-change', {
+                    detail: { milestoneId: ms.id },
+                    bubbles: true,
+                    composed: true,
+                  }),
+                )
+              }}"
+              @mouseleave="${() => {
+                this.dispatchEvent(
+                  new CustomEvent('milestone-hover-change', {
+                    detail: { milestoneId: null },
+                    bubbles: true,
+                    composed: true,
+                  }),
+                )
+              }}"
+            ></div>
+            <div
+              class="milestone-badge"
+              style="
+                left: ${this.getDateX(ms.start)}px;
+                background-color: ${ms.color};
+                opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
+              "
+              @mouseenter="${() => {
+                this.dispatchEvent(
+                  new CustomEvent('milestone-hover-change', {
+                    detail: { milestoneId: ms.id },
+                    bubbles: true,
+                    composed: true,
+                  }),
+                )
+              }}"
+              @mouseleave="${() => {
+                this.dispatchEvent(
+                  new CustomEvent('milestone-hover-change', {
+                    detail: { milestoneId: null },
+                    bubbles: true,
+                    composed: true,
+                  }),
+                )
+              }}"
+            >
+              ${ms.name}
+            </div>
+          `,
+        )}
       </div>
     `
   }

@@ -241,6 +241,26 @@ const renderApp = () => {
       showCurrentTime,
       showCurrentTimeBadge,
       currentTimeUpdateInterval,
+      milestones: [
+        {
+          id: 'ms-1',
+          name: 'α版リリース',
+          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 7),
+          color: '#8b5cf6',
+        },
+        {
+          id: 'ms-2',
+          name: 'β版リリース',
+          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 14),
+          color: '#f59e0b',
+        },
+        {
+          id: 'ms-3',
+          name: '正式リリース',
+          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 30),
+          color: '#10b981',
+        },
+      ],
     },
     readOnly: isReadOnly,
     tooltipDelay,

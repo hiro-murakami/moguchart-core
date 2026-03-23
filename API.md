@@ -55,6 +55,7 @@ interface GanttChartOption {
     showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
     showCurrentTimeBadge?: boolean // 現在時刻バッジを表示するかどうか
     currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 0 = 更新しない)
+    milestones?: GanttChartMilestone[] // マイルストーンの配列
   }
   /** 読み取り専用モードかどうか */
   readOnly?: boolean
@@ -190,6 +191,19 @@ interface GanttTaskPattern {
   // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
   color?: string // パターンの色
+}
+```
+
+### GanttChartMilestone
+
+```typescript
+interface GanttChartMilestone {
+  id: string // マイルストーンの一意なID
+  name: string // マイルストーンの表示名
+  start: Date // マイルストーンの日時
+  color: string // マイルストーンの色 (CSS color string)
+  width?: number // 線の幅 (px、デフォルト: 2)
+  style?: string // カスタムスタイル (CSS文字列)
 }
 ```
 
@@ -384,4 +398,41 @@ chart.addEventListener('task-update', (e) => {
     }
   }
 })
+```
+
+## マイルストーン
+
+`calendar.milestones` にマイルストーンの配列を渡すことで、チャート上に縦線とバッジを表示できます。
+
+- 縦線はチャート本体に、名前バッジはカレンダーの年月行に表示されます。
+- 通常時は半透明（opacity: 0.5）で表示され、バッジまたは線にマウスオーバーすると不透明になります。
+- バッジと線のホバーエフェクトは連動します。
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  calendar: {
+    start: new Date('2025-04-01'),
+    end: new Date('2025-06-30'),
+    pxPerDay: 30,
+    milestones: [
+      {
+        id: 'ms-1',
+        name: 'α版リリース',
+        start: new Date('2025-04-08'),
+        color: '#8b5cf6',
+        width: 4, // 太い線
+      },
+      {
+        id: 'ms-2',
+        name: '正式リリース',
+        start: new Date('2025-05-01'),
+        color: '#10b981',
+      },
+    ],
+  },
+}
 ```

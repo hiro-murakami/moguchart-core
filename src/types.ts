@@ -109,6 +109,24 @@ export interface GanttChartOptionRowHeader {
 }
 
 /**
+ * マイルストーンに関するオプション
+ */
+export interface GanttChartMilestone {
+  /** マイルストーンの一意なID */
+  id: string
+  /** マイルストーンの表示名 */
+  name: string
+  /** マイルストーンの日時 */
+  start: Date
+  /** マイルストーンの色 */
+  color: string
+  /** 線の幅 (px)。デフォルト: 2 */
+  width?: number
+  /** マイルストーンのカスタムスタイル (CSS文字列) */
+  style?: string
+}
+
+/**
  * カレンダー表示に関するオプション
  */
 export interface GanttChartOptionCalendar {
@@ -136,6 +154,8 @@ export interface GanttChartOptionCalendar {
   showCurrentTimeBadge?: boolean
   /** 現在時刻線を自動更新する間隔（ミリ秒）。0または未指定の場合は更新しない */
   currentTimeUpdateInterval?: number
+  /** マイルストーンの配列 */
+  milestones?: GanttChartMilestone[]
 }
 
 export interface GanttChartOptionCustomRendering {
