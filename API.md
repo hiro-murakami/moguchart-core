@@ -162,6 +162,7 @@ interface GanttRow {
   id: string // 行の一意なID
   name: string // 行ヘッダーに表示するラベル
   tasks: GanttTask[] // この行に含まれるタスクの配列
+  markers?: GanttMarker[] // この行に表示するマーカーの配列
   visible?: boolean // 行を表示するかどうか (デフォルト: true)
 }
 ```
@@ -204,6 +205,32 @@ interface GanttChartMilestone {
   color: string // マイルストーンの色 (CSS color string)
   width?: number // 線の幅 (px、デフォルト: 2)
   style?: string // カスタムスタイル (CSS文字列)
+}
+```
+
+### MarkerType
+
+```typescript
+type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right'
+```
+
+### AnchorType
+
+```typescript
+type AnchorType = 'start' | 'end'
+```
+
+### GanttMarker
+
+```typescript
+interface GanttMarker {
+  id: string // マーカーの一意なID
+  name?: string // マーカーの表示名（アイコンの隣にテキスト表示）
+  date: Date // マーカーの日時
+  anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 未指定: 中央)
+  type: MarkerType // マーカーの三角形の向き
+  color?: string // マーカーの色 (CSS color string)
+  style?: string // マーカーのカスタムスタイル (CSS文字列)
 }
 ```
 
@@ -435,4 +462,42 @@ chart.option = {
     ],
   },
 }
+```
+
+## マーカー
+
+各行の `markers` にマーカーの配列を渡すことで、行のタイムライン上に三角形のアイコンとラベルを表示できます。
+
+- マーカーは4種類の三角形（上・下・左・右）から選択できます。
+- `anchor` でマーカーの基準位置を制御できます（`'start'`: dateが左端、`'end'`: dateが右端、未指定: 中央）。
+- `name` を設定するとアイコンの隣にテキストラベルが表示されます。
+
+### 使用例
+
+```javascript
+const rows = [
+  {
+    id: 'row-1',
+    name: 'プロジェクトA',
+    tasks: [/* ... */],
+    markers: [
+      {
+        id: 'marker-1',
+        name: 'レビュー期限',
+        date: new Date('2025-04-10'),
+        anchor: 'end',
+        type: 'triangle-right',
+        color: '#ef4444',
+      },
+      {
+        id: 'marker-2',
+        name: 'リリース予定',
+        date: new Date('2025-04-20'),
+        anchor: 'start',
+        type: 'triangle-left',
+        color: '#3b82f6',
+      },
+    ],
+  },
+]
 ```

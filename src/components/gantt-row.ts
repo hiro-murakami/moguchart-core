@@ -1,5 +1,5 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
-import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, RowHeaderContextMenuEventDetail } from '@/types'
+import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, MarkerType, RowHeaderContextMenuEventDetail } from '@/types'
 import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/utils'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -42,6 +42,31 @@ export class GanttRowElement extends LitElement {
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
+  }
+
+  private getDateX(date: Date): number {
+    const d = new Date(date)
+    const start = new Date(this.option.calendar.start)
+    start.setHours(0, 0, 0, 0)
+    const diff = d.getTime() - start.getTime()
+    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
+  }
+
+  /**
+   * マーカーの三角形SVGパスを生成する
+   */
+  private getMarkerPath(type: MarkerType, size: number): string {
+    const half = size / 2
+    switch (type) {
+      case 'triangle-up':
+        return `M 0 ${size} L ${half} 0 L ${size} ${size} Z`
+      case 'triangle-down':
+        return `M 0 0 L ${size} 0 L ${half} ${size} Z`
+      case 'triangle-left':
+        return `M ${size} 0 L 0 ${half} L ${size} ${size} Z`
+      case 'triangle-right':
+        return `M 0 0 L ${size} ${half} L 0 ${size} Z`
+    }
   }
 
   static styles = css`
@@ -464,6 +489,58 @@ export class GanttRowElement extends LitElement {
               `
             },
           )}
+          ${(this.row.markers ?? []).map((marker) => {
+            const markerSize = Math.min(barHeight, 12)
+            const x = this.getDateX(marker.date)
+            const markerColor = marker.color ?? '#ef4444'
+            const markerY = (rowHeight - markerSize) / 2
+            // anchor: 'start' → dateがマーカー左端, 'end' → dateがマーカー右端, 未指定 → 中央
+            const markerLeft = marker.anchor === 'start' ? x
+              : marker.anchor === 'end' ? x - markerSize
+              : x - markerSize / 2
+            // ラベル位置: anchor='end'なら左側、それ以外は右側
+            const labelOnLeft = marker.anchor === 'end'
+            return html`
+              <div
+                class="marker-wrapper"
+                style="
+                  position: absolute;
+                  left: ${markerLeft}px;
+                  top: ${markerY}px;
+                  z-index: 10;
+                  display: flex;
+                  align-items: center;
+                  pointer-events: auto;
+                  cursor: default;
+                  white-space: nowrap;
+                  ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}
+                "
+                title="${marker.name ?? ''}"
+              >
+                <svg
+                  class="marker-icon"
+                  width="${markerSize}"
+                  height="${markerSize}"
+                  viewBox="0 0 ${markerSize} ${markerSize}"
+                  style="
+                    flex-shrink: 0;
+                    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+                    ${marker.style ?? ''}
+                  "
+                >
+                  <path d="${this.getMarkerPath(marker.type, markerSize)}" fill="${markerColor}" />
+                </svg>
+                ${marker.name
+                  ? html`<span style="
+                      font-size: 10px;
+                      color: ${markerColor};
+                      padding: 0 2px;
+                      line-height: 1;
+                    ">${marker.name}</span>`
+                  : ''}
+              </div>
+            `
+          })}
         </div>
       </div>
     `

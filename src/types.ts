@@ -27,6 +27,32 @@ export interface GanttTaskPattern {
 }
 
 /**
+ * マーカーの種類
+ */
+export type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right'
+export type AnchorType = 'start' | 'end'
+
+/**
+ * マーカーの設定
+ */
+export interface GanttMarker {
+  /** マーカーの一意なID */
+  id: string
+  /** マーカーの表示名 */
+  name?: string
+  /** マーカーの日時 */
+  date: Date
+  /** マーカーのアンカー位置 */
+  anchor?: AnchorType
+  /** マーカーの種類 */
+  type: MarkerType
+  /** マーカーの色 (CSS color string) */
+  color?: string
+  /** マーカーのカスタムスタイル (CSS文字列) */
+  style?: string
+}
+
+/**
  * ガントチャート上の個々のタスクを表すインターフェース
  */
 export interface GanttTask {
@@ -68,6 +94,8 @@ export interface GanttRow {
   name: string
   /** この行に含まれるタスクの配列 */
   tasks: GanttTask[]
+  /** マーカーの配列 */
+  markers?: GanttMarker[]
   /** 行を表示するかどうか (デフォルト: true) */
   visible?: boolean
 }

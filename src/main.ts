@@ -14,6 +14,7 @@ import type {
   RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
   BarSelectionChangeEventDetail,
+  GanttMarker,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
 import dayjs from 'dayjs'
@@ -34,6 +35,27 @@ const generateDayModeData = (): GanttRow[] => {
   const rows: GanttRow[] = []
   for (let i = 1; i <= 50; i++) {
     const offset = (i - 1) % 10
+    const markers: GanttMarker[] | undefined =
+      i <= 3
+        ? [
+            {
+              id: `marker-${i}-1`,
+              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 3),
+              anchor: 'end',
+              type: 'triangle-right',
+              color: '#ef4444',
+              name: 'レビュー期限',
+            },
+            {
+              id: `marker-${i}-2`,
+              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 20),
+              anchor: 'start',
+              type: 'triangle-left',
+              color: '#ef4444',
+              name: 'リリース予定',
+            },
+          ]
+        : undefined
     rows.push({
       id: `row${i}`,
       name: `プロジェクト ${i}`,
@@ -54,6 +76,7 @@ const generateDayModeData = (): GanttRow[] => {
           dependencies: [`t${i}-1`],
         },
       ],
+      markers,
       visible: i % 5 !== 0,
     })
   }
