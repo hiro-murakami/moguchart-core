@@ -1,7 +1,8 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/types'
-import { DEFAULT_ROW_HEADER_WIDTH, DEFAULT_MONTH_FORMAT } from '@/constants'
+import { jaLocale } from '@/i18n'
+import { DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
 import { getCalendarColor, getThemeColors, getTotalDays } from '@/utils'
 import dayjs from 'dayjs'
 
@@ -196,7 +197,7 @@ export class GanttCalendarElement extends LitElement {
         ${this.option.calendar.showMonths !== false
           ? html`<div class="months-container">
               ${months.map((m) => {
-                const format = this.option.calendar.monthFormat || DEFAULT_MONTH_FORMAT
+                const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
                 return html`<div class="month-cell" style="width: ${m.count * this.option.calendar.pxPerDay}px">
                   ${text}

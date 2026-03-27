@@ -1,4 +1,5 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
+import { jaLocale } from '@/i18n'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
@@ -324,9 +325,7 @@ export class GanttChartElement extends LitElement {
             render(content, tooltipEl)
           }
         } else {
-          const formatDate = (d: Date) => {
-            return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
-          }
+          const locale = this.option.locale ?? jaLocale
           const duration = Math.round(
             (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
           )
@@ -334,9 +333,9 @@ export class GanttChartElement extends LitElement {
             html`
               <div style="font-weight: bold;">${this.tooltip.task.name}</div>
               <div class="tooltip-row">
-                ${formatDate(this.tooltip.task.start)} - ${formatDate(this.tooltip.task.end)}
+                ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
               </div>
-              <div class="tooltip-row">所要日数: ${duration}日</div>
+              <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
             `,
             tooltipEl,
           )
@@ -378,26 +377,19 @@ export class GanttChartElement extends LitElement {
     }
 
     if (dragInfoEl.innerHTML === '') {
-      const formatDate = (d: Date) => {
-        const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
-        const h = d.getHours()
-        const m = d.getMinutes()
-        if (h === 0 && m === 0) return date
-        const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-        return `${date} ${time}`
-      }
+      const locale = this.option.locale ?? jaLocale
       dragInfoEl.innerHTML = `
           <div style="font-weight: bold;">
-            ${this.dragOverlayInfo.name || 'No Title'}
+            ${this.dragOverlayInfo.name || locale.dragOverlay.noTitle}
           </div>
           <div class="drag-info-sub">
-            ${formatDate(this.dragOverlayInfo.currentStart)} -
-            ${formatDate(this.dragOverlayInfo.currentEnd)}
-            (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd)})
+            ${locale.dateTimeFormat(this.dragOverlayInfo.currentStart)} -
+            ${locale.dateTimeFormat(this.dragOverlayInfo.currentEnd)}
+            (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.option.locale)})
           </div>
           ${
             targetRow
-              ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">移動先: ${targetRow.name}</div>`
+              ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
               : ''
           }`
     }
@@ -682,7 +674,7 @@ export class GanttChartElement extends LitElement {
       if (isMulti) {
         this.dragOverlayInfo = {
           id,
-          name: `${this.selectedTasks.size}件のタスクを移動中`,
+          name: (this.option.locale ?? jaLocale).dragOverlay.movingTasks(this.selectedTasks.size),
           start,
           end,
           currentStart: newStart,

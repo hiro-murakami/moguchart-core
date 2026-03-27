@@ -1,3 +1,5 @@
+import type { MoguchartLocale } from './i18n'
+
 /**
  * ガントチャートのバーに適用できるパターンの種類
  */
@@ -233,6 +235,8 @@ export interface GanttChartOption {
   showHiddenRows?: boolean
   /** カスタムレンダリング設定 */
   customRendering?: GanttChartOptionCustomRendering
+  /** ロケール設定 (デフォルト: 日本語) */
+  locale?: MoguchartLocale
 }
 
 /**

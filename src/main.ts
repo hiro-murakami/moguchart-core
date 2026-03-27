@@ -17,8 +17,199 @@ import type {
   GanttMarker,
 } from '@/types'
 import type { ThemeColorPalette } from '@/types'
+import type { MoguchartLocale } from './i18n'
+import { jaLocale, enLocale } from './i18n'
 import dayjs from 'dayjs'
 import { getPatternStyle } from '@/pattern-utils'
+
+// デモページ用UIテキスト定義
+interface DemoTexts {
+  viewMode: string
+  dayUnit: string
+  hourUnit: string
+  theme: string
+  readOnlyMode: string
+  showDragInfo: string
+  enableRowReorder: string
+  autoUpdateTime: string
+  customRendering: string
+  rowHeaderResize: string
+  showHiddenRows: string
+  showTime: string
+  showYearMonth: string
+  showDates: string
+  showCurrentTimeLine: string
+  showCurrentTimeBadge: string
+  snapUnit: string
+  barHeight: string
+  dayWidth: string
+  rowHeaderWidth: string
+  tooltipDelay: string
+  oneDay: string
+  minutes: (n: number) => string
+  candidateTasks: string
+  duration: string
+  daysUnit: string
+  hoursUnit: string
+  noTasks: string
+  // データ用テキスト
+  project: (n: number) => string
+  requirementsDefinition: string
+  design: string
+  assignee: (n: number) => string
+  morningMeeting: string
+  taskA: string
+  break_: string
+  taskB: string
+  reviewDeadline: string
+  releaseScheduled: string
+  alphaRelease: string
+  betaRelease: string
+  officialRelease: string
+  newTaskA: string
+  newTaskB: string
+  meetingSetup: string
+  patternTask: string
+  labelStyleTask: string
+  // コンテキストメニュー
+  edit: string
+  duplicate: string
+  delete_: string
+  editDetail: (name: string, id: string) => string
+  editAction: (name: string) => string
+  duplicateAction: (name: string) => string
+  moveTo: (name: string) => string
+}
+
+const jaTexts: DemoTexts = {
+  viewMode: '表示モード:',
+  dayUnit: '日単位',
+  hourUnit: '時間単位',
+  theme: 'テーマ:',
+  readOnlyMode: '表示専用モード',
+  showDragInfo: 'ドラッグ情報を表示',
+  enableRowReorder: '行の並び替えを有効化',
+  autoUpdateTime: '現在時刻を自動更新',
+  customRendering: 'カスタムレンダリング有効',
+  rowHeaderResize: '行ヘッダーのリサイズ許可',
+  showHiddenRows: '非表示行を表示 (5行おき)',
+  showTime: '時間を表示',
+  showYearMonth: '年月を表示',
+  showDates: '日付を表示',
+  showCurrentTimeLine: '現在時刻線を表示',
+  showCurrentTimeBadge: '現在時刻バッジを表示',
+  snapUnit: 'スナップ単位:',
+  barHeight: 'バーの高さ:',
+  dayWidth: '1日の幅:',
+  rowHeaderWidth: '行ヘッダーの幅:',
+  tooltipDelay: 'ツールチップ遅延:',
+  oneDay: '1日',
+  minutes: (n) => `${n}分`,
+  candidateTasks: '◯ 追加候補タスク',
+  duration: '期間:',
+  daysUnit: '日',
+  hoursUnit: '時間',
+  noTasks: 'タスクはありません',
+  project: (n) => `プロジェクト ${n}`,
+  requirementsDefinition: '要件定義',
+  design: '設計',
+  assignee: (n) => `担当者 ${n}`,
+  morningMeeting: '朝会',
+  taskA: 'タスクA',
+  break_: '休憩',
+  taskB: 'タスクB',
+  reviewDeadline: 'レビュー期限',
+  releaseScheduled: 'リリース予定',
+  alphaRelease: 'α版リリース',
+  betaRelease: 'β版リリース',
+  officialRelease: '正式リリース',
+  newTaskA: '新規タスクA',
+  newTaskB: '新規タスクB',
+  meetingSetup: '会議設定',
+  patternTask: 'パターン付きタスク',
+  labelStyleTask: 'ラベルスタイル付き',
+  edit: '編集',
+  duplicate: '複製',
+  delete_: '削除',
+  editDetail: (name, id) => `詳細編集: ${name} (ID: ${id})`,
+  editAction: (name) => `編集: ${name}`,
+  duplicateAction: (name) => `複製: ${name}`,
+  moveTo: (name) => `移動先: ${name}`,
+}
+
+const enTexts: DemoTexts = {
+  viewMode: 'View Mode:',
+  dayUnit: 'Day',
+  hourUnit: 'Hour',
+  theme: 'Theme:',
+  readOnlyMode: 'Read Only',
+  showDragInfo: 'Show Drag Info',
+  enableRowReorder: 'Enable Row Reorder',
+  autoUpdateTime: 'Auto Update Time',
+  customRendering: 'Custom Rendering',
+  rowHeaderResize: 'Resizable Row Header',
+  showHiddenRows: 'Show Hidden Rows (every 5)',
+  showTime: 'Show Time',
+  showYearMonth: 'Show Year/Month',
+  showDates: 'Show Dates',
+  showCurrentTimeLine: 'Show Current Time Line',
+  showCurrentTimeBadge: 'Show Current Time Badge',
+  snapUnit: 'Snap Unit:',
+  barHeight: 'Bar Height:',
+  dayWidth: 'Day Width:',
+  rowHeaderWidth: 'Row Header Width:',
+  tooltipDelay: 'Tooltip Delay:',
+  oneDay: '1 day',
+  minutes: (n) => `${n} min`,
+  candidateTasks: '◯ Unassigned Tasks',
+  duration: 'Duration:',
+  daysUnit: 'days',
+  hoursUnit: 'hours',
+  noTasks: 'No tasks',
+  project: (n) => `Project ${n}`,
+  requirementsDefinition: 'Requirements',
+  design: 'Design',
+  assignee: (n) => `Assignee ${n}`,
+  morningMeeting: 'Morning Meeting',
+  taskA: 'Task A',
+  break_: 'Break',
+  taskB: 'Task B',
+  reviewDeadline: 'Review Deadline',
+  releaseScheduled: 'Release Planned',
+  alphaRelease: 'Alpha Release',
+  betaRelease: 'Beta Release',
+  officialRelease: 'Official Release',
+  newTaskA: 'New Task A',
+  newTaskB: 'New Task B',
+  meetingSetup: 'Meeting Setup',
+  patternTask: 'Patterned Task',
+  labelStyleTask: 'Styled Label',
+  edit: 'Edit',
+  duplicate: 'Duplicate',
+  delete_: 'Delete',
+  editDetail: (name, id) => `Edit: ${name} (ID: ${id})`,
+  editAction: (name) => `Edit: ${name}`,
+  duplicateAction: (name) => `Duplicate: ${name}`,
+  moveTo: (name) => `Move to: ${name}`,
+}
+
+let currentLang: 'ja' | 'en' = 'ja'
+let currentLocale: MoguchartLocale = jaLocale
+let t: DemoTexts = jaTexts
+
+const setLang = (lang: 'ja' | 'en') => {
+  currentLang = lang
+  currentLocale = lang === 'ja' ? jaLocale : enLocale
+  t = lang === 'ja' ? jaTexts : enTexts
+  // データを言語変更時に再生成
+  if (viewMode === 'day') {
+    rows = generateDayModeData()
+  } else {
+    rows = generateHourModeData()
+  }
+  regenerateUnassignedTasks()
+  renderApp()
+}
 
 const chartStart = new Date()
 chartStart.setHours(0, 0, 0, 0)
@@ -44,7 +235,7 @@ const generateDayModeData = (): GanttRow[] => {
               anchor: 'end',
               type: 'triangle-right',
               color: '#ef4444',
-              name: 'レビュー期限',
+              name: t.reviewDeadline,
             },
             {
               id: `marker-${i}-2`,
@@ -52,17 +243,17 @@ const generateDayModeData = (): GanttRow[] => {
               anchor: 'start',
               type: 'triangle-left',
               color: '#ef4444',
-              name: 'リリース予定',
+              name: t.releaseScheduled,
             },
           ]
         : undefined
     rows.push({
       id: `row${i}`,
-      name: `プロジェクト ${i}`,
+      name: t.project(i),
       tasks: [
         {
           id: `t${i}-1`,
-          name: '要件定義',
+          name: t.requirementsDefinition,
           start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset),
           end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 5),
           pattern: i % 3 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
@@ -70,7 +261,7 @@ const generateDayModeData = (): GanttRow[] => {
         },
         {
           id: `t${i}-2`,
-          name: '設計',
+          name: t.design,
           start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 6),
           end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 15),
           dependencies: [`t${i}-1`],
@@ -96,11 +287,11 @@ const generateHourModeData = (): GanttRow[] => {
     const shift = (i - 1) % 3
     rows.push({
       id: `user${i}`,
-      name: `担当者 ${i}`,
+      name: t.assignee(i),
       tasks: [
         {
           id: `h${i}-1`,
-          name: '朝会',
+          name: t.morningMeeting,
           start: setTime(start, 9, 0),
           end: setTime(start, 10, 0),
           movable: 'none',
@@ -108,20 +299,20 @@ const generateHourModeData = (): GanttRow[] => {
         },
         {
           id: `h${i}-2`,
-          name: 'タスクA',
+          name: t.taskA,
           start: setTime(start, 10 + shift, 0),
           end: setTime(start, 12 + shift, 0),
         },
         {
           id: `h${i}-3`,
-          name: '休憩',
+          name: t.break_,
           start: setTime(start, 12, 0),
           end: setTime(start, 13, 0),
           pattern: { type: 'dots', color: '#aaa' },
         },
         {
           id: `h${i}-4`,
-          name: 'タスクB',
+          name: t.taskB,
           start: setTime(start, 13, 0),
           end: setTime(start, 16 + shift, 30),
         },
@@ -162,45 +353,49 @@ let selectedTaskIds: string[] = []
 let showHiddenRows = false
 
 // 追加候補のタスク一覧
-let unassignedTasks: GanttTask[] = [
-  {
-    id: 'new-1',
-    name: '新規タスクA',
-    start: new Date(), // 期間計算用のダミー
-    end: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2日間
-    style: 'background-color: #8b5cf6;',
-  },
-  {
-    id: 'new-2',
-    name: '新規タスクB',
-    start: new Date(),
-    end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5日間
-    style: 'background-color: #ec4899;',
-  },
-  {
-    id: 'new-3',
-    name: '会議設定',
-    start: new Date(),
-    end: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1時間
-    style: 'background-color: #10b981;',
-  },
-  {
-    id: 'new-4',
-    name: 'パターン付きタスク',
-    start: new Date(),
-    end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3日間
-    style: 'background-color: #f59e0b;',
-    pattern: { type: 'diagonal-stripe', color: 'rgba(255, 255, 255, 0.5)' },
-  },
-  {
-    id: 'new-5',
-    name: 'ラベルスタイル付き',
-    start: new Date(),
-    end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // 4日間
-    style: 'background-color: #3b82f6;',
-    labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
-  },
-]
+const regenerateUnassignedTasks = () => {
+  unassignedTasks = [
+    {
+      id: 'new-1',
+      name: t.newTaskA,
+      start: new Date(),
+      end: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      style: 'background-color: #8b5cf6;',
+    },
+    {
+      id: 'new-2',
+      name: t.newTaskB,
+      start: new Date(),
+      end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      style: 'background-color: #ec4899;',
+    },
+    {
+      id: 'new-3',
+      name: t.meetingSetup,
+      start: new Date(),
+      end: new Date(Date.now() + 1 * 60 * 60 * 1000),
+      style: 'background-color: #10b981;',
+    },
+    {
+      id: 'new-4',
+      name: t.patternTask,
+      start: new Date(),
+      end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      style: 'background-color: #f59e0b;',
+      pattern: { type: 'diagonal-stripe', color: 'rgba(255, 255, 255, 0.5)' },
+    },
+    {
+      id: 'new-5',
+      name: t.labelStyleTask,
+      start: new Date(),
+      end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+      style: 'background-color: #3b82f6;',
+      labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
+    },
+  ]
+}
+let unassignedTasks: GanttTask[] = []
+regenerateUnassignedTasks()
 
 const setViewMode = (mode: 'day' | 'hour') => {
   viewMode = mode
@@ -267,19 +462,19 @@ const renderApp = () => {
       milestones: [
         {
           id: 'ms-1',
-          name: 'α版リリース',
+          name: t.alphaRelease,
           start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 7),
           color: '#8b5cf6',
         },
         {
           id: 'ms-2',
-          name: 'β版リリース',
+          name: t.betaRelease,
           start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 14),
           color: '#f59e0b',
         },
         {
           id: 'ms-3',
-          name: '正式リリース',
+          name: t.officialRelease,
           start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 30),
           color: '#10b981',
         },
@@ -350,13 +545,14 @@ const renderApp = () => {
                 ? html`<div
                     style="font-size: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2px;"
                   >
-                    移動先: ${targetRow.name}
+                    ${t.moveTo(targetRow.name)}
                   </div>`
                 : ''}
             `
           },
         }
       : undefined,
+    locale: currentLocale,
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -407,11 +603,23 @@ const renderApp = () => {
       }
     </style>
     <div style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}">
-      <h2>MoguChart</h2>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <h2 style="margin: 0;">MoguChart</h2>
+        <div style="display: flex; gap: 4px;">
+          <button
+            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang === 'ja' ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;' : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
+            @click="${() => setLang('ja')}"
+          >日本語</button>
+          <button
+            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang === 'en' ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;' : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
+            @click="${() => setLang('en')}"
+          >English</button>
+        </div>
+      </div>
 
       <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;">
-          <span style="margin-right: 8px; font-weight: bold;">表示モード:</span>
+          <span style="margin-right: 8px; font-weight: bold;">${t.viewMode}</span>
           <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
             <input
               type="radio"
@@ -421,7 +629,7 @@ const renderApp = () => {
               @change="${() => setViewMode('day')}"
               style="margin-right: 4px;"
             />
-            日単位
+            ${t.dayUnit}
           </label>
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input
@@ -432,12 +640,12 @@ const renderApp = () => {
               @change="${() => setViewMode('hour')}"
               style="margin-right: 4px;"
             />
-            時間単位
+            ${t.hourUnit}
           </label>
         </div>
 
         <div style="display: flex; align-items: center;">
-          <span style="margin-right: 8px;">テーマ:</span>
+          <span style="margin-right: 8px;">${t.theme}</span>
           <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
             <input
               type="radio"
@@ -494,7 +702,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          表示専用モード
+           ${t.readOnlyMode}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -507,7 +715,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          ドラッグ情報を表示
+           ${t.showDragInfo}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -520,7 +728,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          行の並び替えを有効化
+           ${t.enableRowReorder}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -533,7 +741,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          現在時刻を自動更新
+           ${t.autoUpdateTime}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -546,7 +754,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          カスタムレンダリング有効
+           ${t.customRendering}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -559,7 +767,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          行ヘッダーのリサイズ許可
+           ${t.rowHeaderResize}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -572,7 +780,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          非表示行を表示 (5行おき)
+           ${t.showHiddenRows}
         </label>
       </div>
 
@@ -587,7 +795,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          時間を表示
+           ${t.showTime}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -600,7 +808,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          年月を表示
+           ${t.showYearMonth}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -613,7 +821,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          日付を表示
+           ${t.showDates}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -626,7 +834,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          現在時刻線を表示
+           ${t.showCurrentTimeLine}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -639,13 +847,13 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-          現在時刻バッジを表示
+           ${t.showCurrentTimeBadge}
         </label>
       </div>
 
       <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <label style="display: flex; align-items: center; cursor: pointer;">
-          スナップ単位:
+          ${t.snapUnit}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
@@ -655,14 +863,14 @@ const renderApp = () => {
           >
             ${[6, 15, 30, 60, 180, 720, 1440].map(
               (d) => html`
-                <option value="${d}" ?selected="${snapDuration === d}">${d === 1440 ? '1日' : `${d}分`}</option>
+                <option value="${d}" ?selected="${snapDuration === d}">${d === 1440 ? t.oneDay : t.minutes(d)}</option>
               `,
             )}
           </select>
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
-          バーの高さ:
+          ${t.barHeight}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
@@ -677,7 +885,7 @@ const renderApp = () => {
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
-          1日の幅:
+          ${t.dayWidth}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
@@ -692,7 +900,7 @@ const renderApp = () => {
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
-          行ヘッダーの幅:
+          ${t.rowHeaderWidth}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
@@ -707,7 +915,7 @@ const renderApp = () => {
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
-          ツールチップ遅延:
+          ${t.tooltipDelay}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
@@ -794,7 +1002,7 @@ const renderApp = () => {
                     renderApp()
                   }}"
                 >
-                  <span>◯ 追加候補タスク</span>
+                  <span>${t.candidateTasks}</span>
                 </h3>
                 ${isUnassignedTasksOpen
                   ? html` <div
@@ -828,15 +1036,15 @@ const renderApp = () => {
                             ></div>
                             <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${task.name}</div>
                             <div style="font-size: 12px; opacity: 0.7;">
-                              期間: ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
-                              ${viewMode === 'day' ? '日' : '時間'}
+                              ${t.duration} ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
+                               ${viewMode === 'day' ? t.daysUnit : t.hoursUnit}
                             </div>
                           </div>
                         `,
                       )}
                       ${unassignedTasks.length === 0
-                        ? html`<div style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;">
-                            タスクはありません
+                         ? html`<div style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;">
+                            ${t.noTasks}
                           </div>`
                         : ''}
                     </div>`
@@ -986,7 +1194,7 @@ const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
 
 const handleTaskDblClick = (e: CustomEvent<TaskClickEventDetail>) => {
   const { task } = e.detail
-  alert(`詳細編集: ${task.name} (ID: ${task.id})`)
+  alert(t.editDetail(task.name || '', task.id))
 }
 
 const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
@@ -1014,10 +1222,10 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
   `
 
   const items = [
-    { label: '編集', action: () => alert(`編集: ${task.name}`) },
-    { label: '複製', action: () => alert(`複製: ${task.name}`) },
+    { label: t.edit, action: () => alert(t.editAction(task.name || '')) },
+    { label: t.duplicate, action: () => alert(t.duplicateAction(task.name || '')) },
     {
-      label: '削除',
+      label: t.delete_,
       action: () => {
         const selectedIds = selectedTaskIds
         const isMultiDelete = selectedIds.includes(task.id)

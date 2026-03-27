@@ -1,5 +1,7 @@
 # @mogura/moguchart
 
+[English](./README.en.md)
+
 Vue, React, Angular, Svelte など、どのフレームワークでも動作する、軽量で高機能な Web Components 製ガントチャートコンポーネントです。Lit で構築されています。
 
 ## 特徴

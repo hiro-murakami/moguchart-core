@@ -1,4 +1,6 @@
 import type { GanttTask, TaskWithLane, ThemeColorPalette } from '@/types'
+import type { MoguchartLocale } from '@/i18n'
+import { jaLocale } from '@/i18n'
 import { THEME_COLORS } from '@/theme'
 
 /**
@@ -125,8 +127,12 @@ export function getTotalDays(start: Date, end: Date): number {
 
 /**
  * 期間を「◯日◯時間◯分」の形式でフォーマットします。
+ * @param start 開始日
+ * @param end 終了日
+ * @param locale ロケール設定 (デフォルト: 日本語)
  */
-export const formatDuration = (start: Date, end: Date): string => {
+export const formatDuration = (start: Date, end: Date, locale?: MoguchartLocale): string => {
+  const loc = locale ?? jaLocale
   const diff = end.getTime() - start.getTime()
   // 期間はミリ秒単位
   // 日数
@@ -140,13 +146,13 @@ export const formatDuration = (start: Date, end: Date): string => {
 
   let result = ''
   if (days > 0) {
-    result += `${days}日`
+    result += loc.duration.days(days)
   }
   if (hours > 0) {
-    result += `${hours}時間`
+    result += loc.duration.hours(hours)
   }
   if (minutes > 0) {
-    result += `${minutes}分`
+    result += loc.duration.minutes(minutes)
   }
-  return result || '0分'
+  return result || loc.duration.zero
 }
