@@ -43,7 +43,7 @@ npm install @mogura/moguchart
 
 ## API Reference
 
-See [API.en.md](./API.en.md) for a detailed API reference.
+See [API.en.md](./doc/API.en.md) for a detailed API reference.
 
 ## Usage with Vue.js
 

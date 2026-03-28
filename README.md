@@ -44,7 +44,7 @@ npm install @mogura/moguchart
 
 ## APIリファレンス
 
-詳細な API リファレンスは [API.md](./API.md) を参照してください。
+詳細な API リファレンスは [API.md](./doc/API.md) を参照してください。
 
 ## Vue.js での使用例
 
