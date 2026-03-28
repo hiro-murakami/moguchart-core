@@ -218,7 +218,7 @@ type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-
 ### AnchorType
 
 ```typescript
-type AnchorType = 'start' | 'end'
+type AnchorType = 'start' | 'end' | 'center'
 ```
 
 ### GanttMarker
@@ -226,9 +226,9 @@ type AnchorType = 'start' | 'end'
 ```typescript
 interface GanttMarker {
   id: string // Unique marker ID
-  name?: string // Marker display name (text displayed next to the icon)
+  name?: string // Marker display name (text displayed next to or below the icon)
   date: Date // Marker date/time
-  anchor?: AnchorType // Anchor position ('start': date is marker's left edge, 'end': date is marker's right edge, unset: center)
+  anchor?: AnchorType // Anchor position ('start': date is marker's left edge, 'end': date is marker's right edge, 'center': date is marker's center + label below, unset: center)
   type: MarkerType // Triangle direction
   color?: string // Marker color (CSS color string)
   style?: string // Custom marker style (CSS string)
@@ -508,8 +508,12 @@ chart.option = {
 Pass an array of markers to each row's `markers` property to display triangle icons with labels on the row timeline.
 
 - Choose from 4 triangle directions (up, down, left, right).
-- Control the marker's reference position with `anchor` (`'start'`: date is left edge, `'end'`: date is right edge, unset: center).
-- Setting `name` displays a text label next to the icon.
+- Control the marker's reference position with `anchor`.
+  - `'start'`: date is the marker's left edge. Label is displayed to the right of the icon.
+  - `'end'`: date is the marker's right edge. Label is displayed to the left of the icon.
+  - `'center'`: date is the marker's center. Label is displayed below the icon, centered. The bottom edge of the marker is aligned with the row's vertical center.
+  - Unset: date is the marker's center. Label is displayed to the right of the icon.
+- Setting `name` displays a text label.
 
 ### Usage Example
 
@@ -535,6 +539,14 @@ const rows = [
         anchor: 'start',
         type: 'triangle-left',
         color: '#3b82f6',
+      },
+      {
+        id: 'marker-3',
+        name: '★',
+        date: new Date('2025-04-15'),
+        anchor: 'center',
+        type: 'triangle-down',
+        color: '#ef4444',
       },
     ],
   },

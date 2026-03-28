@@ -217,7 +217,7 @@ type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-
 ### AnchorType
 
 ```typescript
-type AnchorType = 'start' | 'end'
+type AnchorType = 'start' | 'end' | 'center'
 ```
 
 ### GanttMarker
@@ -225,9 +225,9 @@ type AnchorType = 'start' | 'end'
 ```typescript
 interface GanttMarker {
   id: string // マーカーの一意なID
-  name?: string // マーカーの表示名（アイコンの隣にテキスト表示）
+  name?: string // マーカーの表示名（アイコンの隣またはアイコン下部にテキスト表示）
   date: Date // マーカーの日時
-  anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 未指定: 中央)
+  anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 'center': dateがマーカー中央＋ラベル下部表示, 未指定: 中央)
   type: MarkerType // マーカーの三角形の向き
   color?: string // マーカーの色 (CSS color string)
   style?: string // マーカーのカスタムスタイル (CSS文字列)
@@ -469,8 +469,12 @@ chart.option = {
 各行の `markers` にマーカーの配列を渡すことで、行のタイムライン上に三角形のアイコンとラベルを表示できます。
 
 - マーカーは4種類の三角形（上・下・左・右）から選択できます。
-- `anchor` でマーカーの基準位置を制御できます（`'start'`: dateが左端、`'end'`: dateが右端、未指定: 中央）。
-- `name` を設定するとアイコンの隣にテキストラベルが表示されます。
+- `anchor` でマーカーの基準位置を制御できます。
+  - `'start'`: dateがマーカー左端。ラベルはアイコンの右側に表示。
+  - `'end'`: dateがマーカー右端。ラベルはアイコンの左側に表示。
+  - `'center'`: dateがマーカー中央。ラベルはアイコンの下部に中央揃えで表示。マーカーの下端が行の垂直中心に配置されます。
+  - 未指定: dateがマーカー中央。ラベルはアイコンの右側に表示。
+- `name` を設定するとテキストラベルが表示されます。
 
 ### 使用例
 
@@ -496,6 +500,14 @@ const rows = [
         anchor: 'start',
         type: 'triangle-left',
         color: '#3b82f6',
+      },
+      {
+        id: 'marker-3',
+        name: '★',
+        date: new Date('2025-04-15'),
+        anchor: 'center',
+        type: 'triangle-down',
+        color: '#ef4444',
       },
     ],
   },

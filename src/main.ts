@@ -245,6 +245,14 @@ const generateDayModeData = (): GanttRow[] => {
               color: '#ef4444',
               name: t.releaseScheduled,
             },
+            {
+              id: `marker-${i}-3`,
+              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 10),
+              anchor: 'center',
+              type: 'triangle-down',
+              color: '#ef4444',
+              name: '★',
+            },
           ]
         : undefined
     rows.push({
@@ -607,13 +615,23 @@ const renderApp = () => {
         <h2 style="margin: 0;">MoguChart</h2>
         <div style="display: flex; gap: 4px;">
           <button
-            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang === 'ja' ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;' : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
+            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang ===
+            'ja'
+              ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;'
+              : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
             @click="${() => setLang('ja')}"
-          >日本語</button>
+          >
+            日本語
+          </button>
           <button
-            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang === 'en' ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;' : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
+            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang ===
+            'en'
+              ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;'
+              : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
             @click="${() => setLang('en')}"
-          >English</button>
+          >
+            English
+          </button>
         </div>
       </div>
 
@@ -702,7 +720,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.readOnlyMode}
+          ${t.readOnlyMode}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -715,7 +733,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showDragInfo}
+          ${t.showDragInfo}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -728,7 +746,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.enableRowReorder}
+          ${t.enableRowReorder}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -741,7 +759,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.autoUpdateTime}
+          ${t.autoUpdateTime}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -754,7 +772,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.customRendering}
+          ${t.customRendering}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -767,7 +785,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.rowHeaderResize}
+          ${t.rowHeaderResize}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -780,7 +798,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showHiddenRows}
+          ${t.showHiddenRows}
         </label>
       </div>
 
@@ -795,7 +813,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showTime}
+          ${t.showTime}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -808,7 +826,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showYearMonth}
+          ${t.showYearMonth}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -821,7 +839,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showDates}
+          ${t.showDates}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -834,7 +852,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showCurrentTimeLine}
+          ${t.showCurrentTimeLine}
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -847,7 +865,7 @@ const renderApp = () => {
             }}"
             style="margin-right: 6px;"
           />
-           ${t.showCurrentTimeBadge}
+          ${t.showCurrentTimeBadge}
         </label>
       </div>
 
@@ -1036,14 +1054,15 @@ const renderApp = () => {
                             ></div>
                             <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${task.name}</div>
                             <div style="font-size: 12px; opacity: 0.7;">
-                              ${t.duration} ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
-                               ${viewMode === 'day' ? t.daysUnit : t.hoursUnit}
+                              ${t.duration}
+                              ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
+                              ${viewMode === 'day' ? t.daysUnit : t.hoursUnit}
                             </div>
                           </div>
                         `,
                       )}
                       ${unassignedTasks.length === 0
-                         ? html`<div style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;">
+                        ? html`<div style="opacity: 0.5; font-size: 14px; text-align: center; padding: 20px;">
                             ${t.noTasks}
                           </div>`
                         : ''}

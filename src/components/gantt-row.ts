@@ -493,12 +493,14 @@ export class GanttRowElement extends LitElement {
             const markerSize = Math.min(barHeight, 12)
             const x = this.getDateX(marker.date)
             const markerColor = marker.color ?? '#ef4444'
-            const markerY = (rowHeight - markerSize) / 2
-            // anchor: 'start' → dateがマーカー左端, 'end' → dateがマーカー右端, 未指定 → 中央
+            // ラベル表示モード: 'center'の場合は下部表示、'end'は左側、それ以外は右側
+            const isCenter = marker.anchor === 'center'
+            // center: マーカーの下端が行の中心に来るように配置
+            const markerY = isCenter ? (rowHeight / 2 - markerSize) : (rowHeight - markerSize) / 2
+            // anchor: 'start' → dateがマーカー左端, 'end' → dateがマーカー右端, 'center'/未指定 → 中央
             const markerLeft = marker.anchor === 'start' ? x
               : marker.anchor === 'end' ? x - markerSize
               : x - markerSize / 2
-            // ラベル位置: anchor='end'なら左側、それ以外は右側
             const labelOnLeft = marker.anchor === 'end'
             return html`
               <div
@@ -509,11 +511,10 @@ export class GanttRowElement extends LitElement {
                   top: ${markerY}px;
                   z-index: 10;
                   display: flex;
-                  align-items: center;
+                  ${isCenter ? `flex-direction: column; align-items: center; width: ${markerSize}px; overflow: visible;` : `align-items: center; ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}`}
                   pointer-events: auto;
                   cursor: default;
                   white-space: nowrap;
-                  ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}
                 "
                 title="${marker.name ?? ''}"
               >
@@ -534,8 +535,8 @@ export class GanttRowElement extends LitElement {
                   ? html`<span style="
                       font-size: 10px;
                       color: ${markerColor};
-                      padding: 0 2px;
                       line-height: 1;
+                      ${isCenter ? 'padding: 1px 0 0 0;' : 'padding: 0 2px;'}
                     ">${marker.name}</span>`
                   : ''}
               </div>
