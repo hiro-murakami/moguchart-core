@@ -53,7 +53,7 @@ export class GanttRowElement extends LitElement {
   }
 
   /**
-   * マーカーの三角形SVGパスを生成する
+   * マーカーのSVGパスを生成する
    */
   private getMarkerPath(type: MarkerType, size: number): string {
     const half = size / 2
@@ -66,6 +66,12 @@ export class GanttRowElement extends LitElement {
         return `M ${size} 0 L 0 ${half} L ${size} ${size} Z`
       case 'triangle-right':
         return `M 0 0 L ${size} ${half} L 0 ${size} Z`
+      case 'diamond':
+        return `M ${half} 0 L ${size} ${half} L ${half} ${size} L 0 ${half} Z`
+      case 'square':
+        return `M 0 0 L ${size} 0 L ${size} ${size} L 0 ${size} Z`
+      default:
+        return `M 0 ${size} L ${half} 0 L ${size} ${size} Z`
     }
   }
 

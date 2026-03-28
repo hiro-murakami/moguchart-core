@@ -211,7 +211,7 @@ interface GanttChartMilestone {
 ### MarkerType
 
 ```typescript
-type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right'
+type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
 ```
 
 ### AnchorType
@@ -228,7 +228,7 @@ interface GanttMarker {
   name?: string // マーカーの表示名（アイコンの隣またはアイコン下部にテキスト表示）
   date: Date // マーカーの日時
   anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 'center': dateがマーカー中央＋ラベル下部表示, 未指定: 中央)
-  type: MarkerType // マーカーの三角形の向き
+  type: MarkerType // マーカーの形状
   color?: string // マーカーの色 (CSS color string)
   style?: string // マーカーのカスタムスタイル (CSS文字列)
 }
@@ -466,9 +466,9 @@ chart.option = {
 
 ## マーカー
 
-各行の `markers` にマーカーの配列を渡すことで、行のタイムライン上に三角形のアイコンとラベルを表示できます。
+各行の `markers` にマーカーの配列を渡すことで、行のタイムライン上にアイコンとラベルを表示できます。
 
-- マーカーは4種類の三角形（上・下・左・右）から選択できます。
+- マーカーは6種類の形状から選択できます: 三角形（上・下・左・右）、ひし形（`diamond`）、正方形（`square`）。
 - `anchor` でマーカーの基準位置を制御できます。
   - `'start'`: dateがマーカー左端。ラベルはアイコンの右側に表示。
   - `'end'`: dateがマーカー右端。ラベルはアイコンの左側に表示。

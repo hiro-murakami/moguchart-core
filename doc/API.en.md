@@ -212,7 +212,7 @@ interface GanttChartMilestone {
 ### MarkerType
 
 ```typescript
-type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right'
+type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
 ```
 
 ### AnchorType
@@ -229,7 +229,7 @@ interface GanttMarker {
   name?: string // Marker display name (text displayed next to or below the icon)
   date: Date // Marker date/time
   anchor?: AnchorType // Anchor position ('start': date is marker's left edge, 'end': date is marker's right edge, 'center': date is marker's center + label below, unset: center)
-  type: MarkerType // Triangle direction
+  type: MarkerType // Marker shape
   color?: string // Marker color (CSS color string)
   style?: string // Custom marker style (CSS string)
 }
@@ -505,9 +505,9 @@ chart.option = {
 
 ## Markers
 
-Pass an array of markers to each row's `markers` property to display triangle icons with labels on the row timeline.
+Pass an array of markers to each row's `markers` property to display icons with labels on the row timeline.
 
-- Choose from 4 triangle directions (up, down, left, right).
+- Choose from 6 shapes: triangles (up, down, left, right), diamond, and square.
 - Control the marker's reference position with `anchor`.
   - `'start'`: date is the marker's left edge. Label is displayed to the right of the icon.
   - `'end'`: date is the marker's right edge. Label is displayed to the left of the icon.

@@ -31,7 +31,7 @@ export interface GanttTaskPattern {
 /**
  * マーカーの種類
  */
-export type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right'
+export type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
 export type AnchorType = 'start' | 'end' | 'center'
 
 /**
