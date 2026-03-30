@@ -409,9 +409,13 @@ export class GanttBarElement extends LitElement {
             }),
           )
         } else if (upEvent) {
-          const finalDeltaX = upEvent.clientX - startX
-          const finalTranslateX = Math.round(finalDeltaX / snapPx) * snapPx
-          const finalDeltaY = upEvent.clientY - startY
+          const rawDeltaX = upEvent.clientX - startX
+          let finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
+          let finalDeltaY = upEvent.clientY - startY
+
+          // movable制限をドロップ時にも適用
+          if (movable === 'y') finalTranslateX = 0
+          if (movable === 'x' || this.multiDragActive) finalDeltaY = 0
 
           // 移動量が閾値以下の場合はクリックとして扱う
           if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
