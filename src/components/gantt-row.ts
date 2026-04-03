@@ -515,7 +515,7 @@ export class GanttRowElement extends LitElement {
                   position: absolute;
                   left: ${markerLeft}px;
                   top: ${markerY}px;
-                  z-index: 10;
+                  z-index: 2;
                   display: flex;
                   ${isCenter ? `flex-direction: column; align-items: center; width: ${markerSize}px; overflow: visible;` : `align-items: center; ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}`}
                   pointer-events: auto;

@@ -30,6 +30,7 @@ export class GanttBarElement extends LitElement {
       position: absolute;
       box-sizing: border-box;
       pointer-events: auto;
+      z-index: 3;
     }
     .task-group:hover {
       z-index: 50;

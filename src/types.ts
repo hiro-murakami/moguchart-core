@@ -32,6 +32,10 @@ export interface GanttTaskPattern {
  * マーカーの種類
  */
 export type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
+
+/**
+ * マーカーのアンカー位置
+ */
 export type AnchorType = 'start' | 'end' | 'center'
 
 /**
@@ -188,6 +192,9 @@ export interface GanttChartOptionCalendar {
   milestones?: GanttChartMilestone[]
 }
 
+/**
+ * カスタムレンダリングに関するオプション
+ */
 export interface GanttChartOptionCustomRendering {
   /** バーのコンテンツをレンダリングする関数 */
   barContent?: (task: GanttTask) => string | unknown
@@ -208,6 +215,9 @@ export interface ChartContextMenuEventDetail {
   rowId: string
 }
 
+/**
+ * ガントチャート全体のオプション設定
+ */
 export interface GanttChartOption {
   /** バーの設定 */
   bar?: GanttChartOptionBar
@@ -457,4 +467,7 @@ export interface ThemeColors {
   dark: ThemeColorPalette
 }
 
+/**
+ * タスクの移動モード
+ */
 export type GanttTaskMoveMode = 'copy' | 'move'
