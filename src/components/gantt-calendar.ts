@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttChartOption } from '@/types'
-import { jaLocale } from '@/i18n'
-import { DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
-import { getCalendarColor, getThemeColors, getTotalDays } from '@/utils'
+import type { GanttChartOption } from '@/core/types'
+import { jaLocale } from '@/core/i18n'
+import { DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
+import { getCalendarColor, getThemeColors, getTotalDays } from '@/core/utils'
 import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { jaLocale, enLocale } from '@/i18n'
-import { formatDuration } from '@/utils'
+import { jaLocale, enLocale } from '@/core/i18n'
+import { formatDuration } from '@/core/utils'
 
 describe('i18n', () => {
   describe('jaLocale', () => {

@@ -1,4 +1,4 @@
-import type { ThemeColors } from '@/types'
+import type { ThemeColors } from './types'
 
 export const THEME_COLORS: ThemeColors = {
   light: {

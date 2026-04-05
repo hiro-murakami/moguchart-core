@@ -1,7 +1,7 @@
-import type { GanttTask, TaskWithLane, ThemeColorPalette } from '@/types'
-import type { MoguchartLocale } from '@/i18n'
-import { jaLocale } from '@/i18n'
-import { THEME_COLORS } from '@/theme'
+import type { GanttTask, TaskWithLane, ThemeColorPalette } from './types'
+import type { MoguchartLocale } from './i18n'
+import { jaLocale } from './i18n'
+import { THEME_COLORS } from './theme'
 
 /**
  * 指定された日付のチャート上のX座標（ピクセル）を計算します。

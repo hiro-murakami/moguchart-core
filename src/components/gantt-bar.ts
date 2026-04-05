@@ -1,8 +1,8 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption } from '@/types'
-import { getPatternStyle } from '@/pattern-utils'
-import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '@/constants'
+import type { GanttTask, GanttChartOption } from '@/core/types'
+import { getPatternStyle } from '@/core/patterns'
+import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '@/core/constants'
 
 @customElement('gantt-bar')
 export class GanttBarElement extends LitElement {

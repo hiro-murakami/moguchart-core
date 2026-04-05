@@ -5,9 +5,9 @@ import {
   calculateTaskLanes,
   getThemeColors,
   getCalendarColor,
-} from '@/utils'
-import { THEME_COLORS } from '@/theme'
-import type { GanttTask } from '@/types'
+} from '@/core/utils'
+import { THEME_COLORS } from '@/core/theme'
+import type { GanttTask } from '@/core/types'
 
 describe('utils', () => {
   describe('dateToX', () => {

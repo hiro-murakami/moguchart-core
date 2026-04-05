@@ -1,5 +1,5 @@
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/constants'
-import { jaLocale } from '@/i18n'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
+import { jaLocale } from '@/core/i18n'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
@@ -11,8 +11,8 @@ import type {
   RowReorderEventDetail,
   RowSelectionChangeEventDetail,
   TaskUpdateEventDetail,
-} from '@/types'
-import { calculateTaskLanes, getThemeColors, getTotalDays, formatDuration } from '@/utils'
+} from '@/core/types'
+import { calculateTaskLanes, getThemeColors, getTotalDays, formatDuration } from '@/core/utils'
 import { LitElement, css, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'

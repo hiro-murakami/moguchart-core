@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { getCalendarColor, getThemeColors, getTotalDays } from '@/utils'
-import type { GanttChartOption } from '@/types'
+import { getCalendarColor, getThemeColors, getTotalDays } from '@/core/utils'
+import type { GanttChartOption } from '@/core/types'
 
 @customElement('gantt-row-background')
 export class GanttRowBackgroundElement extends LitElement {

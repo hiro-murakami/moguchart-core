@@ -14,183 +14,21 @@ import type {
   RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
   BarSelectionChangeEventDetail,
-  GanttMarker,
-} from '@/types'
-import type { ThemeColorPalette } from '@/types'
-import type { MoguchartLocale } from './i18n'
-import { jaLocale, enLocale } from './i18n'
+} from '@/core/types'
+import type { ThemeColorPalette } from '@/core/types'
+import type { MoguchartLocale } from '@/core/i18n'
+import { jaLocale, enLocale } from '@/core/i18n'
 import dayjs from 'dayjs'
-import { getPatternStyle } from '@/pattern-utils'
+import { getPatternStyle } from '@/core/patterns'
+import { jaTexts, enTexts } from './i18n'
+import type { DemoTexts } from './i18n'
+import { generateDayModeData, generateHourModeData, generateUnassignedTasks, chartStart } from './data'
 
-// デモページ用UIテキスト定義
-interface DemoTexts {
-  viewMode: string
-  dayUnit: string
-  hourUnit: string
-  theme: string
-  readOnlyMode: string
-  showDragInfo: string
-  enableRowReorder: string
-  autoUpdateTime: string
-  customRendering: string
-  rowHeaderResize: string
-  showHiddenRows: string
-  showTime: string
-  showYearMonth: string
-  showDates: string
-  showCurrentTimeLine: string
-  showCurrentTimeBadge: string
-  snapUnit: string
-  barHeight: string
-  dayWidth: string
-  rowHeaderWidth: string
-  tooltipDelay: string
-  oneDay: string
-  minutes: (n: number) => string
-  candidateTasks: string
-  duration: string
-  daysUnit: string
-  hoursUnit: string
-  noTasks: string
-  // データ用テキスト
-  project: (n: number) => string
-  requirementsDefinition: string
-  design: string
-  assignee: (n: number) => string
-  morningMeeting: string
-  taskA: string
-  break_: string
-  taskB: string
-  reviewDeadline: string
-  releaseScheduled: string
-  alphaRelease: string
-  betaRelease: string
-  officialRelease: string
-  newTaskA: string
-  newTaskB: string
-  meetingSetup: string
-  patternTask: string
-  labelStyleTask: string
-  // コンテキストメニュー
-  edit: string
-  duplicate: string
-  delete_: string
-  editDetail: (name: string, id: string) => string
-  editAction: (name: string) => string
-  duplicateAction: (name: string) => string
-  moveTo: (name: string) => string
-}
-
-const jaTexts: DemoTexts = {
-  viewMode: '表示モード:',
-  dayUnit: '日単位',
-  hourUnit: '時間単位',
-  theme: 'テーマ:',
-  readOnlyMode: '表示専用モード',
-  showDragInfo: 'ドラッグ情報を表示',
-  enableRowReorder: '行の並び替えを有効化',
-  autoUpdateTime: '現在時刻を自動更新',
-  customRendering: 'カスタムレンダリング有効',
-  rowHeaderResize: '行ヘッダーのリサイズ許可',
-  showHiddenRows: '非表示行を表示 (5行おき)',
-  showTime: '時間を表示',
-  showYearMonth: '年月を表示',
-  showDates: '日付を表示',
-  showCurrentTimeLine: '現在時刻線を表示',
-  showCurrentTimeBadge: '現在時刻バッジを表示',
-  snapUnit: 'スナップ単位:',
-  barHeight: 'バーの高さ:',
-  dayWidth: '1日の幅:',
-  rowHeaderWidth: '行ヘッダーの幅:',
-  tooltipDelay: 'ツールチップ遅延:',
-  oneDay: '1日',
-  minutes: (n) => `${n}分`,
-  candidateTasks: '◯ 追加候補タスク',
-  duration: '期間:',
-  daysUnit: '日',
-  hoursUnit: '時間',
-  noTasks: 'タスクはありません',
-  project: (n) => `プロジェクト ${n}`,
-  requirementsDefinition: '要件定義',
-  design: '設計',
-  assignee: (n) => `担当者 ${n}`,
-  morningMeeting: '朝会',
-  taskA: 'タスクA',
-  break_: '休憩',
-  taskB: 'タスクB',
-  reviewDeadline: 'レビュー期限',
-  releaseScheduled: 'リリース予定',
-  alphaRelease: 'α版リリース',
-  betaRelease: 'β版リリース',
-  officialRelease: '正式リリース',
-  newTaskA: '新規タスクA',
-  newTaskB: '新規タスクB',
-  meetingSetup: '会議設定',
-  patternTask: 'パターン付きタスク',
-  labelStyleTask: 'ラベルスタイル付き',
-  edit: '編集',
-  duplicate: '複製',
-  delete_: '削除',
-  editDetail: (name, id) => `詳細編集: ${name} (ID: ${id})`,
-  editAction: (name) => `編集: ${name}`,
-  duplicateAction: (name) => `複製: ${name}`,
-  moveTo: (name) => `移動先: ${name}`,
-}
-
-const enTexts: DemoTexts = {
-  viewMode: 'View Mode:',
-  dayUnit: 'Day',
-  hourUnit: 'Hour',
-  theme: 'Theme:',
-  readOnlyMode: 'Read Only',
-  showDragInfo: 'Show Drag Info',
-  enableRowReorder: 'Enable Row Reorder',
-  autoUpdateTime: 'Auto Update Time',
-  customRendering: 'Custom Rendering',
-  rowHeaderResize: 'Resizable Row Header',
-  showHiddenRows: 'Show Hidden Rows (every 5)',
-  showTime: 'Show Time',
-  showYearMonth: 'Show Year/Month',
-  showDates: 'Show Dates',
-  showCurrentTimeLine: 'Show Current Time Line',
-  showCurrentTimeBadge: 'Show Current Time Badge',
-  snapUnit: 'Snap Unit:',
-  barHeight: 'Bar Height:',
-  dayWidth: 'Day Width:',
-  rowHeaderWidth: 'Row Header Width:',
-  tooltipDelay: 'Tooltip Delay:',
-  oneDay: '1 day',
-  minutes: (n) => `${n} min`,
-  candidateTasks: '◯ Unassigned Tasks',
-  duration: 'Duration:',
-  daysUnit: 'days',
-  hoursUnit: 'hours',
-  noTasks: 'No tasks',
-  project: (n) => `Project ${n}`,
-  requirementsDefinition: 'Requirements',
-  design: 'Design',
-  assignee: (n) => `Assignee ${n}`,
-  morningMeeting: 'Morning Meeting',
-  taskA: 'Task A',
-  break_: 'Break',
-  taskB: 'Task B',
-  reviewDeadline: 'Review Deadline',
-  releaseScheduled: 'Release Planned',
-  alphaRelease: 'Alpha Release',
-  betaRelease: 'Beta Release',
-  officialRelease: 'Official Release',
-  newTaskA: 'New Task A',
-  newTaskB: 'New Task B',
-  meetingSetup: 'Meeting Setup',
-  patternTask: 'Patterned Task',
-  labelStyleTask: 'Styled Label',
-  edit: 'Edit',
-  duplicate: 'Duplicate',
-  delete_: 'Delete',
-  editDetail: (name, id) => `Edit: ${name} (ID: ${id})`,
-  editAction: (name) => `Edit: ${name}`,
-  duplicateAction: (name) => `Duplicate: ${name}`,
-  moveTo: (name) => `Move to: ${name}`,
+// windowオブジェクトの型拡張
+declare global {
+  interface Window {
+    _systemThemeListenerAdded: boolean
+  }
 }
 
 let currentLang: 'ja' | 'en' = 'ja'
@@ -203,131 +41,12 @@ const setLang = (lang: 'ja' | 'en') => {
   t = lang === 'ja' ? jaTexts : enTexts
   // データを言語変更時に再生成
   if (viewMode === 'day') {
-    rows = generateDayModeData()
+    rows = generateDayModeData(t)
   } else {
-    rows = generateHourModeData()
+    rows = generateHourModeData(t)
   }
-  regenerateUnassignedTasks()
+  unassignedTasks = generateUnassignedTasks(t)
   renderApp()
-}
-
-const chartStart = new Date()
-chartStart.setHours(0, 0, 0, 0)
-
-// windowオブジェクトの型拡張
-declare global {
-  interface Window {
-    _systemThemeListenerAdded: boolean
-  }
-}
-
-const generateDayModeData = (): GanttRow[] => {
-  const start = new Date(chartStart)
-  const rows: GanttRow[] = []
-  for (let i = 1; i <= 50; i++) {
-    const offset = (i - 1) % 10
-    const markers: GanttMarker[] | undefined =
-      i <= 3
-        ? [
-            {
-              id: `marker-${i}-1`,
-              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 3),
-              anchor: 'end',
-              type: 'triangle-right',
-              color: '#ef4444',
-              name: t.reviewDeadline,
-            },
-            {
-              id: `marker-${i}-2`,
-              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 20),
-              anchor: 'start',
-              type: 'triangle-left',
-              color: '#ef4444',
-              name: t.releaseScheduled,
-            },
-            {
-              id: `marker-${i}-3`,
-              date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 10),
-              anchor: 'center',
-              type: 'triangle-down',
-              color: '#ef4444',
-              name: '★',
-            },
-          ]
-        : undefined
-    rows.push({
-      id: `row${i}`,
-      name: t.project(i),
-      tasks: [
-        {
-          id: `t${i}-1`,
-          name: t.requirementsDefinition,
-          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset),
-          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 5),
-          pattern: i % 3 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
-          labelStyle: i === 1 ? 'font-weight: bold; color: red;' : undefined,
-        },
-        {
-          id: `t${i}-2`,
-          name: t.design,
-          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 6),
-          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 15),
-          dependencies: [`t${i}-1`],
-        },
-      ],
-      markers,
-      visible: i % 5 !== 0,
-    })
-  }
-  return rows
-}
-
-const generateHourModeData = (): GanttRow[] => {
-  const start = new Date(chartStart)
-  const setTime = (d: Date, h: number, m: number) => {
-    const newDate = new Date(d)
-    newDate.setHours(h, m, 0, 0)
-    return newDate
-  }
-
-  const rows: GanttRow[] = []
-  for (let i = 1; i <= 30; i++) {
-    const shift = (i - 1) % 3
-    rows.push({
-      id: `user${i}`,
-      name: t.assignee(i),
-      tasks: [
-        {
-          id: `h${i}-1`,
-          name: t.morningMeeting,
-          start: setTime(start, 9, 0),
-          end: setTime(start, 10, 0),
-          movable: 'none',
-          style: 'background-color: #ef4444;',
-        },
-        {
-          id: `h${i}-2`,
-          name: t.taskA,
-          start: setTime(start, 10 + shift, 0),
-          end: setTime(start, 12 + shift, 0),
-        },
-        {
-          id: `h${i}-3`,
-          name: t.break_,
-          start: setTime(start, 12, 0),
-          end: setTime(start, 13, 0),
-          pattern: { type: 'dots', color: '#aaa' },
-        },
-        {
-          id: `h${i}-4`,
-          name: t.taskB,
-          start: setTime(start, 13, 0),
-          end: setTime(start, 16 + shift, 30),
-        },
-      ],
-    })
-  }
-  return rows
 }
 
 let rows: GanttRow[] = []
@@ -360,50 +79,7 @@ let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
 
-// 追加候補のタスク一覧
-const regenerateUnassignedTasks = () => {
-  unassignedTasks = [
-    {
-      id: 'new-1',
-      name: t.newTaskA,
-      start: new Date(),
-      end: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      style: 'background-color: #8b5cf6;',
-    },
-    {
-      id: 'new-2',
-      name: t.newTaskB,
-      start: new Date(),
-      end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      style: 'background-color: #ec4899;',
-    },
-    {
-      id: 'new-3',
-      name: t.meetingSetup,
-      start: new Date(),
-      end: new Date(Date.now() + 1 * 60 * 60 * 1000),
-      style: 'background-color: #10b981;',
-    },
-    {
-      id: 'new-4',
-      name: t.patternTask,
-      start: new Date(),
-      end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      style: 'background-color: #f59e0b;',
-      pattern: { type: 'diagonal-stripe', color: 'rgba(255, 255, 255, 0.5)' },
-    },
-    {
-      id: 'new-5',
-      name: t.labelStyleTask,
-      start: new Date(),
-      end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
-      style: 'background-color: #3b82f6;',
-      labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
-    },
-  ]
-}
-let unassignedTasks: GanttTask[] = []
-regenerateUnassignedTasks()
+let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
 const setViewMode = (mode: 'day' | 'hour') => {
   viewMode = mode
@@ -417,7 +93,7 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
     chartEnd.setDate(chartStart.getDate() + 50)
-    rows = generateDayModeData()
+    rows = generateDayModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
     pxPerDay = 960
@@ -429,7 +105,7 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
     chartEnd.setTime(chartStart.getTime() + 1.5 * 24 * 60 * 60 * 1000)
-    rows = generateHourModeData()
+    rows = generateHourModeData(t)
   }
   renderApp()
 }
@@ -1129,20 +805,13 @@ const handleTaskDragEnd = () => {
 const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
   const { task, dropDate, targetRowId } = e.detail
   try {
-    // コンポーネントから受け取った日時を使用
     const newStart = new Date(dropDate)
-
-    // 過去の日付にならないように調整（必要であれば）
-    // if (newStart < chartStart) return
-
-    // タスクの日時を更新
     const duration = new Date(task.end).getTime() - new Date(task.start).getTime()
 
     // スナップ処理（簡易）
     if (viewMode === 'day') {
       newStart.setHours(0, 0, 0, 0)
     } else {
-      // 時間モードなら分をスナップ単位に合わせるなどの処理が可能
       const minutes = newStart.getMinutes()
       const snappedMinutes = Math.round(minutes / snapDuration) * snapDuration
       newStart.setMinutes(snappedMinutes, 0, 0)
@@ -1150,32 +819,23 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
 
     const newEnd = new Date(newStart.getTime() + duration)
 
-    // 新しいタスクオブジェクトを作成
     const newTask: GanttTask = {
       ...task,
-      id: `${task.id}-${Date.now()}`, // IDを一意にする
+      id: `${task.id}-${Date.now()}`,
       start: newStart,
       end: newEnd,
       style: `${task.style || ''}; transform-origin: center; animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;`,
     }
 
-    // 行データを更新
     rows = rows.map((row) => {
       if (row.id === targetRowId) {
-        return {
-          ...row,
-          tasks: [...row.tasks, newTask],
-        }
+        return { ...row, tasks: [...row.tasks, newTask] }
       }
       return row
     })
-
-    // 候補リストから削除しないように変更
-    // unassignedTasks = unassignedTasks.filter((t) => t.id !== task.id)
     renderApp()
 
     // アニメーション終了後にスタイルをクリーンアップ
-    // (仮想スクロールなどで再描画された際に再度アニメーションしないようにするため)
     setTimeout(() => {
       rows = rows.map((row) => {
         if (row.id === targetRowId) {
@@ -1183,7 +843,6 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
             ...row,
             tasks: row.tasks.map((t) => {
               if (t.id === newTask.id) {
-                // animationプロパティを除去
                 const newStyle = t.style?.replace(/animation:[^;]+;?/g, '') || ''
                 return { ...t, style: newStyle }
               }
@@ -1219,7 +878,6 @@ const handleTaskDblClick = (e: CustomEvent<TaskClickEventDetail>) => {
 const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
   const { task, event } = e.detail
 
-  // 既存のメニューを削除
   const oldMenu = document.getElementById('custom-context-menu')
   if (oldMenu) {
     oldMenu.remove()
@@ -1246,32 +904,29 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
     {
       label: t.delete_,
       action: () => {
-        const selectedIds = selectedTaskIds
-        const isMultiDelete = selectedIds.includes(task.id)
-        const targetIds = isMultiDelete ? selectedIds : [task.id]
+        const currentSelectedIds = selectedTaskIds
+        const isMultiDelete = currentSelectedIds.includes(task.id)
+        const targetIds = isMultiDelete ? currentSelectedIds : [task.id]
 
-        // 1. 削除アニメーションを適用
         rows = rows.map((row) => ({
           ...row,
-          tasks: row.tasks.map((t) => {
-            if (targetIds.includes(t.id)) {
+          tasks: row.tasks.map((taskItem) => {
+            if (targetIds.includes(taskItem.id)) {
               return {
-                ...t,
-                style: `${t.style || ''}; animation: fade-out 0.3s ease-out forwards; pointer-events: none;`,
+                ...taskItem,
+                style: `${taskItem.style || ''}; animation: fade-out 0.3s ease-out forwards; pointer-events: none;`,
               }
             }
-            return t
+            return taskItem
           }),
         }))
         renderApp()
 
-        // 2. アニメーション終了後にデータを削除
         setTimeout(() => {
           rows = rows.map((row) => ({
             ...row,
-            tasks: row.tasks.filter((t) => !targetIds.includes(t.id)),
+            tasks: row.tasks.filter((taskItem) => !targetIds.includes(taskItem.id)),
           }))
-          // 削除後に選択状態をクリア（必要に応じて）
           if (isMultiDelete) {
             selectedTaskIds = []
           }
@@ -1307,7 +962,6 @@ const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {
     document.removeEventListener('click', closeMenu)
   }
 
-  // 少し遅延させてクリックイベントを登録しないと、即座に閉じてしまう可能性がある
   requestAnimationFrame(() => {
     document.addEventListener('click', closeMenu)
   })

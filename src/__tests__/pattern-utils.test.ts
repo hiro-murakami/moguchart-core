@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getPatternStyle } from '../pattern-utils'
+import { getPatternStyle } from '@/core/patterns'
 
 describe('getPatternStyle', () => {
   it('returns empty string when pattern is undefined', () => {
@@ -7,8 +7,8 @@ describe('getPatternStyle', () => {
   })
 
   it('returns empty string when pattern type is undefined', () => {
-    // @ts-expect-error Testing invalid input
-    expect(getPatternStyle({})).toBe('')
+    // Testing invalid input - passing empty object
+    expect(getPatternStyle({} as any)).toBe('')
   })
 
   it('uses default color when not provided', () => {

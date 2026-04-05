@@ -207,7 +207,7 @@ export interface GanttChartOptionCustomRendering {
 }
 
 /**
- * ガントチャート全体のオプション設定
+ * チャート背景右クリックイベントの詳細データ
  */
 export interface ChartContextMenuEventDetail {
   event: MouseEvent
