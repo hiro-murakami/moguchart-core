@@ -22,7 +22,13 @@ import dayjs from 'dayjs'
 import { getPatternStyle } from '@/core/patterns'
 import { jaTexts, enTexts } from './i18n'
 import type { DemoTexts } from './i18n'
-import { generateDayModeData, generateHourModeData, generateUnassignedTasks, chartStart } from './data'
+import {
+  generateDayModeData,
+  generateWeekModeData,
+  generateHourModeData,
+  generateUnassignedTasks,
+  chartStart,
+} from './data'
 
 // windowオブジェクトの型拡張
 declare global {
@@ -42,6 +48,8 @@ const setLang = (lang: 'ja' | 'en') => {
   // データを言語変更時に再生成
   if (viewMode === 'day') {
     rows = generateDayModeData(t)
+  } else if (viewMode === 'week') {
+    rows = generateWeekModeData(t)
   } else {
     rows = generateHourModeData(t)
   }
@@ -50,7 +58,7 @@ const setLang = (lang: 'ja' | 'en') => {
 }
 
 let rows: GanttRow[] = []
-let viewMode: 'day' | 'hour' = 'day'
+let viewMode: 'day' | 'week' | 'hour' = 'day'
 
 let pxPerDay = 48
 const chartEnd = new Date(chartStart)
@@ -69,6 +77,7 @@ let snapDuration = 1440
 let showTime = false
 let showMonths = true
 let showDays = true
+let showWeeks = false
 let showCurrentTime = true
 let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
@@ -78,10 +87,11 @@ let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
+let weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
-const setViewMode = (mode: 'day' | 'hour') => {
+const setViewMode = (mode: 'day' | 'week' | 'hour') => {
   viewMode = mode
   if (mode === 'day') {
     pxPerDay = 48
@@ -89,11 +99,25 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showTime = false
     showMonths = true
     showDays = true
+    showWeeks = false
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
     chartEnd.setDate(chartStart.getDate() + 50)
     rows = generateDayModeData(t)
+  } else if (mode === 'week') {
+    // 週単位モード: 1日あたり12px (1週間 ≈ 84px)
+    pxPerDay = 12
+    snapDuration = 1440
+    showTime = false
+    showMonths = true
+    showDays = false
+    showWeeks = true
+    showCurrentTime = true
+    showCurrentTimeBadge = false
+    currentTimeUpdateInterval = 1000
+    chartEnd.setDate(chartStart.getDate() + 120)
+    rows = generateWeekModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
     pxPerDay = 960
@@ -101,6 +125,7 @@ const setViewMode = (mode: 'day' | 'hour') => {
     showTime = true
     showMonths = false
     showDays = true
+    showWeeks = false
     showCurrentTime = true
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
@@ -140,6 +165,8 @@ const renderApp = () => {
       showTime,
       showMonths,
       showDays,
+      showWeeks,
+      weekStartDay,
       showCurrentTime,
       showCurrentTimeBadge,
       currentTimeUpdateInterval,
@@ -324,6 +351,17 @@ const renderApp = () => {
               style="margin-right: 4px;"
             />
             ${t.dayUnit}
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
+            <input
+              type="radio"
+              name="viewMode"
+              value="week"
+              .checked="${viewMode === 'week'}"
+              @change="${() => setViewMode('week')}"
+              style="margin-right: 4px;"
+            />
+            ${t.weekUnit}
           </label>
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input
@@ -543,6 +581,27 @@ const renderApp = () => {
           />
           ${t.showCurrentTimeBadge}
         </label>
+
+        ${viewMode === 'week'
+          ? html`
+              <label style="display: flex; align-items: center; cursor: pointer;">
+                ${t.weekStartDay}
+                <select
+                  style="font-size: 16px; padding: 4px; margin-left: 6px;"
+                  @change="${(e: Event) => {
+                    weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+                    renderApp()
+                  }}"
+                >
+                  ${t.dayNames.map(
+                    (name: string, i: number) => html`
+                      <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
+                    `,
+                  )}
+                </select>
+              </label>
+            `
+          : ''}
       </div>
 
       <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
@@ -587,7 +646,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
+            ${[12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
               (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
             )}
           </select>
@@ -809,7 +868,7 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
     const duration = new Date(task.end).getTime() - new Date(task.start).getTime()
 
     // スナップ処理（簡易）
-    if (viewMode === 'day') {
+    if (viewMode === 'day' || viewMode === 'week') {
       newStart.setHours(0, 0, 0, 0)
     } else {
       const minutes = newStart.getMinutes()

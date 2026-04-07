@@ -53,6 +53,19 @@ export class GanttCalendarElement extends LitElement {
       white-space: nowrap;
       overflow: hidden;
     }
+    .weeks-container {
+      display: flex;
+    }
+    .week-cell {
+      box-sizing: border-box;
+      padding: 4px 0;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: center;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+    }
     .days-container {
       display: flex;
     }
@@ -204,6 +217,59 @@ export class GanttCalendarElement extends LitElement {
                 </div>`
               })}
             </div>`
+          : ''}
+        ${this.option.calendar.showWeeks
+          ? (() => {
+              const weekStartDay = this.option.calendar.weekStartDay ?? 1 // デフォルト: 月曜
+
+              // weekStartDay に基づく週番号を計算する関数
+              const getWeekNumber = (date: Date): number => {
+                const d = new Date(date.getTime())
+                d.setHours(0, 0, 0, 0)
+                // weekStartDay を基準にした曜日オフセットを計算
+                const dayOfWeek = d.getDay()
+                const daysSinceWeekStart = (dayOfWeek - weekStartDay + 7) % 7
+                // 週の始まりに調整
+                const weekStart = new Date(d.getTime())
+                weekStart.setDate(weekStart.getDate() - daysSinceWeekStart)
+                // 年初からの週番号を計算
+                const yearStart = new Date(weekStart.getFullYear(), 0, 1)
+                const dayOfYear = Math.floor((weekStart.getTime() - yearStart.getTime()) / 86400000)
+                return Math.floor(dayOfYear / 7) + 1
+              }
+
+              // 日付配列から週のグループを作成（weekStartDay を基準にグループ化）
+              const weeks: { weekNumber: number; startDate: Date; count: number }[] = []
+              days.forEach((day) => {
+                const dayOfWeek = day.getDay()
+                const isWeekStart = dayOfWeek === weekStartDay
+                const last = weeks[weeks.length - 1]
+                if (last && !isWeekStart) {
+                  last.count++
+                } else {
+                  const weekNumber = getWeekNumber(day)
+                  weeks.push({ weekNumber, startDate: new Date(day), count: 1 })
+                }
+              })
+
+              const weekBackgroundStyle = `
+                background: ${colors.bg};
+                border-bottom: 1px solid ${colors.border};
+              `
+
+              const weekFormat = this.option.calendar.weekFormat
+              return html`<div class="weeks-container" style="${weekBackgroundStyle}">
+                ${weeks.map((w) => {
+                  const label = weekFormat ? weekFormat(w.weekNumber, w.startDate) : `W${w.weekNumber}`
+                  return html`<div
+                    class="week-cell"
+                    style="width: ${w.count * this.option.calendar.pxPerDay}px; border-right: 1px solid ${colors.border};"
+                  >
+                    ${label}
+                  </div>`
+                })}
+              </div>`
+            })()
           : ''}
         ${this.option.calendar.showDays !== false
           ? html`<div class="days-container" style="${backgroundStyle}">

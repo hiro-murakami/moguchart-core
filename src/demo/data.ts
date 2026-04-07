@@ -69,6 +69,39 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
 }
 
 /**
+ * 週単位モードのデモデータを生成します。
+ */
+export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
+  const start = new Date(chartStart)
+  const rows: GanttRow[] = []
+  for (let i = 1; i <= 30; i++) {
+    const offset = ((i - 1) % 8) * 7 // 週単位でオフセット
+    rows.push({
+      id: `wrow${i}`,
+      name: t.project(i),
+      tasks: [
+        {
+          id: `w${i}-1`,
+          name: t.requirementsDefinition,
+          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset),
+          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 7),
+          pattern: i % 4 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
+        },
+        {
+          id: `w${i}-2`,
+          name: t.design,
+          start: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 7),
+          end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset + 21),
+          dependencies: [`w${i}-1`],
+        },
+      ],
+      visible: i % 5 !== 0,
+    })
+  }
+  return rows
+}
+
+/**
  * 時間単位モードのデモデータを生成します。
  */
 export const generateHourModeData = (t: DemoTexts): GanttRow[] => {

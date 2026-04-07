@@ -2,6 +2,7 @@
 export interface DemoTexts {
   viewMode: string
   dayUnit: string
+  weekUnit: string
   hourUnit: string
   theme: string
   readOnlyMode: string
@@ -27,6 +28,9 @@ export interface DemoTexts {
   duration: string
   daysUnit: string
   hoursUnit: string
+  weeksUnit: string
+  weekStartDay: string
+  dayNames: string[]
   noTasks: string
   // データ用テキスト
   project: (n: number) => string
@@ -60,6 +64,7 @@ export interface DemoTexts {
 export const jaTexts: DemoTexts = {
   viewMode: '表示モード:',
   dayUnit: '日単位',
+  weekUnit: '週単位',
   hourUnit: '時間単位',
   theme: 'テーマ:',
   readOnlyMode: '表示専用モード',
@@ -85,6 +90,9 @@ export const jaTexts: DemoTexts = {
   duration: '期間:',
   daysUnit: '日',
   hoursUnit: '時間',
+  weeksUnit: '週',
+  weekStartDay: '週の始まり:',
+  dayNames: ['日曜', '月曜', '火曜', '水曜', '木曜', '金曜', '土曜'],
   noTasks: 'タスクはありません',
   project: (n) => `プロジェクト ${n}`,
   requirementsDefinition: '要件定義',
@@ -116,6 +124,7 @@ export const jaTexts: DemoTexts = {
 export const enTexts: DemoTexts = {
   viewMode: 'View Mode:',
   dayUnit: 'Day',
+  weekUnit: 'Week',
   hourUnit: 'Hour',
   theme: 'Theme:',
   readOnlyMode: 'Read Only',
@@ -141,6 +150,9 @@ export const enTexts: DemoTexts = {
   duration: 'Duration:',
   daysUnit: 'days',
   hoursUnit: 'hours',
+  weeksUnit: 'weeks',
+  weekStartDay: 'Week starts on:',
+  dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   noTasks: 'No tasks',
   project: (n) => `Project ${n}`,
   requirementsDefinition: 'Requirements',
