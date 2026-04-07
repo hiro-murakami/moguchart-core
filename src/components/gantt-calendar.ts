@@ -258,12 +258,15 @@ export class GanttCalendarElement extends LitElement {
               `
 
               const weekFormat = this.option.calendar.weekFormat
+              const weekTextAlign = this.option.calendar.weekTextAlign ?? 'center'
               return html`<div class="weeks-container" style="${weekBackgroundStyle}">
                 ${weeks.map((w) => {
                   const label = weekFormat ? weekFormat(w.weekNumber, w.startDate) : `W${w.weekNumber}`
                   return html`<div
                     class="week-cell"
-                    style="width: ${w.count * this.option.calendar.pxPerDay}px; border-right: 1px solid ${colors.border};"
+                    style="width: ${w.count *
+                    this.option.calendar
+                      .pxPerDay}px; border-right: 1px solid ${colors.border}; text-align: ${weekTextAlign}; padding: 0 2px;"
                   >
                     ${label}
                   </div>`

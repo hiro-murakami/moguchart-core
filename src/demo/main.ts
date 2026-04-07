@@ -88,6 +88,8 @@ let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
 let weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1
+let weekTextAlign: 'left' | 'center' | 'right' = 'left'
+let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
@@ -167,6 +169,8 @@ const renderApp = () => {
       showDays,
       showWeeks,
       weekStartDay,
+      weekTextAlign,
+      weekFormat,
       showCurrentTime,
       showCurrentTimeBadge,
       currentTimeUpdateInterval,

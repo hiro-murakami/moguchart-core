@@ -194,6 +194,8 @@ export interface GanttChartOptionCalendar {
   weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6
   /** 週番号の表示フォーマット関数 (引数: 年の通算週番号、デフォルト: 'W1', 'W2'...) */
   weekFormat?: (weekNumber: number, startDate: Date) => string
+  /** 週番号セルのテキスト配置 (デフォルト: 'center') */
+  weekTextAlign?: 'left' | 'center' | 'right'
   /** マイルストーンの配列 */
   milestones?: GanttChartMilestone[]
 }
