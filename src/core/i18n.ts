@@ -6,6 +6,8 @@
 export interface MoguchartLocale {
   /** デフォルトの月表示フォーマット (dayjs互換フォーマット文字列) */
   monthFormat: string
+  /** 月単位モードの月表示フォーマット (dayjs互換フォーマット文字列、例: 'M月' / 'MMM') */
+  monthRowFormat: string
   /** 日付のフォーマット関数 (例: "2024/1/15" / "1/15/2024") */
   dateFormat: (date: Date) => string
   /** 日時のフォーマット関数（時刻が00:00でない場合に使用） */
@@ -42,6 +44,7 @@ export interface MoguchartLocale {
  */
 export const jaLocale: MoguchartLocale = {
   monthFormat: 'YYYY年M月',
+  monthRowFormat: 'M月',
   dateFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
   dateTimeFormat: (d) => {
     const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
@@ -71,6 +74,7 @@ export const jaLocale: MoguchartLocale = {
  */
 export const enLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
   dateFormat: (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
   dateTimeFormat: (d) => {
     const date = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`

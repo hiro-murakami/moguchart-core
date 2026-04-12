@@ -26,6 +26,7 @@ import {
   generateDayModeData,
   generateWeekModeData,
   generateHourModeData,
+  generateMonthModeData,
   generateUnassignedTasks,
   chartStart,
 } from './data'
@@ -50,6 +51,8 @@ const setLang = (lang: 'ja' | 'en') => {
     rows = generateDayModeData(t)
   } else if (viewMode === 'week') {
     rows = generateWeekModeData(t)
+  } else if (viewMode === 'month') {
+    rows = generateMonthModeData(t)
   } else {
     rows = generateHourModeData(t)
   }
@@ -58,7 +61,7 @@ const setLang = (lang: 'ja' | 'en') => {
 }
 
 let rows: GanttRow[] = []
-let viewMode: 'day' | 'week' | 'hour' = 'day'
+let viewMode: 'day' | 'week' | 'month' | 'hour' = 'day'
 
 let pxPerDay = 48
 const chartEnd = new Date(chartStart)
@@ -78,6 +81,7 @@ let showTime = false
 let showMonths = true
 let showDays = true
 let showWeeks = false
+let showMonthsRow = false
 let showCurrentTime = true
 let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
@@ -93,7 +97,7 @@ let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate)
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
-const setViewMode = (mode: 'day' | 'week' | 'hour') => {
+const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   viewMode = mode
   if (mode === 'day') {
     pxPerDay = 48
@@ -102,6 +106,7 @@ const setViewMode = (mode: 'day' | 'week' | 'hour') => {
     showMonths = true
     showDays = true
     showWeeks = false
+    showMonthsRow = false
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
@@ -115,11 +120,26 @@ const setViewMode = (mode: 'day' | 'week' | 'hour') => {
     showMonths = true
     showDays = false
     showWeeks = true
+    showMonthsRow = false
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
     chartEnd.setDate(chartStart.getDate() + 120)
     rows = generateWeekModeData(t)
+  } else if (mode === 'month') {
+    // 月単位モード: 1日あたり4px (1ヶ月 ≈ 120px)
+    pxPerDay = 2
+    snapDuration = 43200 // 30日 = 43200分
+    showTime = false
+    showMonths = false
+    showDays = false
+    showWeeks = false
+    showMonthsRow = true
+    showCurrentTime = true
+    showCurrentTimeBadge = false
+    currentTimeUpdateInterval = 1000
+    chartEnd.setDate(chartStart.getDate() + 365)
+    rows = generateMonthModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
     pxPerDay = 960
@@ -128,6 +148,7 @@ const setViewMode = (mode: 'day' | 'week' | 'hour') => {
     showMonths = false
     showDays = true
     showWeeks = false
+    showMonthsRow = false
     showCurrentTime = true
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
@@ -140,8 +161,8 @@ const setViewMode = (mode: 'day' | 'week' | 'hour') => {
 const renderApp = () => {
   const customTheme: Partial<ThemeColorPalette> = {}
 
-  // 時間単位モードのときは土日・祝日のハイライトを無効化（透明にする）
-  if (viewMode === 'hour') {
+  // 時間単位・月単位モードのときは土日・祝日のハイライトを無効化（透明にする）
+  if (viewMode === 'hour' || viewMode === 'month') {
     customTheme.saturday = 'transparent'
     customTheme.sunday = 'transparent'
     customTheme.holiday = 'transparent'
@@ -168,6 +189,7 @@ const renderApp = () => {
       showMonths,
       showDays,
       showWeeks,
+      showMonthsRow,
       weekStartDay,
       weekTextAlign,
       weekFormat,
@@ -366,6 +388,17 @@ const renderApp = () => {
               style="margin-right: 4px;"
             />
             ${t.weekUnit}
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
+            <input
+              type="radio"
+              name="viewMode"
+              value="month"
+              .checked="${viewMode === 'month'}"
+              @change="${() => setViewMode('month')}"
+              style="margin-right: 4px;"
+            />
+            ${t.monthUnit}
           </label>
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input
@@ -618,9 +651,11 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[6, 15, 30, 60, 180, 720, 1440].map(
+            ${[6, 15, 30, 60, 180, 720, 1440, 43200].map(
               (d) => html`
-                <option value="${d}" ?selected="${snapDuration === d}">${d === 1440 ? t.oneDay : t.minutes(d)}</option>
+                <option value="${d}" ?selected="${snapDuration === d}">
+                  ${d === 1440 ? t.oneDay : d === 43200 ? t.oneMonth : t.minutes(d)}
+                </option>
               `,
             )}
           </select>
@@ -650,7 +685,7 @@ const renderApp = () => {
               renderApp()
             }}"
           >
-            ${[12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
+            ${[2, 4, 12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
               (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
             )}
           </select>
@@ -872,7 +907,7 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
     const duration = new Date(task.end).getTime() - new Date(task.start).getTime()
 
     // スナップ処理（簡易）
-    if (viewMode === 'day' || viewMode === 'week') {
+    if (viewMode === 'day' || viewMode === 'week' || viewMode === 'month') {
       newStart.setHours(0, 0, 0, 0)
     } else {
       const minutes = newStart.getMinutes()

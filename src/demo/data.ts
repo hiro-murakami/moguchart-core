@@ -153,6 +153,44 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
 }
 
 /**
+ * 月単位モードのデモデータを生成します。
+ */
+export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
+  const start = new Date(chartStart)
+  const rows: GanttRow[] = []
+  for (let i = 1; i <= 30; i++) {
+    const offsetMonths = (i - 1) % 6
+    const taskStart = new Date(start.getFullYear(), start.getMonth() + offsetMonths, start.getDate())
+    const designStart = new Date(taskStart)
+    designStart.setMonth(designStart.getMonth() + 1)
+    const designEnd = new Date(designStart)
+    designEnd.setMonth(designEnd.getMonth() + 2)
+    rows.push({
+      id: `mrow${i}`,
+      name: t.project(i),
+      tasks: [
+        {
+          id: `m${i}-1`,
+          name: t.requirementsDefinition,
+          start: taskStart,
+          end: new Date(taskStart.getFullYear(), taskStart.getMonth() + 1, taskStart.getDate()),
+          pattern: i % 4 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
+        },
+        {
+          id: `m${i}-2`,
+          name: t.design,
+          start: designStart,
+          end: designEnd,
+          dependencies: [`m${i}-1`],
+        },
+      ],
+      visible: i % 5 !== 0,
+    })
+  }
+  return rows
+}
+
+/**
  * 未割り当てタスク（追加候補）のリストを生成します。
  */
 export const generateUnassignedTasks = (t: DemoTexts): GanttTask[] => [

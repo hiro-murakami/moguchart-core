@@ -207,7 +207,48 @@ export class GanttCalendarElement extends LitElement {
           .rowHeader?.backgroundColor ?? colors.rowHeaderBg};"
       ></div>
       <div class="calendar-group" style="width: ${totalWidth}px; overflow: hidden;">
-        ${this.option.calendar.showMonths !== false
+        ${this.option.calendar.showMonthsRow
+          ? (() => {
+              // 年のグループを生成
+              const years: { year: number; count: number }[] = []
+              days.forEach((day) => {
+                const year = day.getFullYear()
+                const last = years[years.length - 1]
+                if (last && last.year === year) {
+                  last.count++
+                } else {
+                  years.push({ year, count: 1 })
+                }
+              })
+
+              const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
+
+              return html`<div class="months-container">
+                  ${years.map(
+                    (y) => html`<div class="month-cell" style="width: ${y.count * this.option.calendar.pxPerDay}px">
+                      ${y.year}
+                    </div>`,
+                  )}
+                </div>
+                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border};">
+                  ${months.map(
+                    (m) => {
+                      const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
+                      const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
+                      return html`<div
+                      class="week-cell"
+                      style="width: ${m.count *
+                      this.option.calendar
+                        .pxPerDay}px; border-right: 1px solid ${colors.border}; text-align: ${monthTextAlign}; padding: 0 2px;"
+                    >
+                      ${monthLabel}
+                    </div>`
+                    },
+                  )}
+                </div>`
+            })()
+          : ''}
+        ${this.option.calendar.showMonths !== false && !this.option.calendar.showMonthsRow
           ? html`<div class="months-container">
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat

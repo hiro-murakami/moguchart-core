@@ -369,7 +369,27 @@ export class GanttRowElement extends LitElement {
     this.style.height = `${rowHeight}px`
 
     let backgroundStyle
-    if (this.option.calendar.showTime) {
+    let monthGridLines: { left: number }[] | null = null
+    if (this.option.calendar.showMonthsRow) {
+      // 月単位モード: 月の境界に罫線を配置（月ごとの日数が不均一のため個別計算）
+      backgroundStyle = ''
+      const start = new Date(this.option.calendar.start)
+      const totalDays = Math.ceil(this.totalDays)
+      const days = Array.from({ length: totalDays }, (_, i) => {
+        const d = new Date(start)
+        d.setDate(d.getDate() + i)
+        return d
+      })
+      const monthBoundaries: { left: number }[] = []
+      let accumulatedDays = 0
+      for (let i = 0; i < days.length; i++) {
+        if (i > 0 && (days[i].getMonth() !== days[i - 1].getMonth() || days[i].getFullYear() !== days[i - 1].getFullYear())) {
+          monthBoundaries.push({ left: accumulatedDays * this.option.calendar.pxPerDay })
+        }
+        accumulatedDays++
+      }
+      monthGridLines = monthBoundaries
+    } else if (this.option.calendar.showTime) {
       const hourWidth = this.option.calendar.pxPerDay / 24
       const snapMinutes = this.option.snapDuration ?? 60
       const snapWidth = (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
@@ -464,7 +484,11 @@ export class GanttRowElement extends LitElement {
             ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
-          <div class="grid-background" style="${backgroundStyle}"></div>
+          ${monthGridLines
+            ? monthGridLines.map(
+                (line) => html`<div style="position: absolute; top: 0; left: ${line.left}px; width: 1px; height: 100%; background-color: ${colors.gridLine}; pointer-events: none; z-index: 0;"></div>`,
+              )
+            : html`<div class="grid-background" style="${backgroundStyle}"></div>`}
           ${isHidden ? html`<div class="hidden-row-overlay" style="background: ${colors.rowHiddenBg};"></div>` : ''}
           ${repeat(
             tasksWithLanes,

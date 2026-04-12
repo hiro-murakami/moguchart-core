@@ -196,6 +196,10 @@ export interface GanttChartOptionCalendar {
   weekFormat?: (weekNumber: number, startDate: Date) => string
   /** 週番号セルのテキスト配置 (デフォルト: 'center') */
   weekTextAlign?: 'left' | 'center' | 'right'
+  /** 月単位表示（上段=年、下段=月）を有効にするかどうか */
+  showMonthsRow?: boolean
+  /** 月セルのテキスト配置 (デフォルト: 'center') */
+  monthTextAlign?: 'left' | 'center' | 'right'
   /** マイルストーンの配列 */
   milestones?: GanttChartMilestone[]
 }

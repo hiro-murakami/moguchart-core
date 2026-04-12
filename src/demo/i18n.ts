@@ -3,6 +3,7 @@ export interface DemoTexts {
   viewMode: string
   dayUnit: string
   weekUnit: string
+  monthUnit: string
   hourUnit: string
   theme: string
   readOnlyMode: string
@@ -23,12 +24,14 @@ export interface DemoTexts {
   rowHeaderWidth: string
   tooltipDelay: string
   oneDay: string
+  oneMonth: string
   minutes: (n: number) => string
   candidateTasks: string
   duration: string
   daysUnit: string
   hoursUnit: string
   weeksUnit: string
+  monthsUnit: string
   weekStartDay: string
   dayNames: string[]
   noTasks: string
@@ -65,6 +68,7 @@ export const jaTexts: DemoTexts = {
   viewMode: '表示モード:',
   dayUnit: '日単位',
   weekUnit: '週単位',
+  monthUnit: '月単位',
   hourUnit: '時間単位',
   theme: 'テーマ:',
   readOnlyMode: '表示専用モード',
@@ -85,12 +89,14 @@ export const jaTexts: DemoTexts = {
   rowHeaderWidth: '行ヘッダーの幅:',
   tooltipDelay: 'ツールチップ遅延:',
   oneDay: '1日',
+  oneMonth: '1ヶ月',
   minutes: (n) => `${n}分`,
   candidateTasks: '◯ 追加候補タスク',
   duration: '期間:',
   daysUnit: '日',
   hoursUnit: '時間',
   weeksUnit: '週',
+  monthsUnit: 'ヶ月',
   weekStartDay: '週の始まり:',
   dayNames: ['日曜', '月曜', '火曜', '水曜', '木曜', '金曜', '土曜'],
   noTasks: 'タスクはありません',
@@ -125,6 +131,7 @@ export const enTexts: DemoTexts = {
   viewMode: 'View Mode:',
   dayUnit: 'Day',
   weekUnit: 'Week',
+  monthUnit: 'Month',
   hourUnit: 'Hour',
   theme: 'Theme:',
   readOnlyMode: 'Read Only',
@@ -145,12 +152,14 @@ export const enTexts: DemoTexts = {
   rowHeaderWidth: 'Row Header Width:',
   tooltipDelay: 'Tooltip Delay:',
   oneDay: '1 day',
+  oneMonth: '1 month',
   minutes: (n) => `${n} min`,
   candidateTasks: '◯ Unassigned Tasks',
   duration: 'Duration:',
   daysUnit: 'days',
   hoursUnit: 'hours',
   weeksUnit: 'weeks',
+  monthsUnit: 'months',
   weekStartDay: 'Week starts on:',
   dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   noTasks: 'No tasks',
