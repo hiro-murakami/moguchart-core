@@ -287,7 +287,9 @@ export class GanttCalendarElement extends LitElement {
                     class="day-cell"
                     style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
                   >
-                    ${day.getDate()}
+                    ${this.option.calendar.showTime
+                      ? `${(day.getMonth() + 1).toString().padStart(2, '0')}/${day.getDate().toString().padStart(2, '0')}`
+                      : day.getDate()}
                   </div>
                 `
               })}
