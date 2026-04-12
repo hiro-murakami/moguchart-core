@@ -564,6 +564,15 @@ export class GanttChartElement extends LitElement {
       newEnd = new Date(end.getTime() + timeDiff)
     }
 
+    if (this.option.snapDuration && this.option.snapDuration >= 43200) {
+      if (newStart.getDate() > 15) newStart.setMonth(newStart.getMonth() + 1)
+      newStart.setDate(1)
+      newStart.setHours(0, 0, 0, 0)
+      if (newEnd.getDate() > 15) newEnd.setMonth(newEnd.getMonth() + 1)
+      newEnd.setDate(1)
+      newEnd.setHours(0, 0, 0, 0)
+    }
+
     let sourceRowIndex = -1
     let taskToMove: GanttTask | undefined
     let taskIndexInSource = -1
@@ -731,10 +740,20 @@ export class GanttChartElement extends LitElement {
           ...row,
           tasks: row.tasks.map((t) => {
             if (!this.selectedTasks.has(t.id)) return t
+            const ns = new Date(t.start.getTime() + timeDiff)
+            const ne = new Date(t.end.getTime() + timeDiff)
+            if (this.option.snapDuration && this.option.snapDuration >= 43200) {
+              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+              ns.setDate(1)
+              ns.setHours(0, 0, 0, 0)
+              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+              ne.setDate(1)
+              ne.setHours(0, 0, 0, 0)
+            }
             return {
               ...t,
-              start: new Date(t.start.getTime() + timeDiff),
-              end: new Date(t.end.getTime() + timeDiff),
+              start: ns,
+              end: ne,
             }
           }),
         }

@@ -158,9 +158,10 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
 export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
   const start = new Date(chartStart)
   const rows: GanttRow[] = []
-  for (let i = 1; i <= 30; i++) {
-    const offsetMonths = (i - 1) % 6
-    const taskStart = new Date(start.getFullYear(), start.getMonth() + offsetMonths, start.getDate())
+  for (let i = 1; i <= 40; i++) {
+    // 約5年（60ヶ月）の期間にプロジェクトを散りばめる
+    const offsetMonths = Math.floor((i - 1) * 1.5)
+    const taskStart = new Date(start.getFullYear(), start.getMonth() + offsetMonths, 1)
     const designStart = new Date(taskStart)
     designStart.setMonth(designStart.getMonth() + 1)
     const designEnd = new Date(designStart)
@@ -173,7 +174,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
           id: `m${i}-1`,
           name: t.requirementsDefinition,
           start: taskStart,
-          end: new Date(taskStart.getFullYear(), taskStart.getMonth() + 1, taskStart.getDate()),
+          end: new Date(taskStart.getFullYear(), taskStart.getMonth() + 1, 1),
           pattern: i % 4 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
         },
         {

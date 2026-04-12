@@ -138,7 +138,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setDate(chartStart.getDate() + 365)
+    chartEnd.setDate(chartStart.getDate() + 365 * 6) // カレンダーの期間を5年以上確保
     rows = generateMonthModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
