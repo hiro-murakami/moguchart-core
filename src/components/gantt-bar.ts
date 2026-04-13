@@ -233,11 +233,9 @@ export class GanttBarElement extends LitElement {
 
           if (handle === 'left') {
             let rawNewStart = xToDate(originalStartXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (snapDuration >= 43200) {
-              if (rawNewStart.getDate() > 15) rawNewStart.setMonth(rawNewStart.getMonth() + 1)
-              rawNewStart.setDate(1)
-              rawNewStart.setHours(0, 0, 0, 0)
-            }
+            if (rawNewStart.getDate() > 15) rawNewStart.setMonth(rawNewStart.getMonth() + 1)
+            rawNewStart.setDate(1)
+            rawNewStart.setHours(0, 0, 0, 0)
             newStart = rawNewStart
             if (newStart >= newEnd) {
               newStart = new Date(newEnd)
@@ -245,11 +243,9 @@ export class GanttBarElement extends LitElement {
             }
           } else {
             let rawNewEnd = xToDate(originalEndXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (snapDuration >= 43200) {
-              if (rawNewEnd.getDate() > 15) rawNewEnd.setMonth(rawNewEnd.getMonth() + 1)
-              rawNewEnd.setDate(1)
-              rawNewEnd.setHours(0, 0, 0, 0)
-            }
+            if (rawNewEnd.getDate() > 15) rawNewEnd.setMonth(rawNewEnd.getMonth() + 1)
+            rawNewEnd.setDate(1)
+            rawNewEnd.setHours(0, 0, 0, 0)
             newEnd = rawNewEnd
             if (newEnd <= newStart) {
               newEnd = new Date(newStart)
@@ -387,17 +383,14 @@ export class GanttBarElement extends LitElement {
           const snapPx = pxPerMinute * snapDuration
           translateX = Math.round(deltaX / snapPx) * snapPx
         } else {
-          // Monthモードでの移動時のスナップ
-          // X座標から日付を算出し、その日付をスナップしてから再度X座標に戻すアプローチをとる
-          if (snapDuration >= 43200) {
-            // 元の開始日をベースにどれだけ月をまたいだかを計算する
-            const rawDate = xToDate(this.getX(originalStart) + deltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
-            const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
-            
-            const snappedStart = new Date(originalStart)
-            snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
-            translateX = this.getX(snappedStart) - this.getX(originalStart)
-          }
+          // Monthモードでの移動時は常に1ヶ月単位でスナップ
+          // 元の開始日をベースにどれだけ月をまたいだかを計算する
+          const rawDate = xToDate(this.getX(originalStart) + deltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
+          const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
+          
+          const snappedStart = new Date(originalStart)
+          snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
+          translateX = this.getX(snappedStart) - this.getX(originalStart)
         }
 
         taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
@@ -461,13 +454,11 @@ export class GanttBarElement extends LitElement {
             const snapPx = pxPerMinute * snapDuration
             finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
           } else {
-            if (snapDuration >= 43200) {
-              const rawDate = xToDate(this.getX(originalStart) + rawDeltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
-              const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
-              const snappedStart = new Date(originalStart)
-              snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
-              finalTranslateX = this.getX(snappedStart) - this.getX(originalStart)
-            }
+            const rawDate = xToDate(this.getX(originalStart) + rawDeltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
+            const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
+            const snappedStart = new Date(originalStart)
+            snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
+            finalTranslateX = this.getX(snappedStart) - this.getX(originalStart)
           }
           let finalDeltaY = upEvent.clientY - startY
 

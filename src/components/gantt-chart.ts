@@ -559,7 +559,15 @@ export class GanttChartElement extends LitElement {
       newEnd = xToDate(endX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
     }
 
-    if (this.option.snapDuration && this.option.snapDuration >= 43200) {
+    // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
+    if (this.option.calendar.pxPerMonth) {
+      if (newStart.getDate() > 15) newStart.setMonth(newStart.getMonth() + 1)
+      newStart.setDate(1)
+      newStart.setHours(0, 0, 0, 0)
+      if (newEnd.getDate() > 15) newEnd.setMonth(newEnd.getMonth() + 1)
+      newEnd.setDate(1)
+      newEnd.setHours(0, 0, 0, 0)
+    } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
       if (newStart.getDate() > 15) newStart.setMonth(newStart.getMonth() + 1)
       newStart.setDate(1)
       newStart.setHours(0, 0, 0, 0)
@@ -739,7 +747,15 @@ export class GanttChartElement extends LitElement {
             const tEndX = this.getDateX(t.end)
             const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
             const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (this.option.snapDuration && this.option.snapDuration >= 43200) {
+            // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
+            if (this.option.calendar.pxPerMonth) {
+              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+              ns.setDate(1)
+              ns.setHours(0, 0, 0, 0)
+              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+              ne.setDate(1)
+              ne.setHours(0, 0, 0, 0)
+            } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
               if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
               ns.setDate(1)
               ns.setHours(0, 0, 0, 0)

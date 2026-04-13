@@ -131,9 +131,9 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     rows = generateWeekModeData(t)
   } else if (mode === 'month') {
     // 月単位モード: 日単位の設定を無視してpxPerMonthを使用
-    pxPerDay = 2 // unused when pxPerMonth is set
+    // pxPerDay = 2 // unused when pxPerMonth is set
     pxPerMonth = 48
-    snapDuration = 43200 // 30日 = 43200分
+    // snapDuration = 43200 // 30日 = 43200分
     showTime = false
     showMonths = false
     showDays = false
@@ -648,16 +648,21 @@ const renderApp = () => {
       </div>
 
       <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
+        <label
+          style="display: flex; align-items: center; cursor: ${viewMode === 'month'
+            ? 'default'
+            : 'pointer'}; ${viewMode === 'month' ? 'opacity: 0.5;' : ''}"
+        >
           ${t.snapUnit}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
+            .disabled="${viewMode === 'month'}"
             @change="${(e: Event) => {
               snapDuration = Number((e.target as HTMLSelectElement).value)
               renderApp()
             }}"
           >
-            ${[6, 15, 30, 60, 180, 720, 1440, 43200].map(
+            ${[6, 15, 30, 60, 180, 720, 1440].map(
               (d) => html`
                 <option value="${d}" ?selected="${snapDuration === d}">
                   ${d === 1440 ? t.oneDay : d === 43200 ? t.oneMonth : t.minutes(d)}
