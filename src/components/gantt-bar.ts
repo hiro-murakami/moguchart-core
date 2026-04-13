@@ -2,6 +2,7 @@ import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption } from '@/core/types'
 import { getPatternStyle } from '@/core/patterns'
+import { dateToX, xToDate } from '@/core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '@/core/constants'
 
 @customElement('gantt-bar')
@@ -124,11 +125,7 @@ export class GanttBarElement extends LitElement {
   `
 
   private getX(date: Date) {
-    const d = new Date(date)
-    const start = new Date(this.option.calendar.start)
-    start.setHours(0, 0, 0, 0)
-    const diff = d.getTime() - start.getTime()
-    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
+    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
   }
 
   private setupDragEvents(
@@ -199,32 +196,65 @@ export class GanttBarElement extends LitElement {
     let currentStart = new Date(originalStart)
     let currentEnd = new Date(originalEnd)
 
-    const snapDuration = this.option.snapDuration ?? 1440
-    const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
-    const snapPx = pxPerMinute * snapDuration
 
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
         const deltaX = moveEvent.clientX - startX
-        const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
-        const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
 
         let newStart = new Date(originalStart)
         let newEnd = new Date(originalEnd)
 
-        if (handle === 'left') {
-          newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
-          if (newStart >= newEnd) {
-            // 終了日を越えないように制限
-            newStart = new Date(newEnd.getTime() - Math.max(snapDuration, 1) * 60 * 1000)
+        const pxPerDay = this.option.calendar.pxPerDay ?? 50
+        const pxPerMonth = this.option.calendar.pxPerMonth
+        const snapDuration = Math.max(this.option.snapDuration ?? 1440, 1)
+
+        if (!pxPerMonth) {
+          const pxPerMinute = pxPerDay / (24 * 60)
+          const snapPx = pxPerMinute * snapDuration
+          const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
+          const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
+
+          if (handle === 'left') {
+            newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
+            if (newStart >= newEnd) {
+              newStart = new Date(newEnd.getTime() - snapDuration * 60 * 1000)
+            }
+          } else {
+            newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
+            if (newEnd <= newStart) {
+              newEnd = new Date(newStart.getTime() + snapDuration * 60 * 1000)
+            }
           }
         } else {
-          newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
-          if (newEnd <= newStart) {
-            // 開始日より前にならないように制限
-            newEnd = new Date(newStart.getTime() + Math.max(snapDuration, 1) * 60 * 1000)
+          const originalStartXBase = this.getX(originalStart)
+          const originalEndXBase = this.getX(originalEnd)
+
+          if (handle === 'left') {
+            let rawNewStart = xToDate(originalStartXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
+            if (snapDuration >= 43200) {
+              if (rawNewStart.getDate() > 15) rawNewStart.setMonth(rawNewStart.getMonth() + 1)
+              rawNewStart.setDate(1)
+              rawNewStart.setHours(0, 0, 0, 0)
+            }
+            newStart = rawNewStart
+            if (newStart >= newEnd) {
+              newStart = new Date(newEnd)
+              newStart.setMonth(newStart.getMonth() - 1)
+            }
+          } else {
+            let rawNewEnd = xToDate(originalEndXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
+            if (snapDuration >= 43200) {
+              if (rawNewEnd.getDate() > 15) rawNewEnd.setMonth(rawNewEnd.getMonth() + 1)
+              rawNewEnd.setDate(1)
+              rawNewEnd.setHours(0, 0, 0, 0)
+            }
+            newEnd = rawNewEnd
+            if (newEnd <= newStart) {
+              newEnd = new Date(newStart)
+              newEnd.setMonth(newEnd.getMonth() + 1)
+            }
           }
         }
 
@@ -336,8 +366,6 @@ export class GanttBarElement extends LitElement {
     const originalEnd = new Date(this.task.end)
 
     const snapDuration = this.option.snapDuration ?? 1440
-    const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
-    const snapPx = pxPerMinute * snapDuration
 
     this.setupDragEvents(
       target,
@@ -353,8 +381,24 @@ export class GanttBarElement extends LitElement {
         if (movable === 'y') deltaX = 0
         if (movable === 'x' || this.multiDragActive) deltaY = 0
 
-        // 横方向のスナップ処理
-        const translateX = Math.round(deltaX / snapPx) * snapPx
+        let translateX = deltaX
+        if (!this.option.calendar.pxPerMonth) {
+          const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
+          const snapPx = pxPerMinute * snapDuration
+          translateX = Math.round(deltaX / snapPx) * snapPx
+        } else {
+          // Monthモードでの移動時のスナップ
+          // X座標から日付を算出し、その日付をスナップしてから再度X座標に戻すアプローチをとる
+          if (snapDuration >= 43200) {
+            // 元の開始日をベースにどれだけ月をまたいだかを計算する
+            const rawDate = xToDate(this.getX(originalStart) + deltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
+            const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
+            
+            const snappedStart = new Date(originalStart)
+            snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
+            translateX = this.getX(snappedStart) - this.getX(originalStart)
+          }
+        }
 
         taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
 
@@ -411,7 +455,20 @@ export class GanttBarElement extends LitElement {
           )
         } else if (upEvent) {
           const rawDeltaX = upEvent.clientX - startX
-          let finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
+          let finalTranslateX = rawDeltaX
+          if (!this.option.calendar.pxPerMonth) {
+            const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
+            const snapPx = pxPerMinute * snapDuration
+            finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
+          } else {
+            if (snapDuration >= 43200) {
+              const rawDate = xToDate(this.getX(originalStart) + rawDeltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
+              const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
+              const snappedStart = new Date(originalStart)
+              snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
+              finalTranslateX = this.getX(snappedStart) - this.getX(originalStart)
+            }
+          }
           let finalDeltaY = upEvent.clientY - startY
 
           // movable制限をドロップ時にも適用

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { getCalendarColor, getThemeColors, getTotalDays } from '@/core/utils'
+import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '@/core/utils'
 import type { GanttChartOption } from '@/core/types'
 
 @customElement('gantt-row-background')
@@ -43,9 +43,14 @@ export class GanttRowBackgroundElement extends LitElement {
           colors,
           this.option.calendar.isHoliday,
         )
+        const nextDay = new Date(day)
+        nextDay.setDate(day.getDate() + 1)
+        const d1 = dateToX(day, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
+        const d2 = dateToX(nextDay, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
+        const width = d2 - d1
+
         return html`<div
-          style="width: ${this.option.calendar
-            .pxPerDay}px; background-color: ${color}; flex-shrink: 0;"
+          style="width: ${width}px; background-color: ${color}; flex-shrink: 0;"
         ></div>`
       })}
     `

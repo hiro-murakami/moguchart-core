@@ -64,6 +64,7 @@ let rows: GanttRow[] = []
 let viewMode: 'day' | 'week' | 'month' | 'hour' = 'day'
 
 let pxPerDay = 48
+let pxPerMonth: number | undefined = undefined
 const chartEnd = new Date(chartStart)
 chartEnd.setDate(chartStart.getDate() + 60)
 let barHeight = 28
@@ -101,6 +102,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   viewMode = mode
   if (mode === 'day') {
     pxPerDay = 48
+    pxPerMonth = undefined
     snapDuration = 1440
     showTime = false
     showMonths = true
@@ -115,6 +117,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   } else if (mode === 'week') {
     // 週単位モード: 1日あたり12px (1週間 ≈ 84px)
     pxPerDay = 12
+    pxPerMonth = undefined
     snapDuration = 1440
     showTime = false
     showMonths = true
@@ -127,8 +130,9 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     chartEnd.setDate(chartStart.getDate() + 120)
     rows = generateWeekModeData(t)
   } else if (mode === 'month') {
-    // 月単位モード: 1日あたり4px (1ヶ月 ≈ 120px)
-    pxPerDay = 2
+    // 月単位モード: 日単位の設定を無視してpxPerMonthを使用
+    pxPerDay = 2 // unused when pxPerMonth is set
+    pxPerMonth = 48
     snapDuration = 43200 // 30日 = 43200分
     showTime = false
     showMonths = false
@@ -143,6 +147,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
     pxPerDay = 960
+    pxPerMonth = undefined
     snapDuration = 15
     showTime = true
     showMonths = false
@@ -184,6 +189,7 @@ const renderApp = () => {
       start: chartStart,
       end: chartEnd,
       pxPerDay,
+      pxPerMonth,
       isHoliday: holiday_jp.isHoliday,
       showTime,
       showMonths,
@@ -677,17 +683,26 @@ const renderApp = () => {
         </label>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
-          ${t.dayWidth}
+          ${viewMode === 'month' ? '月幅' : t.dayWidth}
           <select
             style="font-size: 16px; padding: 4px; margin-left: 6px;"
             @change="${(e: Event) => {
-              pxPerDay = Number((e.target as HTMLSelectElement).value)
+              const val = Number((e.target as HTMLSelectElement).value)
+              if (viewMode === 'month') {
+                pxPerMonth = val
+              } else {
+                pxPerDay = val
+              }
               renderApp()
             }}"
           >
-            ${[2, 4, 12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
-              (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
-            )}
+            ${viewMode === 'month'
+              ? [12, 24, 64, 128, 256].map(
+                  (w) => html` <option value="${w}" ?selected="${pxPerMonth === w}">${w}px</option> `,
+                )
+              : [12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
+                  (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
+                )}
           </select>
         </label>
 

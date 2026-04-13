@@ -12,7 +12,7 @@ import type {
   RowSelectionChangeEventDetail,
   TaskUpdateEventDetail,
 } from '@/core/types'
-import { calculateTaskLanes, getThemeColors, getTotalDays, formatDuration } from '@/core/utils'
+import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '@/core/utils'
 import { LitElement, css, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -97,9 +97,7 @@ export class GanttChartElement extends LitElement {
   private _lastOptionRef: GanttChartOption | null = null
   private _lastLabelWidth: number = -1
 
-  private get totalDays() {
-    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
-  }
+
 
   private get displayRows() {
     if (this.option.showHiddenRows) {
@@ -478,12 +476,7 @@ export class GanttChartElement extends LitElement {
   }, 100)
 
   private getDateX(date: Date) {
-    const d = new Date(date)
-    const start = new Date(this.option.calendar.start)
-    start.setHours(0, 0, 0, 0)
-    const diff = d.getTime() - start.getTime()
-    const days = diff / (1000 * 60 * 60 * 24)
-    return days * (this.option.calendar.pxPerDay ?? 50)
+    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
   }
 
   private calculateLayout() {
@@ -558,10 +551,12 @@ export class GanttChartElement extends LitElement {
     let newEnd = end
 
     if (dx !== undefined) {
-      const msPerPx = (24 * 60 * 60 * 1000) / this.option.calendar.pxPerDay
-      const timeDiff = dx * msPerPx
-      newStart = new Date(start.getTime() + timeDiff)
-      newEnd = new Date(end.getTime() + timeDiff)
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const pxPerMonth = this.option.calendar.pxPerMonth
+      const startX = this.getDateX(start)
+      const endX = this.getDateX(end)
+      newStart = xToDate(startX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
+      newEnd = xToDate(endX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
     }
 
     if (this.option.snapDuration && this.option.snapDuration >= 43200) {
@@ -729,8 +724,8 @@ export class GanttChartElement extends LitElement {
 
     // 複数バー移動のドロップ処理
     if (droppedMulti && dx !== undefined) {
-      const msPerPx = (24 * 60 * 60 * 1000) / this.option.calendar.pxPerDay
-      const timeDiff = dx * msPerPx
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const pxPerMonth = this.option.calendar.pxPerMonth
 
       const newRows = this.rows.map((row) => {
         const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
@@ -740,8 +735,10 @@ export class GanttChartElement extends LitElement {
           ...row,
           tasks: row.tasks.map((t) => {
             if (!this.selectedTasks.has(t.id)) return t
-            const ns = new Date(t.start.getTime() + timeDiff)
-            const ne = new Date(t.end.getTime() + timeDiff)
+            const tStartX = this.getDateX(t.start)
+            const tEndX = this.getDateX(t.end)
+            const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
+            const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
             if (this.option.snapDuration && this.option.snapDuration >= 43200) {
               if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
               ns.setDate(1)
@@ -1001,6 +998,7 @@ export class GanttChartElement extends LitElement {
           const scrollLeft = container.scrollLeft
           const x = e.clientX - rect.left + scrollLeft - labelWidth
           const pxPerDay = this.option.calendar.pxPerDay ?? 50
+          const pxPerMonth = this.option.calendar.pxPerMonth
 
           // スナップ計算
           const snapDuration = this.option.snapDuration ?? 1440
@@ -1009,8 +1007,7 @@ export class GanttChartElement extends LitElement {
           const snappedX = Math.round(x / snapPx) * snapPx
 
           // 日時計算
-          const daysFromStart = snappedX / pxPerDay
-          const currentStart = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+          const currentStart = xToDate(snappedX, this.option.calendar.start, pxPerDay, pxPerMonth)
           const durationMs = this.externalDraggingTask.end.getTime() - this.externalDraggingTask.start.getTime()
           const currentEnd = new Date(currentStart.getTime() + durationMs)
 
@@ -1099,8 +1096,8 @@ export class GanttChartElement extends LitElement {
       // X座標 -> 日時
       const x = e.clientX - rect.left + scrollLeft - labelWidth
       const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const daysFromStart = x / pxPerDay
-      const dropDate = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+      const pxPerMonth = this.option.calendar.pxPerMonth
+      const dropDate = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
       // Y座標 -> 行
       const yInRows = e.clientY - rect.top + scrollTop - this.calendarHeight
@@ -1221,8 +1218,8 @@ export class GanttChartElement extends LitElement {
       // X座標 -> 日時
       const x = e.clientX - rect.left + scrollLeft - labelWidth
       const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const daysFromStart = x / pxPerDay
-      const date = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+      const pxPerMonth = this.option.calendar.pxPerMonth
+      const date = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
       this.dispatchEvent(
         new CustomEvent('chart-contextmenu', {
@@ -1269,8 +1266,8 @@ export class GanttChartElement extends LitElement {
 
     const x = clientX - rect.left + scrollLeft - labelWidth
     const pxPerDay = this.option.calendar.pxPerDay ?? 50
-    const daysFromStart = x / pxPerDay
-    const date = new Date(this.option.calendar.start.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+    const pxPerMonth = this.option.calendar.pxPerMonth
+    const date = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
     return { rowId: targetRowId, date }
   }
@@ -1590,7 +1587,7 @@ export class GanttChartElement extends LitElement {
         <svg
           class="dependency-lines"
           style="top: ${this.calendarHeight}px;"
-          width="${this.totalDays * (this.option.calendar.pxPerDay ?? 50) + labelWidth}"
+          width="${this.getDateX(this.option.calendar.end) + labelWidth}"
           height="${totalHeight}"
         >
           ${lines}

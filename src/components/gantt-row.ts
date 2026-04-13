@@ -1,6 +1,6 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
 import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, MarkerType, RowHeaderContextMenuEventDetail } from '@/core/types'
-import { calculateTaskLanes, getThemeColors, getTotalDays } from '@/core/utils'
+import { calculateTaskLanes, getThemeColors, dateToX } from '@/core/utils'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -40,16 +40,10 @@ export class GanttRowElement extends LitElement {
   @property({ type: Array })
   selectedTaskIds: string[] = []
 
-  private get totalDays() {
-    return getTotalDays(this.option.calendar.start, this.option.calendar.end)
-  }
+
 
   private getDateX(date: Date): number {
-    const d = new Date(date)
-    const start = new Date(this.option.calendar.start)
-    start.setHours(0, 0, 0, 0)
-    const diff = d.getTime() - start.getTime()
-    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
+    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay, this.option.calendar.pxPerMonth)
   }
 
   /**
@@ -374,19 +368,19 @@ export class GanttRowElement extends LitElement {
       // 月単位モード: 月の境界に罫線を配置（月ごとの日数が不均一のため個別計算）
       backgroundStyle = ''
       const start = new Date(this.option.calendar.start)
-      const totalDays = Math.ceil(this.totalDays)
-      const days = Array.from({ length: totalDays }, (_, i) => {
-        const d = new Date(start)
-        d.setDate(d.getDate() + i)
-        return d
-      })
+      const startX = this.getDateX(start)
+      const endX = this.getDateX(new Date(this.option.calendar.end))
       const monthBoundaries: { left: number }[] = []
-      let accumulatedDays = 0
-      for (let i = 0; i < days.length; i++) {
-        if (i > 0 && (days[i].getMonth() !== days[i - 1].getMonth() || days[i].getFullYear() !== days[i - 1].getFullYear())) {
-          monthBoundaries.push({ left: accumulatedDays * this.option.calendar.pxPerDay })
+      
+      let currentMonthStart = new Date(start)
+      currentMonthStart.setDate(1) // first day of the start month
+      
+      while (currentMonthStart <= this.option.calendar.end) {
+        const x = this.getDateX(currentMonthStart)
+        if (x >= startX && x <= endX) {
+          monthBoundaries.push({ left: x })
         }
-        accumulatedDays++
+        currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
       }
       monthGridLines = monthBoundaries
     } else if (this.option.calendar.showTime) {
@@ -479,7 +473,7 @@ export class GanttRowElement extends LitElement {
             style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
           ></div>
         </div>
-        <div class="bars-container" style="width: ${this.totalDays * this.option.calendar.pxPerDay}px">
+        <div class="bars-container" style="width: ${this.getDateX(this.option.calendar.end)}px">
           ${this.option.calendar.showRowBackground !== false
             ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}

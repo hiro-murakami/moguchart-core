@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js'
 import type { GanttChartOption } from '@/core/types'
 import { jaLocale } from '@/core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
-import { getCalendarColor, getThemeColors, getTotalDays } from '@/core/utils'
+import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '@/core/utils'
 import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')
@@ -132,11 +132,7 @@ export class GanttCalendarElement extends LitElement {
   `
 
   private getDateX(date: Date) {
-    const d = new Date(date)
-    const start = new Date(this.option.calendar.start)
-    start.setHours(0, 0, 0, 0)
-    const diff = d.getTime() - start.getTime()
-    return (diff / (1000 * 60 * 60 * 24)) * this.option.calendar.pxPerDay
+    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay, this.option.calendar.pxPerMonth)
   }
 
   private formatTime(date: Date) {
@@ -154,15 +150,31 @@ export class GanttCalendarElement extends LitElement {
       return d
     })
 
-    const months: { year: number; month: number; count: number }[] = []
+    const months: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] = []
     days.forEach((day) => {
       const year = day.getFullYear()
       const month = day.getMonth()
       const last = months[months.length - 1]
       if (last && last.year === year && last.month === month) {
         last.count++
+        last.end = new Date(day)
+        last.end.setDate(last.end.getDate() + 1) // next day at 00:00
       } else {
-        months.push({ year, month, count: 1 })
+        const start = new Date(day)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(day)
+        end.setDate(end.getDate() + 1)
+        months.push({ year, month, count: 1, start, end })
+      }
+    })
+    
+    // calculate actual width using getDateX
+    months.forEach((m) => {
+      if (m.start && m.end) {
+        let x1 = this.getDateX(m.start)
+        let x2 = this.getDateX(m.end)
+        // If it's the last date, cap at the exact end of the chart if necessary, but getDateX should be fine
+        m.width = x2 - x1
       }
     })
 
@@ -178,7 +190,7 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${hourWidth}px 100%;
     `
 
-    const totalWidth = this.totalDays * this.option.calendar.pxPerDay
+    const totalWidth = this.getDateX(this.option.calendar.end)
 
     return html`
       <style>
@@ -210,14 +222,25 @@ export class GanttCalendarElement extends LitElement {
         ${this.option.calendar.showMonthsRow
           ? (() => {
               // 年のグループを生成
-              const years: { year: number; count: number }[] = []
+              const years: { year: number; count: number; start?: Date; end?: Date; width?: number }[] = []
               days.forEach((day) => {
                 const year = day.getFullYear()
                 const last = years[years.length - 1]
                 if (last && last.year === year) {
                   last.count++
+                  last.end = new Date(day)
+                  last.end.setDate(last.end.getDate() + 1)
                 } else {
-                  years.push({ year, count: 1 })
+                  const start = new Date(day)
+                  start.setHours(0, 0, 0, 0)
+                  const end = new Date(day)
+                  end.setDate(end.getDate() + 1)
+                  years.push({ year, count: 1, start, end })
+                }
+              })
+              years.forEach((y) => {
+                if (y.start && y.end) {
+                  y.width = this.getDateX(y.end) - this.getDateX(y.start)
                 }
               })
 
@@ -225,7 +248,7 @@ export class GanttCalendarElement extends LitElement {
 
               return html`<div class="months-container">
                   ${years.map(
-                    (y) => html`<div class="month-cell" style="width: ${y.count * this.option.calendar.pxPerDay}px">
+                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px">
                       ${y.year}
                     </div>`,
                   )}
@@ -237,9 +260,7 @@ export class GanttCalendarElement extends LitElement {
                       const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
                       return html`<div
                       class="week-cell"
-                      style="width: ${m.count *
-                      this.option.calendar
-                        .pxPerDay}px; border-right: 1px solid ${colors.border}; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${colors.border}; text-align: ${monthTextAlign}; padding: 0 2px;"
                     >
                       ${monthLabel}
                     </div>`
@@ -253,7 +274,7 @@ export class GanttCalendarElement extends LitElement {
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
-                return html`<div class="month-cell" style="width: ${m.count * this.option.calendar.pxPerDay}px">
+                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px">
                   ${text}
                 </div>`
               })}

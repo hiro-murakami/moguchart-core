@@ -10,10 +10,71 @@ import { THEME_COLORS } from './theme'
  * @param pxPerDay 1日あたりのピクセル幅
  * @returns 開始日からのピクセル距離
  */
-export const dateToX = (date: Date, startDate: Date, pxPerDay: number) => {
+export const dateToX = (date: Date, startDate: Date, pxPerDay: number, pxPerMonth?: number) => {
+  if (pxPerMonth !== undefined) {
+    const startY = startDate.getFullYear()
+    const startM = startDate.getMonth()
+    const targetY = date.getFullYear()
+    const targetM = date.getMonth()
+
+    const monthDiff = (targetY - startY) * 12 + (targetM - startM)
+
+    const daysInStartMonth = new Date(startY, startM + 1, 0).getDate()
+    const startFraction =
+      (startDate.getDate() - 1 + startDate.getHours() / 24 + startDate.getMinutes() / 1440) / daysInStartMonth
+
+    const daysInTargetMonth = new Date(targetY, targetM + 1, 0).getDate()
+    const targetFraction =
+      (date.getDate() - 1 + date.getHours() / 24 + date.getMinutes() / 1440) / daysInTargetMonth
+
+    return (monthDiff + targetFraction - startFraction) * pxPerMonth
+  }
+
   const diffTime = date.getTime() - startDate.getTime()
   const diffDays = diffTime / (1000 * 60 * 60 * 24)
   return diffDays * pxPerDay
+}
+
+/**
+ * チャート上のX座標から日付を計算します。
+ * @param x チャートのX座標（ピクセル）
+ * @param startDate チャートの開始日
+ * @param pxPerDay 1日あたりのピクセル幅
+ * @param pxPerMonth 月あたりのピクセル幅（指定された場合、月単位の等幅表示になる）
+ * @returns 座標に対応する日付
+ */
+export const xToDate = (x: number, startDate: Date, pxPerDay: number, pxPerMonth?: number): Date => {
+  if (pxPerMonth !== undefined) {
+    const startY = startDate.getFullYear()
+    const startM = startDate.getMonth()
+    const daysInStartMonth = new Date(startY, startM + 1, 0).getDate()
+    const startFraction =
+      (startDate.getDate() - 1 + startDate.getHours() / 24 + startDate.getMinutes() / 1440) / daysInStartMonth
+
+    const totalMonthFraction = x / pxPerMonth + startFraction
+
+    let targetM = startM + Math.floor(totalMonthFraction)
+    let targetY = startY + Math.floor(targetM / 12)
+    targetM = targetM % 12
+    if (targetM < 0) {
+      targetM += 12
+      targetY -= 1
+    }
+
+    const targetFraction = totalMonthFraction - Math.floor(totalMonthFraction)
+    const daysInTargetMonth = new Date(targetY, targetM + 1, 0).getDate()
+
+    const totalDays = targetFraction * daysInTargetMonth
+    const day = 1 + Math.floor(totalDays)
+    const totalHours = (totalDays - Math.floor(totalDays)) * 24
+    const hours = Math.floor(totalHours)
+    const minutes = Math.round((totalHours - hours) * 60)
+
+    return new Date(targetY, targetM, day, hours, minutes)
+  }
+
+  const diffDays = x / pxPerDay
+  return new Date(startDate.getTime() + diffDays * 24 * 60 * 60 * 1000)
 }
 
 /**

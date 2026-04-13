@@ -170,6 +170,8 @@ export interface GanttChartOptionCalendar {
   end: Date
   /** 1日あたりのピクセル幅 */
   pxPerDay: number
+  /** 月あたりのピクセル幅（指定された場合、月単位の等幅表示になる） */
+  pxPerMonth?: number
   /** 月の表示フォーマット (例: 'YYYY年M月') */
   monthFormat?: string
   /** 行の背景を表示するかどうか */
