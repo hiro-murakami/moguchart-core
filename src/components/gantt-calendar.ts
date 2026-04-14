@@ -14,6 +14,15 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) currentTime = new Date()
   @property({ type: String }) hoveredMilestoneId: string | null = null
 
+  // days/months/years/weeks のキャッシュ
+  private _cachedDays: Date[] | null = null
+  private _cachedMonths: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] | null = null
+  private _cachedYears: { year: number; count: number; start?: Date; end?: Date; width?: number }[] | null = null
+  private _cachedWeeks: { weekNumber: number; startDate: Date; count: number }[] | null = null
+  private _cachedStartTime = 0
+  private _cachedEndTime = 0
+  private _cachedWeekStartDay: number = -1
+
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
   }
@@ -141,42 +150,111 @@ export class GanttCalendarElement extends LitElement {
     return `${h}:${m}`
   }
 
+  private _buildWeeks(days: Date[], weekStartDay: number): { weekNumber: number; startDate: Date; count: number }[] {
+    const getWeekNumber = (date: Date): number => {
+      const d = new Date(date.getTime())
+      d.setHours(0, 0, 0, 0)
+      const dayOfWeek = d.getDay()
+      const daysSinceWeekStart = (dayOfWeek - weekStartDay + 7) % 7
+      const weekStart = new Date(d.getTime())
+      weekStart.setDate(weekStart.getDate() - daysSinceWeekStart)
+      const yearStart = new Date(weekStart.getFullYear(), 0, 1)
+      const dayOfYear = Math.floor((weekStart.getTime() - yearStart.getTime()) / 86400000)
+      return Math.floor(dayOfYear / 7) + 1
+    }
+    const weeks: { weekNumber: number; startDate: Date; count: number }[] = []
+    days.forEach((day) => {
+      const dayOfWeek = day.getDay()
+      const isWeekStart = dayOfWeek === weekStartDay
+      const last = weeks[weeks.length - 1]
+      if (last && !isWeekStart) {
+        last.count++
+      } else {
+        weeks.push({ weekNumber: getWeekNumber(day), startDate: new Date(day), count: 1 })
+      }
+    })
+    return weeks
+  }
+
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    const days = Array.from({ length: Math.ceil(this.totalDays) }, (_, i) => {
-      const d = new Date(this.option.calendar.start)
-      d.setDate(d.getDate() + i)
-      return d
-    })
+    // start/end が変わった時だけ days/months/years を再計算する
+    const startTime = this.option.calendar.start.getTime()
+    const endTime = this.option.calendar.end.getTime()
+    const weekStartDay = this.option.calendar.weekStartDay ?? 1
+    const needsRebuild = !this._cachedDays || startTime !== this._cachedStartTime || endTime !== this._cachedEndTime
+    if (needsRebuild) {
+      this._cachedStartTime = startTime
+      this._cachedEndTime = endTime
 
-    const months: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] = []
-    days.forEach((day) => {
-      const year = day.getFullYear()
-      const month = day.getMonth()
-      const last = months[months.length - 1]
-      if (last && last.year === year && last.month === month) {
-        last.count++
-        last.end = new Date(day)
-        last.end.setDate(last.end.getDate() + 1) // next day at 00:00
-      } else {
-        const start = new Date(day)
-        start.setHours(0, 0, 0, 0)
-        const end = new Date(day)
-        end.setDate(end.getDate() + 1)
-        months.push({ year, month, count: 1, start, end })
-      }
-    })
-    
-    // calculate actual width using getDateX
-    months.forEach((m) => {
-      if (m.start && m.end) {
-        let x1 = this.getDateX(m.start)
-        let x2 = this.getDateX(m.end)
-        // If it's the last date, cap at the exact end of the chart if necessary, but getDateX should be fine
-        m.width = x2 - x1
-      }
-    })
+      const days = Array.from({ length: Math.ceil(this.totalDays) }, (_, i) => {
+        const d = new Date(this.option.calendar.start)
+        d.setDate(d.getDate() + i)
+        return d
+      })
+      this._cachedDays = days
+
+      const months: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] = []
+      days.forEach((day) => {
+        const year = day.getFullYear()
+        const month = day.getMonth()
+        const last = months[months.length - 1]
+        if (last && last.year === year && last.month === month) {
+          last.count++
+          last.end = new Date(day)
+          last.end.setDate(last.end.getDate() + 1)
+        } else {
+          const start = new Date(day)
+          start.setHours(0, 0, 0, 0)
+          const end = new Date(day)
+          end.setDate(end.getDate() + 1)
+          months.push({ year, month, count: 1, start, end })
+        }
+      })
+      months.forEach((m) => {
+        if (m.start && m.end) {
+          m.width = this.getDateX(m.end) - this.getDateX(m.start)
+        }
+      })
+      this._cachedMonths = months
+
+      // years（showMonthsRow 用）
+      const years: { year: number; count: number; start?: Date; end?: Date; width?: number }[] = []
+      days.forEach((day) => {
+        const year = day.getFullYear()
+        const last = years[years.length - 1]
+        if (last && last.year === year) {
+          last.count++
+          last.end = new Date(day)
+          last.end.setDate(last.end.getDate() + 1)
+        } else {
+          const start = new Date(day)
+          start.setHours(0, 0, 0, 0)
+          const end = new Date(day)
+          end.setDate(end.getDate() + 1)
+          years.push({ year, count: 1, start, end })
+        }
+      })
+      years.forEach((y) => {
+        if (y.start && y.end) {
+          y.width = this.getDateX(y.end) - this.getDateX(y.start)
+        }
+      })
+      this._cachedYears = years
+
+      // weeks（showWeeks 用）— weekStartDay もここで計算しキャッシュ
+      this._cachedWeekStartDay = weekStartDay
+      this._cachedWeeks = this._buildWeeks(days, weekStartDay)
+    } else if (weekStartDay !== this._cachedWeekStartDay) {
+      // weekStartDay だけ変わった場合は weeks のみ再計算
+      this._cachedWeekStartDay = weekStartDay
+      this._cachedWeeks = this._buildWeeks(this._cachedDays!, weekStartDay)
+    }
+
+    const days = this._cachedDays!
+    const months = this._cachedMonths!
+    const years = this._cachedYears!
 
     const backgroundStyle = `
       background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.border} ${this.option.calendar.pxPerDay - 1}px);
@@ -221,29 +299,6 @@ export class GanttCalendarElement extends LitElement {
       <div class="calendar-group" style="width: ${totalWidth}px; overflow: hidden;">
         ${this.option.calendar.showMonthsRow
           ? (() => {
-              // 年のグループを生成
-              const years: { year: number; count: number; start?: Date; end?: Date; width?: number }[] = []
-              days.forEach((day) => {
-                const year = day.getFullYear()
-                const last = years[years.length - 1]
-                if (last && last.year === year) {
-                  last.count++
-                  last.end = new Date(day)
-                  last.end.setDate(last.end.getDate() + 1)
-                } else {
-                  const start = new Date(day)
-                  start.setHours(0, 0, 0, 0)
-                  const end = new Date(day)
-                  end.setDate(end.getDate() + 1)
-                  years.push({ year, count: 1, start, end })
-                }
-              })
-              years.forEach((y) => {
-                if (y.start && y.end) {
-                  y.width = this.getDateX(y.end) - this.getDateX(y.start)
-                }
-              })
-
               const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
 
               return html`<div class="months-container">
@@ -282,37 +337,7 @@ export class GanttCalendarElement extends LitElement {
           : ''}
         ${this.option.calendar.showWeeks
           ? (() => {
-              const weekStartDay = this.option.calendar.weekStartDay ?? 1 // デフォルト: 月曜
-
-              // weekStartDay に基づく週番号を計算する関数
-              const getWeekNumber = (date: Date): number => {
-                const d = new Date(date.getTime())
-                d.setHours(0, 0, 0, 0)
-                // weekStartDay を基準にした曜日オフセットを計算
-                const dayOfWeek = d.getDay()
-                const daysSinceWeekStart = (dayOfWeek - weekStartDay + 7) % 7
-                // 週の始まりに調整
-                const weekStart = new Date(d.getTime())
-                weekStart.setDate(weekStart.getDate() - daysSinceWeekStart)
-                // 年初からの週番号を計算
-                const yearStart = new Date(weekStart.getFullYear(), 0, 1)
-                const dayOfYear = Math.floor((weekStart.getTime() - yearStart.getTime()) / 86400000)
-                return Math.floor(dayOfYear / 7) + 1
-              }
-
-              // 日付配列から週のグループを作成（weekStartDay を基準にグループ化）
-              const weeks: { weekNumber: number; startDate: Date; count: number }[] = []
-              days.forEach((day) => {
-                const dayOfWeek = day.getDay()
-                const isWeekStart = dayOfWeek === weekStartDay
-                const last = weeks[weeks.length - 1]
-                if (last && !isWeekStart) {
-                  last.count++
-                } else {
-                  const weekNumber = getWeekNumber(day)
-                  weeks.push({ weekNumber, startDate: new Date(day), count: 1 })
-                }
-              })
+              const weeks = this._cachedWeeks!
 
               const weekBackgroundStyle = `
                 background: ${colors.bg};

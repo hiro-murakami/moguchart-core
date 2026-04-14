@@ -293,14 +293,15 @@ export class GanttBarElement extends LitElement {
           cancelAnimationFrame(this._dragAnimationFrame)
           this._dragAnimationFrame = null
         }
-        if (taskGroup) {
-          const originalX = this.getX(originalStart)
-          const originalWidth = this.getX(originalEnd) - originalX
-          taskGroup.style.left = `${originalX}px`
-          taskGroup.style.width = `${originalWidth}px`
-        }
 
         if (isCancel) {
+          // キャンセル時：元の位置に戻してからLitの再描画を要求
+          if (taskGroup) {
+            const originalX = this.getX(originalStart)
+            const originalWidth = this.getX(originalEnd) - originalX
+            taskGroup.style.left = `${originalX}px`
+            taskGroup.style.width = `${originalWidth}px`
+          }
           this.requestUpdate()
           this.dispatchEvent(
             new CustomEvent('task-update', {
@@ -316,19 +317,23 @@ export class GanttBarElement extends LitElement {
             }),
           )
         } else {
-          this.dispatchEvent(
-            new CustomEvent('task-update', {
-              detail: {
-                ...this.task,
-                start: currentStart,
-                end: currentEnd,
-                dy: 0,
-                isDragging: false,
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
+          // 確定時：taskGroupは現在のスナップ済み位置を維持したまま、
+          // rAFでLit更新を次フレームに遅らせてフリーズを防ぐ
+          requestAnimationFrame(() => {
+            this.dispatchEvent(
+              new CustomEvent('task-update', {
+                detail: {
+                  ...this.task,
+                  start: currentStart,
+                  end: currentEnd,
+                  dy: 0,
+                  isDragging: false,
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
+          })
         }
       },
     )

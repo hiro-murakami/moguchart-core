@@ -40,7 +40,11 @@ export class GanttRowElement extends LitElement {
   @property({ type: Array })
   selectedTaskIds: string[] = []
 
-
+  // 月境界線キャッシュ（option.calendar.start/end/pxPerMonth が変わらない限り再計算不要）
+  private _cachedMonthGridLines: { left: number }[] | null = null
+  private _cachedMonthGridStartTime = 0
+  private _cachedMonthGridEndTime = 0
+  private _cachedMonthGridPxPerMonth = 0
 
   private getDateX(date: Date): number {
     return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay, this.option.calendar.pxPerMonth)
@@ -365,24 +369,40 @@ export class GanttRowElement extends LitElement {
     let backgroundStyle
     let monthGridLines: { left: number }[] | null = null
     if (this.option.calendar.showMonthsRow) {
-      // 月単位モード: 月の境界に罫線を配置（月ごとの日数が不均一のため個別計算）
+      // 月単位モード: 月の境界に罫線を配置（同じoptionで毎行毎回計算しないようキャッシュ）
       backgroundStyle = ''
-      const start = new Date(this.option.calendar.start)
-      const startX = this.getDateX(start)
-      const endX = this.getDateX(new Date(this.option.calendar.end))
-      const monthBoundaries: { left: number }[] = []
-      
-      let currentMonthStart = new Date(start)
-      currentMonthStart.setDate(1) // first day of the start month
-      
-      while (currentMonthStart <= this.option.calendar.end) {
-        const x = this.getDateX(currentMonthStart)
-        if (x >= startX && x <= endX) {
-          monthBoundaries.push({ left: x })
+      const startTime = this.option.calendar.start.getTime()
+      const endTime = this.option.calendar.end.getTime()
+      const pxPerMonth = this.option.calendar.pxPerMonth ?? 0
+
+      if (
+        !this._cachedMonthGridLines ||
+        startTime !== this._cachedMonthGridStartTime ||
+        endTime !== this._cachedMonthGridEndTime ||
+        pxPerMonth !== this._cachedMonthGridPxPerMonth
+      ) {
+        this._cachedMonthGridStartTime = startTime
+        this._cachedMonthGridEndTime = endTime
+        this._cachedMonthGridPxPerMonth = pxPerMonth
+
+        const start = new Date(this.option.calendar.start)
+        const startX = this.getDateX(start)
+        const endX = this.getDateX(new Date(this.option.calendar.end))
+        const monthBoundaries: { left: number }[] = []
+
+        let currentMonthStart = new Date(start)
+        currentMonthStart.setDate(1)
+
+        while (currentMonthStart <= this.option.calendar.end) {
+          const x = this.getDateX(currentMonthStart)
+          if (x >= startX && x <= endX) {
+            monthBoundaries.push({ left: x })
+          }
+          currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
         }
-        currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
+        this._cachedMonthGridLines = monthBoundaries
       }
-      monthGridLines = monthBoundaries
+      monthGridLines = this._cachedMonthGridLines
     } else if (this.option.calendar.showTime) {
       const hourWidth = this.option.calendar.pxPerDay / 24
       const snapMinutes = this.option.snapDuration ?? 60
@@ -474,7 +494,7 @@ export class GanttRowElement extends LitElement {
           ></div>
         </div>
         <div class="bars-container" style="width: ${this.getDateX(this.option.calendar.end)}px">
-          ${this.option.calendar.showRowBackground !== false
+          ${this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
             ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}

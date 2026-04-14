@@ -772,14 +772,17 @@ export class GanttChartElement extends LitElement {
         }
       })
 
-      this.rows = newRows
-      this.dispatchEvent(
-        new CustomEvent('rows-change', {
-          detail: this.rows,
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
+      requestAnimationFrame(() => {
+        this.rows = newRows
+        this.dispatchEvent(
+          new CustomEvent('rows-change', {
+            detail: this.rows,
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      })
       return
     }
 
@@ -802,15 +805,17 @@ export class GanttChartElement extends LitElement {
 
         targetRow.tasks.push(newTask)
         newRows[targetRowIndexInRows] = targetRow
-        this.rows = newRows
 
-        this.dispatchEvent(
-          new CustomEvent('rows-change', {
-            detail: this.rows,
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        requestAnimationFrame(() => {
+          this.rows = newRows
+          this.dispatchEvent(
+            new CustomEvent('rows-change', {
+              detail: this.rows,
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
       }
     } else {
       const newRows = [...this.rows]
@@ -833,14 +838,16 @@ export class GanttChartElement extends LitElement {
         }
       }
 
-      this.rows = newRows
-      this.dispatchEvent(
-        new CustomEvent('rows-change', {
-          detail: this.rows,
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      requestAnimationFrame(() => {
+        this.rows = newRows
+        this.dispatchEvent(
+          new CustomEvent('rows-change', {
+            detail: this.rows,
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      })
     }
   }
 
