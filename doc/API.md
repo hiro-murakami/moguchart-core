@@ -46,6 +46,7 @@ interface GanttChartOption {
     start: Date // 表示開始日
     end: Date // 表示終了日
     pxPerDay: number // 1日あたりの幅 (px)
+    pxPerMonth?: number // 1ヶ月あたりの幅 (px)。指定した場合、月単位の等幅表示になる
     monthFormat?: string // 月の表示フォーマット (例: 'YYYY年M月')
     showRowBackground?: boolean // 行の背景を表示するかどうか
     isHoliday?: (date: Date) => boolean // 祝日判定ロジック
@@ -55,6 +56,12 @@ interface GanttChartOption {
     showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
     showCurrentTimeBadge?: boolean // 現在時刻バッジを表示するかどうか
     currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 0 = 更新しない)
+    showWeeks?: boolean // 週番号ヘッダーを表示するかどうか
+    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // 週の始まりの曜日 (0=日曜〜6=土曜、デフォルト: 1=月曜)
+    weekFormat?: (weekNumber: number, startDate: Date) => string // 週番号の表示フォーマット関数
+    weekTextAlign?: 'left' | 'center' | 'right' // 週番号セルのテキスト配置 (デフォルト: 'center')
+    showMonthsRow?: boolean // 月単位表示（上段=年、下段=月）を有効にするかどうか
+    monthTextAlign?: 'left' | 'center' | 'right' // 月セルのテキスト配置 (デフォルト: 'center')
     milestones?: GanttChartMilestone[] // マイルストーンの配列
   }
   /** 読み取り専用モードかどうか */
@@ -75,6 +82,8 @@ interface GanttChartOption {
   snapDuration?: number // (デフォルト: 1440 = 1日)
   /** 非表示に設定された行（visible: false）を表示するかどうか */
   showHiddenRows?: boolean // (デフォルト: false)
+  /** ロケール設定 (デフォルト: 日本語) */
+  locale?: MoguchartLocale
   customRendering?: {
     /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     barContent?: (task: GanttTask) => string | unknown
@@ -102,12 +111,12 @@ interface GanttChartOption {
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-
-| `task-dblclick` | `TaskClickEventDetail` | タスクバーをダブルクリックしたときに発火します。 |
-| `task-contextmenu` | `TaskContextMenuEventDetail` | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `chart-contextmenu` | `ChartContextMenuEventDetail` | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。 |
+| `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                             |
+| `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
+| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 
 ## メソッド (Methods)
 
@@ -323,6 +332,17 @@ interface RowClickedEventDetail {
 }
 ```
 
+### RowHeaderClickEventDetail
+
+```typescript
+interface RowHeaderClickEventDetail {
+  rowId: string // クリックされた行ID
+  row: GanttRow // クリックされた行データ
+  event: MouseEvent // 元のクリックイベント
+  target: HTMLElement // クリックされたヘッダー要素
+}
+```
+
 ### RowHeaderDblClickEventDetail
 
 ```typescript
@@ -396,6 +416,71 @@ interface ThemeColorPalette {
 
 ```typescript
 type GanttTaskMoveMode = 'copy' | 'move'
+```
+
+### MoguchartLocale
+
+ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
+
+```typescript
+interface MoguchartLocale {
+  monthFormat: string // デフォルトの月表示フォーマット (dayjs互換)
+  monthRowFormat: string // 月単位モードの月表示フォーマット (例: 'M月' / 'MMM')
+  dateFormat: (date: Date) => string // 日付のフォーマット関数
+  dateTimeFormat: (date: Date) => string // 日時のフォーマット関数
+  duration: {
+    days: (n: number) => string // 日数のフォーマット
+    hours: (n: number) => string // 時間のフォーマット
+    minutes: (n: number) => string // 分のフォーマット
+    zero: string // 期間がゼロの場合の表示
+  }
+  tooltip: {
+    duration: (days: number) => string // 所要日数の表示
+  }
+  dragOverlay: {
+    noTitle: string // タイトル未設定時のフォールバック
+    moveTo: (name: string) => string // 移動先の表示
+    movingTasks: (count: number) => string // 複数タスク移動中の表示
+  }
+}
+```
+
+#### 使用例
+
+```javascript
+import { enLocale } from '@mogura/moguchart'
+
+const option = {
+  locale: enLocale,
+  // ...
+}
+```
+
+カスタムロケールを作成する場合:
+
+```javascript
+const myLocale = {
+  monthFormat: 'YYYY/MM',
+  monthRowFormat: 'MM月',
+  dateFormat: (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`,
+  dateTimeFormat: (d) => {
+    const h = d.getHours(), m = d.getMinutes()
+    const date = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+    return h === 0 && m === 0 ? date : `${date} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  },
+  duration: {
+    days: (n) => `${n}日`,
+    hours: (n) => `${n}時間`,
+    minutes: (n) => `${n}分`,
+    zero: '0分',
+  },
+  tooltip: { duration: (days) => `所要: ${days}日` },
+  dragOverlay: {
+    noTitle: 'タイトルなし',
+    moveTo: (name) => `→ ${name}`,
+    movingTasks: (count) => `${count}件移動中`,
+  },
+}
 ```
 
 ## 複数タスクの選択とドラッグ
@@ -512,4 +597,42 @@ const rows = [
     ],
   },
 ]
+```
+
+## 表示モード
+
+### 週表示モード
+
+`calendar.showWeeks: true` を設定すると、上段に年月、下段に週番号を表示する2段カレンダーになります。`pxPerDay` が20未満の場合は自動的に有効化されます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 15,
+    showWeeks: true,
+    weekStartDay: 1, // 月曜始まり (デフォルト)
+    weekFormat: (weekNum, startDate) => `W${weekNum}`, // カスタムフォーマット
+    weekTextAlign: 'center',
+  },
+}
+```
+
+### 月表示モード
+
+`calendar.pxPerMonth` を設定すると、各月が等幅で表示される月単位ビューになります。`snapDuration` は自動的に月単位のスナップに切り替わります。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2027-12-31'),
+    pxPerDay: 1, // pxPerMonth 利用時は参照されません
+    pxPerMonth: 120, // 1ヶ月あたり120px
+    showMonthsRow: true, // 上段=年、下段=月の2段ヘッダー
+    monthTextAlign: 'left',
+  },
+  snapDuration: 0, // 月単位スナップ (pxPerMonth 指定時は無視されスナップは月単位になる)
+}
 ```

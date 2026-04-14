@@ -22,9 +22,12 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - CSSによるスタイリング
 - 🔗 **依存関係の表示**: タスク間の依存関係を曲線で可視化
 - 📅 **柔軟なカレンダー**:
-  - ズームレベル（1日あたりの幅）や表示期間の調整が可能
+  - 日単位 / 週単位 / 月単位の表示切り替え
+  - ズームレベル（1日・1ヶ月あたりの幅）や表示期間の調整が可能
   - 現在時刻ラインの表示（バッジ付き、自動更新対応）
   - 祝日判定のカスタムロジック
+  - 週の始まり曜日の設定
+  - ロケール対応（日本語・英語、カスタムロケールも可能）
 - 🏁 **マイルストーン**: チャート上にマイルストーン（縦線＋名前バッジ）を表示
 - 📍 **マーカー**: 行のタイムライン上に三角形アイコンとラベルで目印を表示
 - ✨ **高度な連携**:
@@ -341,11 +344,59 @@ chart.addEventListener('task-update', (e) => {
 
 ### スナップ機能
 
-`snapDuration`（分単位）でタスクのドラッグ時のスナップ間隔を制御できます。
+`snapDuration`（分単位）でタスクのドラッグ時のスナップ間隔を制御できます。月表示モード（`pxPerMonth` 指定時）では、スナップは自動的に月単位になります。
 
 ```javascript
 const option = {
   snapDuration: 60,    // 1時間ごとにスナップ (デフォルト: 1440 = 1日)
+  // ...
+}
+```
+
+### 表示モード
+
+#### 週表示モード
+
+`calendar.showWeeks: true` で週番号表示の2段カレンダーになります。`pxPerDay` が20未満の場合は自動的に有効化されます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 15,
+    showWeeks: true,
+    weekStartDay: 1,   // 1=月曜始まり (デフォルト)
+    weekFormat: (weekNum) => `W${weekNum}`,
+  },
+}
+```
+
+#### 月表示モード
+
+`calendar.pxPerMonth` を設定すると、各月が等幅で表示される月単位ビューになります。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2027-12-31'),
+    pxPerDay: 1,
+    pxPerMonth: 120,    // 1ヶ月あたり120px
+    showMonthsRow: true, // 上段=年、下段=月の2段ヘッダー
+  },
+}
+```
+
+### ロケール
+
+ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。
+
+```javascript
+import { enLocale } from '@mogura/moguchart'
+
+const option = {
+  locale: enLocale,
   // ...
 }
 ```

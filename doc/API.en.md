@@ -46,6 +46,7 @@ interface GanttChartOption {
     start: Date // Display start date
     end: Date // Display end date
     pxPerDay: number // Width per day (px)
+    pxPerMonth?: number // Width per month (px). When specified, each month is rendered at a fixed equal width.
     monthFormat?: string // Month display format (e.g., 'MMM YYYY')
     showRowBackground?: boolean // Whether to show row backgrounds
     isHoliday?: (date: Date) => boolean // Custom holiday detection logic
@@ -55,6 +56,12 @@ interface GanttChartOption {
     showCurrentTime?: boolean // Whether to show the current time line (default: false)
     showCurrentTimeBadge?: boolean // Whether to show the current time badge
     currentTimeUpdateInterval?: number // Current time line update interval (ms, default: 0 = no update)
+    showWeeks?: boolean // Whether to show week number headers
+    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // First day of the week (0=Sun ~ 6=Sat, default: 1=Mon)
+    weekFormat?: (weekNumber: number, startDate: Date) => string // Custom week number format function
+    weekTextAlign?: 'left' | 'center' | 'right' // Week cell text alignment (default: 'center')
+    showMonthsRow?: boolean // Enable two-row month view (top=year, bottom=month)
+    monthTextAlign?: 'left' | 'center' | 'right' // Month cell text alignment (default: 'center')
     milestones?: GanttChartMilestone[] // Array of milestones
   }
   /** Whether the chart is read-only */
@@ -75,7 +82,7 @@ interface GanttChartOption {
   snapDuration?: number // (default: 1440 = 1 day)
   /** Whether to show rows with visible: false */
   showHiddenRows?: boolean // (default: false)
-  /** Locale settings for internationalization */
+  /** Locale settings for internationalization (default: Japanese) */
   locale?: MoguchartLocale
   customRendering?: {
     /** Function to render bar content. Can return a string or Lit TemplateResult. */
@@ -104,6 +111,7 @@ Custom events dispatched by the component.
 | `task-update`            | `TaskUpdateEventDetail`             | Fired when a task is updated via drag & drop or resize.                                  |
 | `task-drop`              | `TaskDropEventDetail`               | Fired when an external element is dropped. Can be used for creating new tasks.           |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`        | Fired when the row header width is resized.                                              |
+| `row-header-click`       | `RowHeaderClickEventDetail`         | Fired when a row header is clicked.                                                      |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`      | Fired when a row header is double-clicked.                                               |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail`   | Fired when a row header is right-clicked. Use for implementing custom context menus.     |
 | `task-dblclick`          | `TaskClickEventDetail`              | Fired when a task bar is double-clicked.                                                 |
@@ -237,21 +245,25 @@ interface GanttMarker {
 
 ### MoguchartLocale
 
+Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
+
 ```typescript
 interface MoguchartLocale {
   /** Default month display format (dayjs-compatible format string) */
   monthFormat: string
-  /** Date format function (e.g., "2024/1/15" / "1/15/2024") */
+  /** Month display format for monthly view mode (e.g., 'MMM') */
+  monthRowFormat: string
+  /** Date format function (e.g., "1/15/2024") */
   dateFormat: (date: Date) => string
   /** Date-time format function (used when time is not 00:00) */
   dateTimeFormat: (date: Date) => string
   /** Duration formatting */
   duration: {
-    /** Days format (e.g., 3 → "3日" / "3 days") */
+    /** Days format (e.g., 3 → "3 days") */
     days: (n: number) => string
-    /** Hours format (e.g., 2 → "2時間" / "2 hours") */
+    /** Hours format (e.g., 2 → "2 hours") */
     hours: (n: number) => string
-    /** Minutes format (e.g., 30 → "30分" / "30 minutes") */
+    /** Minutes format (e.g., 30 → "30 minutes") */
     minutes: (n: number) => string
     /** Display when duration is zero */
     zero: string
@@ -270,6 +282,48 @@ interface MoguchartLocale {
     /** Multi-task move display (e.g., "Moving 3 tasks") */
     movingTasks: (count: number) => string
   }
+}
+```
+
+#### Usage Example
+
+```javascript
+import { enLocale } from '@mogura/moguchart'
+
+const option = {
+  locale: enLocale,
+  // ...
+}
+```
+
+To create a custom locale, implement the `MoguchartLocale` interface:
+
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  dateTimeFormat: (d) => {
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  },
+  duration: {
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
+  },
+  tooltip: { duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}` },
+  dragOverlay: {
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
+  },
 }
 ```
 
@@ -359,6 +413,17 @@ interface BarSelectionChangeEventDetail {
 interface RowClickedEventDetail {
   rowId: string // Clicked row ID
   event: MouseEvent // Original click event
+}
+```
+
+### RowHeaderClickEventDetail
+
+```typescript
+interface RowHeaderClickEventDetail {
+  rowId: string // Clicked row ID
+  row: GanttRow // Clicked row data
+  event: MouseEvent // Original click event
+  target: HTMLElement // Clicked header element
 }
 ```
 
@@ -551,4 +616,41 @@ const rows = [
     ],
   },
 ]
+```
+
+## View Modes
+
+### Week View Mode
+
+Set `calendar.showWeeks: true` to switch to a two-row calendar header showing year/month on top and week numbers on the bottom. This mode is enabled automatically when `pxPerDay` is less than 20.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 15,
+    showWeeks: true,
+    weekStartDay: 1, // 1 = Monday (default)
+    weekFormat: (weekNum, startDate) => `W${weekNum}`, // Custom format
+    weekTextAlign: 'center',
+  },
+}
+```
+
+### Monthly View Mode
+
+Set `calendar.pxPerMonth` to render each month at a fixed equal width. When `pxPerMonth` is specified, snapping is automatically enforced at monthly boundaries regardless of `snapDuration`.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2027-12-31'),
+    pxPerDay: 1, // Not referenced when pxPerMonth is set
+    pxPerMonth: 120, // 120px per month
+    showMonthsRow: true, // Two-row header: top=year, bottom=month
+    monthTextAlign: 'left',
+  },
+}
 ```

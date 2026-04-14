@@ -20,16 +20,18 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - CSS styling
 - 🔗 **Dependency Visualization**: Curved lines showing task dependencies
 - 📅 **Flexible Calendar**:
-  - Adjustable zoom level (pixels per day) and display period
+  - Day / Week / Month view switching
+  - Adjustable zoom level (pixels per day or per month) and display period
   - Current time line with badge (auto-refresh support)
   - Custom holiday detection logic
+  - Configurable week start day
+  - Locale support (Japanese, English, and custom locales)
 - 🏁 **Milestones**: Display milestones (vertical line + name badge) on the chart
 - 📍 **Markers**: Show triangle icons with labels on row timelines
-- 🌐 **Internationalization (i18n)**: Built-in Japanese and English locales, extensible to any language via configuration
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move/copy mode
-  - Snap feature (grid snap by time unit)
+  - Snap feature (grid snap by time unit, automatic monthly snap in month view)
   - `hitTest` method for getting row/date from coordinates
   - Programmatic task selection + auto-scroll (`selectTask`)
 
@@ -260,6 +262,7 @@ import type { MoguchartLocale } from '@mogura/moguchart'
 
 const frLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
   dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
   dateTimeFormat: (d) => {
     const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
@@ -383,12 +386,47 @@ chart.addEventListener('task-update', (e) => {
 
 ### Snap Feature
 
-Control the snap interval when dragging tasks with `snapDuration` (in minutes).
+Control the snap interval when dragging tasks with `snapDuration` (in minutes). When using monthly view mode (`pxPerMonth`), snapping is automatically enforced at monthly boundaries.
 
 ```javascript
 const option = {
   snapDuration: 60,    // Snap every hour (default: 1440 = 1 day)
   // ...
+}
+```
+
+### View Modes
+
+#### Week View Mode
+
+Set `calendar.showWeeks: true` for a two-row calendar header with week numbers. This mode is enabled automatically when `pxPerDay` is less than 20.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 15,
+    showWeeks: true,
+    weekStartDay: 1,   // 1 = Monday (default)
+    weekFormat: (weekNum) => `W${weekNum}`,
+  },
+}
+```
+
+#### Monthly View Mode
+
+Set `calendar.pxPerMonth` to render each month at a fixed equal width. Snapping is automatically enforced at monthly boundaries.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2027-12-31'),
+    pxPerDay: 1,
+    pxPerMonth: 120,    // 120px per month
+    showMonthsRow: true, // Two-row header: top=year, bottom=month
+  },
 }
 ```
 
