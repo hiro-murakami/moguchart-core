@@ -204,6 +204,10 @@ export interface GanttChartOptionCalendar {
   monthTextAlign?: 'left' | 'center' | 'right'
   /** マイルストーンの配列 */
   milestones?: GanttChartMilestone[]
+  /** マウスカーソル位置の縦罫線を表示するかどうか */
+  showCursorLine?: boolean
+  /** カーソル縦罫線の色 (CSS color string)。デフォルト: 現在時刻線と同色 */
+  cursorLineColor?: string
 }
 
 /**

@@ -63,6 +63,8 @@ interface GanttChartOption {
     showMonthsRow?: boolean // 月単位表示（上段=年、下段=月）を有効にするかどうか
     monthTextAlign?: 'left' | 'center' | 'right' // 月セルのテキスト配置 (デフォルト: 'center')
     milestones?: GanttChartMilestone[] // マイルストーンの配列
+    showCursorLine?: boolean // マウスカーソル位置に追従する縦罫線を表示するか (デフォルト: false)
+    cursorLineColor?: string // カーソル縦罫線の色 (CSS color string。省略時は currentTimeLine と同色)
   }
   /** 読み取り専用モードかどうか */
   readOnly?: boolean
@@ -634,5 +636,25 @@ const option = {
     monthTextAlign: 'left',
   },
   snapDuration: 0, // 月単位スナップ (pxPerMonth 指定時は無視されスナップは月単位になる)
+}
+```
+
+## カーソル追従縦罫線
+
+`calendar.showCursorLine: true` を設定すると、ガントチャート上にマウスカーソルが入った際、そのX座標に追従する縦罫線がリアルタイムで表示されます。
+
+- チャート上にマウスが乗っている間のみ表示され、チャート外に出ると非表示になります。
+- 行ヘッダー領域（行名が表示される左端の固定列）では非表示になります。
+- 線の色は `cursorLineColor` で指定できます。省略した場合は `customTheme.currentTimeLine` と同じ色が使われます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 48,
+    showCursorLine: true,
+    cursorLineColor: 'rgba(99, 179, 237, 0.7)', // 省略可
+  },
 }
 ```

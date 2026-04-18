@@ -92,6 +92,7 @@ let isUnassignedTasksOpen = false
 let selectedIds: string[] = []
 let selectedTaskIds: string[] = []
 let showHiddenRows = false
+let showCursorLine = false
 let weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1
 let weekTextAlign: 'left' | 'center' | 'right' = 'left'
 let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
@@ -202,6 +203,7 @@ const renderApp = () => {
       showCurrentTime,
       showCurrentTimeBadge,
       currentTimeUpdateInterval,
+      showCursorLine,
       milestones: [
         {
           id: 'ms-1',
@@ -623,6 +625,19 @@ const renderApp = () => {
             style="margin-right: 6px;"
           />
           ${t.showCurrentTimeBadge}
+        </label>
+
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked="${showCursorLine}"
+            @change="${(e: Event) => {
+              showCursorLine = (e.target as HTMLInputElement).checked
+              renderApp()
+            }}"
+            style="margin-right: 6px;"
+          />
+          ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
         </label>
 
         ${viewMode === 'week'

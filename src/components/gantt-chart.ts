@@ -83,6 +83,7 @@ export class GanttChartElement extends LitElement {
   @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
   @state() private isResizingHeader = false
   @state() private hoveredMilestoneId: string | null = null
+  @state() private cursorLineX: number | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
 
   private _layoutCache: {
@@ -96,8 +97,6 @@ export class GanttChartElement extends LitElement {
   private _cachedCurrentOption: GanttChartOption | null = null
   private _lastOptionRef: GanttChartOption | null = null
   private _lastLabelWidth: number = -1
-
-
 
   private get displayRows() {
     if (this.option.showHiddenRows) {
@@ -209,6 +208,13 @@ export class GanttChartElement extends LitElement {
       pointer-events: auto;
       transition: opacity 0.2s ease;
       cursor: default;
+    }
+    .cursor-line {
+      position: absolute;
+      width: 2px;
+      top: 0;
+      pointer-events: none;
+      z-index: 58;
     }
   `
 
@@ -475,8 +481,33 @@ export class GanttChartElement extends LitElement {
     this.virtualScrollTop = scrollTop
   }, 100)
 
+  private handleContainerMouseMove = (e: MouseEvent) => {
+    if (!this.option.calendar.showCursorLine) return
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return
+    const rect = container.getBoundingClientRect()
+    // スクロール位置を加味したコンテンツ内X座標
+    const x = e.clientX - rect.left + container.scrollLeft
+    const labelWidth = this.currentRowHeaderWidth
+    // 行ヘッダー領域では非表示
+    if (x < labelWidth) {
+      this.cursorLineX = null
+      return
+    }
+    this.cursorLineX = x
+  }
+
+  private handleContainerMouseLeave = () => {
+    this.cursorLineX = null
+  }
+
   private getDateX(date: Date) {
-    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
+    return dateToX(
+      date,
+      this.option.calendar.start,
+      this.option.calendar.pxPerDay ?? 50,
+      this.option.calendar.pxPerMonth,
+    )
   }
 
   private calculateLayout() {
@@ -1574,6 +1605,8 @@ export class GanttChartElement extends LitElement {
         @drop="${this.handleContainerDrop}"
         @click="${this.handleContainerClick}"
         @contextmenu="${this.handleContainerContextMenu}"
+        @mousemove="${this.handleContainerMouseMove}"
+        @mouseleave="${this.handleContainerMouseLeave}"
       >
         ${this.option.rowHeader?.resizable !== false
           ? html`
@@ -1637,7 +1670,6 @@ export class GanttChartElement extends LitElement {
               ></div>
             `
           : ''}
-
         ${(this.option.calendar.milestones ?? []).map(
           (ms) => html`
             <div
@@ -1651,11 +1683,27 @@ export class GanttChartElement extends LitElement {
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
                 ${ms.style ?? ''}
               "
-              @mouseenter="${() => { this.hoveredMilestoneId = ms.id }}"
-              @mouseleave="${() => { this.hoveredMilestoneId = null }}"
+              @mouseenter="${() => {
+                this.hoveredMilestoneId = ms.id
+              }}"
+              @mouseleave="${() => {
+                this.hoveredMilestoneId = null
+              }}"
             ></div>
           `,
         )}
+        ${this.option.calendar.showCursorLine && this.cursorLineX !== null
+          ? html`
+              <div
+                class="cursor-line"
+                style="
+                  left: ${this.cursorLineX}px;
+                  height: ${this.calendarHeight + (totalHeight || this.viewportHeight)}px;
+                  background-color: ${this.option.calendar.cursorLineColor ?? colors.currentTimeLine};
+                "
+              ></div>
+            `
+          : ''}
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 

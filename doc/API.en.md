@@ -63,6 +63,8 @@ interface GanttChartOption {
     showMonthsRow?: boolean // Enable two-row month view (top=year, bottom=month)
     monthTextAlign?: 'left' | 'center' | 'right' // Month cell text alignment (default: 'center')
     milestones?: GanttChartMilestone[] // Array of milestones
+    showCursorLine?: boolean // Whether to show a vertical line that follows the mouse cursor (default: false)
+    cursorLineColor?: string // Color of the cursor tracking line (CSS color string; defaults to currentTimeLine color)
   }
   /** Whether the chart is read-only */
   readOnly?: boolean
@@ -651,6 +653,26 @@ const option = {
     pxPerMonth: 120, // 120px per month
     showMonthsRow: true, // Two-row header: top=year, bottom=month
     monthTextAlign: 'left',
+  },
+}
+```
+
+## Cursor Tracking Line
+
+Set `calendar.showCursorLine: true` to display a vertical line that follows the mouse cursor's X position in real time while it is over the Gantt chart.
+
+- The line is only shown while the mouse is over the chart area, and disappears when the cursor leaves.
+- The line is hidden over the row header area (the fixed left column showing row names).
+- The line color can be specified with `cursorLineColor`. When omitted, it uses the same color as `customTheme.currentTimeLine`.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2025-01-01'),
+    end: new Date('2025-12-31'),
+    pxPerDay: 48,
+    showCursorLine: true,
+    cursorLineColor: 'rgba(99, 179, 237, 0.7)', // optional
   },
 }
 ```
