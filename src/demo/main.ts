@@ -113,7 +113,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setDate(chartStart.getDate() + 50)
+    chartEnd.setTime(chartStart.getTime() + 50 * 24 * 60 * 60 * 1000)
     rows = generateDayModeData(t)
   } else if (mode === 'week') {
     // 週単位モード: 1日あたり12px (1週間 ≈ 84px)
@@ -128,7 +128,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setDate(chartStart.getDate() + 120)
+    chartEnd.setTime(chartStart.getTime() + 120 * 24 * 60 * 60 * 1000)
     rows = generateWeekModeData(t)
   } else if (mode === 'month') {
     // 月単位モード: 日単位の設定を無視してpxPerMonthを使用
@@ -143,7 +143,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setDate(chartStart.getDate() + 365 * 6) // カレンダーの期間を5年以上確保
+    chartEnd.setTime(chartStart.getTime() + 365 * 6 * 24 * 60 * 60 * 1000) // カレンダーの期間を5年以上確保
     rows = generateMonthModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
@@ -717,7 +717,7 @@ const renderApp = () => {
             }}"
           >
             ${viewMode === 'month'
-              ? [12, 24, 64, 128, 256].map(
+              ? [24, 48, 64, 128, 256].map(
                   (w) => html` <option value="${w}" ?selected="${pxPerMonth === w}">${w}px</option> `,
                 )
               : [12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(

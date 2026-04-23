@@ -12,6 +12,8 @@ export interface MoguchartLocale {
   dateFormat: (date: Date) => string
   /** 日時のフォーマット関数（時刻が00:00でない場合に使用） */
   dateTimeFormat: (date: Date) => string
+  /** 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用) */
+  yearMonthFormat: (date: Date) => string
   /** 期間フォーマット */
   duration: {
     /** 日数のフォーマット (例: 3 → "3日" / "3 days") */
@@ -53,6 +55,7 @@ export const jaLocale: MoguchartLocale = {
     if (h === 0 && m === 0) return date
     return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
     days: (n) => `${n}日`,
     hours: (n) => `${n}時間`,
@@ -83,6 +86,7 @@ export const enLocale: MoguchartLocale = {
     if (h === 0 && m === 0) return date
     return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
     days: (n) => `${n} day${n !== 1 ? 's' : ''}`,
     hours: (n) => `${n} hour${n !== 1 ? 's' : ''}`,

@@ -330,19 +330,35 @@ export class GanttChartElement extends LitElement {
           }
         } else {
           const locale = this.option.locale ?? jaLocale
+          const isMonthlyMode = !!this.option.calendar.pxPerMonth
           const duration = Math.round(
             (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
           )
-          render(
-            html`
-              <div style="font-weight: bold;">${this.tooltip.task.name}</div>
-              <div class="tooltip-row">
-                ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
-              </div>
-              <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
-            `,
-            tooltipEl,
-          )
+          if (isMonthlyMode) {
+            const endForDisplay = new Date(this.tooltip.task.end)
+            endForDisplay.setMonth(endForDisplay.getMonth() - 1)
+            render(
+              html`
+                <div style="font-weight: bold;">${this.tooltip.task.name}</div>
+                <div class="tooltip-row">
+                  ${locale.yearMonthFormat(this.tooltip.task.start)} - ${locale.yearMonthFormat(endForDisplay)}
+                </div>
+                <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+              `,
+              tooltipEl,
+            )
+          } else {
+            render(
+              html`
+                <div style="font-weight: bold;">${this.tooltip.task.name}</div>
+                <div class="tooltip-row">
+                  ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
+                </div>
+                <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+              `,
+              tooltipEl,
+            )
+          }
         }
       }
     }
@@ -382,13 +398,25 @@ export class GanttChartElement extends LitElement {
 
     if (dragInfoEl.innerHTML === '') {
       const locale = this.option.locale ?? jaLocale
+      const isMonthlyMode = !!this.option.calendar.pxPerMonth
+      let startLabel: string
+      let endLabel: string
+      if (isMonthlyMode) {
+        const endForDisplay = new Date(this.dragOverlayInfo.currentEnd)
+        endForDisplay.setMonth(endForDisplay.getMonth() - 1)
+        startLabel = locale.yearMonthFormat(this.dragOverlayInfo.currentStart)
+        endLabel = locale.yearMonthFormat(endForDisplay)
+      } else {
+        startLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentStart)
+        endLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentEnd)
+      }
       dragInfoEl.innerHTML = `
           <div style="font-weight: bold;">
             ${this.dragOverlayInfo.name || locale.dragOverlay.noTitle}
           </div>
           <div class="drag-info-sub">
-            ${locale.dateTimeFormat(this.dragOverlayInfo.currentStart)} -
-            ${locale.dateTimeFormat(this.dragOverlayInfo.currentEnd)}
+            ${startLabel} -
+            ${endLabel}
             (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.option.locale)})
           </div>
           ${

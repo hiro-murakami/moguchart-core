@@ -21,6 +21,8 @@ export class GanttCalendarElement extends LitElement {
   private _cachedWeeks: { weekNumber: number; startDate: Date; count: number }[] | null = null
   private _cachedStartTime = 0
   private _cachedEndTime = 0
+  private _cachedPxPerDay = 0
+  private _cachedPxPerMonth: number | undefined = undefined
   private _cachedWeekStartDay: number = -1
 
   private get totalDays() {
@@ -182,11 +184,16 @@ export class GanttCalendarElement extends LitElement {
     // start/end が変わった時だけ days/months/years を再計算する
     const startTime = this.option.calendar.start.getTime()
     const endTime = this.option.calendar.end.getTime()
+    const pxPerDay = this.option.calendar.pxPerDay
+    const pxPerMonth = this.option.calendar.pxPerMonth
     const weekStartDay = this.option.calendar.weekStartDay ?? 1
     const needsRebuild = !this._cachedDays || startTime !== this._cachedStartTime || endTime !== this._cachedEndTime
+    const needsWidthRecalc = pxPerDay !== this._cachedPxPerDay || pxPerMonth !== this._cachedPxPerMonth
     if (needsRebuild) {
       this._cachedStartTime = startTime
       this._cachedEndTime = endTime
+      this._cachedPxPerDay = pxPerDay
+      this._cachedPxPerMonth = pxPerMonth
 
       const days = Array.from({ length: Math.ceil(this.totalDays) }, (_, i) => {
         const d = new Date(this.option.calendar.start)
@@ -246,6 +253,24 @@ export class GanttCalendarElement extends LitElement {
       // weeks（showWeeks 用）— weekStartDay もここで計算しキャッシュ
       this._cachedWeekStartDay = weekStartDay
       this._cachedWeeks = this._buildWeeks(days, weekStartDay)
+    } else if (needsWidthRecalc) {
+      // pxPerDay / pxPerMonth が変わった場合は months/years の width のみ再計算
+      this._cachedPxPerDay = pxPerDay
+      this._cachedPxPerMonth = pxPerMonth
+      this._cachedMonths!.forEach((m) => {
+        if (m.start && m.end) {
+          m.width = this.getDateX(m.end) - this.getDateX(m.start)
+        }
+      })
+      this._cachedYears!.forEach((y) => {
+        if (y.start && y.end) {
+          y.width = this.getDateX(y.end) - this.getDateX(y.start)
+        }
+      })
+      if (weekStartDay !== this._cachedWeekStartDay) {
+        this._cachedWeekStartDay = weekStartDay
+        this._cachedWeeks = this._buildWeeks(this._cachedDays!, weekStartDay)
+      }
     } else if (weekStartDay !== this._cachedWeekStartDay) {
       // weekStartDay だけ変わった場合は weeks のみ再計算
       this._cachedWeekStartDay = weekStartDay
@@ -303,19 +328,19 @@ export class GanttCalendarElement extends LitElement {
 
               return html`<div class="months-container">
                   ${years.map(
-                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px">
+                    (y, i) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px; border-right: none; ${i > 0 ? `border-left: 1px solid ${colors.border};` : ''}">
                       ${y.year}
                     </div>`,
                   )}
                 </div>
                 <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border};">
                   ${months.map(
-                    (m) => {
+                    (m, i) => {
                       const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
                       const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
                       return html`<div
                       class="week-cell"
-                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${colors.border}; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; ${i > 0 ? `border-left: 1px solid ${colors.border};` : ''} text-align: ${monthTextAlign}; padding: 0 2px;"
                     >
                       ${monthLabel}
                     </div>`
