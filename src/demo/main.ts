@@ -787,6 +787,27 @@ const renderApp = () => {
             @row-header-contextmenu="${(e: CustomEvent<RowHeaderContextMenuEventDetail>) => {
               console.log('Row header context menu:', e.detail)
             }}"
+            @dependency-create="${(e: CustomEvent) => {
+              const { sourceTaskId, targetTaskId } = e.detail
+              console.log('Dependency created:', e.detail)
+              // dependencies配列にsourceTaskIdを追加（既存と重複しない場合のみ）
+              rows = rows.map((row) => ({
+                ...row,
+                tasks: row.tasks.map((task) => {
+                  if (task.id === targetTaskId) {
+                    const deps = task.dependencies ?? []
+                    if (!deps.includes(sourceTaskId)) {
+                      return { ...task, dependencies: [...deps, sourceTaskId] }
+                    }
+                  }
+                  return task
+                }),
+              }))
+              renderApp()
+            }}"
+            @dependency-click="${(e: CustomEvent) => {
+              console.log('Dependency clicked:', e.detail)
+            }}"
           />
         </div>
 

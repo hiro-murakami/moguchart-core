@@ -3,6 +3,9 @@ import { jaLocale } from '@/core/i18n'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
+  DependencyClickEventDetail,
+  DependencyCreateEventDetail,
+  DependencyEndpoint,
   GanttChartOption,
   GanttRow,
   GanttTask,
@@ -84,6 +87,22 @@ export class GanttChartElement extends LitElement {
   @state() private isResizingHeader = false
   @state() private hoveredMilestoneId: string | null = null
   @state() private cursorLineX: number | null = null
+  @state() private connectorDrag: {
+    sourceTaskId: string
+    sourceEndpoint: DependencyEndpoint
+    /** バーローカル座標系での起点X */
+    startX: number
+    /** バーローカル座標系での起点Y */
+    startY: number
+    /** 現在のマウスclientX */
+    currentClientX: number
+    /** 現在のマウスclientY */
+    currentClientY: number
+    /** ドロップターゲットのタスクID（ホバー中） */
+    targetTaskId: string | null
+    /** ドロップターゲット側のエンドポイント */
+    targetEndpoint: DependencyEndpoint | null
+  } | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
 
   private _layoutCache: {
@@ -186,6 +205,21 @@ export class GanttChartElement extends LitElement {
     .dependency-line {
       stroke-width: 2;
       fill: none;
+      pointer-events: none;
+    }
+    .dependency-hit-area {
+      stroke-width: 16;
+      stroke: transparent;
+      fill: none;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    .dependency-group:hover .dependency-line {
+      stroke-width: 3;
+      filter: drop-shadow(0 0 3px currentColor);
+    }
+    .dependency-group:hover .dependency-hit-area ~ .dependency-line {
+      opacity: 1;
     }
     .current-time-line {
       position: absolute;
@@ -1445,6 +1479,163 @@ export class GanttChartElement extends LitElement {
     )
   }
 
+  // --- コネクタードラッグ管理 ---
+
+  private handleConnectorDragStart(e: CustomEvent) {
+    const { taskId, endpoint, startX, startY, clientX, clientY } = e.detail
+    e.stopPropagation()
+
+    this.connectorDrag = {
+      sourceTaskId: taskId,
+      sourceEndpoint: endpoint,
+      startX,
+      startY,
+      currentClientX: clientX,
+      currentClientY: clientY,
+      targetTaskId: null,
+      targetEndpoint: null,
+    }
+
+    // ツールチップを消す
+    if (this.tooltip) {
+      this.tooltip = null
+    }
+  }
+
+  private handleConnectorDragMove(e: CustomEvent) {
+    if (!this.connectorDrag) return
+    e.stopPropagation()
+
+    const { clientX, clientY } = e.detail
+
+    // マウス座標 -> コンテンツ内座標
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const contentX = clientX - rect.left + container.scrollLeft
+    const contentY = clientY - rect.top + container.scrollTop - this.calendarHeight
+
+    // ターゲットタスクの検出
+    const { taskCoords } = this.calculateLayout()
+    let closestTaskId: string | null = null
+    let closestEndpoint: DependencyEndpoint | null = null
+    let minDist = 30 // スナップ閾値（px）
+
+    for (const [taskId, coord] of taskCoords) {
+      if (taskId === this.connectorDrag.sourceTaskId) continue
+
+      // バーの左端（start）と右端（end）それぞれの距離を計算
+      const centerY = coord.y + coord.height / 2
+      const leftX = coord.x
+      const rightX = coord.x + coord.width
+
+      const distLeft = Math.sqrt((contentX - leftX) ** 2 + (contentY - centerY) ** 2)
+      const distRight = Math.sqrt((contentX - rightX) ** 2 + (contentY - centerY) ** 2)
+
+      if (distLeft < minDist) {
+        minDist = distLeft
+        closestTaskId = taskId
+        closestEndpoint = 'start'
+      }
+      if (distRight < minDist) {
+        minDist = distRight
+        closestTaskId = taskId
+        closestEndpoint = 'end'
+      }
+    }
+
+    // gantt-bar 要素の connectorDropTarget 属性を更新
+    const prevTargetId = this.connectorDrag.targetTaskId
+    if (prevTargetId !== closestTaskId) {
+      // 前のターゲットのハイライトを解除
+      if (prevTargetId) {
+        this._setConnectorDropTarget(prevTargetId, false)
+      }
+      // 新しいターゲットをハイライト
+      if (closestTaskId) {
+        this._setConnectorDropTarget(closestTaskId, true)
+      }
+    }
+
+    this.connectorDrag = {
+      ...this.connectorDrag,
+      currentClientX: clientX,
+      currentClientY: clientY,
+      targetTaskId: closestTaskId,
+      targetEndpoint: closestEndpoint,
+    }
+  }
+
+  private handleConnectorDragEnd(e: CustomEvent) {
+    if (!this.connectorDrag) return
+    e.stopPropagation()
+
+    const { cancelled } = e.detail
+    const { sourceTaskId, sourceEndpoint, targetTaskId, targetEndpoint } = this.connectorDrag
+
+    // ターゲットのハイライトを解除
+    if (targetTaskId) {
+      this._setConnectorDropTarget(targetTaskId, false)
+    }
+
+    if (!cancelled && targetTaskId && targetEndpoint) {
+      // 依存関係作成イベントを発火
+      this.dispatchEvent(
+        new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
+          detail: {
+            sourceTaskId,
+            sourceEndpoint,
+            targetTaskId,
+            targetEndpoint,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
+    this.connectorDrag = null
+  }
+
+  /**
+   * 指定タスクIDのgantt-bar要素にconnectorDropTarget属性をセットする
+   */
+  private _setConnectorDropTarget(taskId: string, value: boolean) {
+    const rows = this.shadowRoot?.querySelectorAll('gantt-row')
+    if (!rows) return
+    for (const row of rows) {
+      const bars = (row as any).shadowRoot?.querySelectorAll('gantt-bar')
+      if (!bars) continue
+      for (const bar of bars) {
+        if ((bar as any).task?.id === taskId) {
+          ;(bar as any).connectorDropTarget = value
+          return
+        }
+      }
+    }
+  }
+
+  /**
+   * 依存関係線がクリックされた時のハンドラ。
+   * dependency-removeイベントを発火する。
+   * @param targetTaskId 依存を持つタスクのID（矢印の先）
+   * @param sourceTaskId 依存元のタスクのID（矢印の根元）
+   */
+  private handleDependencyLineClick(targetTaskId: string, sourceTaskId: string) {
+    this.dispatchEvent(
+      new CustomEvent<DependencyClickEventDetail>('dependency-click', {
+        detail: {
+          sourceTaskId,
+          targetTaskId,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+
   /**
    * 外部からタスクIDを指定してタスクを選択状態にし、
    * 表示範囲外の場合はスクロールして表示する。
@@ -1565,7 +1756,8 @@ export class GanttChartElement extends LitElement {
 
     // タスク間の接続線を描く
     const lines = []
-    for (const [_, task] of taskCoords) {
+    const isReadOnly = this.option.readOnly === true
+    for (const [taskId, task] of taskCoords) {
       if (task.dependencies) {
         for (const depId of task.dependencies) {
           const depTask = taskCoords.get(depId)
@@ -1575,12 +1767,56 @@ export class GanttChartElement extends LitElement {
             const endX = task.x
             const endY = task.y + task.height / 2
             const midX = (startX + endX) / 2
+            const pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}`
 
             lines.push(
-              svg`<path class="dependency-line" d="M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}" />`,
+              svg`<g class="dependency-group">
+                ${!isReadOnly
+                  ? svg`<path class="dependency-hit-area" d="${pathD}" @click="${(e: Event) => {
+                      e.stopPropagation()
+                      this.handleDependencyLineClick(taskId, depId)
+                    }}" />`
+                  : ''}
+                <path class="dependency-line" d="${pathD}" marker-end="url(#arrowhead)" />
+              </g>`,
             )
           }
         }
+      }
+    }
+
+    // コネクタードラッグ中のプレビュー線
+    let connectorPreviewLine = null
+    if (this.connectorDrag) {
+      const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        const srcStartX = this.connectorDrag.startX + labelWidth
+        const srcStartY = this.connectorDrag.startY
+
+        let endContentX: number
+        let endContentY: number
+
+        if (this.connectorDrag.targetTaskId && this.connectorDrag.targetEndpoint) {
+          // ターゲットにスナップ
+          const targetCoord = taskCoords.get(this.connectorDrag.targetTaskId)
+          if (targetCoord) {
+            endContentX = this.connectorDrag.targetEndpoint === 'start'
+              ? targetCoord.x
+              : targetCoord.x + targetCoord.width
+            endContentY = targetCoord.y + targetCoord.height / 2
+          } else {
+            endContentX = this.connectorDrag.currentClientX - rect.left + container.scrollLeft
+            endContentY = this.connectorDrag.currentClientY - rect.top + container.scrollTop - this.calendarHeight
+          }
+        } else {
+          // フリー
+          endContentX = this.connectorDrag.currentClientX - rect.left + container.scrollLeft
+          endContentY = this.connectorDrag.currentClientY - rect.top + container.scrollTop - this.calendarHeight
+        }
+
+        const midPX = (srcStartX + endContentX) / 2
+        connectorPreviewLine = svg`<path class="connector-preview-line" d="M ${srcStartX} ${srcStartY} C ${midPX} ${srcStartY} ${midPX} ${endContentY} ${endContentX} ${endContentY}" marker-end="url(#arrowhead-preview)" />`
       }
     }
 
@@ -1610,6 +1846,13 @@ export class GanttChartElement extends LitElement {
         .dependency-line {
           stroke: ${colors.dependencyLine};
         }
+        .connector-preview-line {
+          stroke: ${colors.dependencyLine};
+          stroke-width: 2;
+          stroke-dasharray: 6 3;
+          fill: none;
+          opacity: 0.7;
+        }
         .header-resizer {
           width: 4px;
           cursor: col-resize;
@@ -1635,6 +1878,9 @@ export class GanttChartElement extends LitElement {
         @contextmenu="${this.handleContainerContextMenu}"
         @mousemove="${this.handleContainerMouseMove}"
         @mouseleave="${this.handleContainerMouseLeave}"
+        @connector-drag-start="${this.handleConnectorDragStart}"
+        @connector-drag-move="${this.handleConnectorDragMove}"
+        @connector-drag-end="${this.handleConnectorDragEnd}"
       >
         ${this.option.rowHeader?.resizable !== false
           ? html`
@@ -1674,7 +1920,16 @@ export class GanttChartElement extends LitElement {
           width="${this.getDateX(this.option.calendar.end) + labelWidth}"
           height="${totalHeight}"
         >
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="${colors.dependencyLine}" />
+            </marker>
+            <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="${colors.dependencyLine}" opacity="0.7" />
+            </marker>
+          </defs>
           ${lines}
+          ${connectorPreviewLine}
         </svg>
 
         ${this.option.calendar.showCurrentTime

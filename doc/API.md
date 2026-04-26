@@ -119,6 +119,8 @@ interface GanttChartOption {
 | `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                             |
 | `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
+| `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
+| `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
 
 ## メソッド (Methods)
 
@@ -420,6 +422,32 @@ interface ThemeColorPalette {
 type GanttTaskMoveMode = 'copy' | 'move'
 ```
 
+### DependencyEndpoint
+
+```typescript
+type DependencyEndpoint = 'start' | 'end'
+```
+
+### DependencyCreateEventDetail
+
+```typescript
+interface DependencyCreateEventDetail {
+  sourceTaskId: string       // 接続元のタスクID
+  sourceEndpoint: DependencyEndpoint  // 接続元のエンドポイント（start=左端, end=右端）
+  targetTaskId: string       // 接続先のタスクID
+  targetEndpoint: DependencyEndpoint  // 接続先のエンドポイント（start=左端, end=右端）
+}
+```
+
+### DependencyClickEventDetail
+
+```typescript
+interface DependencyClickEventDetail {
+  sourceTaskId: string  // 接続元（依存元）のタスクID
+  targetTaskId: string  // 接続先（依存を持つ側）のタスクID
+}
+```
+
 ### MoguchartLocale
 
 ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
@@ -657,4 +685,74 @@ const option = {
     cursorLineColor: 'rgba(99, 179, 237, 0.7)', // 省略可
   },
 }
+```
+
+## 依存関係のドラッグ＆ドロップ作成
+
+タスクバーにマウスをホバーすると、バーの左右の端にコネクターポイント（青い丸）が表示されます。このコネクターポイントからドラッグを開始し、別のタスクバー（またはその端）にドロップすることで、タスク間の依存関係を作成できます。
+
+- ドラッグ中はベジェ曲線のプレビュー線が表示されます
+- ターゲットタスクの近くに来ると、コネクターポイントに自動でスナップします
+- ターゲットタスクは青いアウトラインでハイライトされます
+- ドロップ成功時に `dependency-create` イベントが発火します
+- `readOnly` モードではコネクターポイントは表示されません
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.addEventListener('dependency-create', (e) => {
+  const { sourceTaskId, targetTaskId, sourceEndpoint, targetEndpoint } = e.detail
+  console.log(`${sourceTaskId} (${sourceEndpoint}) -> ${targetTaskId} (${targetEndpoint})`)
+
+  // rows のデータを更新して依存関係を追加
+  rows = rows.map((row) => ({
+    ...row,
+    tasks: row.tasks.map((task) => {
+      if (task.id === targetTaskId) {
+        const deps = task.dependencies ?? []
+        if (!deps.includes(sourceTaskId)) {
+          return { ...task, dependencies: [...deps, sourceTaskId] }
+        }
+      }
+      return task
+    }),
+  }))
+  chart.rows = rows
+})
+```
+
+## 依存関係線のクリック
+
+表示されている依存関係線（矢印付きベジェ曲線）をクリックすると `dependency-click` イベントが発火します。削除やその他の操作はイベントハンドラ側で実装してください。
+
+- 依存関係線にマウスをホバーすると、線が太くなり光彩効果でハイライトされます
+- クリックすると `dependency-click` イベントが発火します
+- `readOnly` モードではクリックできません
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.addEventListener('dependency-click', (e) => {
+  const { sourceTaskId, targetTaskId } = e.detail
+  console.log(`Dependency clicked: ${sourceTaskId} -> ${targetTaskId}`)
+
+  // 例: 確認ダイアログを表示してから削除
+  if (confirm('この依存関係を削除しますか？')) {
+    rows = rows.map((row) => ({
+      ...row,
+      tasks: row.tasks.map((task) => {
+        if (task.id === targetTaskId && task.dependencies) {
+          const newDeps = task.dependencies.filter((d) => d !== sourceTaskId)
+          return { ...task, dependencies: newDeps.length > 0 ? newDeps : undefined }
+        }
+        return task
+      }),
+    }))
+    chart.rows = rows
+  }
+})
 ```

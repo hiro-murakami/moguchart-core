@@ -1,6 +1,6 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption } from '@/core/types'
+import type { GanttTask, GanttChartOption, DependencyEndpoint } from '@/core/types'
 import { getPatternStyle } from '@/core/patterns'
 import { dateToX, xToDate } from '@/core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '@/core/constants'
@@ -13,6 +13,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean, reflect: true }) selected = false
   @property({ type: Number }) multiDragDx = 0
   @property({ type: Boolean }) multiDragActive = false
+  @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
@@ -73,6 +74,43 @@ export class GanttBarElement extends LitElement {
     .handle-left:hover,
     .handle-right:hover {
       background: rgba(255, 255, 255, 0.3);
+    }
+    .connector-left,
+    .connector-right {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      transform: translateY(-50%);
+      cursor: crosshair;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      pointer-events: auto;
+    }
+    .task-group:hover .connector-left,
+    .task-group:hover .connector-right {
+      opacity: 1;
+    }
+    .connector-left {
+      left: -6px;
+    }
+    .connector-right {
+      right: -6px;
+    }
+    .connector-left:hover,
+    .connector-right:hover {
+      background: #2563eb;
+      transform: translateY(-50%) scale(1.2);
+    }
+    :host([connector-drop-target]) .bar {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
     }
     .bar-label {
       color: white;
@@ -669,6 +707,76 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onConnectorDragStart(e: PointerEvent, endpoint: DependencyEndpoint) {
+    e.stopPropagation()
+    e.preventDefault()
+    const target = e.target as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
+    if (!taskGroup) return
+
+    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+    const x = this.getX(this.task.start)
+    const width = this.getX(this.task.end) - x
+    const y = this.lane * (barHeight + barMargin) + barMargin
+
+    // 起点座標を計算（バーの左端 or 右端の中央）
+    const startX = endpoint === 'start' ? x : x + width
+    const startY = y + barHeight / 2
+
+    // ドラッグ開始を通知
+    this.dispatchEvent(
+      new CustomEvent('connector-drag-start', {
+        detail: {
+          taskId: this.task.id,
+          endpoint,
+          startX,
+          startY,
+          clientX: e.clientX,
+          clientY: e.clientY,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.setupDragEvents(
+      target,
+      e.pointerId,
+      (moveEvent) => {
+        this.dispatchEvent(
+          new CustomEvent('connector-drag-move', {
+            detail: {
+              taskId: this.task.id,
+              endpoint,
+              startX,
+              startY,
+              clientX: moveEvent.clientX,
+              clientY: moveEvent.clientY,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+      (isCancel) => {
+        this.dispatchEvent(
+          new CustomEvent('connector-drag-end', {
+            detail: {
+              taskId: this.task.id,
+              endpoint,
+              cancelled: isCancel,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+    )
+  }
+
   private onContextMenu(e: MouseEvent) {
     // MacなどでCtrl+ドラッグ（コピー操作）を行おうとした際にコンテキストメニューが出ないようにする
     if (e.ctrlKey) {
@@ -746,6 +854,12 @@ export class GanttBarElement extends LitElement {
           ? html`
               <div class="handle-left" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'left')}"></div>
               <div class="handle-right" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"></div>
+            `
+          : ''}
+        ${!isReadOnly
+          ? html`
+              <div class="connector-left" @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'start')}"></div>
+              <div class="connector-right" @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'end')}"></div>
             `
           : ''}
       </div>

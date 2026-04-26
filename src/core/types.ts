@@ -489,3 +489,32 @@ export interface ThemeColors {
  * タスクの移動モード
  */
 export type GanttTaskMoveMode = 'copy' | 'move'
+
+/**
+ * 依存関係の接続ポイント（バーのどちら側か）
+ */
+export type DependencyEndpoint = 'start' | 'end'
+
+/**
+ * 依存関係作成イベントの詳細データ
+ */
+export interface DependencyCreateEventDetail {
+  /** 接続元のタスクID */
+  sourceTaskId: string
+  /** 接続元のエンドポイント（start=左端, end=右端） */
+  sourceEndpoint: DependencyEndpoint
+  /** 接続先のタスクID */
+  targetTaskId: string
+  /** 接続先のエンドポイント（start=左端, end=右端） */
+  targetEndpoint: DependencyEndpoint
+}
+
+/**
+ * 依存関係線クリックイベントの詳細データ
+ */
+export interface DependencyClickEventDetail {
+  /** 接続元のタスクID */
+  sourceTaskId: string
+  /** 接続先のタスクID */
+  targetTaskId: string
+}
