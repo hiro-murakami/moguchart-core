@@ -119,6 +119,8 @@ Custom events dispatched by the component.
 | `task-dblclick`          | `TaskClickEventDetail`              | Fired when a task bar is double-clicked.                                                 |
 | `task-contextmenu`       | `TaskContextMenuEventDetail`        | Fired when a task bar is right-clicked. Use for implementing custom context menus.       |
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`       | Fired when the chart background (area without tasks) is right-clicked.                   |
+| `dependency-create`      | `DependencyCreateEventDetail`       | Fired when a dependency is created via drag & drop from a task bar connector.            |
+| `dependency-click`       | `DependencyClickEventDetail`        | Fired when a dependency line is clicked.                                                 |
 
 ## Methods
 
@@ -504,6 +506,33 @@ interface ThemeColorPalette {
 type GanttTaskMoveMode = 'copy' | 'move'
 ```
 
+### DependencyEndpoint
+
+```typescript
+type DependencyEndpoint = 'start' | 'end'
+```
+
+### DependencyCreateEventDetail
+
+```typescript
+interface DependencyCreateEventDetail {
+  sourceTaskId: string       // Source task ID
+  sourceEndpoint: DependencyEndpoint  // Source endpoint (start=left edge, end=right edge)
+  targetTaskId: string       // Target task ID
+  targetEndpoint: DependencyEndpoint  // Target endpoint (start=left edge, end=right edge)
+}
+```
+
+### DependencyClickEventDetail
+
+```typescript
+interface DependencyClickEventDetail {
+  sourceTaskId: string  // Source (dependency) task ID
+  targetTaskId: string  // Target (dependent) task ID
+  event: MouseEvent     // Original mouse event
+}
+```
+
 ## Multi-Task Selection and Dragging
 
 Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks. Selection state is communicated via the `bar-selection-change` event.
@@ -675,4 +704,74 @@ const option = {
     cursorLineColor: 'rgba(99, 179, 237, 0.7)', // optional
   },
 }
+```
+
+## Drag & Drop Dependency Creation
+
+When you hover over a task bar, connector points (blue circles) will appear on the left and right edges. You can create a dependency between tasks by dragging from one of these connector points and dropping it onto another task bar (or its edge).
+
+- A Bezier curve preview line is displayed during the drag.
+- When you get close to a target task, it automatically snaps to the connector point.
+- The target task is highlighted with a blue outline.
+- The `dependency-create` event fires upon a successful drop.
+- Connector points are not displayed in `readOnly` mode.
+
+### Usage Example
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.addEventListener('dependency-create', (e) => {
+  const { sourceTaskId, targetTaskId, sourceEndpoint, targetEndpoint } = e.detail
+  console.log(`${sourceTaskId} (${sourceEndpoint}) -> ${targetTaskId} (${targetEndpoint})`)
+
+  // Update the rows data to add the dependency
+  rows = rows.map((row) => ({
+    ...row,
+    tasks: row.tasks.map((task) => {
+      if (task.id === targetTaskId) {
+        const deps = task.dependencies ?? []
+        if (!deps.includes(sourceTaskId)) {
+          return { ...task, dependencies: [...deps, sourceTaskId] }
+        }
+      }
+      return task
+    }),
+  }))
+  chart.rows = rows
+})
+```
+
+## Dependency Line Click
+
+Clicking on a displayed dependency line (a Bezier curve with an arrow) fires the `dependency-click` event. Deletion or other operations should be implemented in the event handler.
+
+- Hovering over a dependency line makes it thicker and highlights it with a glow effect.
+- Clicking fires the `dependency-click` event.
+- It cannot be clicked in `readOnly` mode.
+
+### Usage Example
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.addEventListener('dependency-click', (e) => {
+  const { sourceTaskId, targetTaskId, event } = e.detail
+  console.log(`Dependency clicked: ${sourceTaskId} -> ${targetTaskId}`)
+
+  // Example: Show context menu at mouse coordinates or delete after confirmation
+  if (confirm('Delete this dependency?')) {
+    rows = rows.map((row) => ({
+      ...row,
+      tasks: row.tasks.map((task) => {
+        if (task.id === targetTaskId && task.dependencies) {
+          const newDeps = task.dependencies.filter((d) => d !== sourceTaskId)
+          return { ...task, dependencies: newDeps.length > 0 ? newDeps : undefined }
+        }
+        return task
+      }),
+    }))
+    chart.rows = rows
+  }
+})
 ```

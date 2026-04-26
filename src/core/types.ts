@@ -517,4 +517,6 @@ export interface DependencyClickEventDetail {
   sourceTaskId: string
   /** 接続先のタスクID */
   targetTaskId: string
+  /** 元のマウスイベント */
+  event: MouseEvent
 }

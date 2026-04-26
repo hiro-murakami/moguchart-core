@@ -1482,8 +1482,20 @@ export class GanttChartElement extends LitElement {
   // --- コネクタードラッグ管理 ---
 
   private handleConnectorDragStart(e: CustomEvent) {
-    const { taskId, endpoint, startX, startY, clientX, clientY } = e.detail
+    const { taskId, endpoint, clientX, clientY } = e.detail
     e.stopPropagation()
+
+    const { taskCoords } = this.calculateLayout()
+    const coord = taskCoords.get(taskId)
+
+    const labelWidth = this.currentRowHeaderWidth
+    let startX = e.detail.startX + labelWidth
+    let startY = e.detail.startY
+
+    if (coord) {
+      startX = endpoint === 'start' ? coord.x : coord.x + coord.width
+      startY = coord.y + coord.height / 2
+    }
 
     this.connectorDrag = {
       sourceTaskId: taskId,
@@ -1622,10 +1634,11 @@ export class GanttChartElement extends LitElement {
    * @param targetTaskId 依存を持つタスクのID（矢印の先）
    * @param sourceTaskId 依存元のタスクのID（矢印の根元）
    */
-  private handleDependencyLineClick(targetTaskId: string, sourceTaskId: string) {
+  private handleDependencyLineClick(event: MouseEvent, targetTaskId: string, sourceTaskId: string) {
     this.dispatchEvent(
       new CustomEvent<DependencyClickEventDetail>('dependency-click', {
         detail: {
+          event,
           sourceTaskId,
           targetTaskId,
         },
@@ -1772,12 +1785,12 @@ export class GanttChartElement extends LitElement {
             lines.push(
               svg`<g class="dependency-group">
                 ${!isReadOnly
-                  ? svg`<path class="dependency-hit-area" d="${pathD}" @click="${(e: Event) => {
+                  ? svg`<path class="dependency-hit-area" d="${pathD}" @click="${(e: MouseEvent) => {
                       e.stopPropagation()
-                      this.handleDependencyLineClick(taskId, depId)
+                      this.handleDependencyLineClick(e, taskId, depId)
                     }}" />`
                   : ''}
-                <path class="dependency-line" d="${pathD}" marker-end="url(#arrowhead)" />
+                <path class="dependency-line" d="${pathD}" />
               </g>`,
             )
           }
@@ -1791,7 +1804,7 @@ export class GanttChartElement extends LitElement {
       const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
       if (container) {
         const rect = container.getBoundingClientRect()
-        const srcStartX = this.connectorDrag.startX + labelWidth
+        const srcStartX = this.connectorDrag.startX
         const srcStartY = this.connectorDrag.startY
 
         let endContentX: number
@@ -1816,7 +1829,7 @@ export class GanttChartElement extends LitElement {
         }
 
         const midPX = (srcStartX + endContentX) / 2
-        connectorPreviewLine = svg`<path class="connector-preview-line" d="M ${srcStartX} ${srcStartY} C ${midPX} ${srcStartY} ${midPX} ${endContentY} ${endContentX} ${endContentY}" marker-end="url(#arrowhead-preview)" />`
+        connectorPreviewLine = svg`<path class="connector-preview-line" d="M ${srcStartX} ${srcStartY} C ${midPX} ${srcStartY} ${midPX} ${endContentY} ${endContentX} ${endContentY}" />`
       }
     }
 
@@ -1920,14 +1933,6 @@ export class GanttChartElement extends LitElement {
           width="${this.getDateX(this.option.calendar.end) + labelWidth}"
           height="${totalHeight}"
         >
-          <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="${colors.dependencyLine}" />
-            </marker>
-            <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="${colors.dependencyLine}" opacity="0.7" />
-            </marker>
-          </defs>
           ${lines}
           ${connectorPreviewLine}
         </svg>

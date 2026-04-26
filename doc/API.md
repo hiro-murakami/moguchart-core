@@ -445,6 +445,7 @@ interface DependencyCreateEventDetail {
 interface DependencyClickEventDetail {
   sourceTaskId: string  // 接続元（依存元）のタスクID
   targetTaskId: string  // 接続先（依存を持つ側）のタスクID
+  event: MouseEvent     // 元のマウスイベント
 }
 ```
 
