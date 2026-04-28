@@ -234,6 +234,13 @@ export interface ChartContextMenuEventDetail {
 }
 
 /**
+ * 依存関係線のスタイル
+ * - 'curve': ベジェ曲線
+ * - 'orthogonal': 直角折れ線（角丸付き）（デフォルト）
+ */
+export type DependencyLineStyle = 'curve' | 'orthogonal'
+
+/**
  * 依存関係線に関するオプション
  */
 export interface GanttChartOptionDependency {
@@ -241,6 +248,14 @@ export interface GanttChartOptionDependency {
   showArrows?: boolean
   /** 矢印の大きさ (px)。デフォルト: 8 */
   arrowSize?: number
+  /**
+   * 接続線のスタイル (デフォルト: 'orthogonal')
+   * - 'curve': ベジェ曲線
+   * - 'orthogonal': 直角折れ線（角が丸くなる）
+   */
+  lineStyle?: DependencyLineStyle
+  /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
+  cornerRadius?: number
 }
 
 /**

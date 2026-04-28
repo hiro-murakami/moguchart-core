@@ -14,6 +14,7 @@ import type {
   RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
   BarSelectionChangeEventDetail,
+  DependencyLineStyle,
 } from '@/core/types'
 import type { ThemeColorPalette } from '@/core/types'
 import type { MoguchartLocale } from '@/core/i18n'
@@ -96,6 +97,7 @@ let showCursorLine = false
 let weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1
 let weekTextAlign: 'left' | 'center' | 'right' = 'left'
 let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
+let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
@@ -298,6 +300,9 @@ const renderApp = () => {
         }
       : undefined,
     locale: currentLocale,
+    dependency: {
+      lineStyle: dependencyLineStyle,
+    },
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -481,6 +486,38 @@ const renderApp = () => {
           />
           ${t.readOnlyMode}
         </label>
+
+        <div style="display: flex; align-items: center; border-left: 1px solid #ccc; padding-left: 16px;">
+          <span style="margin-right: 8px; font-size: 13px;">${currentLang === 'ja' ? '接続線' : 'Line Style'}</span>
+          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 10px;">
+            <input
+              type="radio"
+              name="depLineStyle"
+              value="curve"
+              .checked="${dependencyLineStyle === 'curve'}"
+              @change="${() => {
+                dependencyLineStyle = 'curve'
+                renderApp()
+              }}"
+              style="margin-right: 4px;"
+            />
+            ${currentLang === 'ja' ? '曲線' : 'Curve'}
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input
+              type="radio"
+              name="depLineStyle"
+              value="orthogonal"
+              .checked="${dependencyLineStyle === 'orthogonal'}"
+              @change="${() => {
+                dependencyLineStyle = 'orthogonal'
+                renderApp()
+              }}"
+              style="margin-right: 4px;"
+            />
+            ${currentLang === 'ja' ? '直線' : 'Orthogonal'}
+          </label>
+        </div>
 
         <label style="display: flex; align-items: center; cursor: pointer;">
           <input
