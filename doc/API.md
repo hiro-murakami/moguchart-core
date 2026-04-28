@@ -96,6 +96,8 @@ interface GanttChartOption {
     /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   }
+  /** 依存関係線の設定 */
+  dependency?: GanttChartOptionDependency
 }
 ```
 
@@ -427,6 +429,19 @@ type GanttTaskMoveMode = 'copy' | 'move'
 ```typescript
 type DependencyEndpoint = 'start' | 'end'
 ```
+
+### GanttChartOptionDependency
+
+```typescript
+interface GanttChartOptionDependency {
+  /** 矢印を表示するかどうか (デフォルト: true) */
+  showArrows?: boolean
+  /** 矢印の大きさ (px)。デフォルト: 8 */
+  arrowSize?: number
+}
+```
+
+> **Note:** 右→左方向の依存関係では、自動的にS字カーブが適用され、タスクバーとの接触箇所は常に水平に接続されます。
 
 ### DependencyCreateEventDetail
 

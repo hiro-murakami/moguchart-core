@@ -18,7 +18,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Light/Dark/System theme switching + custom color themes
   - Task bar fill patterns (13 types including stripes, dots, checkerboard, etc.)
   - CSS styling
-- 🔗 **Dependency Visualization**: Curved lines showing task dependencies
+- 🔗 **Dependency Visualization**: Curved lines with arrows showing task dependencies (S-curve support for reverse direction)
 - 📅 **Flexible Calendar**:
   - Day / Week / Month view switching
   - Adjustable zoom level (pixels per day or per month) and display period
@@ -237,6 +237,21 @@ const option = {
     bg: '#1a1a2e',
     text: '#e0e0e0',
     currentTimeLine: '#ff6b6b',
+  },
+  // ...
+}
+```
+
+### Dependency Line Settings
+
+Customize the dependency line display with the `dependency` option. Control arrow visibility and size.
+Reverse-direction (right-to-left) dependencies are automatically rendered with S-curves, with horizontal connections at contact points.
+
+```javascript
+const option = {
+  dependency: {
+    showArrows: true,  // Show arrows (default: true)
+    arrowSize: 12,     // Arrow size in px (default: 8)
   },
   // ...
 }

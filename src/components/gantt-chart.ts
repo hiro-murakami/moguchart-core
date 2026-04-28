@@ -207,6 +207,9 @@ export class GanttChartElement extends LitElement {
       fill: none;
       pointer-events: none;
     }
+    .dependency-arrow-line {
+      stroke-width: 0;
+    }
     .dependency-hit-area {
       stroke-width: 16;
       stroke: transparent;
@@ -217,6 +220,9 @@ export class GanttChartElement extends LitElement {
     .dependency-group:hover .dependency-line {
       stroke-width: 3;
       filter: drop-shadow(0 0 3px currentColor);
+    }
+    .dependency-group:hover .dependency-arrow-line {
+      stroke-width: 0;
     }
     .dependency-group:hover .dependency-hit-area ~ .dependency-line {
       opacity: 1;
@@ -1770,6 +1776,8 @@ export class GanttChartElement extends LitElement {
     // タスク間の接続線を描く
     const lines = []
     const isReadOnly = this.option.readOnly === true
+    const showArrows = this.option.dependency?.showArrows !== false
+    const arrowSize = this.option.dependency?.arrowSize ?? 8
     for (const [taskId, task] of taskCoords) {
       if (task.dependencies) {
         for (const depId of task.dependencies) {
@@ -1779,18 +1787,52 @@ export class GanttChartElement extends LitElement {
             const startY = depTask.y + depTask.height / 2
             const endX = task.x
             const endY = task.y + task.height / 2
-            const midX = (startX + endX) / 2
-            const pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${endX} ${endY}`
+            // 矢印表示時は線の終端を矢印分だけ手前にする（矢印がバーにぴったり接するように）
+            const adjustedEndX = showArrows ? endX - arrowSize : endX
+
+            let pathD: string
+            let hitPathD: string
+            let arrowPathD: string
+
+            const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+            const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
+
+            if (startX < endX - 10) {
+              // 左→右方向: シンプルなベジェ曲線（従来通り）
+              const midX = (startX + adjustedEndX) / 2
+              pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${adjustedEndX} ${endY}`
+              hitPathD = `M ${startX} ${startY} C ${(startX + endX) / 2} ${startY} ${(startX + endX) / 2} ${endY} ${endX} ${endY}`
+            } else {
+              // 右→左方向（または非常に近い場合）: S字カーブ
+              // バーとの接触箇所で必ず水平に出入りし、中間でS字を描く
+              const offset = Math.max(12, (startX - endX) * 0.15)
+              const midY = (startY + endY) / 2
+              // ソースとターゲットが同じ高さの場合はバー1つ分下にオフセットして迂回する
+              const effectiveMidY = Math.abs(startY - endY) < barHeight
+                ? midY + barHeight + barMargin
+                : midY
+
+              pathD = `M ${startX} ${startY} C ${startX + offset} ${startY}, ${startX + offset} ${effectiveMidY}, ${(startX + adjustedEndX) / 2} ${effectiveMidY} S ${adjustedEndX - offset} ${endY}, ${adjustedEndX} ${endY}`
+              hitPathD = `M ${startX} ${startY} C ${startX + offset} ${startY}, ${startX + offset} ${effectiveMidY}, ${(startX + endX) / 2} ${effectiveMidY} S ${endX - offset} ${endY}, ${endX} ${endY}`
+            }
+
+            // 矢印用の直線パス（マーカーが正しい方向を向くように）
+            arrowPathD = showArrows
+              ? `M ${adjustedEndX} ${endY} L ${endX} ${endY}`
+              : ''
 
             lines.push(
               svg`<g class="dependency-group">
                 ${!isReadOnly
-                  ? svg`<path class="dependency-hit-area" d="${pathD}" @click="${(e: MouseEvent) => {
+                  ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
                       e.stopPropagation()
                       this.handleDependencyLineClick(e, taskId, depId)
                     }}" />`
                   : ''}
                 <path class="dependency-line" d="${pathD}" />
+                ${showArrows
+                  ? svg`<path class="dependency-line dependency-arrow-line" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
+                  : ''}
               </g>`,
             )
           }
@@ -1933,6 +1975,25 @@ export class GanttChartElement extends LitElement {
           width="${this.getDateX(this.option.calendar.end) + labelWidth}"
           height="${totalHeight}"
         >
+          ${showArrows
+            ? svg`<defs>
+                <marker
+                  id="dependency-arrowhead"
+                  markerWidth="${arrowSize}"
+                  markerHeight="${arrowSize}"
+                  refX="${arrowSize}"
+                  refY="${arrowSize / 2}"
+                  orient="auto"
+                  markerUnits="userSpaceOnUse"
+                >
+                  <polygon
+                    points="0 0, ${arrowSize} ${arrowSize / 2}, 0 ${arrowSize}"
+                    fill="${colors.dependencyLine}"
+                    class="dependency-arrowhead-fill"
+                  />
+                </marker>
+              </defs>`
+            : ''}
           ${lines}
           ${connectorPreviewLine}
         </svg>

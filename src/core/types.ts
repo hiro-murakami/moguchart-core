@@ -234,6 +234,16 @@ export interface ChartContextMenuEventDetail {
 }
 
 /**
+ * 依存関係線に関するオプション
+ */
+export interface GanttChartOptionDependency {
+  /** 矢印を表示するかどうか (デフォルト: true) */
+  showArrows?: boolean
+  /** 矢印の大きさ (px)。デフォルト: 8 */
+  arrowSize?: number
+}
+
+/**
  * ガントチャート全体のオプション設定
  */
 export interface GanttChartOption {
@@ -265,6 +275,8 @@ export interface GanttChartOption {
   customRendering?: GanttChartOptionCustomRendering
   /** ロケール設定 (デフォルト: 日本語) */
   locale?: MoguchartLocale
+  /** 依存関係線の設定 */
+  dependency?: GanttChartOptionDependency
 }
 
 /**

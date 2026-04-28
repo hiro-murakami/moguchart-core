@@ -96,6 +96,8 @@ interface GanttChartOption {
     /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   }
+  /** Dependency line settings */
+  dependency?: GanttChartOptionDependency
 }
 ```
 
@@ -511,6 +513,19 @@ type GanttTaskMoveMode = 'copy' | 'move'
 ```typescript
 type DependencyEndpoint = 'start' | 'end'
 ```
+
+### GanttChartOptionDependency
+
+```typescript
+interface GanttChartOptionDependency {
+  /** Whether to show arrows (default: true) */
+  showArrows?: boolean
+  /** Arrow size in px (default: 8) */
+  arrowSize?: number
+}
+```
+
+> **Note:** Reverse-direction (right-to-left) dependencies automatically use S-curves, with horizontal connections at task bar contact points.
 
 ### DependencyCreateEventDetail
 
