@@ -79,12 +79,12 @@ export class GanttBarElement extends LitElement {
     .connector-right {
       position: absolute;
       top: 50%;
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #3b82f6;
       border: 2px solid #fff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
       transform: translateY(-50%);
       cursor: crosshair;
       z-index: 20;
@@ -97,10 +97,10 @@ export class GanttBarElement extends LitElement {
       opacity: 1;
     }
     .connector-left {
-      left: -6px;
+      left: -10px;
     }
     .connector-right {
-      right: -6px;
+      right: -10px;
     }
     .connector-left:hover,
     .connector-right:hover {
@@ -163,7 +163,12 @@ export class GanttBarElement extends LitElement {
   `
 
   private getX(date: Date) {
-    return dateToX(date, this.option.calendar.start, this.option.calendar.pxPerDay ?? 50, this.option.calendar.pxPerMonth)
+    return dateToX(
+      date,
+      this.option.calendar.start,
+      this.option.calendar.pxPerDay ?? 50,
+      this.option.calendar.pxPerMonth,
+    )
   }
 
   private setupDragEvents(
@@ -233,7 +238,6 @@ export class GanttBarElement extends LitElement {
     const originalEnd = new Date(this.task.end)
     let currentStart = new Date(originalStart)
     let currentEnd = new Date(originalEnd)
-
 
     this.setupDragEvents(
       target,
@@ -428,9 +432,17 @@ export class GanttBarElement extends LitElement {
         } else {
           // Monthモードでの移動時は常に1ヶ月単位でスナップ
           // 元の開始日をベースにどれだけ月をまたいだかを計算する
-          const rawDate = xToDate(this.getX(originalStart) + deltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
-          const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
-          
+          const rawDate = xToDate(
+            this.getX(originalStart) + deltaX,
+            this.option.calendar.start,
+            50,
+            this.option.calendar.pxPerMonth,
+          )
+          const diffMonths =
+            (rawDate.getFullYear() - originalStart.getFullYear()) * 12 +
+            (rawDate.getMonth() - originalStart.getMonth()) +
+            (rawDate.getDate() > 15 ? 1 : 0)
+
           const snappedStart = new Date(originalStart)
           snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
           translateX = this.getX(snappedStart) - this.getX(originalStart)
@@ -497,8 +509,16 @@ export class GanttBarElement extends LitElement {
             const snapPx = pxPerMinute * snapDuration
             finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
           } else {
-            const rawDate = xToDate(this.getX(originalStart) + rawDeltaX, this.option.calendar.start, 50, this.option.calendar.pxPerMonth)
-            const diffMonths = (rawDate.getFullYear() - originalStart.getFullYear()) * 12 + (rawDate.getMonth() - originalStart.getMonth()) + (rawDate.getDate() > 15 ? 1 : 0)
+            const rawDate = xToDate(
+              this.getX(originalStart) + rawDeltaX,
+              this.option.calendar.start,
+              50,
+              this.option.calendar.pxPerMonth,
+            )
+            const diffMonths =
+              (rawDate.getFullYear() - originalStart.getFullYear()) * 12 +
+              (rawDate.getMonth() - originalStart.getMonth()) +
+              (rawDate.getDate() > 15 ? 1 : 0)
             const snappedStart = new Date(originalStart)
             snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
             finalTranslateX = this.getX(snappedStart) - this.getX(originalStart)
@@ -532,6 +552,19 @@ export class GanttBarElement extends LitElement {
 
           // 実際にドラッグが行われたのでフラグを設定
           this._wasDragging = true
+
+          // ドラッグしたバーに選択を移す
+          this.dispatchEvent(
+            new CustomEvent('bar-click', {
+              detail: {
+                task: this.task,
+                event: upEvent,
+                isMultiSelect: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
 
           this.dispatchEvent(
             new CustomEvent('task-update', {
@@ -858,8 +891,14 @@ export class GanttBarElement extends LitElement {
           : ''}
         ${!isReadOnly
           ? html`
-              <div class="connector-left" @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'start')}"></div>
-              <div class="connector-right" @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'end')}"></div>
+              <div
+                class="connector-left"
+                @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'start')}"
+              ></div>
+              <div
+                class="connector-right"
+                @pointerdown="${(e: PointerEvent) => this.onConnectorDragStart(e, 'end')}"
+              ></div>
             `
           : ''}
       </div>
