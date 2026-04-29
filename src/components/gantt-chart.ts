@@ -27,7 +27,7 @@ import './gantt-row'
 import type { GanttRowElement } from './gantt-row'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
-import { exportGanttImage, type ExportImageOptions } from './gantt-chart-export'
+import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './gantt-chart-export'
 
 
 @customElement('gantt-chart')
@@ -109,6 +109,7 @@ export class GanttChartElement extends LitElement {
     targetEndpoint: DependencyEndpoint | null
   } | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
+  @state() private isExporting = false
 
   private _layoutCache: {
     layouts: any[]
@@ -1267,24 +1268,23 @@ export class GanttChartElement extends LitElement {
     return { rowId: targetRowId, date }
   }
 
+
   /**
-   * ガントチャートを画像データとしてエクスポートする。
+   * html2canvas を使用してガントチャートを画像としてエクスポートする。
+   * (Shadow DOMネイティブ対応版 html2canvas-pro を使用)
    *
-   * @param format エクスポート形式。'svg' または 'png'。
    * @param options エクスポートオプション。
-   * @returns エクスポートされた画像のデータURL（SVGはdata:image/svg+xml、PNGはdata:image/png）。
    */
-  public async exportImage(format: 'svg' | 'png', options: ExportImageOptions = {}): Promise<string> {
-    return exportGanttImage(
-      {
-        ...options,
-        rows: this.rows,
-        option: this.option,
-        theme: this.theme,
-        rowHeaderWidth: this.currentRowHeaderWidth,
-      },
-      format,
-    )
+  public async exportImage(format: 'png' | 'pdf' = 'png', options: ExportImageOptions = {}): Promise<string | Blob> {
+    this.isExporting = true
+    await this.updateComplete
+    await new Promise(r => requestAnimationFrame(r))
+    try {
+      return await exportGanttWithHtml2Canvas(this, format, options.filename, options.download)
+    } finally {
+      this.isExporting = false
+      await this.updateComplete
+    }
   }
 
   private clearSelection() {
@@ -1641,22 +1641,24 @@ export class GanttChartElement extends LitElement {
     let startIndex = 0
     let endIndex = this.displayRows.length - 1
 
-    for (let i = 0; i < rowLayouts.length; i++) {
-      if (rowLayouts[i].top + rowLayouts[i].height > this.virtualScrollTop) {
-        startIndex = Math.max(0, i - buffer)
-        break
+    if (!this.isExporting) {
+      for (let i = 0; i < rowLayouts.length; i++) {
+        if (rowLayouts[i].top + rowLayouts[i].height > this.virtualScrollTop) {
+          startIndex = Math.max(0, i - buffer)
+          break
+        }
       }
-    }
 
-    for (let i = startIndex; i < rowLayouts.length; i++) {
-      if (rowLayouts[i].top > this.virtualScrollTop + this.viewportHeight) {
-        endIndex = Math.min(this.displayRows.length - 1, i + buffer)
-        break
+      for (let i = startIndex; i < rowLayouts.length; i++) {
+        if (rowLayouts[i].top > this.virtualScrollTop + this.viewportHeight) {
+          endIndex = Math.min(this.displayRows.length - 1, i + buffer)
+          break
+        }
       }
     }
 
     const visibleRows = this.displayRows.slice(startIndex, endIndex + 1)
-    const paddingTop = rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0
+    const paddingTop = this.isExporting ? 0 : (rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0)
     const lastVisibleRowLayout = rowLayouts[endIndex]
     const renderedBottom = lastVisibleRowLayout ? lastVisibleRowLayout.top + lastVisibleRowLayout.height : 0
     // Windowsの横スクロールバーの重なりを防ぎつつ、余分な余白を最小限にする（17px）
@@ -1778,9 +1780,10 @@ export class GanttChartElement extends LitElement {
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
+      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: auto !important; width: max-content !important; min-width: 100% !important; }</style>` : ''}
       <div
         class="scroll-container"
-        style="overflow-y: ${needsVerticalScroll ? 'auto' : 'hidden'};"
+        style="overflow: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: ${this.isExporting ? '100%' : 'auto'};"
         @scroll="${this.handleScroll}"
         @bar-mouseenter="${this.handleBarMouseEnter}"
         @bar-mouseleave="${this.handleBarMouseLeave}"
@@ -1829,9 +1832,9 @@ export class GanttChartElement extends LitElement {
 
         <svg
           class="dependency-lines"
-          style="top: ${this.calendarHeight}px;"
+          style="top: 0;"
           width="${this.getDateX(this.option.calendar.end) + labelWidth}"
-          height="${totalHeight}"
+          height="${totalHeight + this.calendarHeight}"
         >
           ${showArrows
             ? svg`<defs>
@@ -1852,8 +1855,10 @@ export class GanttChartElement extends LitElement {
                 </marker>
               </defs>`
             : ''}
-          ${lines}
-          ${connectorPreviewLine}
+          <g transform="translate(0, ${this.calendarHeight})">
+            ${lines}
+            ${connectorPreviewLine}
+          </g>
         </svg>
 
         ${this.option.calendar.showCurrentTime
@@ -1933,6 +1938,7 @@ export class GanttChartElement extends LitElement {
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
                 .selectedTaskIds="${this._cachedSelectedTaskIds}"
+                .isExporting="${this.isExporting}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"

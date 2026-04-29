@@ -132,7 +132,7 @@ interface GanttChartOption {
 | :------------ | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selectTask`  | `(taskId: string) => boolean`                                           | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。 |
 | `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。 |
-| `exportImage` | `(format: 'svg' \| 'png', options?: ExportImageOptions) => Promise<string>` | ガントチャート全体を画像データとしてエクスポートします。戻り値はデータURLです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
 
 ### 使用例
 
@@ -172,19 +172,18 @@ document.addEventListener('mousemove', (e) => {
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
-// SVG形式でデータURLを取得
-const svgDataUrl = await chart.exportImage('svg')
+// PNG形式でデータURLを取得
+const pngDataUrl = await chart.exportImage('png')
 
-// PNG形式でダウンロード（高解像度 x2）
-await chart.exportImage('png', {
+// PDF形式でダウンロード
+await chart.exportImage('pdf', {
   filename: 'my-gantt',  // 省略時: 'gantt-chart'
   download: true,        // trueでファイルダウンロード開始
-  scale: 2,              // PNG出力倍率（デフォルト: 2）
 })
 
-// SVGをimgタグに埋め込む
+// PNGをimgタグに埋め込む
 const img = document.createElement('img')
-img.src = await chart.exportImage('svg')
+img.src = await chart.exportImage('png')
 document.body.appendChild(img)
 ```
 
@@ -475,10 +474,18 @@ interface GanttChartOptionDependency {
   showArrows?: boolean
   /** 矢印の大きさ (px)。デフォルト: 8 */
   arrowSize?: number
+  /**
+   * 接続線のスタイル (デフォルト: 'orthogonal')
+   * - 'curve': ベジェ曲線
+   * - 'orthogonal': 直角折れ線（角が丸くなる）
+   */
+  lineStyle?: 'curve' | 'orthogonal'
+  /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
+  cornerRadius?: number
 }
 ```
 
-> **Note:** 右→左方向の依存関係では、自動的にS字カーブが適用され、タスクバーとの接触箇所は常に水平に接続されます。
+> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。
 
 ### DependencyCreateEventDetail
 

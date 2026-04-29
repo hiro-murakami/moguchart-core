@@ -14,6 +14,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Number }) multiDragDx = 0
   @property({ type: Boolean }) multiDragActive = false
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
+  @property({ type: Boolean, reflect: true }) isExporting = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
@@ -125,6 +126,10 @@ export class GanttBarElement extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: calc(100% - 12px);
+    }
+    :host([isexporting]) .bar,
+    :host([isexporting]) .bar * {
+      text-overflow: clip !important;
     }
     @keyframes pop-in {
       0% {

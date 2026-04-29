@@ -40,6 +40,9 @@ export class GanttRowElement extends LitElement {
   @property({ type: Array })
   selectedTaskIds: string[] = []
 
+  @property({ type: Boolean, reflect: true })
+  isExporting = false
+
   // 月境界線キャッシュ（option.calendar.start/end/pxPerMonth が変わらない限り再計算不要）
   private _cachedMonthGridLines: { left: number }[] | null = null
   private _cachedMonthGridStartTime = 0
@@ -127,6 +130,10 @@ export class GanttRowElement extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    :host([isexporting]) .row-header-content,
+    :host([isexporting]) .row-header-content * {
+      text-overflow: clip !important;
     }
     .bars-container {
       flex: none;
@@ -529,6 +536,7 @@ export class GanttRowElement extends LitElement {
                   .selected="${isTaskSelected}"
                   .multiDragDx="${barMultiDragDx}"
                   .multiDragActive="${isPrimaryDrag}"
+                  .isExporting="${this.isExporting}"
                 />
               `
             },

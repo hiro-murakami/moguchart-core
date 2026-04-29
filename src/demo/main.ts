@@ -377,6 +377,31 @@ const renderApp = () => {
         </div>
       </div>
 
+      <div style="margin-bottom: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+        <button
+          style="background-color: #f59e0b;"
+          @click="${async () => {
+            const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+            if (chart) {
+              await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas' })
+            }
+          }}"
+        >
+          Export PNG
+        </button>
+        <button
+          style="background-color: #ef4444;"
+          @click="${async () => {
+            const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+            if (chart) {
+              await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas' })
+            }
+          }}"
+        >
+          Export PDF
+        </button>
+      </div>
+
       <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;">
           <span style="margin-right: 8px; font-weight: bold;">${t.viewMode}</span>

@@ -132,6 +132,7 @@ Public methods that can be called on the component instance.
 | :----------- | :--------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selectTask` | `(taskId: string) => boolean`                                                | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                      |
 | `hitTest`    | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.      |
+| `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
 
 ### Usage Examples
 
@@ -165,6 +166,41 @@ document.addEventListener('mousemove', (e) => {
 ```
 
 > **Note:** `hitTest` calculates the accurate date by considering scroll position and calendar settings. It's useful for implementing operations based on mouse position, such as paste via keyboard shortcuts.
+
+#### exportImage
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Get PNG data URL
+const pngDataUrl = await chart.exportImage('png')
+
+// Download as PDF
+await chart.exportImage('pdf', {
+  filename: 'my-gantt',  // Default: 'gantt-chart'
+  download: true,        // Starts file download if true
+})
+
+// Embed PNG in an img tag
+const img = document.createElement('img')
+img.src = await chart.exportImage('png')
+document.body.appendChild(img)
+```
+
+**ExportImageOptions**
+
+```typescript
+interface ExportImageOptions {
+  /** Filename for download (without extension). Default: 'gantt-chart' */
+  filename?: string
+  /** If true, automatically starts file download. Default: false */
+  download?: boolean
+  /** Scale factor for PNG export (higher resolution). Default: 2 */
+  scale?: number
+}
+```
+
+> **Note:** `exportImage` exports the entire chart (all scrollable area) regardless of current scroll position. Shadow DOM styles are automatically collected. However, external fonts or images might not render correctly if they are cross-origin.
 
 ## Type Definitions
 
@@ -522,10 +558,18 @@ interface GanttChartOptionDependency {
   showArrows?: boolean
   /** Arrow size in px (default: 8) */
   arrowSize?: number
+  /**
+   * Connection line style (default: 'orthogonal')
+   * - 'curve': Bezier curve
+   * - 'orthogonal': Orthogonal segmented line with rounded corners
+   */
+  lineStyle?: 'curve' | 'orthogonal'
+  /** Corner radius in px for orthogonal style (default: 8) */
+  cornerRadius?: number
 }
 ```
 
-> **Note:** Reverse-direction (right-to-left) dependencies automatically use S-curves, with horizontal connections at task bar contact points.
+> **Note:** The default `lineStyle` is `'orthogonal'`. For reverse-direction (right-to-left) dependencies, it automatically calculates a U-turn bypass route. If `'curve'` is specified, it draws a Bezier curve as before.
 
 ### DependencyCreateEventDetail
 
