@@ -128,10 +128,11 @@ interface GanttChartOption {
 
 コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
 
-| メソッド名   | シグネチャ                                                              | 説明                                                                                                                                                                           |
-| :----------- | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask` | `(taskId: string) => boolean`                                           | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。 |
-| `hitTest`    | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。 |
+| メソッド名    | シグネチャ                                                              | 説明                                                                                                                                                                           |
+| :------------ | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`  | `(taskId: string) => boolean`                                           | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。 |
+| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。 |
+| `exportImage` | `(format: 'svg' \| 'png', options?: ExportImageOptions) => Promise<string>` | ガントチャート全体を画像データとしてエクスポートします。戻り値はデータURLです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
 
 ### 使用例
 
@@ -165,6 +166,42 @@ document.addEventListener('mousemove', (e) => {
 ```
 
 > **Note:** `hitTest` はスクロール位置やカレンダー設定を考慮して正確な日付を計算します。キーボードショートカットによるペースト操作など、マウス位置に基づく操作の実装に便利です。
+
+#### exportImage
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// SVG形式でデータURLを取得
+const svgDataUrl = await chart.exportImage('svg')
+
+// PNG形式でダウンロード（高解像度 x2）
+await chart.exportImage('png', {
+  filename: 'my-gantt',  // 省略時: 'gantt-chart'
+  download: true,        // trueでファイルダウンロード開始
+  scale: 2,              // PNG出力倍率（デフォルト: 2）
+})
+
+// SVGをimgタグに埋め込む
+const img = document.createElement('img')
+img.src = await chart.exportImage('svg')
+document.body.appendChild(img)
+```
+
+**ExportImageOptions**
+
+```typescript
+interface ExportImageOptions {
+  /** ダウンロード時のファイル名（拡張子なし）。省略時は 'gantt-chart' */
+  filename?: string
+  /** trueの場合、自動的にファイルダウンロードを開始する。デフォルト: false */
+  download?: boolean
+  /** PNG出力時のスケール倍率（高解像度化）。デフォルト: 2 */
+  scale?: number
+}
+```
+
+> **Note:** `exportImage` はスクロール位置によらずチャート全体（スクロール領域すべて）をエクスポートします。Shadow DOM のスタイルも自動的に収集されます。ただし、外部フォントや画像がクロスオリジンの場合は正しく描画されないことがあります。
 
 ## 型定義 (Types)
 

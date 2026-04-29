@@ -17,7 +17,7 @@ import type {
   TaskUpdateEventDetail,
 } from '@/core/types'
 import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '@/core/utils'
-import { LitElement, css, html, render, svg, type PropertyValues } from 'lit'
+import { LitElement, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
@@ -25,108 +25,10 @@ import { throttle } from 'lodash'
 import './gantt-calendar'
 import './gantt-row'
 import type { GanttRowElement } from './gantt-row'
+import { buildOrthogonalPath } from './gantt-chart-dependency-path'
+import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
+import { exportGanttImage, type ExportImageOptions } from './gantt-chart-export'
 
-/**
- * 直角折れ線（角丸）の SVG パスを生成するヘルパー関数。
- * @param startX 接続元 X（バー右端）
- * @param startY 接続元 Y（バー中央）
- * @param endX 接続先 X（バー左端、矢印なし時と共通）
- * @param endY 接続先 Y（バー中央）
- * @param adjustedEndX 矢印表示時の終端 X（矢印サイズ分手前）
- * @param barHeight バー高さ（迂回ルート計算用）
- * @param barMargin バーマージン（迂回ルート計算用）
- * @param r 角丸半径 (px)
- */
-function buildOrthogonalPath(
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-  adjustedEndX: number,
-  barHeight: number,
-  barMargin: number,
-  r: number,
-): { pathD: string; hitPathD: string } {
-  const buildPath = (ex: number): string => {
-    if (startX < ex - r * 2) {
-      // ── 左→右: Z字型（startX → midX 水平 → 縦 → ex 水平） ──
-      const midX = (startX + ex) / 2
-
-      if (Math.abs(startY - endY) < 1) {
-        // 同じ高さ: 単純な水平線
-        return `M ${startX} ${startY} L ${ex} ${endY}`
-      }
-
-      const signY = endY > startY ? 1 : -1
-      // 使えるコーナー半径（水平セグメント長と垂直差の半分で制限）
-      const cr = Math.min(r, midX - startX, ex - midX, Math.abs(endY - startY) / 2)
-
-      // コーナー1: 水平→垂直 (midX, startY)
-      // コーナー2: 垂直→水平 (midX, endY)
-      return [
-        `M ${startX} ${startY}`,
-        `L ${midX - cr} ${startY}`,
-        `Q ${midX} ${startY} ${midX} ${startY + signY * cr}`,
-        `L ${midX} ${endY - signY * cr}`,
-        `Q ${midX} ${endY} ${midX + cr} ${endY}`,
-        `L ${ex} ${endY}`,
-      ].join(' ')
-    } else {
-      // ── 右→左: コの字型（Uターン）──
-      // startX → 右へ gap → 縦移動 → 左へ横移動 → 縦移動 → ex に入る
-      const gap = Math.max(12, r + 4)
-      const turnX1 = startX + gap   // 右側の折り返し X
-      const turnX2 = ex - gap       // 左側の折り返し X
-
-      const midY = (startY + endY) / 2
-      const effectiveMidY =
-        Math.abs(startY - endY) < barHeight
-          ? midY + barHeight + barMargin
-          : midY
-
-      const dy1 = effectiveMidY - startY  // 縦移動量1（startY → effectiveMidY）
-      const dy2 = endY - effectiveMidY    // 縦移動量2（effectiveMidY → endY）
-      const signY1 = dy1 >= 0 ? 1 : -1
-      const signY2 = dy2 >= 0 ? 1 : -1
-      const dxMid = turnX2 - turnX1      // 中間水平移動量（負=左向き）
-      const signX = dxMid >= 0 ? 1 : -1
-
-      // 各コーナーで使える半径（その区間の長さの半分以下）
-      const cr1 = Math.min(r, gap, Math.abs(dy1) / 2)           // コーナー1: 右出口
-      const cr2 = Math.min(r, Math.abs(dy1) / 2, Math.abs(dxMid) / 2) // コーナー2: 中間上/下
-      const cr3 = Math.min(r, Math.abs(dxMid) / 2, Math.abs(dy2) / 2) // コーナー3: 中間折り返し
-      const cr4 = Math.min(r, Math.abs(dy2) / 2, gap)           // コーナー4: 左入口
-
-      return [
-        `M ${startX} ${startY}`,
-
-        // セグメント1: 右へ gap → コーナー1（H→V, turnX1,startY で折れる）
-        `L ${turnX1 - cr1} ${startY}`,
-        `Q ${turnX1} ${startY} ${turnX1} ${startY + signY1 * cr1}`,
-
-        // セグメント2: 縦 dy1 → コーナー2（V→H, turnX1,effectiveMidY で折れる）
-        `L ${turnX1} ${effectiveMidY - signY1 * cr2}`,
-        `Q ${turnX1} ${effectiveMidY} ${turnX1 + signX * cr2} ${effectiveMidY}`,
-
-        // セグメント3: 横 dxMid → コーナー3（H→V, turnX2,effectiveMidY で折れる）
-        `L ${turnX2 - signX * cr3} ${effectiveMidY}`,
-        `Q ${turnX2} ${effectiveMidY} ${turnX2} ${effectiveMidY + signY2 * cr3}`,
-
-        // セグメント4: 縦 dy2 → コーナー4（V→H, turnX2,endY で折れる）
-        `L ${turnX2} ${endY - signY2 * cr4}`,
-        `Q ${turnX2} ${endY} ${turnX2 + cr4} ${endY}`,
-
-        // セグメント5: 右へ ex まで
-        `L ${ex} ${endY}`,
-      ].join(' ')
-    }
-  }
-
-  return {
-    pathD: buildPath(adjustedEndX),
-    hitPathD: buildPath(endX),
-  }
-}
 
 @customElement('gantt-chart')
 export class GanttChartElement extends LitElement {
@@ -227,139 +129,7 @@ export class GanttChartElement extends LitElement {
     return this.rows.filter((row) => row.visible !== false)
   }
 
-  static styles = css`
-    :host {
-      display: block;
-      width: 100%;
-      height: 100%;
-      box-sizing: border-box;
-      position: relative;
-    }
-    .scroll-container {
-      width: 100%;
-      height: 100%;
-      overflow-x: auto;
-      overflow-y: auto;
-      position: relative;
-      overflow-anchor: none;
-    }
-    .dependency-lines {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-    .tooltip {
-      position: fixed;
-      transform: translate(-50%, -100%);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      white-space: nowrap;
-      pointer-events: none;
-      z-index: 1000;
-      margin-top: -6px;
-      text-align: left;
-      line-height: 1.4;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-    .tooltip.visible {
-      opacity: 1;
-    }
-    .tooltip-row {
-      display: block;
-    }
-    .tooltip::after {
-      content: '';
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      margin-left: -4px;
-      border-width: 4px;
-      border-style: solid;
-    }
-    .drag-info-overlay {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      pointer-events: none;
-      z-index: 2000;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      text-align: center;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-    .drag-info-overlay.visible {
-      opacity: 1;
-    }
-    .drag-info-sub {
-      font-size: 12px;
-    }
-    .dependency-line {
-      stroke-width: 2;
-      fill: none;
-      pointer-events: none;
-    }
-    .dependency-arrow-line {
-      stroke-width: 0;
-    }
-    .dependency-hit-area {
-      stroke-width: 16;
-      stroke: transparent;
-      fill: none;
-      pointer-events: stroke;
-      cursor: pointer;
-    }
-    .dependency-group:hover .dependency-line {
-      stroke-width: 3;
-      filter: drop-shadow(0 0 3px currentColor);
-    }
-    .dependency-group:hover .dependency-arrow-line {
-      stroke-width: 0;
-    }
-    .dependency-group:hover .dependency-hit-area ~ .dependency-line {
-      opacity: 1;
-    }
-    .current-time-line {
-      position: absolute;
-      width: 2px;
-      z-index: 60;
-      pointer-events: none;
-    }
-    .current-time-dot {
-      position: absolute;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      z-index: 80;
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-    }
-    .milestone-line {
-      position: absolute;
-      z-index: 59;
-      pointer-events: auto;
-      transition: opacity 0.2s ease;
-      cursor: default;
-    }
-    .cursor-line {
-      position: absolute;
-      width: 2px;
-      top: 0;
-      pointer-events: none;
-      z-index: 58;
-    }
-  `
+  static styles = ganttChartStyles
 
   protected firstUpdated() {
     this.setupCurrentTimeTimer()
@@ -1497,6 +1267,26 @@ export class GanttChartElement extends LitElement {
     return { rowId: targetRowId, date }
   }
 
+  /**
+   * ガントチャートを画像データとしてエクスポートする。
+   *
+   * @param format エクスポート形式。'svg' または 'png'。
+   * @param options エクスポートオプション。
+   * @returns エクスポートされた画像のデータURL（SVGはdata:image/svg+xml、PNGはdata:image/png）。
+   */
+  public async exportImage(format: 'svg' | 'png', options: ExportImageOptions = {}): Promise<string> {
+    return exportGanttImage(
+      {
+        ...options,
+        rows: this.rows,
+        option: this.option,
+        theme: this.theme,
+        rowHeaderWidth: this.currentRowHeaderWidth,
+      },
+      format,
+    )
+  }
+
   private clearSelection() {
     if (this.selectedRows.size === 0 && this.selectedTasks.size === 0) return
 
@@ -1987,50 +1777,7 @@ export class GanttChartElement extends LitElement {
     }
 
     return html`
-      <style>
-        :host {
-          background: ${colors.bg};
-          border: 1px solid ${colors.border};
-          border-radius: 8px;
-          overflow: hidden;
-          color: ${colors.text};
-        }
-        .tooltip {
-          background-color: ${colors.tooltipBg};
-          color: ${colors.tooltipText};
-        }
-        .tooltip::after {
-          border-color: ${colors.tooltipBg} transparent transparent transparent;
-        }
-        .drag-info-overlay {
-          background: ${colors.dragOverlayBg};
-          color: ${colors.dragOverlayText};
-        }
-        .drag-info-sub {
-          color: ${colors.dragOverlaySubText};
-        }
-        .dependency-line {
-          stroke: ${colors.dependencyLine};
-        }
-        .connector-preview-line {
-          stroke: ${colors.dependencyLine};
-          stroke-width: 2;
-          stroke-dasharray: 6 3;
-          fill: none;
-          opacity: 0.7;
-        }
-        .header-resizer {
-          width: 4px;
-          cursor: col-resize;
-          z-index: 510;
-          background-color: transparent;
-          transition: background-color 0.2s;
-        }
-        .header-resizer:hover,
-        .header-resizer.resizing {
-          background-color: ${colors.border};
-        }
-      </style>
+      <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
       <div
         class="scroll-container"
         style="overflow-y: ${needsVerticalScroll ? 'auto' : 'hidden'};"
