@@ -20,7 +20,7 @@ export function buildOrthogonalPath(
   r: number,
 ): { pathD: string; hitPathD: string } {
   const buildPath = (ex: number): string => {
-    if (startX < ex - r * 2) {
+    if (startX <= ex) {
       // ── 左→右: Z字型（startX → midX 水平 → 縦 → ex 水平） ──
       const midX = (startX + ex) / 2
 

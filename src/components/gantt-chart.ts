@@ -1684,8 +1684,12 @@ export class GanttChartElement extends LitElement {
             const startY = depTask.y + depTask.height / 2
             const endX = task.x
             const endY = task.y + task.height / 2
-            // 矢印表示時は線の終端を矢印分だけ手前にする（矢印がバーにぴったり接するように）
-            const adjustedEndX = showArrows ? endX - arrowSize : endX
+            // 前進方向か（ターゲットタスクが開始タスクより右側にあるか、または同じ位置）
+            const isForward = startX <= endX
+            // 矢印表示時は線の終端を矢印分だけ手前にする
+            const rawAdjustedEndX = showArrows ? endX - arrowSize : endX
+            // 前進方向の場合、パスの終端がstartXより左に行かないように制限する
+            const adjustedEndX = isForward ? Math.max(startX, rawAdjustedEndX) : rawAdjustedEndX
 
             let pathD: string
             let hitPathD: string
@@ -1694,25 +1698,26 @@ export class GanttChartElement extends LitElement {
             const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
             const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
-            const isOverlapping = Math.abs(startX - endX) < 1 && Math.abs(startY - endY) < 1
+            const isSameRow = Math.abs(startY - endY) < 1
 
-            if (isOverlapping) {
-              pathD = ''
-              hitPathD = ''
+            if (isSameRow && isForward) {
+              // 同じ行で前進方向（距離が近い場合も含む）、ループさせずに直線を引く
+              pathD = adjustedEndX > startX ? `M ${startX} ${startY} L ${adjustedEndX} ${endY}` : ''
+              hitPathD = endX > startX ? `M ${startX} ${startY} L ${endX} ${endY}` : ''
             } else if (lineStyle === 'orthogonal') {
               // 直角折れ線（角丸付き）
               const paths = buildOrthogonalPath(startX, startY, endX, endY, adjustedEndX, barHeight, barMargin, cornerRadius)
               pathD = paths.pathD
               hitPathD = paths.hitPathD
             } else {
-              // ベジェ曲線（従来のロジック）
-              if (startX < endX - 10) {
-                // 左→右方向: シンプルなベジェ曲線（従来通り）
+              // ベジェ曲線
+              if (isForward) {
+                // 前進方向: シンプルなベジェ曲線
                 const midX = (startX + adjustedEndX) / 2
                 pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${adjustedEndX} ${endY}`
                 hitPathD = `M ${startX} ${startY} C ${(startX + endX) / 2} ${startY} ${(startX + endX) / 2} ${endY} ${endX} ${endY}`
               } else {
-                // 右→左方向（または非常に近い場合）: S字カーブ
+                // 後退方向: S字カーブ
                 const offset = Math.max(12, (startX - endX) * 0.15)
                 const midY = (startY + endY) / 2
                 const effectiveMidY = Math.abs(startY - endY) < barHeight
@@ -1785,10 +1790,10 @@ export class GanttChartElement extends LitElement {
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
-      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: 100% !important; }</style>` : ''}
+      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; }</style>` : ''}
       <div
         class="scroll-container"
-        style="overflow-x: ${this.isExporting ? 'visible' : 'auto'}; overflow-y: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: ${this.isExporting ? '100%' : 'auto'};"
+        style="overflow-x: ${this.isExporting ? 'visible' : 'auto'}; overflow-y: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: auto;"
         @scroll="${this.handleScroll}"
         @bar-mouseenter="${this.handleBarMouseEnter}"
         @bar-mouseleave="${this.handleBarMouseLeave}"
