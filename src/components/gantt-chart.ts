@@ -1694,7 +1694,12 @@ export class GanttChartElement extends LitElement {
             const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
             const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
-            if (lineStyle === 'orthogonal') {
+            const isOverlapping = Math.abs(startX - endX) < 1 && Math.abs(startY - endY) < 1
+
+            if (isOverlapping) {
+              pathD = ''
+              hitPathD = ''
+            } else if (lineStyle === 'orthogonal') {
               // 直角折れ線（角丸付き）
               const paths = buildOrthogonalPath(startX, startY, endX, endY, adjustedEndX, barHeight, barMargin, cornerRadius)
               pathD = paths.pathD
