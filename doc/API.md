@@ -197,6 +197,8 @@ interface ExportImageOptions {
   download?: boolean
   /** PNG出力時のスケール倍率（高解像度化）。デフォルト: 2 */
   scale?: number
+  /** 画像を指定したピクセル数で縦に分割し、分割位置にカレンダー（ヘッダー）を挿入する。未指定時は分割しない */
+  splitHeight?: number
 }
 ```
 
@@ -518,6 +520,7 @@ interface MoguchartLocale {
   monthRowFormat: string // 月単位モードの月表示フォーマット (例: 'M月' / 'MMM')
   dateFormat: (date: Date) => string // 日付のフォーマット関数
   dateTimeFormat: (date: Date) => string // 日時のフォーマット関数
+  yearMonthFormat: (date: Date) => string // 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用)
   duration: {
     days: (n: number) => string // 日数のフォーマット
     hours: (n: number) => string // 時間のフォーマット
@@ -558,6 +561,7 @@ const myLocale = {
     const date = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
     return h === 0 && m === 0 ? date : `${date} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
     days: (n) => `${n}日`,
     hours: (n) => `${n}時間`,

@@ -377,13 +377,13 @@ const renderApp = () => {
         </div>
       </div>
 
-      <div style="margin-bottom: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+      <div style="margin-bottom: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
         <button
           style="background-color: #f59e0b;"
           @click="${async () => {
             const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
             if (chart) {
-              await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas' })
+              await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
             }
           }}"
         >
@@ -394,7 +394,7 @@ const renderApp = () => {
           @click="${async () => {
             const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
             if (chart) {
-              await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas' })
+              await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
             }
           }}"
         >

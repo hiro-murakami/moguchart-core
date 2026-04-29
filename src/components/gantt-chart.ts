@@ -1280,7 +1280,7 @@ export class GanttChartElement extends LitElement {
     await this.updateComplete
     await new Promise(r => requestAnimationFrame(r))
     try {
-      return await exportGanttWithHtml2Canvas(this, format, options.filename, options.download)
+      return await exportGanttWithHtml2Canvas(this, format, options)
     } finally {
       this.isExporting = false
       await this.updateComplete

@@ -197,6 +197,8 @@ interface ExportImageOptions {
   download?: boolean
   /** Scale factor for PNG export (higher resolution). Default: 2 */
   scale?: number
+  /** Splits the image vertically at the specified pixel height and inserts a calendar (header) at each split position. Unspecified means no split. */
+  splitHeight?: number
 }
 ```
 
@@ -299,6 +301,8 @@ interface MoguchartLocale {
   dateFormat: (date: Date) => string
   /** Date-time format function (used when time is not 00:00) */
   dateTimeFormat: (date: Date) => string
+  /** Year-month format function (used in tooltips and drag overlays for monthly view) */
+  yearMonthFormat: (date: Date) => string
   /** Duration formatting */
   duration: {
     /** Days format (e.g., 3 → "3 days") */
@@ -354,6 +358,7 @@ const frLocale: MoguchartLocale = {
     if (h === 0 && m === 0) return date
     return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
     days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
     hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
