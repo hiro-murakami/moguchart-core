@@ -1780,7 +1780,7 @@ export class GanttChartElement extends LitElement {
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
-      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: auto !important; width: max-content !important; min-width: 100% !important; }</style>` : ''}
+      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: 100% !important; }</style>` : ''}
       <div
         class="scroll-container"
         style="overflow: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: ${this.isExporting ? '100%' : 'auto'};"
@@ -1813,7 +1813,7 @@ export class GanttChartElement extends LitElement {
               >
                 <div
                   class="header-resizer ${this.isResizingHeader ? 'resizing' : ''}"
-                  style="height: ${Math.max(totalHeight, this.viewportHeight)}px;"
+                  style="height: ${this.isExporting ? totalHeight : Math.max(totalHeight, this.viewportHeight)}px;"
                   @pointerdown="${this.handleHeaderResizeStart}"
                 ></div>
               </div>
@@ -1910,7 +1910,7 @@ export class GanttChartElement extends LitElement {
                 class="cursor-line"
                 style="
                   left: ${this.cursorLineX}px;
-                  height: ${this.calendarHeight + (totalHeight || this.viewportHeight)}px;
+                  height: ${this.calendarHeight + (this.isExporting ? totalHeight : (totalHeight || this.viewportHeight))}px;
                   background-color: ${this.option.calendar.cursorLineColor ?? colors.currentTimeLine};
                 "
               ></div>
