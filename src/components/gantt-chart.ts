@@ -1871,7 +1871,9 @@ export class GanttChartElement extends LitElement {
           </g>
         </svg>
 
-        ${this.option.calendar.showCurrentTime
+        ${this.option.calendar.showCurrentTime &&
+          this.currentTime >= this.option.calendar.start &&
+          this.currentTime <= this.option.calendar.end
           ? html`
               <div
                 class="current-time-line"

@@ -416,7 +416,10 @@ export class GanttCalendarElement extends LitElement {
               </div>
             `
           : ''}
-        ${this.option.calendar.showCurrentTime && this.option.calendar.showCurrentTimeBadge === true
+        ${this.option.calendar.showCurrentTime &&
+          this.option.calendar.showCurrentTimeBadge === true &&
+          this.currentTime >= this.option.calendar.start &&
+          this.currentTime <= this.option.calendar.end
           ? html`
               <div
                 class="current-time-badge"
