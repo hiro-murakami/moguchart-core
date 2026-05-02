@@ -20,14 +20,14 @@ export function buildOrthogonalPath(
   r: number,
 ): { pathD: string; hitPathD: string } {
   const buildPath = (ex: number): string => {
-    if (startX <= ex) {
+    if (Math.abs(startY - endY) < 1) {
+      // 同じ高さ: 単純な水平線（矢印のみ）
+      return `M ${startX} ${startY} L ${ex} ${endY}`
+    }
+
+    if (startX < ex) {
       // ── 左→右: Z字型（startX → midX 水平 → 縦 → ex 水平） ──
       const midX = (startX + ex) / 2
-
-      if (Math.abs(startY - endY) < 1) {
-        // 同じ高さ: 単純な水平線
-        return `M ${startX} ${startY} L ${ex} ${endY}`
-      }
 
       const signY = endY > startY ? 1 : -1
       // 使えるコーナー半径（水平セグメント長と垂直差の半分で制限）
