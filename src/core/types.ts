@@ -456,6 +456,10 @@ export interface ThemeColorPalette {
   gridLine: string
   /** サブグリッド線色（スナップ単位など） */
   subGridLine: string
+  /** 月の区切りの縦罫線色 (オプション) */
+  monthGridLine?: string
+  /** 年の区切りの縦罫線色 (オプション) */
+  yearGridLine?: string
   /** ドラッグ対象の背景色 */
   dragTarget: string
   /** ツールチップの背景色 */

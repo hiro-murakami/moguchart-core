@@ -111,6 +111,7 @@ Custom events dispatched by the component.
 | `row-reordered`          | `RowReorderEventDetail`             | Fired when rows are reordered via drag & drop.                                           |
 | `row-selection-change`   | `RowSelectionChangeEventDetail`     | Fired when row selection changes via checkbox or header click.                           |
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`     | Fired when task bar selection changes.                                                   |
+| `bar-hover`              | `BarHoverEventDetail`               | Fired when a task bar is hovered over.                                                   |
 | `row-clicked`            | `RowClickedEventDetail`             | Fired when a row header is clicked.                                                      |
 | `task-update`            | `TaskUpdateEventDetail`             | Fired when a task is updated via drag & drop or resize.                                  |
 | `task-drop`              | `TaskDropEventDetail`               | Fired when an external element is dropped. Can be used for creating new tasks.           |
@@ -453,6 +454,16 @@ interface BarSelectionChangeEventDetail {
 }
 ```
 
+### BarHoverEventDetail
+
+```typescript
+interface BarHoverEventDetail {
+  task: GanttTask // Target task data
+  x: number // Mouse X coordinate
+  y: number // Mouse Y coordinate
+}
+```
+
 ### RowClickedEventDetail
 
 ```typescript
@@ -517,6 +528,8 @@ interface ThemeColorPalette {
   border: string // Border color
   gridLine: string // Grid line color
   subGridLine: string // Sub-grid line color
+  monthGridLine?: string // Monthly vertical grid line color (optional)
+  yearGridLine?: string // Yearly vertical grid line color (optional)
   dragTarget: string // Drag target background color
   tooltipBg: string // Tooltip background color
   tooltipText: string // Tooltip text color
@@ -549,6 +562,12 @@ interface ThemeColorPalette {
 type GanttTaskMoveMode = 'copy' | 'move'
 ```
 
+### DependencyLineStyle
+
+```typescript
+type DependencyLineStyle = 'curve' | 'orthogonal'
+```
+
 ### DependencyEndpoint
 
 ```typescript
@@ -568,7 +587,7 @@ interface GanttChartOptionDependency {
    * - 'curve': Bezier curve
    * - 'orthogonal': Orthogonal segmented line with rounded corners
    */
-  lineStyle?: 'curve' | 'orthogonal'
+  lineStyle?: DependencyLineStyle
   /** Corner radius in px for orthogonal style (default: 8) */
   cornerRadius?: number
 }

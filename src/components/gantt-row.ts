@@ -44,7 +44,7 @@ export class GanttRowElement extends LitElement {
   isExporting = false
 
   // 月境界線キャッシュ（option.calendar.start/end/pxPerMonth が変わらない限り再計算不要）
-  private _cachedMonthGridLines: { left: number }[] | null = null
+  private _cachedMonthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
   private _cachedMonthGridStartTime = 0
   private _cachedMonthGridEndTime = 0
   private _cachedMonthGridPxPerMonth = 0
@@ -373,43 +373,48 @@ export class GanttRowElement extends LitElement {
 
     this.style.height = `${rowHeight}px`
 
-    let backgroundStyle
-    let monthGridLines: { left: number }[] | null = null
-    if (this.option.calendar.showMonthsRow) {
-      // 月単位モード: 月の境界に罫線を配置（同じoptionで毎行毎回計算しないようキャッシュ）
-      backgroundStyle = ''
-      const startTime = this.option.calendar.start.getTime()
-      const endTime = this.option.calendar.end.getTime()
-      const pxPerMonth = this.option.calendar.pxPerMonth ?? 0
+    let backgroundStyle = ''
+    let monthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
+    
+    // Always calculate month grid lines for all views
+    const startTime = this.option.calendar.start.getTime()
+    const endTime = this.option.calendar.end.getTime()
+    const pxPerMonth = this.option.calendar.pxPerMonth ?? 0
 
-      if (
-        !this._cachedMonthGridLines ||
-        startTime !== this._cachedMonthGridStartTime ||
-        endTime !== this._cachedMonthGridEndTime ||
-        pxPerMonth !== this._cachedMonthGridPxPerMonth
-      ) {
-        this._cachedMonthGridStartTime = startTime
-        this._cachedMonthGridEndTime = endTime
-        this._cachedMonthGridPxPerMonth = pxPerMonth
+    if (
+      !this._cachedMonthGridLines ||
+      startTime !== this._cachedMonthGridStartTime ||
+      endTime !== this._cachedMonthGridEndTime ||
+      pxPerMonth !== this._cachedMonthGridPxPerMonth
+    ) {
+      this._cachedMonthGridStartTime = startTime
+      this._cachedMonthGridEndTime = endTime
+      this._cachedMonthGridPxPerMonth = pxPerMonth
 
-        const start = new Date(this.option.calendar.start)
-        const startX = this.getDateX(start)
-        const endX = this.getDateX(new Date(this.option.calendar.end))
-        const monthBoundaries: { left: number }[] = []
+      const start = new Date(this.option.calendar.start)
+      const startX = this.getDateX(start)
+      const endX = this.getDateX(new Date(this.option.calendar.end))
+      const monthBoundaries: { left: number; isYearBoundary: boolean }[] = []
 
-        let currentMonthStart = new Date(start)
-        currentMonthStart.setDate(1)
+      let currentMonthStart = new Date(start)
+      currentMonthStart.setDate(1)
+      currentMonthStart.setHours(0, 0, 0, 0)
 
-        while (currentMonthStart <= this.option.calendar.end) {
-          const x = this.getDateX(currentMonthStart)
-          if (x >= startX && x <= endX) {
-            monthBoundaries.push({ left: x })
-          }
-          currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
+      while (currentMonthStart <= this.option.calendar.end) {
+        const x = this.getDateX(currentMonthStart)
+        if (x >= startX && x <= endX) {
+          const isYearBoundary = currentMonthStart.getMonth() === 0
+          monthBoundaries.push({ left: x, isYearBoundary })
         }
-        this._cachedMonthGridLines = monthBoundaries
+        currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
       }
-      monthGridLines = this._cachedMonthGridLines
+      this._cachedMonthGridLines = monthBoundaries
+    }
+    monthGridLines = this._cachedMonthGridLines
+
+    if (this.option.calendar.showMonthsRow) {
+      // no background pattern needed, just use monthGridLines
+      backgroundStyle = ''
     } else if (this.option.calendar.showTime) {
       const hourWidth = this.option.calendar.pxPerDay / 24
       const snapMinutes = this.option.snapDuration ?? 60
@@ -505,11 +510,21 @@ export class GanttRowElement extends LitElement {
             ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
+          ${backgroundStyle ? html`<div class="grid-background" style="${backgroundStyle}"></div>` : ''}
           ${monthGridLines
             ? monthGridLines.map(
-                (line) => html`<div style="position: absolute; top: 0; left: ${line.left}px; width: 1px; height: 100%; background-color: ${colors.gridLine}; pointer-events: none; z-index: 0;"></div>`,
+                (line) => {
+                  let lineColor;
+                  if (line.isYearBoundary) {
+                    lineColor = colors.yearGridLine || colors.monthGridLine || colors.gridLine;
+                  } else {
+                    const isMonthMode = this.option.calendar.showMonthsRow || (this.option.calendar.showDays === false && !this.option.calendar.showWeeks);
+                    lineColor = isMonthMode ? colors.gridLine : (colors.monthGridLine || colors.gridLine);
+                  }
+                  return html`<div style="position: absolute; top: 0; left: ${line.left - 1}px; width: 1px; height: 100%; background-color: ${lineColor}; pointer-events: none; z-index: 1;"></div>`;
+                }
               )
-            : html`<div class="grid-background" style="${backgroundStyle}"></div>`}
+            : ''}
           ${isHidden ? html`<div class="hidden-row-overlay" style="background: ${colors.rowHiddenBg};"></div>` : ''}
           ${repeat(
             tasksWithLanes,

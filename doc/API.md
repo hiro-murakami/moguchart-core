@@ -111,6 +111,7 @@ interface GanttChartOption {
 | `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
 | `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
+| `bar-hover`              | `BarHoverEventDetail`             | タスクバーにマウスがホバーしたときに発火します。                                             |
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
@@ -366,6 +367,16 @@ interface BarSelectionChangeEventDetail {
 }
 ```
 
+### BarHoverEventDetail
+
+```typescript
+interface BarHoverEventDetail {
+  task: GanttTask // 対象のタスクデータ
+  x: number // マウスのX座標
+  y: number // マウスのY座標
+}
+```
+
 ### RowClickedEventDetail
 
 ```typescript
@@ -430,6 +441,8 @@ interface ThemeColorPalette {
   border: string // ボーダー色
   gridLine: string // グリッド線色
   subGridLine: string // サブグリッド線色
+  monthGridLine?: string // 月の区切りの縦罫線色 (オプション)
+  yearGridLine?: string // 年の区切りの縦罫線色 (オプション)
   dragTarget: string // ドラッグ対象の背景色
   tooltipBg: string // ツールチップの背景色
   tooltipText: string // ツールチップのテキスト色
@@ -462,6 +475,12 @@ interface ThemeColorPalette {
 type GanttTaskMoveMode = 'copy' | 'move'
 ```
 
+### DependencyLineStyle
+
+```typescript
+type DependencyLineStyle = 'curve' | 'orthogonal'
+```
+
 ### DependencyEndpoint
 
 ```typescript
@@ -481,7 +500,7 @@ interface GanttChartOptionDependency {
    * - 'curve': ベジェ曲線
    * - 'orthogonal': 直角折れ線（角が丸くなる）
    */
-  lineStyle?: 'curve' | 'orthogonal'
+  lineStyle?: DependencyLineStyle
   /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
   cornerRadius?: number
 }

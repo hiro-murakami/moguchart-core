@@ -310,7 +310,7 @@ export class GanttCalendarElement extends LitElement {
           border-bottom: 1px solid ${colors.border};
         }
         .month-cell {
-          border-right: 1px solid ${colors.border};
+          border-right: 1px solid ${colors.monthGridLine || colors.border};
         }
         .hours-container {
           border-top: 1px solid ${colors.border};
@@ -326,21 +326,23 @@ export class GanttCalendarElement extends LitElement {
           ? (() => {
               const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
 
-              return html`<div class="months-container">
+              return html`<div class="months-container" style="position: relative; z-index: 2;">
                   ${years.map(
-                    (y, i) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px; border-right: none; ${i > 0 ? `border-left: 1px solid ${colors.border};` : ''}">
+                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${colors.yearGridLine || colors.monthGridLine || colors.border};">
                       ${y.year}
                     </div>`,
                   )}
                 </div>
-                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border};">
+                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative; z-index: 2;">
                   ${months.map(
-                    (m, i) => {
+                    (m) => {
                       const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
                       const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
+                      const isYearBoundary = m.month === 11
+                      const borderColor = isYearBoundary ? (colors.yearGridLine || colors.monthGridLine || colors.border) : (colors.monthGridLine || colors.border)
                       return html`<div
                       class="week-cell"
-                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; ${i > 0 ? `border-left: 1px solid ${colors.border};` : ''} text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${borderColor}; text-align: ${monthTextAlign}; padding: 0 2px;"
                     >
                       ${monthLabel}
                     </div>`
@@ -350,11 +352,13 @@ export class GanttCalendarElement extends LitElement {
             })()
           : ''}
         ${this.option.calendar.showMonths !== false && !this.option.calendar.showMonthsRow
-          ? html`<div class="months-container">
+          ? html`<div class="months-container" style="position: relative; z-index: 2;">
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
-                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px">
+                const isYearBoundary = m.month === 11
+                const borderColor = isYearBoundary ? (colors.yearGridLine || colors.monthGridLine || colors.border) : (colors.monthGridLine || colors.border)
+                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${borderColor};">
                   ${text}
                 </div>`
               })}
@@ -394,6 +398,7 @@ export class GanttCalendarElement extends LitElement {
                   width = (this.totalDays - index) * this.option.calendar.pxPerDay
                 }
                 const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
+                
                 return html`
                   <div
                     class="day-cell"
@@ -411,11 +416,30 @@ export class GanttCalendarElement extends LitElement {
           ? html`
               <div class="hours-container" style="${hourBackgroundStyle}">
                 ${days.map(() =>
-                  hours.map((h) => html` <div class="hour-cell" style="width: ${hourWidth}px;">${h}</div> `),
+                  hours.map((h) => {
+                    return html` <div class="hour-cell" style="width: ${hourWidth}px;">${h}</div> `
+                  }),
                 )}
               </div>
             `
           : ''}
+        ${(() => {
+          const isMonthMode = this.option.calendar.showMonthsRow || (this.option.calendar.showDays === false && !this.option.calendar.showWeeks);
+          const startX = this.getDateX(this.option.calendar.start);
+          return months.map(m => {
+            if (!m.start) return '';
+            const x = this.getDateX(m.start);
+            if (x <= startX) return ''; // do not draw line at the very left edge
+            const isYearBoundary = m.month === 0; // January is the year boundary
+            let lineColor;
+            if (isYearBoundary) {
+              lineColor = colors.yearGridLine || colors.monthGridLine || colors.border;
+            } else {
+              lineColor = isMonthMode ? colors.border : (colors.monthGridLine || colors.border);
+            }
+            return html`<div style="position: absolute; top: 0; bottom: 0; left: ${x - 1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: 1;"></div>`;
+          });
+        })()}
         ${this.option.calendar.showCurrentTime &&
           this.option.calendar.showCurrentTimeBadge === true &&
           this.currentTime >= this.option.calendar.start &&
