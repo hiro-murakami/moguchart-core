@@ -393,16 +393,21 @@ export class GanttRowElement extends LitElement {
 
       const start = new Date(this.option.calendar.start)
       const startX = this.getDateX(start)
-      const endX = this.getDateX(new Date(this.option.calendar.end))
+      // 月単位モードでは end が月の途中でも次の月初日まで含めるため、翌月1日の位置を上限にする
+      const calEnd = this.option.calendar.end
+      const calEndNextMonth = new Date(calEnd.getFullYear(), calEnd.getMonth() + 1, 1)
+      const endX = this.option.calendar.pxPerMonth !== undefined
+        ? this.getDateX(calEndNextMonth)
+        : this.getDateX(calEnd)
       const monthBoundaries: { left: number; isYearBoundary: boolean }[] = []
 
       let currentMonthStart = new Date(start)
       currentMonthStart.setDate(1)
       currentMonthStart.setHours(0, 0, 0, 0)
 
-      while (currentMonthStart <= this.option.calendar.end) {
+      while (currentMonthStart <= calEndNextMonth) {
         const x = this.getDateX(currentMonthStart)
-        if (x >= startX && x <= endX) {
+        if (x > startX && x <= endX) {
           const isYearBoundary = currentMonthStart.getMonth() === 0
           monthBoundaries.push({ left: x, isYearBoundary })
         }
@@ -505,7 +510,13 @@ export class GanttRowElement extends LitElement {
             style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
           ></div>
         </div>
-        <div class="bars-container" style="width: ${this.getDateX(this.option.calendar.end)}px">
+        <div class="bars-container" style="width: ${(() => {
+            if (this.option.calendar.pxPerMonth !== undefined) {
+              const e = this.option.calendar.end
+              return this.getDateX(new Date(e.getFullYear(), e.getMonth() + 1, 1))
+            }
+            return this.getDateX(this.option.calendar.end)
+          })()}px">
           ${this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
             ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
             : ''}

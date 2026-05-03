@@ -293,7 +293,13 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${hourWidth}px 100%;
     `
 
-    const totalWidth = this.getDateX(this.option.calendar.end)
+    // 月単位モード（pxPerMonth 設定時）では、最後の月セルの終端（翌月1日の位置）を
+    // totalWidth とする。calendar.end が月の途中の日付だと getDateX(end) が月境界より
+    // 手前の値になり、overflow: hidden で最後の月の border-right が切り取られてしまうため。
+    const lastMonth = months[months.length - 1]
+    const totalWidth = this.option.calendar.pxPerMonth !== undefined && lastMonth?.end
+      ? this.getDateX(lastMonth.end)
+      : this.getDateX(this.option.calendar.end)
 
     return html`
       <style>
@@ -426,7 +432,8 @@ export class GanttCalendarElement extends LitElement {
         ${(() => {
           const isMonthMode = this.option.calendar.showMonthsRow || (this.option.calendar.showDays === false && !this.option.calendar.showWeeks);
           const startX = this.getDateX(this.option.calendar.start);
-          return months.map(m => {
+          const endX = this.getDateX(this.option.calendar.end);
+          const lines = months.map(m => {
             if (!m.start) return '';
             const x = this.getDateX(m.start);
             if (x <= startX) return ''; // do not draw line at the very left edge
@@ -439,6 +446,17 @@ export class GanttCalendarElement extends LitElement {
             }
             return html`<div style="position: absolute; top: 0; bottom: 0; left: ${x - 1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: 1;"></div>`;
           });
+          // 最後の月の右端（calendar.end の位置）にも縦線を描画する
+          // end が月の初日でない場合、months の start 位置ループでは右端の線が生成されないため
+          const lastMonth = months[months.length - 1];
+          if (lastMonth && endX > startX) {
+            const lastIsYearBoundary = lastMonth.month === 11; // December boundary
+            const endLineColor = lastIsYearBoundary
+              ? (colors.yearGridLine || colors.monthGridLine || colors.border)
+              : (isMonthMode ? colors.border : (colors.monthGridLine || colors.border));
+            lines.push(html`<div style="position: absolute; top: 0; bottom: 0; left: ${endX - 1}px; width: 1px; background-color: ${endLineColor}; pointer-events: none; z-index: 1;"></div>`);
+          }
+          return lines;
         })()}
         ${this.option.calendar.showCurrentTime &&
           this.option.calendar.showCurrentTimeBadge === true &&
