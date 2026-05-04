@@ -1835,6 +1835,7 @@ export class GanttChartElement extends LitElement {
           .theme="${this.theme}"
           .currentTime="${this.currentTime}"
           .hoveredMilestoneId="${this.hoveredMilestoneId}"
+          .cornerContent="${this.option.customRendering?.cornerContent}"
           @milestone-hover-change="${(e: CustomEvent) => {
             this.hoveredMilestoneId = e.detail.milestoneId
           }}"

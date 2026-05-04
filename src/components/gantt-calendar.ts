@@ -13,6 +13,23 @@ export class GanttCalendarElement extends LitElement {
   theme: 'light' | 'dark' = 'light'
   @property({ type: Object }) currentTime = new Date()
   @property({ type: String }) hoveredMilestoneId: string | null = null
+  @property({ attribute: false }) cornerContent?: () => string | unknown
+
+  protected updated() {
+    // cornerContent が指定されている場合、label-placeholder に DOM 要素を注入する
+    const placeholder = this.shadowRoot?.querySelector('.label-placeholder') as HTMLElement | null
+    if (!placeholder) return
+    // 既存の cornerContent 要素を削除（再レンダリング時の重複防止）
+    const existing = placeholder.querySelector('.corner-content-root')
+    if (existing) existing.remove()
+    if (this.cornerContent) {
+      const content = this.cornerContent()
+      if (content instanceof HTMLElement) {
+        content.classList.add('corner-content-root')
+        placeholder.appendChild(content)
+      }
+    }
+  }
 
   // days/months/years/weeks のキャッシュ
   private _cachedDays: Date[] | null = null
@@ -46,6 +63,11 @@ export class GanttCalendarElement extends LitElement {
       left: 0;
       z-index: 100;
       background: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 4px;
+      overflow: hidden;
     }
     .calendar-group {
       display: flex;

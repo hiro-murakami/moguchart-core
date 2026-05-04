@@ -222,6 +222,8 @@ export interface GanttChartOptionCustomRendering {
   tooltip?: (task: GanttTask) => string | unknown
   /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数 */
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
+  /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数 */
+  cornerContent?: () => string | unknown
 }
 
 /**

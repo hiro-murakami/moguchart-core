@@ -95,6 +95,8 @@ interface GanttChartOption {
     tooltip?: (task: GanttTask) => string | unknown
     /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
+    /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    cornerContent?: () => string | unknown
   }
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
@@ -246,6 +248,51 @@ interface GanttTaskPattern {
   // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
   color?: string // パターンの色
+}
+```
+
+### GanttChartOptionCustomRendering
+
+`option.customRendering` に渡すオブジェクトの型定義です。
+
+```typescript
+interface GanttChartOptionCustomRendering {
+  /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  barContent?: (task: GanttTask) => string | unknown
+  /** 行ヘッダーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  rowHeaderContent?: (row: GanttRow) => string | unknown
+  /** ツールチップのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  tooltip?: (task: GanttTask) => string | unknown
+  /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
+  /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  cornerContent?: () => string | unknown
+}
+```
+
+#### cornerContent の使用例
+
+```javascript
+const option = {
+  customRendering: {
+    // 行ヘッダー左上のコーナーセルにカスタムボタンを配置する例
+    cornerContent: () => {
+      const btn = document.createElement('button')
+      btn.textContent = 'フィルター'
+      btn.style.cssText = 'border: none; background: transparent; cursor: pointer; padding: 4px 8px;'
+      btn.addEventListener('click', () => {
+        console.log('フィルターボタンがクリックされました')
+      })
+      return btn
+    },
+    // バーのカスタム表示
+    barContent: (task) => {
+      const div = document.createElement('div')
+      div.style.padding = '2px 8px'
+      div.textContent = task.name || ''
+      return div
+    },
+  },
 }
 ```
 

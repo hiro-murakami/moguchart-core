@@ -95,6 +95,8 @@ interface GanttChartOption {
     tooltip?: (task: GanttTask) => string | unknown
     /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
+    /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
+    cornerContent?: () => string | unknown
   }
   /** Dependency line settings */
   dependency?: GanttChartOptionDependency
@@ -246,6 +248,51 @@ interface GanttTaskPattern {
   // Available values: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
   color?: string // Pattern color
+}
+```
+
+### GanttChartOptionCustomRendering
+
+Type definition for the object passed to `option.customRendering`.
+
+```typescript
+interface GanttChartOptionCustomRendering {
+  /** Function to render bar content. Can return a string or Lit TemplateResult. */
+  barContent?: (task: GanttTask) => string | unknown
+  /** Function to render row header content. Can return a string or Lit TemplateResult. */
+  rowHeaderContent?: (row: GanttRow) => string | unknown
+  /** Function to render tooltip content. Can return a string or Lit TemplateResult. */
+  tooltip?: (task: GanttTask) => string | unknown
+  /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
+  dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
+  /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
+  cornerContent?: () => string | unknown
+}
+```
+
+#### cornerContent Usage Example
+
+```javascript
+const option = {
+  customRendering: {
+    // Example: placing a custom button in the top-left corner cell of the row header
+    cornerContent: () => {
+      const btn = document.createElement('button')
+      btn.textContent = 'Filter'
+      btn.style.cssText = 'border: none; background: transparent; cursor: pointer; padding: 4px 8px;'
+      btn.addEventListener('click', () => {
+        console.log('Filter button clicked')
+      })
+      return btn
+    },
+    // Custom bar rendering
+    barContent: (task) => {
+      const div = document.createElement('div')
+      div.style.padding = '2px 8px'
+      div.textContent = task.name || ''
+      return div
+    },
+  },
 }
 ```
 
