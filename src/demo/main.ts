@@ -206,26 +206,29 @@ const renderApp = () => {
       showCurrentTimeBadge,
       currentTimeUpdateInterval,
       showCursorLine,
-      milestones: [
-        {
-          id: 'ms-1',
-          name: t.alphaRelease,
-          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 7),
-          color: '#8b5cf6',
-        },
-        {
-          id: 'ms-2',
-          name: t.betaRelease,
-          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 14),
-          color: '#f59e0b',
-        },
-        {
-          id: 'ms-3',
-          name: t.officialRelease,
-          start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 30),
-          color: '#10b981',
-        },
-      ],
+      milestones:
+        viewMode == 'day'
+          ? [
+              {
+                id: 'ms-1',
+                name: t.alphaRelease,
+                start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 7),
+                color: '#8b5cf6',
+              },
+              {
+                id: 'ms-2',
+                name: t.betaRelease,
+                start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 14),
+                color: '#f59e0b',
+              },
+              {
+                id: 'ms-3',
+                name: t.officialRelease,
+                start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 30),
+                color: '#10b981',
+              },
+            ]
+          : [],
     },
     readOnly: isReadOnly,
     tooltipDelay,

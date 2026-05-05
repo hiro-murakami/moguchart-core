@@ -26,10 +26,12 @@ export class GanttRowBackgroundElement extends LitElement {
       position: absolute;
       top: 0;
       left: 0;
+      width: 100%;
       height: 100%;
       display: flex;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden;
     }
   `
 

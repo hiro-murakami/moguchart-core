@@ -344,7 +344,8 @@ export class GanttCalendarElement extends LitElement {
         const segEnd = nextDay.getTime() > calEnd.getTime() ? calEnd : nextDay
         const hStart = segStart.getHours()
         const hEndRaw = segEnd.getHours()
-        const hEnd = (hEndRaw === 0 && segEnd.getMinutes() === 0 && segEnd.getSeconds() === 0) ? 24 : hEndRaw
+        const hasFraction = segEnd.getMinutes() > 0 || segEnd.getSeconds() > 0 || segEnd.getMilliseconds() > 0
+        const hEnd = (hEndRaw === 0 && !hasFraction) ? 24 : (hasFraction ? hEndRaw + 1 : hEndRaw)
         const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
         showTimeDays.push({ date: new Date(cur), hStart, hEnd, widthPx: durationHours * hourWidth })
         cur = new Date(nextDay)
