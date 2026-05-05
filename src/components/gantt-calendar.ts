@@ -121,7 +121,7 @@ export class GanttCalendarElement extends LitElement {
     }
     .hour-cell {
       text-align: center;
-      font-size: 9px;
+      font-size: 10px;
       padding: 2px 0;
       flex-shrink: 0;
       box-sizing: border-box;
