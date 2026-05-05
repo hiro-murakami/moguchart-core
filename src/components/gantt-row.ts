@@ -427,22 +427,46 @@ export class GanttRowElement extends LitElement {
       const dayWidth = this.option.calendar.pxPerDay
       const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.gridLine
 
+      // 開始時刻が0時でない場合、背景グリッドをオフセットして日区切り線位置を合わせる
+      const startDate = this.option.calendar.start
+      const startOffsetMs =
+        startDate.getHours() * 60 * 60 * 1000 +
+        startDate.getMinutes() * 60 * 1000 +
+        startDate.getSeconds() * 1000
+      const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * dayWidth
+      const hourOffsetPx = startOffsetPx % hourWidth
+      const snapOffsetPx = startOffsetPx % snapWidth
+      const dayBgPos = startOffsetPx === 0 ? '0px 0' : `${-startOffsetPx}px 0`
+      const hourBgPos = hourOffsetPx === 0 ? '0px 0' : `${-hourOffsetPx}px 0`
+      const snapBgPos = snapOffsetPx === 0 ? '0px 0' : `${-snapOffsetPx}px 0`
+
       const gradients = [
         `linear-gradient(90deg, transparent ${dayWidth - 1}px, ${dayLineColor} ${dayWidth - 1}px)`,
         `linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.gridLine} ${hourWidth - 1}px)`,
         `linear-gradient(90deg, transparent ${snapWidth - 1}px, ${colors.subGridLine} ${snapWidth - 1}px)`,
       ]
       const sizes = [`${dayWidth}px 100%`, `${hourWidth}px 100%`, `${snapWidth}px 100%`]
+      const positions = [dayBgPos, hourBgPos, snapBgPos]
 
       backgroundStyle = `
         background-image: ${gradients.join(', ')};
         background-size: ${sizes.join(', ')};
+        background-position: ${positions.join(', ')};
       `
     } else {
       const gridWidth = this.option.calendar.pxPerDay
+      // 開始時刻が0時でない場合（時間単位モードで日付単位グリッドを描画する際）のオフセット補正
+      const startDate = this.option.calendar.start
+      const startOffsetMs =
+        startDate.getHours() * 60 * 60 * 1000 +
+        startDate.getMinutes() * 60 * 1000 +
+        startDate.getSeconds() * 1000
+      const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * gridWidth
+      const dayBgPos = startOffsetPx === 0 ? '0px 0' : `${-startOffsetPx}px 0`
       backgroundStyle = `
         background-image: linear-gradient(90deg, transparent ${gridWidth - 1}px, ${colors.gridLine} ${gridWidth - 1}px);
         background-size: ${gridWidth}px 100%;
+        background-position: ${dayBgPos};
       `
     }
 

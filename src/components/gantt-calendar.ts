@@ -311,9 +311,23 @@ export class GanttCalendarElement extends LitElement {
     const hourWidth = this.option.calendar.pxPerDay / 24
     const dayWidth = this.option.calendar.pxPerDay
     const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+    // 開始時刻が0時でない場合、背景グリッドをオフセットする
+    // 例: 開始が09:00なら、最初の日区切り線は 15時間後 = (24-9)*hourWidth の位置に来るべき
+    const startDate = this.option.calendar.start
+    const startOffsetMs = startDate.getHours() * 60 * 60 * 1000
+      + startDate.getMinutes() * 60 * 1000
+      + startDate.getSeconds() * 1000
+    const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * dayWidth
+    // CSS background-position は正方向にずらすため、負のオフセット（つまり右にずらす）
+    // 日区切り: 最初の0時までの距離 = dayWidth - startOffsetPx
+    // 時間グリッド: hourWidth 単位で同様にオフセット
+    const hourOffsetPx = startOffsetPx % hourWidth
+    const dayBgPos = startOffsetPx === 0 ? '0px 0' : `${-startOffsetPx}px 0`
+    const hourBgPos = hourOffsetPx === 0 ? '0px 0' : `${-hourOffsetPx}px 0`
     const hourBackgroundStyle = `
       background-image: linear-gradient(90deg, transparent ${dayWidth - 1}px, ${dayLineColor} ${dayWidth - 1}px), linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.border} ${hourWidth - 1}px);
       background-size: ${dayWidth}px 100%, ${hourWidth}px 100%;
+      background-position: ${dayBgPos}, ${hourBgPos};
     `
     // showTime モード: 深夜0時を日付境界とする日ごとのセグメントを生成
     type ShowTimeSeg = { date: Date; hStart: number; hEnd: number; widthPx: number }
