@@ -388,7 +388,7 @@ export class GanttCalendarElement extends LitElement {
           ? (() => {
               const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
 
-              return html`<div class="months-container" style="position: relative;">
+              return html`<div class="months-container" style="position: relative; z-index: 2;">
                   ${years.map(
                     (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px;">
                       ${y.year}
@@ -503,12 +503,15 @@ export class GanttCalendarElement extends LitElement {
             if (x <= startX) return ''; // do not draw line at the very left edge
             const isYearBoundary = m.month === 0; // January is the year boundary
             let lineColor;
+            let lineZIndex = 1;
             if (isYearBoundary) {
               lineColor = colors.yearGridLine || colors.monthGridLine || colors.border;
+              lineZIndex = 3;
             } else {
               lineColor = isMonthMode ? colors.border : (colors.monthGridLine || colors.border);
+              lineZIndex = 1;
             }
-            return html`<div style="position: absolute; top: 0; bottom: 0; left: ${x - 1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: 1;"></div>`;
+            return html`<div style="position: absolute; top: 0; bottom: 0; left: ${x - 1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: ${lineZIndex};"></div>`;
           });
           // 最後の月の右端（calendar.end の位置）にも縦線を描画する
           // end が月の初日でない場合、months の start 位置ループでは右端の線が生成されないため
@@ -518,7 +521,8 @@ export class GanttCalendarElement extends LitElement {
             const endLineColor = lastIsYearBoundary
               ? (colors.yearGridLine || colors.monthGridLine || colors.border)
               : (isMonthMode ? colors.border : (colors.monthGridLine || colors.border));
-            lines.push(html`<div style="position: absolute; top: 0; bottom: 0; left: ${endX - 1}px; width: 1px; background-color: ${endLineColor}; pointer-events: none; z-index: 1;"></div>`);
+            const endLineZIndex = lastIsYearBoundary ? 3 : 1;
+            lines.push(html`<div style="position: absolute; top: 0; bottom: 0; left: ${endX - 1}px; width: 1px; background-color: ${endLineColor}; pointer-events: none; z-index: ${endLineZIndex};"></div>`);
           }
           return lines;
         })()}
