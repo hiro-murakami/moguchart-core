@@ -462,6 +462,8 @@ export interface ThemeColorPalette {
   monthGridLine?: string
   /** 年の区切りの縦罫線色 (オプション) */
   yearGridLine?: string
+  /** 時間単位モードの日付区切り縦罫線色 (オプション)。未指定時は monthGridLine → border にフォールバック */
+  showTimeDateLine?: string
   /** ドラッグ対象の背景色 */
   dragTarget: string
   /** ツールチップの背景色 */

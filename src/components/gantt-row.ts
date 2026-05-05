@@ -424,12 +424,15 @@ export class GanttRowElement extends LitElement {
       const hourWidth = this.option.calendar.pxPerDay / 24
       const snapMinutes = this.option.snapDuration ?? 60
       const snapWidth = (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
+      const dayWidth = this.option.calendar.pxPerDay
+      const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.gridLine
 
       const gradients = [
+        `linear-gradient(90deg, transparent ${dayWidth - 1}px, ${dayLineColor} ${dayWidth - 1}px)`,
         `linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.gridLine} ${hourWidth - 1}px)`,
         `linear-gradient(90deg, transparent ${snapWidth - 1}px, ${colors.subGridLine} ${snapWidth - 1}px)`,
       ]
-      const sizes = [`${hourWidth}px 100%`, `${snapWidth}px 100%`]
+      const sizes = [`${dayWidth}px 100%`, `${hourWidth}px 100%`, `${snapWidth}px 100%`]
 
       backgroundStyle = `
         background-image: ${gradients.join(', ')};

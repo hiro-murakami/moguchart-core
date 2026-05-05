@@ -308,12 +308,34 @@ export class GanttCalendarElement extends LitElement {
       background-size: ${this.option.calendar.pxPerDay}px 100%;
     `
 
-    const hours = Array.from({ length: 24 }, (_, i) => i)
     const hourWidth = this.option.calendar.pxPerDay / 24
+    const dayWidth = this.option.calendar.pxPerDay
+    const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.border
     const hourBackgroundStyle = `
-      background-image: linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.border} ${hourWidth - 1}px);
-      background-size: ${hourWidth}px 100%;
+      background-image: linear-gradient(90deg, transparent ${dayWidth - 1}px, ${dayLineColor} ${dayWidth - 1}px), linear-gradient(90deg, transparent ${hourWidth - 1}px, ${colors.border} ${hourWidth - 1}px);
+      background-size: ${dayWidth}px 100%, ${hourWidth}px 100%;
     `
+    // showTime モード: 深夜0時を日付境界とする日ごとのセグメントを生成
+    type ShowTimeSeg = { date: Date; hStart: number; hEnd: number; widthPx: number }
+    const showTimeDays: ShowTimeSeg[] = []
+    if (this.option.calendar.showTime) {
+      const calStart = this.option.calendar.start
+      const calEnd = this.option.calendar.end
+      let cur = new Date(calStart)
+      cur.setHours(0, 0, 0, 0)
+      while (cur.getTime() < calEnd.getTime()) {
+        const segStart = cur.getTime() < calStart.getTime() ? calStart : cur
+        const nextDay = new Date(cur)
+        nextDay.setDate(nextDay.getDate() + 1)
+        const segEnd = nextDay.getTime() > calEnd.getTime() ? calEnd : nextDay
+        const hStart = segStart.getHours()
+        const hEndRaw = segEnd.getHours()
+        const hEnd = (hEndRaw === 0 && segEnd.getMinutes() === 0 && segEnd.getSeconds() === 0) ? 24 : hEndRaw
+        const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
+        showTimeDays.push({ date: new Date(cur), hStart, hEnd, widthPx: durationHours * hourWidth })
+        cur = new Date(nextDay)
+      }
+    }
 
     // 月単位モード（pxPerMonth 設定時）では、最後の月セルの終端（翌月1日の位置）を
     // totalWidth とする。calendar.end が月の途中の日付だと getDateX(end) が月境界より
@@ -337,9 +359,6 @@ export class GanttCalendarElement extends LitElement {
           background: ${colors.bg};
           border-bottom: 1px solid ${colors.border};
         }
-        .month-cell {
-          border-right: 1px solid ${colors.monthGridLine || colors.border};
-        }
         .hours-container {
           border-top: 1px solid ${colors.border};
         }
@@ -354,23 +373,21 @@ export class GanttCalendarElement extends LitElement {
           ? (() => {
               const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
 
-              return html`<div class="months-container" style="position: relative; z-index: 2;">
+              return html`<div class="months-container" style="position: relative;">
                   ${years.map(
-                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${colors.yearGridLine || colors.monthGridLine || colors.border};">
+                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px;">
                       ${y.year}
                     </div>`,
                   )}
                 </div>
-                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative; z-index: 2;">
+                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative;">
                   ${months.map(
                     (m) => {
                       const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
                       const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
-                      const isYearBoundary = m.month === 11
-                      const borderColor = isYearBoundary ? (colors.yearGridLine || colors.monthGridLine || colors.border) : (colors.monthGridLine || colors.border)
                       return html`<div
                       class="week-cell"
-                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${borderColor}; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; text-align: ${monthTextAlign}; padding: 0 2px;"
                     >
                       ${monthLabel}
                     </div>`
@@ -380,13 +397,11 @@ export class GanttCalendarElement extends LitElement {
             })()
           : ''}
         ${this.option.calendar.showMonths !== false && !this.option.calendar.showMonthsRow
-          ? html`<div class="months-container" style="position: relative; z-index: 2;">
+          ? html`<div class="months-container" style="position: relative;">
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
-                const isYearBoundary = m.month === 11
-                const borderColor = isYearBoundary ? (colors.yearGridLine || colors.monthGridLine || colors.border) : (colors.monthGridLine || colors.border)
-                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; border-right: 1px solid ${borderColor};">
+                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px;">
                   ${text}
                 </div>`
               })}
@@ -419,35 +434,47 @@ export class GanttCalendarElement extends LitElement {
             })()
           : ''}
         ${this.option.calendar.showDays !== false
-          ? html`<div class="days-container" style="${backgroundStyle}">
-              ${days.map((day, index) => {
-                let width = this.option.calendar.pxPerDay
-                if (index + 1 > this.totalDays) {
-                  width = (this.totalDays - index) * this.option.calendar.pxPerDay
-                }
-                const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
-                
-                return html`
-                  <div
-                    class="day-cell"
-                    style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
-                  >
-                    ${this.option.calendar.showTime
-                      ? `${(day.getMonth() + 1).toString().padStart(2, '0')}/${day.getDate().toString().padStart(2, '0')}`
-                      : day.getDate()}
-                  </div>
-                `
-              })}
+          ? html`<div class="days-container" style="${this.option.calendar.showTime ? '' : backgroundStyle}">
+              ${this.option.calendar.showTime
+                ? showTimeDays.map((seg, segIndex) => {
+                    const backgroundColor = getCalendarColor(seg.date, colors, this.option.calendar.isHoliday)
+                    const isLastSeg = segIndex === showTimeDays.length - 1
+                    const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+                    return html`
+                      <div
+                        class="day-cell"
+                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg ? 'none' : `1px solid ${dateBorderColor}`}; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                      >
+                        ${`${(seg.date.getMonth() + 1).toString().padStart(2, '0')}/${seg.date.getDate().toString().padStart(2, '0')}`}
+                      </div>
+                    `
+                  })
+                : days.map((day, index) => {
+                    let width = this.option.calendar.pxPerDay
+                    if (index + 1 > this.totalDays) {
+                      width = (this.totalDays - index) * this.option.calendar.pxPerDay
+                    }
+                    const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
+                    return html`
+                      <div
+                        class="day-cell"
+                        style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                      >
+                        ${day.getDate()}
+                      </div>
+                    `
+                  })
+              }
             </div>`
           : ''}
         ${this.option.calendar.showTime
           ? html`
               <div class="hours-container" style="${hourBackgroundStyle}">
-                ${days.map(() =>
-                  hours.map((h) => {
+                ${showTimeDays.map((seg) => {
+                  return Array.from({ length: seg.hEnd - seg.hStart }, (_, i) => seg.hStart + i).map((h) => {
                     return html` <div class="hour-cell" style="width: ${hourWidth}px;">${h}</div> `
-                  }),
-                )}
+                  })
+                })}
               </div>
             `
           : ''}
