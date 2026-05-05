@@ -10,6 +10,8 @@ export interface MoguchartLocale {
   monthRowFormat: string
   /** 日付のフォーマット関数 (例: "2024/1/15" / "1/15/2024") */
   dateFormat: (date: Date) => string
+  /** 時間単位モードの日付フォーマット関数 */
+  timeUnitDateFormat: (date: Date) => string
   /** 日時のフォーマット関数（時刻が00:00でない場合に使用） */
   dateTimeFormat: (date: Date) => string
   /** 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用) */
@@ -48,6 +50,8 @@ export const jaLocale: MoguchartLocale = {
   monthFormat: 'YYYY年M月',
   monthRowFormat: 'M月',
   dateFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
+  timeUnitDateFormat: (d) =>
+    `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`,
   dateTimeFormat: (d) => {
     const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
     const h = d.getHours()
@@ -79,6 +83,10 @@ export const enLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
   monthRowFormat: 'MMM',
   dateFormat: (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
+  timeUnitDateFormat: (d) => {
+    const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return `${shortMonths[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  },
   dateTimeFormat: (d) => {
     const date = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`
     const h = d.getHours()

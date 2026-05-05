@@ -33,7 +33,9 @@ export class GanttCalendarElement extends LitElement {
 
   // days/months/years/weeks のキャッシュ
   private _cachedDays: Date[] | null = null
-  private _cachedMonths: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] | null = null
+  private _cachedMonths:
+    | { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[]
+    | null = null
   private _cachedYears: { year: number; count: number; start?: Date; end?: Date; width?: number }[] | null = null
   private _cachedWeeks: { weekNumber: number; startDate: Date; count: number }[] | null = null
   private _cachedStartTime = 0
@@ -314,9 +316,8 @@ export class GanttCalendarElement extends LitElement {
     // 開始時刻が0時でない場合、背景グリッドをオフセットする
     // 例: 開始が09:00なら、最初の日区切り線は 15時間後 = (24-9)*hourWidth の位置に来るべき
     const startDate = this.option.calendar.start
-    const startOffsetMs = startDate.getHours() * 60 * 60 * 1000
-      + startDate.getMinutes() * 60 * 1000
-      + startDate.getSeconds() * 1000
+    const startOffsetMs =
+      startDate.getHours() * 60 * 60 * 1000 + startDate.getMinutes() * 60 * 1000 + startDate.getSeconds() * 1000
     const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * dayWidth
     // CSS background-position は正方向にずらすため、負のオフセット（つまり右にずらす）
     // 日区切り: 最初の0時までの距離 = dayWidth - startOffsetPx
@@ -345,7 +346,7 @@ export class GanttCalendarElement extends LitElement {
         const hStart = segStart.getHours()
         const hEndRaw = segEnd.getHours()
         const hasFraction = segEnd.getMinutes() > 0 || segEnd.getSeconds() > 0 || segEnd.getMilliseconds() > 0
-        const hEnd = (hEndRaw === 0 && !hasFraction) ? 24 : (hasFraction ? hEndRaw + 1 : hEndRaw)
+        const hEnd = hEndRaw === 0 && !hasFraction ? 24 : hasFraction ? hEndRaw + 1 : hEndRaw
         const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
         showTimeDays.push({ date: new Date(cur), hStart, hEnd, widthPx: durationHours * hourWidth })
         cur = new Date(nextDay)
@@ -356,9 +357,10 @@ export class GanttCalendarElement extends LitElement {
     // totalWidth とする。calendar.end が月の途中の日付だと getDateX(end) が月境界より
     // 手前の値になり、overflow: hidden で最後の月の border-right が切り取られてしまうため。
     const lastMonth = months[months.length - 1]
-    const totalWidth = this.option.calendar.pxPerMonth !== undefined && lastMonth?.end
-      ? this.getDateX(lastMonth.end)
-      : this.getDateX(this.option.calendar.end)
+    const totalWidth =
+      this.option.calendar.pxPerMonth !== undefined && lastMonth?.end
+        ? this.getDateX(lastMonth.end)
+        : this.getDateX(this.option.calendar.end)
 
     return html`
       <style>
@@ -390,24 +392,30 @@ export class GanttCalendarElement extends LitElement {
 
               return html`<div class="months-container" style="position: relative; z-index: 2;">
                   ${years.map(
-                    (y) => html`<div class="month-cell" style="width: ${y.width ?? (y.count * this.option.calendar.pxPerDay)}px;">
-                      ${y.year}
-                    </div>`,
+                    (y) =>
+                      html`<div
+                        class="month-cell"
+                        style="width: ${y.width ?? y.count * this.option.calendar.pxPerDay}px;"
+                      >
+                        ${y.year}
+                      </div>`,
                   )}
                 </div>
-                <div class="weeks-container" style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative;">
-                  ${months.map(
-                    (m) => {
-                      const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
-                      const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
-                      return html`<div
+                <div
+                  class="weeks-container"
+                  style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative;"
+                >
+                  ${months.map((m) => {
+                    const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
+                    const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
+                    return html`<div
                       class="week-cell"
-                      style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${m.width ??
+                      m.count * this.option.calendar.pxPerDay}px; text-align: ${monthTextAlign}; padding: 0 2px;"
                     >
                       ${monthLabel}
                     </div>`
-                    },
-                  )}
+                  })}
                 </div>`
             })()
           : ''}
@@ -416,7 +424,10 @@ export class GanttCalendarElement extends LitElement {
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
-                return html`<div class="month-cell" style="width: ${m.width ?? (m.count * this.option.calendar.pxPerDay)}px;">
+                return html`<div
+                  class="month-cell"
+                  style="width: ${m.width ?? m.count * this.option.calendar.pxPerDay}px;"
+                >
                   ${text}
                 </div>`
               })}
@@ -458,9 +469,13 @@ export class GanttCalendarElement extends LitElement {
                     return html`
                       <div
                         class="day-cell"
-                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg ? 'none' : `1px solid ${dateBorderColor}`}; ${backgroundColor ? `background-color: ${backgroundColor};` : ''} font-size: 12px; font-weight: 700;"
+                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg
+                          ? 'none'
+                          : `1px solid ${dateBorderColor}`}; ${backgroundColor
+                          ? `background-color: ${backgroundColor};`
+                          : ''} font-size: 12px; font-weight: 700; justify-content: flex-start; padding-left: 4px;"
                       >
-                        ${`${(seg.date.getMonth() + 1).toString().padStart(2, '0')}/${seg.date.getDate().toString().padStart(2, '0')}`}
+                        ${(this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)}
                       </div>
                     `
                   })
@@ -478,8 +493,7 @@ export class GanttCalendarElement extends LitElement {
                         ${day.getDate()}
                       </div>
                     `
-                  })
-              }
+                  })}
             </div>`
           : ''}
         ${this.option.calendar.showTime
@@ -494,42 +508,54 @@ export class GanttCalendarElement extends LitElement {
             `
           : ''}
         ${(() => {
-          const isMonthMode = this.option.calendar.showMonthsRow || (this.option.calendar.showDays === false && !this.option.calendar.showWeeks);
-          const startX = this.getDateX(this.option.calendar.start);
-          const endX = this.getDateX(this.option.calendar.end);
-          const lines = months.map(m => {
-            if (!m.start) return '';
-            const x = this.getDateX(m.start);
-            if (x <= startX) return ''; // do not draw line at the very left edge
-            const isYearBoundary = m.month === 0; // January is the year boundary
-            let lineColor;
-            let lineZIndex = 1;
+          const isMonthMode =
+            this.option.calendar.showMonthsRow ||
+            (this.option.calendar.showDays === false && !this.option.calendar.showWeeks)
+          const startX = this.getDateX(this.option.calendar.start)
+          const endX = this.getDateX(this.option.calendar.end)
+          const lines = months.map((m) => {
+            if (!m.start) return ''
+            const x = this.getDateX(m.start)
+            if (x <= startX) return '' // do not draw line at the very left edge
+            const isYearBoundary = m.month === 0 // January is the year boundary
+            let lineColor
+            let lineZIndex = 1
             if (isYearBoundary) {
-              lineColor = colors.yearGridLine || colors.monthGridLine || colors.border;
-              lineZIndex = 3;
+              lineColor = colors.yearGridLine || colors.monthGridLine || colors.border
+              lineZIndex = 3
             } else {
-              lineColor = isMonthMode ? colors.border : (colors.monthGridLine || colors.border);
-              lineZIndex = 1;
+              lineColor = isMonthMode ? colors.border : colors.monthGridLine || colors.border
+              lineZIndex = 1
             }
-            return html`<div style="position: absolute; top: 0; bottom: 0; left: ${x - 1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: ${lineZIndex};"></div>`;
-          });
+            return html`<div
+              style="position: absolute; top: 0; bottom: 0; left: ${x -
+              1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: ${lineZIndex};"
+            ></div>`
+          })
           // 最後の月の右端（calendar.end の位置）にも縦線を描画する
           // end が月の初日でない場合、months の start 位置ループでは右端の線が生成されないため
-          const lastMonth = months[months.length - 1];
+          const lastMonth = months[months.length - 1]
           if (lastMonth && endX > startX) {
-            const lastIsYearBoundary = lastMonth.month === 11; // December boundary
+            const lastIsYearBoundary = lastMonth.month === 11 // December boundary
             const endLineColor = lastIsYearBoundary
-              ? (colors.yearGridLine || colors.monthGridLine || colors.border)
-              : (isMonthMode ? colors.border : (colors.monthGridLine || colors.border));
-            const endLineZIndex = lastIsYearBoundary ? 3 : 1;
-            lines.push(html`<div style="position: absolute; top: 0; bottom: 0; left: ${endX - 1}px; width: 1px; background-color: ${endLineColor}; pointer-events: none; z-index: ${endLineZIndex};"></div>`);
+              ? colors.yearGridLine || colors.monthGridLine || colors.border
+              : isMonthMode
+                ? colors.border
+                : colors.monthGridLine || colors.border
+            const endLineZIndex = lastIsYearBoundary ? 3 : 1
+            lines.push(
+              html`<div
+                style="position: absolute; top: 0; bottom: 0; left: ${endX -
+                1}px; width: 1px; background-color: ${endLineColor}; pointer-events: none; z-index: ${endLineZIndex};"
+              ></div>`,
+            )
           }
-          return lines;
+          return lines
         })()}
         ${this.option.calendar.showCurrentTime &&
-          this.option.calendar.showCurrentTimeBadge === true &&
-          this.currentTime >= this.option.calendar.start &&
-          this.currentTime <= this.option.calendar.end
+        this.option.calendar.showCurrentTimeBadge === true &&
+        this.currentTime >= this.option.calendar.start &&
+        this.currentTime <= this.option.calendar.end
           ? html`
               <div
                 class="current-time-badge"

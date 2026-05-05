@@ -46,6 +46,11 @@ describe('i18n', () => {
       expect(jaLocale.dateFormat(new Date(2024, 11, 3))).toBe('2024/12/3')
     })
 
+    it('timeUnitDateFormat formats date in YYYY年M月D日', () => {
+      expect(jaLocale.timeUnitDateFormat(new Date(2024, 0, 15))).toBe('2024年1月15日')
+      expect(jaLocale.timeUnitDateFormat(new Date(2024, 11, 3))).toBe('2024年12月3日')
+    })
+
     it('dateTimeFormat returns date only when time is 00:00', () => {
       expect(jaLocale.dateTimeFormat(new Date(2024, 0, 15, 0, 0))).toBe('2024/1/15')
     })
@@ -111,6 +116,11 @@ describe('i18n', () => {
     it('dateFormat formats date in M/D/YYYY', () => {
       expect(enLocale.dateFormat(new Date(2024, 0, 15))).toBe('1/15/2024')
       expect(enLocale.dateFormat(new Date(2024, 11, 3))).toBe('12/3/2024')
+    })
+
+    it('timeUnitDateFormat formats date in MMM D,YYYY', () => {
+      expect(enLocale.timeUnitDateFormat(new Date(2024, 0, 15))).toBe('Jan 15, 2024')
+      expect(enLocale.timeUnitDateFormat(new Date(2024, 11, 3))).toBe('Dec 3, 2024')
     })
 
     it('dateTimeFormat returns date only when time is 00:00', () => {
