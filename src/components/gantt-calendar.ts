@@ -458,7 +458,7 @@ export class GanttCalendarElement extends LitElement {
                     return html`
                       <div
                         class="day-cell"
-                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg ? 'none' : `1px solid ${dateBorderColor}`}; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg ? 'none' : `1px solid ${dateBorderColor}`}; ${backgroundColor ? `background-color: ${backgroundColor};` : ''} font-size: 12px; font-weight: 700;"
                       >
                         ${`${(seg.date.getMonth() + 1).toString().padStart(2, '0')}/${seg.date.getDate().toString().padStart(2, '0')}`}
                       </div>
