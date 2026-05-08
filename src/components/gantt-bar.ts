@@ -558,18 +558,23 @@ export class GanttBarElement extends LitElement {
           // 実際にドラッグが行われたのでフラグを設定
           this._wasDragging = true
 
-          // ドラッグしたバーに選択を移す
-          this.dispatchEvent(
-            new CustomEvent('bar-click', {
-              detail: {
-                task: this.task,
-                event: upEvent,
-                isMultiSelect: false,
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
+          // 複数選択ドラッグ中はbar-clickを発火しない。
+          // bar-click(isMultiSelect: false)を発火すると selectedTasks が単一にリセットされ、
+          // 続く task-update で isMultiDrag が false になって他バーが元の位置に戻ってしまう。
+          if (!this.multiDragActive) {
+            // 単一ドラッグ時のみ、ドラッグしたバーに選択を移す
+            this.dispatchEvent(
+              new CustomEvent('bar-click', {
+                detail: {
+                  task: this.task,
+                  event: upEvent,
+                  isMultiSelect: false,
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
+          }
 
           this.dispatchEvent(
             new CustomEvent('task-update', {
