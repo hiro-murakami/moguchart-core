@@ -607,7 +607,7 @@ interface MoguchartLocale {
 #### 使用例
 
 ```javascript
-import { enLocale } from '@mogura/moguchart'
+import { enLocale } from '@mogura/moguchart-core'
 
 const option = {
   locale: enLocale,

@@ -1,4 +1,4 @@
-# @mogura/moguchart
+# @mogura/moguchart-core
 
 A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and any other framework.
 
@@ -38,9 +38,9 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
 ## Installation
 
 ```bash
-pnpm add @mogura/moguchart
+pnpm add @mogura/moguchart-core
 # or
-npm install @mogura/moguchart
+npm install @mogura/moguchart-core
 ```
 
 ## API Reference
@@ -55,12 +55,12 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
 ```html
 <script setup lang="ts">
   import { ref } from 'vue'
-  import '@mogura/moguchart'
+  import '@mogura/moguchart-core'
   import type {
     GanttRow,
     GanttChartOption,
     TaskUpdateEventDetail,
-  } from '@mogura/moguchart'
+  } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -131,12 +131,12 @@ Since Web Components require direct property and event handling, use `ref` for i
 
 ```tsx
 import { useEffect, useRef, useState } from 'react'
-import '@mogura/moguchart'
+import '@mogura/moguchart-core'
 import type {
   GanttRow,
   GanttChartOption,
   TaskUpdateEventDetail,
-} from '@mogura/moguchart'
+} from '@mogura/moguchart-core'
 
 // Type definition for TypeScript
 declare global {
@@ -262,7 +262,7 @@ const option = {
 MoguChart provides built-in locale support. Japanese is the default locale for backward compatibility. Switch to English or create custom locales.
 
 ```javascript
-import { enLocale } from '@mogura/moguchart'
+import { enLocale } from '@mogura/moguchart-core'
 
 const option = {
   locale: enLocale,
@@ -273,7 +273,7 @@ const option = {
 To create a custom locale, implement the `MoguchartLocale` interface:
 
 ```typescript
-import type { MoguchartLocale } from '@mogura/moguchart'
+import type { MoguchartLocale } from '@mogura/moguchart-core'
 
 const frLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
@@ -352,7 +352,7 @@ const rows = [
 Apply 13 types of fill patterns to task bars. Preset constants are also available.
 
 ```javascript
-import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart'
+import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
 
 const task = {
   id: 't-1',

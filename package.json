@@ -1,17 +1,17 @@
 {
-  "name": "@mogura/moguchart",
+  "name": "@mogura/moguchart-core",
   "version": "0.0.1",
   "files": [
     "dist"
   ],
-  "main": "./dist/moguchart.umd.js",
-  "module": "./dist/moguchart.mjs",
+  "main": "./dist/moguchart-core.umd.js",
+  "module": "./dist/moguchart-core.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/moguchart.mjs",
-      "require": "./dist/moguchart.umd.js"
+      "import": "./dist/moguchart-core.mjs",
+      "require": "./dist/moguchart-core.umd.js"
     }
   },
   "scripts": {

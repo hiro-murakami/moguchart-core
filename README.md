@@ -1,4 +1,4 @@
-# @mogura/moguchart
+# @mogura/moguchart-core
 
 [English](./README.en.md)
 
@@ -40,9 +40,9 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
 ## インストール
 
 ```bash
-pnpm add @mogura/moguchart
+pnpm add @mogura/moguchart-core
 # または
-npm install @mogura/moguchart
+npm install @mogura/moguchart-core
 ```
 
 ## APIリファレンス
@@ -57,12 +57,12 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 ```html
 <script setup lang="ts">
   import { ref } from 'vue'
-  import '@mogura/moguchart'
+  import '@mogura/moguchart-core'
   import type {
     GanttRow,
     GanttChartOption,
     TaskUpdateEventDetail,
-  } from '@mogura/moguchart'
+  } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -133,12 +133,12 @@ Web Components のプロパティやイベントを扱うため、`ref` を使�
 
 ```tsx
 import { useEffect, useRef, useState } from 'react'
-import '@mogura/moguchart'
+import '@mogura/moguchart-core'
 import type {
   GanttRow,
   GanttChartOption,
   TaskUpdateEventDetail,
-} from '@mogura/moguchart'
+} from '@mogura/moguchart-core'
 
 // TypeScript で使用する場合の型定義
 declare global {
@@ -295,7 +295,7 @@ const rows = [
 タスクバーに13種類の塗りつぶしパターンを適用できます。プリセット定数も用意されています。
 
 ```javascript
-import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart'
+import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
 
 const task = {
   id: 't-1',
@@ -408,7 +408,7 @@ const option = {
 ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。
 
 ```javascript
-import { enLocale } from '@mogura/moguchart'
+import { enLocale } from '@mogura/moguchart-core'
 
 const option = {
   locale: enLocale,

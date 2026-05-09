@@ -18,9 +18,9 @@ export default defineConfig({
             // エントリーポイント（index.d.tsの元になるファイル）
             entry: 'src/index.ts',
             // ライブラリ名（UMD形式などで使用されます）
-            name: 'Moguchart',
+            name: 'MoguchartCore',
             // 出力されるファイル名のベース
-            fileName: 'moguchart',
+            fileName: 'moguchart-core',
             // 出力形式
             formats: ['es', 'umd'],
           },

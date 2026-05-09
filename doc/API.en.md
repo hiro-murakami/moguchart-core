@@ -382,7 +382,7 @@ interface MoguchartLocale {
 #### Usage Example
 
 ```javascript
-import { enLocale } from '@mogura/moguchart'
+import { enLocale } from '@mogura/moguchart-core'
 
 const option = {
   locale: enLocale,
@@ -393,7 +393,7 @@ const option = {
 To create a custom locale, implement the `MoguchartLocale` interface:
 
 ```typescript
-import type { MoguchartLocale } from '@mogura/moguchart'
+import type { MoguchartLocale } from '@mogura/moguchart-core'
 
 const frLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
