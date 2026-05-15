@@ -97,6 +97,14 @@ interface GanttChartOption {
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
     /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
     cornerContent?: () => string | unknown
+    /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
+    calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+    /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
+    calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+    /** Function to render calendar week cells. Return an HTMLElement or HTML string. */
+    calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+    /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
+    calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   }
   /** Dependency line settings */
   dependency?: GanttChartOptionDependency
@@ -267,6 +275,67 @@ interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
   cornerContent?: () => string | unknown
+  /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
+  calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+  /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
+  calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+  /** Function to render calendar week cells. Return an HTMLElement or HTML string. */
+  calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+  /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
+  calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+}
+```
+
+### CalendarMonthCellContext
+
+Context passed when custom rendering calendar month cells.
+
+```typescript
+interface CalendarMonthCellContext {
+  year: number        // Year
+  month: number       // Month (0-11)
+  width: number       // Cell width (px)
+  defaultLabel: string // Default label text
+}
+```
+
+### CalendarDayCellContext
+
+Context passed when custom rendering calendar day cells.
+
+```typescript
+interface CalendarDayCellContext {
+  date: Date           // Date
+  width: number        // Cell width (px)
+  isSaturday: boolean  // Whether it is Saturday
+  isSunday: boolean    // Whether it is Sunday
+  isHoliday: boolean   // Whether it is a holiday
+  defaultLabel: string // Default label text
+}
+```
+
+### CalendarWeekCellContext
+
+Context passed when custom rendering calendar week cells.
+
+```typescript
+interface CalendarWeekCellContext {
+  weekNumber: number   // Week number
+  startDate: Date      // Start date of the week
+  width: number        // Cell width (px)
+  defaultLabel: string // Default label text
+}
+```
+
+### CalendarHourCellContext
+
+Context passed when custom rendering calendar hour cells.
+
+```typescript
+interface CalendarHourCellContext {
+  hour: number   // Hour (0-23)
+  width: number  // Cell width (px)
+  date: Date     // Corresponding date
 }
 ```
 
@@ -295,6 +364,47 @@ const option = {
   },
 }
 ```
+
+#### Calendar Custom Rendering Usage Example
+
+```javascript
+const option = {
+  customRendering: {
+    // Add an icon to month cells
+    calendarMonthContent: (ctx) => {
+      const el = document.createElement('div')
+      el.style.display = 'flex'
+      el.style.alignItems = 'center'
+      el.style.gap = '4px'
+      el.innerHTML = `<span>📅</span><span>${ctx.defaultLabel}</span>`
+      return el
+    },
+
+    // Make holidays and Sundays red in day cells
+    calendarDayContent: (ctx) => {
+      const el = document.createElement('div')
+      if (ctx.isSunday || ctx.isHoliday) {
+        el.style.color = 'red'
+        el.style.fontWeight = 'bold'
+      }
+      el.textContent = ctx.defaultLabel
+      return el
+    },
+
+    // Custom week cell format
+    calendarWeekContent: (ctx) => {
+      return `<strong>Week ${ctx.weekNumber}</strong>`
+    },
+
+    // Custom hour cell format
+    calendarHourContent: (ctx) => {
+      return `${String(ctx.hour).padStart(2, '0')}:00`
+    },
+  },
+}
+```
+
+> **Note:** Custom rendering functions can return an `HTMLElement` or an HTML string. HTMLElements are appended directly to the DOM, while strings are set as `innerHTML`. When a custom rendering function is set, the default text content is hidden.
 
 ### GanttChartMilestone
 

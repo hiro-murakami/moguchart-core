@@ -1,6 +1,12 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import type { GanttChartOption } from '@/core/types'
+import type {
+  GanttChartOption,
+  CalendarMonthCellContext,
+  CalendarDayCellContext,
+  CalendarWeekCellContext,
+  CalendarHourCellContext,
+} from '@/core/types'
 import { jaLocale } from '@/core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '@/core/utils'
@@ -14,6 +20,29 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) currentTime = new Date()
   @property({ type: String }) hoveredMilestoneId: string | null = null
   @property({ attribute: false }) cornerContent?: () => string | unknown
+  @property({ attribute: false }) calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+  @property({ attribute: false }) calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+  @property({ attribute: false }) calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+  @property({ attribute: false }) calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+
+  /**
+   * カスタムレンダリング関数の返却値をターゲット要素に注入するヘルパー
+   * HTMLElement の場合は appendChild、文字列の場合は innerHTML に設定する
+   */
+  private injectCustomContent(target: HTMLElement, content: unknown, className: string) {
+    // 既存のカスタムコンテンツを削除（再レンダリング時の重複防止）
+    const existing = target.querySelector(`.${className}`)
+    if (existing) existing.remove()
+    if (content instanceof HTMLElement) {
+      content.classList.add(className)
+      target.appendChild(content)
+    } else if (typeof content === 'string') {
+      const wrapper = document.createElement('span')
+      wrapper.classList.add(className)
+      wrapper.innerHTML = content
+      target.appendChild(wrapper)
+    }
+  }
 
   protected updated() {
     // cornerContent が指定されている場合、label-placeholder に DOM 要素を注入する
@@ -28,6 +57,74 @@ export class GanttCalendarElement extends LitElement {
         content.classList.add('corner-content-root')
         placeholder.appendChild(content)
       }
+    }
+
+    // カレンダーセルのカスタムレンダリング注入
+    this.injectCalendarCustomContent()
+  }
+
+  /**
+   * カレンダーセルのカスタムレンダリングコンテンツを注入する
+   */
+  private injectCalendarCustomContent() {
+    if (this.calendarMonthContent) {
+      const cells = this.shadowRoot?.querySelectorAll('[data-calendar-month]')
+      cells?.forEach((cell) => {
+        const el = cell as HTMLElement
+        const year = parseInt(el.dataset.calendarMonthYear ?? '0', 10)
+        const month = parseInt(el.dataset.calendarMonth ?? '0', 10)
+        const width = parseFloat(el.dataset.calendarMonthWidth ?? '0')
+        const defaultLabel = el.dataset.calendarMonthLabel ?? ''
+        const context: CalendarMonthCellContext = { year, month, width, defaultLabel }
+        const content = this.calendarMonthContent!(context)
+        this.injectCustomContent(el, content, 'custom-month-content')
+      })
+    }
+
+    if (this.calendarDayContent) {
+      const cells = this.shadowRoot?.querySelectorAll('[data-calendar-day]')
+      cells?.forEach((cell) => {
+        const el = cell as HTMLElement
+        const dateStr = el.dataset.calendarDay ?? ''
+        const date = new Date(dateStr)
+        const width = parseFloat(el.dataset.calendarDayWidth ?? '0')
+        const isSaturday = el.dataset.calendarDaySaturday === 'true'
+        const isSunday = el.dataset.calendarDaySunday === 'true'
+        const isHoliday = el.dataset.calendarDayHoliday === 'true'
+        const defaultLabel = el.dataset.calendarDayLabel ?? ''
+        const context: CalendarDayCellContext = { date, width, isSaturday, isSunday, isHoliday, defaultLabel }
+        const content = this.calendarDayContent!(context)
+        this.injectCustomContent(el, content, 'custom-day-content')
+      })
+    }
+
+    if (this.calendarWeekContent) {
+      const cells = this.shadowRoot?.querySelectorAll('[data-calendar-week]')
+      cells?.forEach((cell) => {
+        const el = cell as HTMLElement
+        const weekNumber = parseInt(el.dataset.calendarWeek ?? '0', 10)
+        const startDateStr = el.dataset.calendarWeekStart ?? ''
+        const startDate = new Date(startDateStr)
+        const width = parseFloat(el.dataset.calendarWeekWidth ?? '0')
+        const defaultLabel = el.dataset.calendarWeekLabel ?? ''
+        const context: CalendarWeekCellContext = { weekNumber, startDate, width, defaultLabel }
+        const content = this.calendarWeekContent!(context)
+        this.injectCustomContent(el, content, 'custom-week-content')
+      })
+    }
+
+    if (this.calendarHourContent) {
+      const cells = this.shadowRoot?.querySelectorAll('[data-calendar-hour]')
+      cells?.forEach((cell) => {
+        const el = cell as HTMLElement
+        const hour = parseInt(el.dataset.calendarHour ?? '0', 10)
+        const width = parseFloat(el.dataset.calendarHourWidth ?? '0')
+        const dateStr = el.dataset.calendarHourDate ?? ''
+        const date = new Date(dateStr)
+        const context: CalendarHourCellContext = { hour, width, date }
+        const content = this.calendarHourContent!(context)
+        this.injectCustomContent(el, content, 'custom-hour-content')
+      })
     }
   }
 
@@ -408,12 +505,16 @@ export class GanttCalendarElement extends LitElement {
                   ${months.map((m) => {
                     const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
                     const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
+                    const cellWidth = m.width ?? m.count * this.option.calendar.pxPerDay
                     return html`<div
                       class="week-cell"
-                      style="width: ${m.width ??
-                      m.count * this.option.calendar.pxPerDay}px; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      style="width: ${cellWidth}px; text-align: ${monthTextAlign}; padding: 0 2px;"
+                      data-calendar-month="${m.month}"
+                      data-calendar-month-year="${m.year}"
+                      data-calendar-month-width="${cellWidth}"
+                      data-calendar-month-label="${monthLabel}"
                     >
-                      ${monthLabel}
+                      ${this.calendarMonthContent ? '' : monthLabel}
                     </div>`
                   })}
                 </div>`
@@ -424,11 +525,16 @@ export class GanttCalendarElement extends LitElement {
               ${months.map((m) => {
                 const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
                 const text = dayjs(new Date(m.year, m.month)).format(format)
+                const cellWidth = m.width ?? m.count * this.option.calendar.pxPerDay
                 return html`<div
                   class="month-cell"
-                  style="width: ${m.width ?? m.count * this.option.calendar.pxPerDay}px;"
+                  style="width: ${cellWidth}px;"
+                  data-calendar-month="${m.month}"
+                  data-calendar-month-year="${m.year}"
+                  data-calendar-month-width="${cellWidth}"
+                  data-calendar-month-label="${text}"
                 >
-                  ${text}
+                  ${this.calendarMonthContent ? '' : text}
                 </div>`
               })}
             </div>`
@@ -447,13 +553,16 @@ export class GanttCalendarElement extends LitElement {
               return html`<div class="weeks-container" style="${weekBackgroundStyle}">
                 ${weeks.map((w) => {
                   const label = weekFormat ? weekFormat(w.weekNumber, w.startDate) : `W${w.weekNumber}`
+                  const cellWidth = w.count * this.option.calendar.pxPerDay
                   return html`<div
                     class="week-cell"
-                    style="width: ${w.count *
-                    this.option.calendar
-                      .pxPerDay}px; border-right: 1px solid ${colors.border}; text-align: ${weekTextAlign}; padding: 0 2px;"
+                    style="width: ${cellWidth}px; border-right: 1px solid ${colors.border}; text-align: ${weekTextAlign}; padding: 0 2px;"
+                    data-calendar-week="${w.weekNumber}"
+                    data-calendar-week-start="${w.startDate.toISOString()}"
+                    data-calendar-week-width="${cellWidth}"
+                    data-calendar-week-label="${label}"
                   >
-                    ${label}
+                    ${this.calendarWeekContent ? '' : label}
                   </div>`
                 })}
               </div>`
@@ -466,6 +575,8 @@ export class GanttCalendarElement extends LitElement {
                     const backgroundColor = getCalendarColor(seg.date, colors, this.option.calendar.isHoliday)
                     const isLastSeg = segIndex === showTimeDays.length - 1
                     const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+                    const defaultLabel = (this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)
+                    const isHolidayDay = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(seg.date) : false
                     return html`
                       <div
                         class="day-cell"
@@ -474,8 +585,14 @@ export class GanttCalendarElement extends LitElement {
                           : `1px solid ${dateBorderColor}`}; ${backgroundColor
                           ? `background-color: ${backgroundColor};`
                           : ''} font-size: 12px; font-weight: 700; justify-content: flex-start; padding-left: 4px;"
+                        data-calendar-day="${seg.date.toISOString()}"
+                        data-calendar-day-width="${seg.widthPx}"
+                        data-calendar-day-saturday="${seg.date.getDay() === 6}"
+                        data-calendar-day-sunday="${seg.date.getDay() === 0}"
+                        data-calendar-day-holiday="${isHolidayDay}"
+                        data-calendar-day-label="${defaultLabel}"
                       >
-                        ${(this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)}
+                        ${this.calendarDayContent ? '' : defaultLabel}
                       </div>
                     `
                   })
@@ -485,12 +602,20 @@ export class GanttCalendarElement extends LitElement {
                       width = (this.totalDays - index) * this.option.calendar.pxPerDay
                     }
                     const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
+                    const defaultLabel = String(day.getDate())
+                    const isHolidayDay = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(day) : false
                     return html`
                       <div
                         class="day-cell"
                         style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                        data-calendar-day="${day.toISOString()}"
+                        data-calendar-day-width="${width}"
+                        data-calendar-day-saturday="${day.getDay() === 6}"
+                        data-calendar-day-sunday="${day.getDay() === 0}"
+                        data-calendar-day-holiday="${isHolidayDay}"
+                        data-calendar-day-label="${defaultLabel}"
                       >
-                        ${day.getDate()}
+                        ${this.calendarDayContent ? '' : defaultLabel}
                       </div>
                     `
                   })}
@@ -501,7 +626,13 @@ export class GanttCalendarElement extends LitElement {
               <div class="hours-container" style="${hourBackgroundStyle}">
                 ${showTimeDays.map((seg) => {
                   return Array.from({ length: seg.hEnd - seg.hStart }, (_, i) => seg.hStart + i).map((h) => {
-                    return html` <div class="hour-cell" style="width: ${hourWidth}px;">${h}</div> `
+                    return html` <div
+                      class="hour-cell"
+                      style="width: ${hourWidth}px;"
+                      data-calendar-hour="${h}"
+                      data-calendar-hour-width="${hourWidth}"
+                      data-calendar-hour-date="${seg.date.toISOString()}"
+                    >${this.calendarHourContent ? '' : h}</div> `
                   })
                 })}
               </div>

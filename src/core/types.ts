@@ -211,6 +211,64 @@ export interface GanttChartOptionCalendar {
 }
 
 /**
+ * カレンダー月セルのカスタムレンダリング用コンテキスト
+ */
+export interface CalendarMonthCellContext {
+  /** 年 */
+  year: number
+  /** 月 (0-11) */
+  month: number
+  /** セルの幅 (px) */
+  width: number
+  /** デフォルトのラベルテキスト */
+  defaultLabel: string
+}
+
+/**
+ * カレンダー日セルのカスタムレンダリング用コンテキスト
+ */
+export interface CalendarDayCellContext {
+  /** 日付 */
+  date: Date
+  /** セルの幅 (px) */
+  width: number
+  /** 土曜日かどうか */
+  isSaturday: boolean
+  /** 日曜日かどうか */
+  isSunday: boolean
+  /** 祝日かどうか */
+  isHoliday: boolean
+  /** デフォルトのラベルテキスト */
+  defaultLabel: string
+}
+
+/**
+ * カレンダー週セルのカスタムレンダリング用コンテキスト
+ */
+export interface CalendarWeekCellContext {
+  /** 週番号 */
+  weekNumber: number
+  /** 週の開始日 */
+  startDate: Date
+  /** セルの幅 (px) */
+  width: number
+  /** デフォルトのラベルテキスト */
+  defaultLabel: string
+}
+
+/**
+ * カレンダー時間セルのカスタムレンダリング用コンテキスト
+ */
+export interface CalendarHourCellContext {
+  /** 時間 (0-23) */
+  hour: number
+  /** セルの幅 (px) */
+  width: number
+  /** 対応する日付 */
+  date: Date
+}
+
+/**
  * カスタムレンダリングに関するオプション
  */
 export interface GanttChartOptionCustomRendering {
@@ -224,6 +282,14 @@ export interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数 */
   cornerContent?: () => string | unknown
+  /** カレンダーの月セルをレンダリングする関数 */
+  calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+  /** カレンダーの日セルをレンダリングする関数 */
+  calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+  /** カレンダーの週セルをレンダリングする関数 */
+  calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+  /** カレンダーの時間セルをレンダリングする関数 */
+  calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
 }
 
 /**

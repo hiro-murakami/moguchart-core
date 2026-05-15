@@ -97,6 +97,14 @@ interface GanttChartOption {
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
     /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     cornerContent?: () => string | unknown
+    /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+    /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+    /** カレンダーの週セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+    /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   }
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
@@ -267,6 +275,67 @@ interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
   cornerContent?: () => string | unknown
+  /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
+  /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
+  /** カレンダーの週セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
+  /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+}
+```
+
+### CalendarMonthCellContext
+
+カレンダー月セルのカスタムレンダリング時に渡されるコンテキストです。
+
+```typescript
+interface CalendarMonthCellContext {
+  year: number        // 年
+  month: number       // 月 (0-11)
+  width: number       // セルの幅 (px)
+  defaultLabel: string // デフォルトのラベルテキスト
+}
+```
+
+### CalendarDayCellContext
+
+カレンダー日セルのカスタムレンダリング時に渡されるコンテキストです。
+
+```typescript
+interface CalendarDayCellContext {
+  date: Date           // 日付
+  width: number        // セルの幅 (px)
+  isSaturday: boolean  // 土曜日かどうか
+  isSunday: boolean    // 日曜日かどうか
+  isHoliday: boolean   // 祝日かどうか
+  defaultLabel: string // デフォルトのラベルテキスト
+}
+```
+
+### CalendarWeekCellContext
+
+カレンダー週セルのカスタムレンダリング時に渡されるコンテキストです。
+
+```typescript
+interface CalendarWeekCellContext {
+  weekNumber: number   // 週番号
+  startDate: Date      // 週の開始日
+  width: number        // セルの幅 (px)
+  defaultLabel: string // デフォルトのラベルテキスト
+}
+```
+
+### CalendarHourCellContext
+
+カレンダー時間セルのカスタムレンダリング時に渡されるコンテキストです。
+
+```typescript
+interface CalendarHourCellContext {
+  hour: number   // 時間 (0-23)
+  width: number  // セルの幅 (px)
+  date: Date     // 対応する日付
 }
 ```
 
@@ -295,6 +364,47 @@ const option = {
   },
 }
 ```
+
+#### カレンダーカスタムレンダリングの使用例
+
+```javascript
+const option = {
+  customRendering: {
+    // 月セルにアイコンを追加
+    calendarMonthContent: (ctx) => {
+      const el = document.createElement('div')
+      el.style.display = 'flex'
+      el.style.alignItems = 'center'
+      el.style.gap = '4px'
+      el.innerHTML = `<span>📅</span><span>${ctx.defaultLabel}</span>`
+      return el
+    },
+
+    // 日セルで祝日・日曜を赤色にする
+    calendarDayContent: (ctx) => {
+      const el = document.createElement('div')
+      if (ctx.isSunday || ctx.isHoliday) {
+        el.style.color = 'red'
+        el.style.fontWeight = 'bold'
+      }
+      el.textContent = ctx.defaultLabel
+      return el
+    },
+
+    // 週セルのフォーマット変更
+    calendarWeekContent: (ctx) => {
+      return `<strong>第${ctx.weekNumber}週</strong>`
+    },
+
+    // 時間セルのフォーマット変更
+    calendarHourContent: (ctx) => {
+      return `${String(ctx.hour).padStart(2, '0')}:00`
+    },
+  },
+}
+```
+
+> **Note:** カスタムレンダリング関数は `HTMLElement` または HTML文字列を返すことができます。HTMLElement の場合は直接DOMに追加され、文字列の場合は `innerHTML` として設定されます。カスタムレンダリングを設定した場合、デフォルトのテキストは非表示になります。
 
 ### GanttChartMilestone
 
