@@ -43,10 +43,11 @@ export class GanttRowElement extends LitElement {
   @property({ type: Boolean, reflect: true })
   isExporting = false
 
-  // 月境界線キャッシュ（option.calendar.start/end/pxPerMonth が変わらない限り再計算不要）
+  // 月境界線キャッシュ（option.calendar.start/end/pxPerDay/pxPerMonth が変わらない限り再計算不要）
   private _cachedMonthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
   private _cachedMonthGridStartTime = 0
   private _cachedMonthGridEndTime = 0
+  private _cachedMonthGridPxPerDay = 0
   private _cachedMonthGridPxPerMonth = 0
 
   private getDateX(date: Date): number {
@@ -379,16 +380,19 @@ export class GanttRowElement extends LitElement {
     // Always calculate month grid lines for all views
     const startTime = this.option.calendar.start.getTime()
     const endTime = this.option.calendar.end.getTime()
+    const pxPerDay = this.option.calendar.pxPerDay
     const pxPerMonth = this.option.calendar.pxPerMonth ?? 0
 
     if (
       !this._cachedMonthGridLines ||
       startTime !== this._cachedMonthGridStartTime ||
       endTime !== this._cachedMonthGridEndTime ||
+      pxPerDay !== this._cachedMonthGridPxPerDay ||
       pxPerMonth !== this._cachedMonthGridPxPerMonth
     ) {
       this._cachedMonthGridStartTime = startTime
       this._cachedMonthGridEndTime = endTime
+      this._cachedMonthGridPxPerDay = pxPerDay
       this._cachedMonthGridPxPerMonth = pxPerMonth
 
       const start = new Date(this.option.calendar.start)
