@@ -269,6 +269,30 @@ export interface CalendarHourCellContext {
 }
 
 /**
+ * ガントチャート背景の各日セルのカスタムレンダリング用コンテキスト
+ */
+export interface ChartBackgroundCellContext {
+  /** 日付 */
+  date: Date
+  /** セルの幅 (px) */
+  width: number
+  /** セルの高さ (px) */
+  height: number
+  /** 行のID */
+  rowId: string
+  /** 土曜日かどうか */
+  isSaturday: boolean
+  /** 日曜日かどうか */
+  isSunday: boolean
+  /** 祝日かどうか */
+  isHoliday: boolean
+  /** デフォルトの背景色 */
+  defaultColor: string
+  /** 列インデックス (0始まり) */
+  index: number
+}
+
+/**
  * カスタムレンダリングに関するオプション
  */
 export interface GanttChartOptionCustomRendering {
@@ -290,6 +314,8 @@ export interface GanttChartOptionCustomRendering {
   calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
   /** カレンダーの時間セルをレンダリングする関数 */
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+  /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返す */
+  chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
 }
 
 /**

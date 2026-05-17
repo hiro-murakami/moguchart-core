@@ -1,20 +1,22 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '@/core/utils'
-import type { GanttChartOption } from '@/core/types'
+import type { GanttChartOption, ChartBackgroundCellContext } from '@/core/types'
 
 @customElement('gantt-row-background')
 export class GanttRowBackgroundElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
+  @property({ type: String })
+  rowId = ''
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
   }
 
   // dayセルのキャッシュ（start/end/pxPerDay/pxPerMonth/theme が変わらない限り再利用）
-  private _cachedCells: { width: number; color: string }[] | null = null
+  private _cachedCells: { width: number; color: string; date: Date }[] | null = null
   private _cachedCellsStartTime = 0
   private _cachedCellsEndTime = 0
   private _cachedCellsPxPerDay = 0
@@ -31,6 +33,11 @@ export class GanttRowBackgroundElement extends LitElement {
       display: flex;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden;
+    }
+    .bg-cell {
+      flex-shrink: 0;
+      position: relative;
       overflow: hidden;
     }
   `
@@ -71,8 +78,41 @@ export class GanttRowBackgroundElement extends LitElement {
         nextDay.setDate(day.getDate() + 1)
         const d1 = dateToX(day, this.option.calendar.start, pxPerDay, pxPerMonth)
         const d2 = dateToX(nextDay, this.option.calendar.start, pxPerDay, pxPerMonth)
-        return { width: d2 - d1, color }
+        return { width: d2 - d1, color, date: day }
       })
+    }
+
+    const chartBackgroundRenderer = this.option.customRendering?.chartBackground
+
+    if (chartBackgroundRenderer) {
+      return html`
+        ${this._cachedCells!.map(({ width, color, date }, index) => {
+          const dayOfWeek = date.getDay()
+          const isHoliday = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(date) : false
+          const context: ChartBackgroundCellContext = {
+            date,
+            width,
+            height: this.clientHeight || 0,
+            rowId: this.rowId,
+            isSaturday: dayOfWeek === 6,
+            isSunday: dayOfWeek === 0,
+            isHoliday,
+            defaultColor: color,
+            index,
+          }
+          const content = chartBackgroundRenderer(context)
+          if (typeof content === 'string') {
+            return html`<div
+              class="bg-cell"
+              style="width: ${width}px; background-color: ${color};"
+            ><div style="position: absolute; inset: 0;">${html`${content}`}</div></div>`
+          }
+          return html`<div
+            class="bg-cell"
+            style="width: ${width}px; background-color: ${color};"
+          ><div style="position: absolute; inset: 0;">${content}</div></div>`
+        })}
+      `
     }
 
     return html`

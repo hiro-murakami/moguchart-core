@@ -38,6 +38,9 @@ export default defineConfig({
             output: {
               globals: {
                 lit: 'Lit',
+                'lit/decorators.js': 'Lit',
+                'lit/directives/repeat.js': 'Lit',
+                'lit/directives/unsafe-html.js': 'Lit',
                 lodash: '_',
                 dayjs: 'dayjs',
                 'html2canvas-pro': 'html2canvas',

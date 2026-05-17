@@ -105,6 +105,8 @@ interface GanttChartOption {
     calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
     /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
     calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+    /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
+    chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
   }
   /** Dependency line settings */
   dependency?: GanttChartOptionDependency
@@ -283,6 +285,8 @@ interface GanttChartOptionCustomRendering {
   calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
   /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+  /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
+  chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
 }
 ```
 
@@ -336,6 +340,24 @@ interface CalendarHourCellContext {
   hour: number   // Hour (0-23)
   width: number  // Cell width (px)
   date: Date     // Corresponding date
+}
+```
+
+### ChartBackgroundCellContext
+
+Context passed when custom rendering Gantt chart background cells. Called for each day cell in each row.
+
+```typescript
+interface ChartBackgroundCellContext {
+  date: Date           // Date
+  width: number        // Cell width (px)
+  height: number       // Cell height (px)
+  rowId: string        // Row ID
+  isSaturday: boolean  // Whether it is Saturday
+  isSunday: boolean    // Whether it is Sunday
+  isHoliday: boolean   // Whether it is a holiday
+  defaultColor: string // Default background color
+  index: number        // Column index (0-based)
 }
 ```
 
@@ -403,6 +425,34 @@ const option = {
   },
 }
 ```
+
+#### chartBackground (Chart Background) Usage Example
+
+```javascript
+const option = {
+  customRendering: {
+    // Show stripe pattern on even days, icons on weekends
+    chartBackground: (ctx) => {
+      const isEvenDay = ctx.date.getDate() % 2 === 0
+      const stripeStyle = isEvenDay
+        ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
+        : ''
+      const icon = ctx.isSunday || ctx.isHoliday
+        ? '🔴'
+        : ctx.isSaturday
+          ? '🔵'
+          : ''
+      return html`
+        <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">
+          ${icon ? html`<span style="font-size: 8px; opacity: 0.6;">${icon}</span>` : ''}
+        </div>
+      `
+    },
+  },
+}
+```
+
+> **Note:** `chartBackground` renders as an overlay on top of the default background colors (weekend/holiday color coding). The default background color can be accessed via the `defaultColor` property. You can also use `rowId` to display different backgrounds per row.
 
 > **Note:** Custom rendering functions can return an `HTMLElement` or an HTML string. HTMLElements are appended directly to the DOM, while strings are set as `innerHTML`. When a custom rendering function is set, the default text content is hidden.
 

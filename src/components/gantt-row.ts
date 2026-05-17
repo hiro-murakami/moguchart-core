@@ -549,7 +549,7 @@ export class GanttRowElement extends LitElement {
             return this.getDateX(this.option.calendar.end)
           })()}px">
           ${this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
-            ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" /> `
+            ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" .rowId="${this.row.id}" /> `
             : ''}
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
           ${backgroundStyle ? html`<div class="grid-background" style="${backgroundStyle}"></div>` : ''}

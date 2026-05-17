@@ -105,6 +105,8 @@ interface GanttChartOption {
     calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
     /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
     calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+    /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
+    chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
   }
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
@@ -283,6 +285,8 @@ interface GanttChartOptionCustomRendering {
   calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
   /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+  /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
+  chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
 }
 ```
 
@@ -336,6 +340,24 @@ interface CalendarHourCellContext {
   hour: number   // 時間 (0-23)
   width: number  // セルの幅 (px)
   date: Date     // 対応する日付
+}
+```
+
+### ChartBackgroundCellContext
+
+ガントチャート部の背景セルのカスタムレンダリング時に渡されるコンテキストです。各行の各日セルごとに呼び出されます。
+
+```typescript
+interface ChartBackgroundCellContext {
+  date: Date           // 日付
+  width: number        // セルの幅 (px)
+  height: number       // セルの高さ (px)
+  rowId: string        // 行のID
+  isSaturday: boolean  // 土曜日かどうか
+  isSunday: boolean    // 日曜日かどうか
+  isHoliday: boolean   // 祝日かどうか
+  defaultColor: string // デフォルトの背景色
+  index: number        // 列インデックス (0始まり)
 }
 ```
 
@@ -403,6 +425,34 @@ const option = {
   },
 }
 ```
+
+#### chartBackground（チャート背景）の使用例
+
+```javascript
+const option = {
+  customRendering: {
+    // 偶数日にストライプパターン、週末にアイコンを表示
+    chartBackground: (ctx) => {
+      const isEvenDay = ctx.date.getDate() % 2 === 0
+      const stripeStyle = isEvenDay
+        ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
+        : ''
+      const icon = ctx.isSunday || ctx.isHoliday
+        ? '🔴'
+        : ctx.isSaturday
+          ? '🔵'
+          : ''
+      return html`
+        <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">
+          ${icon ? html`<span style="font-size: 8px; opacity: 0.6;">${icon}</span>` : ''}
+        </div>
+      `
+    },
+  },
+}
+```
+
+> **Note:** `chartBackground` はデフォルトの背景色（土日・祝日の色分け）の上にオーバーレイとしてレンダリングされます。デフォルト背景色は `defaultColor` プロパティで取得できます。`rowId` を使用して行ごとに異なる背景を表示することも可能です。
 
 > **Note:** カスタムレンダリング関数は `HTMLElement` または HTML文字列を返すことができます。HTMLElement の場合は直接DOMに追加され、文字列の場合は `innerHTML` として設定されます。カスタムレンダリングを設定した場合、デフォルトのテキストは非表示になります。
 

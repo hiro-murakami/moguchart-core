@@ -300,6 +300,27 @@ const renderApp = () => {
                 : ''}
             `
           },
+          chartBackground: (ctx) => {
+            // 偶数日にストライプパターン、週末にアイコン付き背景を表示するデモ
+            const day = ctx.date.getDate()
+            const isEvenDay = day % 2 === 0
+            const stripeStyle = isEvenDay
+              ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
+              : ''
+            const weekendOrHoliday = ctx.isSunday || ctx.isSaturday || ctx.isHoliday
+            const icon = ctx.isSunday || ctx.isHoliday
+              ? '🔴'
+              : ctx.isSaturday
+                ? '🔵'
+                : ''
+            return html`
+              <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; box-sizing: border-box;">
+                ${weekendOrHoliday && ctx.width >= 20
+                  ? html`<span style="font-size: 8px; opacity: 0.6; line-height: 1;">${icon}</span>`
+                  : ''}
+              </div>
+            `
+          },
         }
       : undefined,
     locale: currentLocale,
