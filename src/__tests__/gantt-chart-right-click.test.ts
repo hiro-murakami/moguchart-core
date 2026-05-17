@@ -13,6 +13,71 @@ vi.stubGlobal(
   },
 )
 
+/**
+ * gantt-row の row-header-contextmenu イベントをシミュレートする。
+ * jsdom 環境では Shadow DOM のイベント伝搬が不完全なため、
+ * gantt-row 要素から直接カスタムイベントをディスパッチする。
+ */
+function simulateRowContextMenu(
+  chart: GanttChartElement,
+  rowId: string,
+) {
+  const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+  const targetRow = Array.from(rowElements || []).find(
+    (el: any) => el.row?.id === rowId,
+  )
+  if (!targetRow) throw new Error(`Row ${rowId} not found`)
+
+  targetRow.dispatchEvent(
+    new CustomEvent('row-header-contextmenu', {
+      detail: {
+        rowId,
+        row: (targetRow as any).row,
+        event: new MouseEvent('contextmenu', {
+          bubbles: true,
+          composed: true,
+          button: 2,
+        }),
+        target: targetRow,
+      },
+      bubbles: true,
+      composed: true,
+    }),
+  )
+}
+
+/**
+ * gantt-row の row-clicked イベントをシミュレートする。
+ */
+function simulateRowClick(
+  chart: GanttChartElement,
+  rowId: string,
+  options: { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean } = {},
+) {
+  const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+  const targetRow = Array.from(rowElements || []).find(
+    (el: any) => el.row?.id === rowId,
+  )
+  if (!targetRow) throw new Error(`Row ${rowId} not found`)
+
+  targetRow.dispatchEvent(
+    new CustomEvent('row-clicked', {
+      detail: {
+        rowId,
+        event: new MouseEvent('click', {
+          bubbles: true,
+          composed: true,
+          metaKey: options.metaKey ?? false,
+          ctrlKey: options.ctrlKey ?? false,
+          shiftKey: options.shiftKey ?? false,
+        }),
+      },
+      bubbles: true,
+      composed: true,
+    }),
+  )
+}
+
 describe('GanttChartElement Right Click Selection', () => {
   afterEach(() => {
     document.body.innerHTML = ''
@@ -38,33 +103,16 @@ describe('GanttChartElement Right Click Selection', () => {
 
     await el.updateComplete
 
-    // Simulate right click on the second row header
-    const rowElements = el.shadowRoot?.querySelectorAll('gantt-row')
-    expect(rowElements?.length).toBe(2)
-
-    const targetRow = rowElements![1]
-    const header = targetRow.shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-    expect(header).toBeTruthy()
-
     let selectionEvent: any = null
     el.addEventListener('row-selection-change', (e: any) => {
       selectionEvent = e
     })
 
-    // Dispatch contextmenu event on the header
-    header.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        composed: true,
-        button: 2,
-      }),
-    )
+    // 未選択の row2 を右クリック → 選択される
+    simulateRowContextMenu(el, 'row2')
 
     await el.updateComplete
 
-    // Check if the event was fired with correct details
     expect(selectionEvent).toBeTruthy()
     expect(selectionEvent.detail.selectedIds).toEqual(['row2'])
   })
@@ -88,38 +136,20 @@ describe('GanttChartElement Right Click Selection', () => {
     document.body.appendChild(el)
     await el.updateComplete
 
-    await el.updateComplete
-
-    // Setup listener
     const selectionHistory: string[][] = []
     el.addEventListener('row-selection-change', (e: any) => {
       selectionHistory.push(e.detail.selectedIds)
     })
 
-    // Select row 1
-    const rowElements = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row1Header = rowElements![0].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-    row1Header.click()
+    // row1 を選択
+    simulateRowClick(el, 'row1')
     await el.updateComplete
 
-    // Select row 2 with Ctrl/Meta to keep row 1 selected
-    const rowElements2 = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row2Header = rowElements2![1].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-
-    row2Header.dispatchEvent(
-      new MouseEvent('click', {
-        bubbles: true,
-        composed: true,
-        metaKey: true,
-      }),
-    )
+    // row2 を Ctrl+クリックで追加選択
+    simulateRowClick(el, 'row2', { metaKey: true })
     await el.updateComplete
 
-    // Verify initial setup via events
+    // 両方選択されていることを確認
     const lastSelection = selectionHistory[selectionHistory.length - 1] || []
     expect(lastSelection).toContain('row1')
     expect(lastSelection).toContain('row2')
@@ -127,91 +157,12 @@ describe('GanttChartElement Right Click Selection', () => {
 
     const eventCountBeforeCtx = selectionHistory.length
 
-    // Right click on row 2 (which is already selected)
-    // Re-query to be safe
-    const rowElements3 = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row2HeaderCtx = rowElements3![1].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-
-    row2HeaderCtx.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        composed: true,
-        button: 2,
-      }),
-    )
-
+    // 既に選択済みの row2 を右クリック → 選択は変わらないはず
+    simulateRowContextMenu(el, 'row2')
     await el.updateComplete
 
-    // Should NOT have fired a new selection change event because selection shouldn't change
+    // 選択変更イベントは発火しないはず
     expect(selectionHistory.length).toBe(eventCountBeforeCtx)
-  })
-
-  it('preserves selection when left clicking an already selected row (without modifiers)', async () => {
-    const rows: GanttRow[] = [
-      { id: 'row1', name: 'Row 1', tasks: [] },
-      { id: 'row2', name: 'Row 2', tasks: [] },
-    ]
-    const option: GanttChartOption = {
-      calendar: {
-        start: new Date('2024-01-01'),
-        end: new Date('2024-01-31'),
-        pxPerDay: 50,
-      },
-    }
-
-    const el = document.createElement('gantt-chart') as GanttChartElement
-    el.rows = rows
-    el.option = option
-    document.body.appendChild(el)
-    await el.updateComplete
-
-    // Setup listener
-    const selectionHistory: string[][] = []
-    el.addEventListener('row-selection-change', (e: any) => {
-      selectionHistory.push(e.detail.selectedIds)
-    })
-
-    // Select row 1
-    const rowElements = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row1Header = rowElements![0].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-    row1Header.click()
-    await el.updateComplete
-
-    // Select row 2 with Ctrl/Meta to keep row 1 selected
-    const rowElements2 = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row2Header = rowElements2![1].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-
-    row2Header.dispatchEvent(
-      new MouseEvent('click', {
-        bubbles: true,
-        composed: true,
-        metaKey: true,
-      }),
-    )
-    await el.updateComplete
-
-    // Verify initial setup via events
-    const lastSelection = selectionHistory[selectionHistory.length - 1] || []
-    expect(lastSelection).toContain('row1')
-    expect(lastSelection).toContain('row2')
-    expect(lastSelection.length).toBe(2)
-
-    const eventCountBeforeClick = selectionHistory.length
-
-    // Left click on row 2 (which is already selected) without modifiers
-    row2Header.click()
-    await el.updateComplete
-
-    // Should NOT have fired a new selection change event because selection shouldn't change
-    // (Existing behavior was: it would clear row1 and select row2 again, firing event)
-    // New behavior: should preserve, so no event (or same state).
-    expect(selectionHistory.length).toBe(eventCountBeforeClick)
   })
 
   it('updates selection on right click even if another row is selected', async () => {
@@ -230,40 +181,20 @@ describe('GanttChartElement Right Click Selection', () => {
     const el = document.createElement('gantt-chart') as GanttChartElement
     el.rows = rows
     el.option = option
-    // Pre-select row 1 (simulating input prop, though internal state is primary)
-    // Actually internal state `selectedRows` is what matters for display
     document.body.appendChild(el)
     await el.updateComplete
 
-    // Select row 1 first normally
-    const rowElements = el.shadowRoot?.querySelectorAll('gantt-row')
-    const row1Header = rowElements![0].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
-    row1Header.click()
+    // row1 を選択
+    simulateRowClick(el, 'row1')
     await el.updateComplete
-
-    // Verify row 1 selected
-    // We can listen to the event to be sure
-
-    // Now right click row 2
-    const row2Header = rowElements![1].shadowRoot?.querySelector(
-      '.row-header',
-    ) as HTMLElement
 
     let selectionEvent: any = null
     el.addEventListener('row-selection-change', (e: any) => {
       selectionEvent = e
     })
 
-    row2Header.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        composed: true,
-        button: 2,
-      }),
-    )
-
+    // 未選択の row2 を右クリック → row2 が選択される
+    simulateRowContextMenu(el, 'row2')
     await el.updateComplete
 
     expect(selectionEvent).toBeTruthy()

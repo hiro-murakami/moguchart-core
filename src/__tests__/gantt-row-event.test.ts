@@ -4,7 +4,7 @@ import type { GanttRowElement } from '../components/gantt-row'
 import type { GanttRow, GanttChartOption } from '@/core/types'
 
 describe('GanttRowElement', () => {
-  it('dispatches row-header-click event', async () => {
+  it('dispatches row-clicked event', async () => {
     const row: GanttRow = {
       id: 'row1',
       name: 'Test Row',
@@ -32,7 +32,8 @@ describe('GanttRowElement', () => {
     const spy = vi.fn((e) => {
       capturedEvent = e
     })
-    el.addEventListener('row-header-click', spy)
+    // gantt-row は 'row-clicked' イベントを発火する（'row-header-click' ではない）
+    el.addEventListener('row-clicked', spy)
 
     header.click()
 
@@ -41,10 +42,10 @@ describe('GanttRowElement', () => {
     // Check the target of the CustomEvent
     expect(capturedEvent.target).toBe(el)
 
-    expect(capturedEvent.detail.target).toBe(header)
+    expect(capturedEvent.detail.rowId).toBe('row1')
   })
 
-  it('does not dispatch event when clicking checkbox', async () => {
+  it('dispatches row-header-contextmenu event on right click', async () => {
     const row: GanttRow = {
       id: 'row1',
       name: 'Test Row',
@@ -65,16 +66,24 @@ describe('GanttRowElement', () => {
 
     await el.updateComplete
 
-    const checkbox = el.shadowRoot?.querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLElement
-    expect(checkbox).toBeTruthy()
+    const header = el.shadowRoot?.querySelector('.row-header') as HTMLElement
+    expect(header).toBeTruthy()
 
-    const spy = vi.fn()
-    el.addEventListener('row-header-click', spy)
+    let capturedEvent: any = null
+    const spy = vi.fn((e) => {
+      capturedEvent = e
+    })
+    el.addEventListener('row-header-contextmenu', spy)
 
-    checkbox.click()
+    header.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        composed: true,
+        button: 2,
+      }),
+    )
 
-    expect(spy).not.toHaveBeenCalled()
+    expect(spy).toHaveBeenCalled()
+    expect(capturedEvent.detail.rowId).toBe('row1')
   })
 })

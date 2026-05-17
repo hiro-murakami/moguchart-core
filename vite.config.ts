@@ -24,5 +24,27 @@ export default defineConfig({
             // 出力形式
             formats: ['es', 'umd'],
           },
+          rollupOptions: {
+            // peerDependencies と dependencies を外部化してバンドルに含めない
+            external: [
+              'lit',
+              /^lit\//,
+              'lodash',
+              'dayjs',
+              '@holiday-jp/holiday_jp',
+              'html2canvas-pro',
+              'jspdf',
+            ],
+            output: {
+              globals: {
+                lit: 'Lit',
+                lodash: '_',
+                dayjs: 'dayjs',
+                'html2canvas-pro': 'html2canvas',
+                jspdf: 'jsPDF',
+                '@holiday-jp/holiday_jp': 'HolidayJp',
+              },
+            },
+          },
         },
 })

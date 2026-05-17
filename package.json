@@ -1,8 +1,31 @@
 {
   "name": "@mogura/moguchart-core",
   "version": "0.0.1",
+  "description": "A lightweight, framework-agnostic Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and more.",
+  "license": "MIT",
+  "author": "Murakami Hiroyuki",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hiro-murakami/moguchart-core.git"
+  },
+  "homepage": "https://github.com/hiro-murakami/moguchart-core",
+  "bugs": {
+    "url": "https://github.com/hiro-murakami/moguchart-core/issues"
+  },
+  "keywords": [
+    "gantt",
+    "gantt-chart",
+    "chart",
+    "web-components",
+    "lit",
+    "project-management",
+    "timeline",
+    "scheduler"
+  ],
+  "sideEffects": true,
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "main": "./dist/moguchart-core.umd.js",
   "module": "./dist/moguchart-core.mjs",
@@ -16,9 +39,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && pnpm exec tsc",
+    "build": "vite build && pnpm exec tsc -p tsconfig.build.json",
     "build:demo": "BUILD_MODE=demo vite build && pnpm exec tsc",
     "preview": "vite preview",
+    "prepublishOnly": "pnpm run build",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
