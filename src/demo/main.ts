@@ -308,13 +308,11 @@ const renderApp = () => {
               ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
               : ''
             const weekendOrHoliday = ctx.isSunday || ctx.isSaturday || ctx.isHoliday
-            const icon = ctx.isSunday || ctx.isHoliday
-              ? '🔴'
-              : ctx.isSaturday
-                ? '🔵'
-                : ''
+            const icon = ctx.isSunday || ctx.isHoliday ? '🔴' : ctx.isSaturday ? '🔵' : ''
             return html`
-              <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; box-sizing: border-box;">
+              <div
+                style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; box-sizing: border-box;"
+              >
                 ${weekendOrHoliday && ctx.width >= 20
                   ? html`<span style="font-size: 8px; opacity: 0.6; line-height: 1;">${icon}</span>`
                   : ''}
@@ -378,7 +376,7 @@ const renderApp = () => {
     </style>
     <div style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-        <h2 style="margin: 0;">MoguChart</h2>
+        <h2 style="margin: 0;">moguchart-core</h2>
         <div style="display: flex; gap: 4px;">
           <button
             style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang ===

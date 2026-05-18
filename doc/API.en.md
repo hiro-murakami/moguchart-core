@@ -1,6 +1,6 @@
-# MoguChart API Reference
+# moguchart-core API Reference
 
-MoguChart is a Gantt chart Web Component built with Lit.
+moguchart-core is a Gantt chart Web Component built with Lit.
 
 ## Component
 
@@ -12,14 +12,14 @@ MoguChart is a Gantt chart Web Component built with Lit.
 
 Properties that can be passed to the component.
 
-| Property               | Type                | Description                                                                                                                                                               |
-| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `rows`                 | `GanttRow[]`        | Array of row data to display in the Gantt chart. Each row contains tasks.                                                                                                 |
-| `option`               | `GanttChartOption`  | Options object for configuring chart appearance and behavior.                                                                                                             |
-| `theme`                | `'light' \| 'dark'` | (Attribute) Specifies the theme. Serves as the base for CSS variable styling. If `option.theme` is specified, it takes precedence.                                        |
-| `selectedRowIds`       | `string[]`          | Array of row IDs to set as selected.                                                                                                                                      |
-| `selectedTaskIds`      | `string[]`          | Array of task IDs to set as selected.                                                                                                                                     |
-| `externalDraggingTask` | `GanttTask \| null` | When dragging a task from outside the component, pass the task information here. This displays a preview (ghost) of the dragged task on the chart.                        |
+| Property               | Type                | Description                                                                                                                                        |
+| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rows`                 | `GanttRow[]`        | Array of row data to display in the Gantt chart. Each row contains tasks.                                                                          |
+| `option`               | `GanttChartOption`  | Options object for configuring chart appearance and behavior.                                                                                      |
+| `theme`                | `'light' \| 'dark'` | (Attribute) Specifies the theme. Serves as the base for CSS variable styling. If `option.theme` is specified, it takes precedence.                 |
+| `selectedRowIds`       | `string[]`          | Array of row IDs to set as selected.                                                                                                               |
+| `selectedTaskIds`      | `string[]`          | Array of task IDs to set as selected.                                                                                                              |
+| `externalDraggingTask` | `GanttTask \| null` | When dragging a task from outside the component, pass the task information here. This displays a preview (ghost) of the dragged task on the chart. |
 
 ## Options (GanttChartOption)
 
@@ -117,34 +117,34 @@ interface GanttChartOption {
 
 Custom events dispatched by the component.
 
-| Event Name               | Detail (e.detail)                   | Description                                                                              |
-| :----------------------- | :---------------------------------- | :--------------------------------------------------------------------------------------- |
-| `rows-change`            | `GanttRow[]`                        | Fired when row data changes due to reordering or task movement.                          |
-| `row-reordered`          | `RowReorderEventDetail`             | Fired when rows are reordered via drag & drop.                                           |
-| `row-selection-change`   | `RowSelectionChangeEventDetail`     | Fired when row selection changes via checkbox or header click.                           |
-| `bar-selection-change`   | `BarSelectionChangeEventDetail`     | Fired when task bar selection changes.                                                   |
-| `bar-hover`              | `BarHoverEventDetail`               | Fired when a task bar is hovered over.                                                   |
-| `row-clicked`            | `RowClickedEventDetail`             | Fired when a row header is clicked.                                                      |
-| `task-update`            | `TaskUpdateEventDetail`             | Fired when a task is updated via drag & drop or resize.                                  |
-| `task-drop`              | `TaskDropEventDetail`               | Fired when an external element is dropped. Can be used for creating new tasks.           |
-| `row-header-resize`      | `RowHeaderResizeEventDetail`        | Fired when the row header width is resized.                                              |
-| `row-header-click`       | `RowHeaderClickEventDetail`         | Fired when a row header is clicked.                                                      |
-| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`      | Fired when a row header is double-clicked.                                               |
-| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail`   | Fired when a row header is right-clicked. Use for implementing custom context menus.     |
-| `task-dblclick`          | `TaskClickEventDetail`              | Fired when a task bar is double-clicked.                                                 |
-| `task-contextmenu`       | `TaskContextMenuEventDetail`        | Fired when a task bar is right-clicked. Use for implementing custom context menus.       |
-| `chart-contextmenu`      | `ChartContextMenuEventDetail`       | Fired when the chart background (area without tasks) is right-clicked.                   |
-| `dependency-create`      | `DependencyCreateEventDetail`       | Fired when a dependency is created via drag & drop from a task bar connector.            |
-| `dependency-click`       | `DependencyClickEventDetail`        | Fired when a dependency line is clicked.                                                 |
+| Event Name               | Detail (e.detail)                 | Description                                                                          |
+| :----------------------- | :-------------------------------- | :----------------------------------------------------------------------------------- |
+| `rows-change`            | `GanttRow[]`                      | Fired when row data changes due to reordering or task movement.                      |
+| `row-reordered`          | `RowReorderEventDetail`           | Fired when rows are reordered via drag & drop.                                       |
+| `row-selection-change`   | `RowSelectionChangeEventDetail`   | Fired when row selection changes via checkbox or header click.                       |
+| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | Fired when task bar selection changes.                                               |
+| `bar-hover`              | `BarHoverEventDetail`             | Fired when a task bar is hovered over.                                               |
+| `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
+| `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
+| `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
+| `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
+| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
+| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
+| `task-dblclick`          | `TaskClickEventDetail`            | Fired when a task bar is double-clicked.                                             |
+| `task-contextmenu`       | `TaskContextMenuEventDetail`      | Fired when a task bar is right-clicked. Use for implementing custom context menus.   |
+| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
+| `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
+| `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
 
 ## Methods
 
 Public methods that can be called on the component instance.
 
-| Method       | Signature                                                                    | Description                                                                                                                                                                  |
-| :----------- | :--------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask` | `(taskId: string) => boolean`                                                | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                      |
-| `hitTest`    | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.      |
+| Method        | Signature                                                                                   | Description                                                                                                                                                                                     |
+| :------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`  | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
 | `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
 
 ### Usage Examples
@@ -190,8 +190,8 @@ const pngDataUrl = await chart.exportImage('png')
 
 // Download as PDF
 await chart.exportImage('pdf', {
-  filename: 'my-gantt',  // Default: 'gantt-chart'
-  download: true,        // Starts file download if true
+  filename: 'my-gantt', // Default: 'gantt-chart'
+  download: true, // Starts file download if true
 })
 
 // Embed PNG in an img tag
@@ -296,9 +296,9 @@ Context passed when custom rendering calendar month cells.
 
 ```typescript
 interface CalendarMonthCellContext {
-  year: number        // Year
-  month: number       // Month (0-11)
-  width: number       // Cell width (px)
+  year: number // Year
+  month: number // Month (0-11)
+  width: number // Cell width (px)
   defaultLabel: string // Default label text
 }
 ```
@@ -309,11 +309,11 @@ Context passed when custom rendering calendar day cells.
 
 ```typescript
 interface CalendarDayCellContext {
-  date: Date           // Date
-  width: number        // Cell width (px)
-  isSaturday: boolean  // Whether it is Saturday
-  isSunday: boolean    // Whether it is Sunday
-  isHoliday: boolean   // Whether it is a holiday
+  date: Date // Date
+  width: number // Cell width (px)
+  isSaturday: boolean // Whether it is Saturday
+  isSunday: boolean // Whether it is Sunday
+  isHoliday: boolean // Whether it is a holiday
   defaultLabel: string // Default label text
 }
 ```
@@ -324,9 +324,9 @@ Context passed when custom rendering calendar week cells.
 
 ```typescript
 interface CalendarWeekCellContext {
-  weekNumber: number   // Week number
-  startDate: Date      // Start date of the week
-  width: number        // Cell width (px)
+  weekNumber: number // Week number
+  startDate: Date // Start date of the week
+  width: number // Cell width (px)
   defaultLabel: string // Default label text
 }
 ```
@@ -337,9 +337,9 @@ Context passed when custom rendering calendar hour cells.
 
 ```typescript
 interface CalendarHourCellContext {
-  hour: number   // Hour (0-23)
-  width: number  // Cell width (px)
-  date: Date     // Corresponding date
+  hour: number // Hour (0-23)
+  width: number // Cell width (px)
+  date: Date // Corresponding date
 }
 ```
 
@@ -349,15 +349,15 @@ Context passed when custom rendering Gantt chart background cells. Called for ea
 
 ```typescript
 interface ChartBackgroundCellContext {
-  date: Date           // Date
-  width: number        // Cell width (px)
-  height: number       // Cell height (px)
-  rowId: string        // Row ID
-  isSaturday: boolean  // Whether it is Saturday
-  isSunday: boolean    // Whether it is Sunday
-  isHoliday: boolean   // Whether it is a holiday
+  date: Date // Date
+  width: number // Cell width (px)
+  height: number // Cell height (px)
+  rowId: string // Row ID
+  isSaturday: boolean // Whether it is Saturday
+  isSunday: boolean // Whether it is Sunday
+  isHoliday: boolean // Whether it is a holiday
   defaultColor: string // Default background color
-  index: number        // Column index (0-based)
+  index: number // Column index (0-based)
 }
 ```
 
@@ -437,13 +437,11 @@ const option = {
       const stripeStyle = isEvenDay
         ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
         : ''
-      const icon = ctx.isSunday || ctx.isHoliday
-        ? '🔴'
-        : ctx.isSaturday
-          ? '🔵'
-          : ''
+      const icon = ctx.isSunday || ctx.isHoliday ? '🔴' : ctx.isSaturday ? '🔵' : ''
       return html`
-        <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">
+        <div
+          style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;"
+        >
           ${icon ? html`<span style="font-size: 8px; opacity: 0.6;">${icon}</span>` : ''}
         </div>
       `
@@ -806,10 +804,10 @@ interface GanttChartOptionDependency {
 
 ```typescript
 interface DependencyCreateEventDetail {
-  sourceTaskId: string       // Source task ID
-  sourceEndpoint: DependencyEndpoint  // Source endpoint (start=left edge, end=right edge)
-  targetTaskId: string       // Target task ID
-  targetEndpoint: DependencyEndpoint  // Target endpoint (start=left edge, end=right edge)
+  sourceTaskId: string // Source task ID
+  sourceEndpoint: DependencyEndpoint // Source endpoint (start=left edge, end=right edge)
+  targetTaskId: string // Target task ID
+  targetEndpoint: DependencyEndpoint // Target endpoint (start=left edge, end=right edge)
 }
 ```
 
@@ -817,9 +815,9 @@ interface DependencyCreateEventDetail {
 
 ```typescript
 interface DependencyClickEventDetail {
-  sourceTaskId: string  // Source (dependency) task ID
-  targetTaskId: string  // Target (dependent) task ID
-  event: MouseEvent     // Original mouse event
+  sourceTaskId: string // Source (dependency) task ID
+  targetTaskId: string // Target (dependent) task ID
+  event: MouseEvent // Original mouse event
 }
 ```
 
@@ -908,7 +906,9 @@ const rows = [
   {
     id: 'row-1',
     name: 'Project A',
-    tasks: [/* ... */],
+    tasks: [
+      /* ... */
+    ],
     markers: [
       {
         id: 'marker-1',

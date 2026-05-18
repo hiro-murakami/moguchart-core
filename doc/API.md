@@ -1,6 +1,6 @@
-# MoguChart API Reference
+# moguchart-core API Reference
 
-MoguChart は、Lit で構築されたガントチャート Web Component です。
+moguchart-core は、Lit で構築されたガントチャート Web Component です。
 
 ## コンポーネント
 
@@ -141,10 +141,10 @@ interface GanttChartOption {
 
 コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
 
-| メソッド名    | シグネチャ                                                              | 説明                                                                                                                                                                           |
-| :------------ | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`  | `(taskId: string) => boolean`                                           | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。 |
-| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null` | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。 |
+| メソッド名    | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
+| :------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`  | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
 | `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
 
 ### 使用例
@@ -190,8 +190,8 @@ const pngDataUrl = await chart.exportImage('png')
 
 // PDF形式でダウンロード
 await chart.exportImage('pdf', {
-  filename: 'my-gantt',  // 省略時: 'gantt-chart'
-  download: true,        // trueでファイルダウンロード開始
+  filename: 'my-gantt', // 省略時: 'gantt-chart'
+  download: true, // trueでファイルダウンロード開始
 })
 
 // PNGをimgタグに埋め込む
@@ -296,9 +296,9 @@ interface GanttChartOptionCustomRendering {
 
 ```typescript
 interface CalendarMonthCellContext {
-  year: number        // 年
-  month: number       // 月 (0-11)
-  width: number       // セルの幅 (px)
+  year: number // 年
+  month: number // 月 (0-11)
+  width: number // セルの幅 (px)
   defaultLabel: string // デフォルトのラベルテキスト
 }
 ```
@@ -309,11 +309,11 @@ interface CalendarMonthCellContext {
 
 ```typescript
 interface CalendarDayCellContext {
-  date: Date           // 日付
-  width: number        // セルの幅 (px)
-  isSaturday: boolean  // 土曜日かどうか
-  isSunday: boolean    // 日曜日かどうか
-  isHoliday: boolean   // 祝日かどうか
+  date: Date // 日付
+  width: number // セルの幅 (px)
+  isSaturday: boolean // 土曜日かどうか
+  isSunday: boolean // 日曜日かどうか
+  isHoliday: boolean // 祝日かどうか
   defaultLabel: string // デフォルトのラベルテキスト
 }
 ```
@@ -324,9 +324,9 @@ interface CalendarDayCellContext {
 
 ```typescript
 interface CalendarWeekCellContext {
-  weekNumber: number   // 週番号
-  startDate: Date      // 週の開始日
-  width: number        // セルの幅 (px)
+  weekNumber: number // 週番号
+  startDate: Date // 週の開始日
+  width: number // セルの幅 (px)
   defaultLabel: string // デフォルトのラベルテキスト
 }
 ```
@@ -337,9 +337,9 @@ interface CalendarWeekCellContext {
 
 ```typescript
 interface CalendarHourCellContext {
-  hour: number   // 時間 (0-23)
-  width: number  // セルの幅 (px)
-  date: Date     // 対応する日付
+  hour: number // 時間 (0-23)
+  width: number // セルの幅 (px)
+  date: Date // 対応する日付
 }
 ```
 
@@ -349,15 +349,15 @@ interface CalendarHourCellContext {
 
 ```typescript
 interface ChartBackgroundCellContext {
-  date: Date           // 日付
-  width: number        // セルの幅 (px)
-  height: number       // セルの高さ (px)
-  rowId: string        // 行のID
-  isSaturday: boolean  // 土曜日かどうか
-  isSunday: boolean    // 日曜日かどうか
-  isHoliday: boolean   // 祝日かどうか
+  date: Date // 日付
+  width: number // セルの幅 (px)
+  height: number // セルの高さ (px)
+  rowId: string // 行のID
+  isSaturday: boolean // 土曜日かどうか
+  isSunday: boolean // 日曜日かどうか
+  isHoliday: boolean // 祝日かどうか
   defaultColor: string // デフォルトの背景色
-  index: number        // 列インデックス (0始まり)
+  index: number // 列インデックス (0始まり)
 }
 ```
 
@@ -437,13 +437,11 @@ const option = {
       const stripeStyle = isEvenDay
         ? 'background: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(128,128,128,0.08) 3px, rgba(128,128,128,0.08) 6px);'
         : ''
-      const icon = ctx.isSunday || ctx.isHoliday
-        ? '🔴'
-        : ctx.isSaturday
-          ? '🔵'
-          : ''
+      const icon = ctx.isSunday || ctx.isHoliday ? '🔴' : ctx.isSaturday ? '🔵' : ''
       return html`
-        <div style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">
+        <div
+          style="width: 100%; height: 100%; ${stripeStyle} display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;"
+        >
           ${icon ? html`<span style="font-size: 8px; opacity: 0.6;">${icon}</span>` : ''}
         </div>
       `
@@ -719,10 +717,10 @@ interface GanttChartOptionDependency {
 
 ```typescript
 interface DependencyCreateEventDetail {
-  sourceTaskId: string       // 接続元のタスクID
-  sourceEndpoint: DependencyEndpoint  // 接続元のエンドポイント（start=左端, end=右端）
-  targetTaskId: string       // 接続先のタスクID
-  targetEndpoint: DependencyEndpoint  // 接続先のエンドポイント（start=左端, end=右端）
+  sourceTaskId: string // 接続元のタスクID
+  sourceEndpoint: DependencyEndpoint // 接続元のエンドポイント（start=左端, end=右端）
+  targetTaskId: string // 接続先のタスクID
+  targetEndpoint: DependencyEndpoint // 接続先のエンドポイント（start=左端, end=右端）
 }
 ```
 
@@ -730,9 +728,9 @@ interface DependencyCreateEventDetail {
 
 ```typescript
 interface DependencyClickEventDetail {
-  sourceTaskId: string  // 接続元（依存元）のタスクID
-  targetTaskId: string  // 接続先（依存を持つ側）のタスクID
-  event: MouseEvent     // 元のマウスイベント
+  sourceTaskId: string // 接続元（依存元）のタスクID
+  targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  event: MouseEvent // 元のマウスイベント
 }
 ```
 
@@ -783,7 +781,8 @@ const myLocale = {
   monthRowFormat: 'MM月',
   dateFormat: (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`,
   dateTimeFormat: (d) => {
-    const h = d.getHours(), m = d.getMinutes()
+    const h = d.getHours(),
+      m = d.getMinutes()
     const date = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
     return h === 0 && m === 0 ? date : `${date} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   },
@@ -888,7 +887,9 @@ const rows = [
   {
     id: 'row-1',
     name: 'プロジェクトA',
-    tasks: [/* ... */],
+    tasks: [
+      /* ... */
+    ],
     markers: [
       {
         id: 'marker-1',

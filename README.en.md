@@ -56,11 +56,7 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
 <script setup lang="ts">
   import { ref } from 'vue'
   import '@mogura/moguchart-core'
-  import type {
-    GanttRow,
-    GanttChartOption,
-    TaskUpdateEventDetail,
-  } from '@mogura/moguchart-core'
+  import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -115,11 +111,7 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
 
 <template>
   <div style="height: 500px;">
-    <gantt-chart
-      :rows="rows"
-      :option="option"
-      @task-update="handleTaskUpdate"
-    ></gantt-chart>
+    <gantt-chart :rows="rows" :option="option" @task-update="handleTaskUpdate"></gantt-chart>
   </div>
 </template>
 ```
@@ -132,11 +124,7 @@ Since Web Components require direct property and event handling, use `ref` for i
 ```tsx
 import { useEffect, useRef, useState } from 'react'
 import '@mogura/moguchart-core'
-import type {
-  GanttRow,
-  GanttChartOption,
-  TaskUpdateEventDetail,
-} from '@mogura/moguchart-core'
+import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
 // Type definition for TypeScript
 declare global {
@@ -250,8 +238,8 @@ Reverse-direction (right-to-left) dependencies are automatically rendered with S
 ```javascript
 const option = {
   dependency: {
-    showArrows: true,  // Show arrows (default: true)
-    arrowSize: 12,     // Arrow size in px (default: 8)
+    showArrows: true, // Show arrows (default: true)
+    arrowSize: 12, // Arrow size in px (default: 8)
   },
   // ...
 }
@@ -259,7 +247,7 @@ const option = {
 
 ### Internationalization (i18n)
 
-MoguChart provides built-in locale support. Japanese is the default locale for backward compatibility. Switch to English or create custom locales.
+moguchart-core provides built-in locale support. Japanese is the default locale for backward compatibility. Switch to English or create custom locales.
 
 ```javascript
 import { enLocale } from '@mogura/moguchart-core'
@@ -332,7 +320,9 @@ const rows = [
   {
     id: 'row-1',
     name: 'Task A',
-    tasks: [/* ... */],
+    tasks: [
+      /* ... */
+    ],
     markers: [
       {
         id: 'marker-1',
@@ -360,7 +350,7 @@ const task = {
   start: new Date('2024-01-01'),
   end: new Date('2024-01-05'),
   style: 'background-color: #60a5fa',
-  pattern: PATTERN_DIAGONAL_STRIPE,    // Use preset
+  pattern: PATTERN_DIAGONAL_STRIPE, // Use preset
   // or specify directly:
   // pattern: { type: 'checkerboard', color: '#ffffff80' }
 }
@@ -405,7 +395,7 @@ Control the snap interval when dragging tasks with `snapDuration` (in minutes). 
 
 ```javascript
 const option = {
-  snapDuration: 60,    // Snap every hour (default: 1440 = 1 day)
+  snapDuration: 60, // Snap every hour (default: 1440 = 1 day)
   // ...
 }
 ```
@@ -423,7 +413,7 @@ const option = {
     end: new Date('2025-12-31'),
     pxPerDay: 15,
     showWeeks: true,
-    weekStartDay: 1,   // 1 = Monday (default)
+    weekStartDay: 1, // 1 = Monday (default)
     weekFormat: (weekNum) => `W${weekNum}`,
   },
 }
@@ -439,7 +429,7 @@ const option = {
     start: new Date('2025-01-01'),
     end: new Date('2027-12-31'),
     pxPerDay: 1,
-    pxPerMonth: 120,    // 120px per month
+    pxPerMonth: 120, // 120px per month
     showMonthsRow: true, // Two-row header: top=year, bottom=month
   },
 }
