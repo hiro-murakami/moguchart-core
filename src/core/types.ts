@@ -386,6 +386,13 @@ export interface GanttChartOption {
   locale?: MoguchartLocale
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
+  /** キーボード操作の設定 */
+  keyboard?: {
+    /** キーボード操作を有効にするか (デフォルト: true) */
+    enabled?: boolean
+    /** Shift+矢印キーでのタスク移動量（分）。省略時は snapDuration を使用 */
+    moveStep?: number
+  }
 }
 
 /**
@@ -646,4 +653,14 @@ export interface DependencyClickEventDetail {
   targetTaskId: string
   /** 元のマウスイベント */
   event: MouseEvent
+}
+
+/**
+ * タスク削除イベントの詳細データ
+ */
+export interface TaskDeleteEventDetail {
+  /** 削除対象のタスクID配列 */
+  taskIds: string[]
+  /** 元のキーボードイベント */
+  event: KeyboardEvent
 }

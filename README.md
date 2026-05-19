@@ -36,6 +36,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - スナップ機能（時間単位でのグリッドスナップ）
   - 座標から行・日時を取得する `hitTest` メソッド
   - プログラムによるタスク選択＋自動スクロール (`selectTask`)
+- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでの削除
 
 ## インストール
 
@@ -438,6 +439,30 @@ document.addEventListener('mousemove', (e) => {
     console.log(`行: ${result.rowId}, 日付: ${result.date}`)
   }
 })
+```
+
+### キーボード操作
+
+ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
+
+| キー | 動作 |
+| :--- | :--- |
+| `←` `→` | フォーカスをタスク間で移動 |
+| `↑` `↓` | フォーカスを別の行に移動 |
+| `Enter` / `Space` | フォーカス中のタスクを選択 |
+| `Ctrl/Cmd + Enter` | 選択をトグル（複数選択） |
+| `Shift + ←` `→` | 選択中のタスクを移動 |
+| `Delete` / `Backspace` | `task-delete` イベントを発火 |
+| `Escape` | 選択・フォーカスをクリア |
+
+```javascript
+const option = {
+  keyboard: {
+    enabled: true,    // デフォルト: true
+    moveStep: 60,     // Shift+矢印キーでの移動量（分）
+  },
+  // ...
+}
 ```
 
 ## ライセンス

@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-05-20
+
+### Added
+
+- キーボード操作のサポート（矢印キーによるナビゲーション・選択、Shift+矢印キーによるタスク移動、Delete/Backspaceキーによる削除）
+- `keyboard` オプション（`enabled`, `moveStep`）
+- `task-delete` イベント（`TaskDeleteEventDetail` 型定義）
+- `MoguchartLocale` に `timeUnitDateFormat` フィールドを追加（時間単位モードの日付フォーマット）
+- `ThemeColorPalette` に `showTimeDateLine` フィールドを追加（時間単位モードの日付区切り罫線色）
 
 ## [0.1.0] - 2025-05-18
 
@@ -20,5 +28,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
-[Unreleased]: https://github.com/hiro-murakami/moguchart-core/compare/v0.1.0...HEAD
+[0.5.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.1.0...v0.5.0
 [0.1.0]: https://github.com/hiro-murakami/moguchart-core/releases/tag/v0.1.0

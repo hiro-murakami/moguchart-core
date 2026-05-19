@@ -110,6 +110,13 @@ interface GanttChartOption {
   }
   /** Dependency line settings */
   dependency?: GanttChartOptionDependency
+  /** Keyboard operation settings */
+  keyboard?: {
+    /** Whether to enable keyboard operations (default: true) */
+    enabled?: boolean
+    /** Task move amount per Shift+Arrow key press (in minutes). Uses snapDuration when omitted */
+    moveStep?: number
+  }
 }
 ```
 
@@ -136,6 +143,7 @@ Custom events dispatched by the component.
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
 | `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
 | `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
+| `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
 
 ## Methods
 
@@ -505,6 +513,8 @@ interface MoguchartLocale {
   monthRowFormat: string
   /** Date format function (e.g., "1/15/2024") */
   dateFormat: (date: Date) => string
+  /** Date format function for time-unit mode (e.g., "Jan 15, 2024") */
+  timeUnitDateFormat: (date: Date) => string
   /** Date-time format function (used when time is not 00:00) */
   dateTimeFormat: (date: Date) => string
   /** Year-month format function (used in tooltips and drag overlays for monthly view) */
@@ -732,9 +742,10 @@ interface ThemeColorPalette {
   text: string // Text color
   border: string // Border color
   gridLine: string // Grid line color
-  subGridLine: string // Sub-grid line color
+  subGridLine: string // Sub-grid line color (snap units, etc.)
   monthGridLine?: string // Monthly vertical grid line color (optional)
   yearGridLine?: string // Yearly vertical grid line color (optional)
+  showTimeDateLine?: string // Date separator line color in time-unit mode (optional). Falls back to monthGridLine → border when unset
   dragTarget: string // Drag target background color
   tooltipBg: string // Tooltip background color
   tooltipText: string // Tooltip text color
@@ -808,6 +819,15 @@ interface DependencyCreateEventDetail {
   sourceEndpoint: DependencyEndpoint // Source endpoint (start=left edge, end=right edge)
   targetTaskId: string // Target task ID
   targetEndpoint: DependencyEndpoint // Target endpoint (start=left edge, end=right edge)
+}
+```
+
+### TaskDeleteEventDetail
+
+```typescript
+interface TaskDeleteEventDetail {
+  taskIds: string[] // Array of task IDs to be deleted
+  event: KeyboardEvent // Original keyboard event
 }
 ```
 
@@ -1065,3 +1085,50 @@ chart.addEventListener('dependency-click', (e) => {
   }
 })
 ```
+
+## Keyboard Operations
+
+When the Gantt chart has focus, you can navigate, select, move, and delete tasks using the keyboard.
+
+### Supported Key Operations
+
+| Key | Action |
+| :--- | :--- |
+| `←` `→` | Move focus between tasks within the same row (wraps to next/previous row at edges) |
+| `↑` `↓` | Move focus to a task in another row |
+| `Enter` / `Space` | Select the focused task |
+| `Ctrl/Cmd + Enter` | Toggle selection of the focused task (multi-select) |
+| `Shift + ←` `→` | Move selected tasks left/right (by `moveStep` amount) |
+| `Delete` / `Backspace` | Fire `task-delete` event for selected tasks |
+| `Escape` | Clear all selection and focus |
+| `Home` | Focus the first task in the current row |
+| `End` | Focus the last task in the current row |
+
+### Configuration
+
+```javascript
+const option = {
+  keyboard: {
+    enabled: true,    // Whether to enable keyboard operations (default: true)
+    moveStep: 60,     // Move amount per Shift+Arrow key press (minutes). Uses snapDuration when omitted
+  },
+  // ...
+}
+```
+
+### task-delete Event Usage Example
+
+```javascript
+chart.addEventListener('task-delete', (e) => {
+  const { taskIds } = e.detail
+  console.log('Tasks to delete:', taskIds)
+
+  // Example: Show confirmation dialog before deleting
+  if (confirm(`Delete ${taskIds.length} task(s)?`)) {
+    rows = rows.map((row) => ({
+      ...row,
+      tasks: row.tasks.filter((t) => !taskIds.includes(t.id)),
+    }))
+    chart.rows = rows
+  }
+})

@@ -110,6 +110,13 @@ interface GanttChartOption {
   }
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
+  /** キーボード操作の設定 */
+  keyboard?: {
+    /** キーボード操作を有効にするか (デフォルト: true) */
+    enabled?: boolean
+    /** Shift+矢印キーでのタスク移動量（分）。省略時は snapDuration を使用 */
+    moveStep?: number
+  }
 }
 ```
 
@@ -136,6 +143,7 @@ interface GanttChartOption {
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 | `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
 | `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
+| `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
 
 ## メソッド (Methods)
 
@@ -645,9 +653,10 @@ interface ThemeColorPalette {
   text: string // テキスト色
   border: string // ボーダー色
   gridLine: string // グリッド線色
-  subGridLine: string // サブグリッド線色
+  subGridLine: string // サブグリッド線色（スナップ単位など）
   monthGridLine?: string // 月の区切りの縦罫線色 (オプション)
   yearGridLine?: string // 年の区切りの縦罫線色 (オプション)
+  showTimeDateLine?: string // 時間単位モードの日付区切り縦罫線色 (オプション)。未指定時は monthGridLine → border にフォールバック
   dragTarget: string // ドラッグ対象の背景色
   tooltipBg: string // ツールチップの背景色
   tooltipText: string // ツールチップのテキスト色
@@ -724,6 +733,15 @@ interface DependencyCreateEventDetail {
 }
 ```
 
+### TaskDeleteEventDetail
+
+```typescript
+interface TaskDeleteEventDetail {
+  taskIds: string[] // 削除対象のタスクID配列
+  event: KeyboardEvent // 元のキーボードイベント
+}
+```
+
 ### DependencyClickEventDetail
 
 ```typescript
@@ -743,6 +761,7 @@ interface MoguchartLocale {
   monthFormat: string // デフォルトの月表示フォーマット (dayjs互換)
   monthRowFormat: string // 月単位モードの月表示フォーマット (例: 'M月' / 'MMM')
   dateFormat: (date: Date) => string // 日付のフォーマット関数
+  timeUnitDateFormat: (date: Date) => string // 時間単位モードの日付フォーマット関数
   dateTimeFormat: (date: Date) => string // 日時のフォーマット関数
   yearMonthFormat: (date: Date) => string // 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用)
   duration: {
@@ -1042,6 +1061,54 @@ chart.addEventListener('dependency-click', (e) => {
         }
         return task
       }),
+    }))
+    chart.rows = rows
+  }
+})
+```
+
+## キーボード操作
+
+ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
+
+### サポートされるキー操作
+
+| キー | 動作 |
+| :--- | :--- |
+| `←` `→` | フォーカスを同一行内のタスク間で移動（端を超えると次/前行に移動） |
+| `↑` `↓` | フォーカスを別の行のタスクに移動 |
+| `Enter` / `Space` | フォーカス中のタスクを選択 |
+| `Ctrl/Cmd + Enter` | フォーカス中のタスクの選択をトグル（複数選択） |
+| `Shift + ←` `→` | 選択中のタスクを左右に移動（`moveStep` 単位） |
+| `Delete` / `Backspace` | 選択中のタスクに対して `task-delete` イベントを発火 |
+| `Escape` | 選択とフォーカスをすべてクリア |
+| `Home` | 現在の行の最初のタスクにフォーカス |
+| `End` | 現在の行の最後のタスクにフォーカス |
+
+### 設定
+
+```javascript
+const option = {
+  keyboard: {
+    enabled: true,    // キーボード操作を有効にするか (デフォルト: true)
+    moveStep: 60,     // Shift+矢印キーでの移動量（分）。省略時は snapDuration を使用
+  },
+  // ...
+}
+```
+
+### task-delete イベントの使用例
+
+```javascript
+chart.addEventListener('task-delete', (e) => {
+  const { taskIds } = e.detail
+  console.log('削除対象:', taskIds)
+
+  // 例: 確認ダイアログを表示してから削除
+  if (confirm(`${taskIds.length}件のタスクを削除しますか？`)) {
+    rows = rows.map((row) => ({
+      ...row,
+      tasks: row.tasks.filter((t) => !taskIds.includes(t.id)),
     }))
     chart.rows = rows
   }

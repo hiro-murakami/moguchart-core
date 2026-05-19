@@ -14,6 +14,7 @@ import type {
   RowHeaderResizeEventDetail,
   RowReorderEventDetail,
   RowSelectionChangeEventDetail,
+  TaskDeleteEventDetail,
   TaskUpdateEventDetail,
 } from '@/core/types'
 import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '@/core/utils'
@@ -110,6 +111,8 @@ export class GanttChartElement extends LitElement {
   } | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
   @state() private isExporting = false
+  @state() private focusedTaskId: string | null = null
+  @state() private focusedRowId: string | null = null
 
   private _layoutCache: {
     layouts: any[]
@@ -155,6 +158,13 @@ export class GanttChartElement extends LitElement {
     super.connectedCallback()
     this._systemThemeMediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null
     this._systemThemeMediaQuery?.addEventListener('change', this.handleSystemThemeChange)
+    // キーボードフォーカスを受け取れるようにする
+    if (!this.hasAttribute('tabindex')) {
+      this.setAttribute('tabindex', '0')
+    }
+    this.setAttribute('role', 'grid')
+    this.setAttribute('aria-label', 'Gantt Chart')
+    this.addEventListener('keydown', this.handleKeyDown)
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
       this.theme = this._systemThemeMediaQuery?.matches ? 'dark' : 'light'
@@ -168,6 +178,7 @@ export class GanttChartElement extends LitElement {
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
     this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
+    this.removeEventListener('keydown', this.handleKeyDown)
   }
 
   private handleSystemThemeChange = (e: MediaQueryListEvent) => {
@@ -1317,6 +1328,299 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  // --- キーボード操作 ---
+
+  private handleKeyDown = (e: KeyboardEvent) => {
+    // キーボード操作が無効化されている場合はスキップ
+    if (this.option.keyboard?.enabled === false) return
+
+    // 入力要素にフォーカスがある場合はスキップ
+    const composedPath = e.composedPath()
+    const target = composedPath[0] as HTMLElement
+    if (target !== this && target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+
+    switch (e.key) {
+      case 'ArrowRight':
+        if (e.shiftKey && !this.option.readOnly) {
+          this.moveSelectedTasksByKeyboard(1)
+        } else {
+          this.moveFocusHorizontal(1)
+        }
+        e.preventDefault()
+        break
+
+      case 'ArrowLeft':
+        if (e.shiftKey && !this.option.readOnly) {
+          this.moveSelectedTasksByKeyboard(-1)
+        } else {
+          this.moveFocusHorizontal(-1)
+        }
+        e.preventDefault()
+        break
+
+      case 'ArrowDown':
+        this.moveFocusVertical(1)
+        e.preventDefault()
+        break
+
+      case 'ArrowUp':
+        this.moveFocusVertical(-1)
+        e.preventDefault()
+        break
+
+      case 'Enter':
+      case ' ':
+        if (this.focusedTaskId) {
+          if (e.ctrlKey || e.metaKey) {
+            this.toggleTaskSelection(this.focusedTaskId)
+          } else {
+            this.selectSingleTask(this.focusedTaskId)
+          }
+        }
+        e.preventDefault()
+        break
+
+      case 'Escape':
+        this.clearSelection()
+        this.focusedTaskId = null
+        this.focusedRowId = null
+        break
+
+      case 'Delete':
+      case 'Backspace':
+        if (!this.option.readOnly && this.selectedTasks.size > 0) {
+          this.dispatchEvent(
+            new CustomEvent<TaskDeleteEventDetail>('task-delete', {
+              detail: {
+                taskIds: [...this.selectedTasks],
+                event: e,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        }
+        e.preventDefault()
+        break
+
+      case 'Home':
+        this.focusFirstOrLastTaskInRow('first')
+        e.preventDefault()
+        break
+
+      case 'End':
+        this.focusFirstOrLastTaskInRow('last')
+        e.preventDefault()
+        break
+    }
+  }
+
+  /**
+   * 水平方向にフォーカスを移動する（同一行内のタスク間、または次/前行へ）
+   */
+  private moveFocusHorizontal(direction: 1 | -1) {
+    const rows = this.displayRows
+    if (rows.length === 0) return
+
+    // フォーカスがない場合は最初のタスクにフォーカス
+    if (!this.focusedTaskId || !this.focusedRowId) {
+      this.focusFirstAvailableTask()
+      return
+    }
+
+    const rowIndex = rows.findIndex((r) => r.id === this.focusedRowId)
+    if (rowIndex === -1) {
+      this.focusFirstAvailableTask()
+      return
+    }
+
+    const row = rows[rowIndex]
+    const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
+    const taskIndex = sortedTasks.findIndex((t) => t.id === this.focusedTaskId)
+
+    if (taskIndex === -1) {
+      // フォーカス中のタスクがこの行にない（データが変わった等）
+      if (sortedTasks.length > 0) {
+        this.setFocus(sortedTasks[0].id, row.id)
+      }
+      return
+    }
+
+    const nextIndex = taskIndex + direction
+    if (nextIndex >= 0 && nextIndex < sortedTasks.length) {
+      // 同一行内で移動
+      this.setFocus(sortedTasks[nextIndex].id, row.id)
+    } else {
+      // 次/前の行に移動
+      this.moveFocusVertical(direction)
+    }
+  }
+
+  /**
+   * 垂直方向にフォーカスを移動する（行をまたぐ）
+   */
+  private moveFocusVertical(direction: 1 | -1) {
+    const rows = this.displayRows
+    if (rows.length === 0) return
+
+    if (!this.focusedTaskId || !this.focusedRowId) {
+      this.focusFirstAvailableTask()
+      return
+    }
+
+    const currentRowIndex = rows.findIndex((r) => r.id === this.focusedRowId)
+    if (currentRowIndex === -1) {
+      this.focusFirstAvailableTask()
+      return
+    }
+
+    // タスクがある行を探す
+    for (let i = currentRowIndex + direction; i >= 0 && i < rows.length; i += direction) {
+      const row = rows[i]
+      if (row.tasks.length > 0) {
+        const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
+        const targetTask = direction > 0 ? sortedTasks[0] : sortedTasks[sortedTasks.length - 1]
+        this.setFocus(targetTask.id, row.id)
+        return
+      }
+    }
+  }
+
+  /**
+   * 最初にタスクを持つ行の最初のタスクにフォーカスする
+   */
+  private focusFirstAvailableTask() {
+    for (const row of this.displayRows) {
+      if (row.tasks.length > 0) {
+        const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
+        this.setFocus(sortedTasks[0].id, row.id)
+        return
+      }
+    }
+  }
+
+  /**
+   * 現在の行の最初または最後のタスクにフォーカスする
+   */
+  private focusFirstOrLastTaskInRow(position: 'first' | 'last') {
+    if (!this.focusedRowId) {
+      this.focusFirstAvailableTask()
+      return
+    }
+
+    const row = this.displayRows.find((r) => r.id === this.focusedRowId)
+    if (!row || row.tasks.length === 0) return
+
+    const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
+    const target = position === 'first' ? sortedTasks[0] : sortedTasks[sortedTasks.length - 1]
+    this.setFocus(target.id, row.id)
+  }
+
+  /**
+   * フォーカスを設定し、必要に応じてスクロールする
+   */
+  private setFocus(taskId: string, rowId: string) {
+    this.focusedTaskId = taskId
+    this.focusedRowId = rowId
+    this.scrollToTask(taskId)
+  }
+
+  /**
+   * タスクの選択をトグルする（Ctrl/Cmd+Enter）
+   */
+  private toggleTaskSelection(taskId: string) {
+    const newSelectedTasks = new Set(this.selectedTasks)
+    if (newSelectedTasks.has(taskId)) {
+      newSelectedTasks.delete(taskId)
+    } else {
+      newSelectedTasks.add(taskId)
+    }
+    this.selectedTasks = newSelectedTasks
+    this.dispatchEvent(
+      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+        detail: { selectedIds: [...newSelectedTasks] },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 単一タスクを選択する（Enter/Space）
+   */
+  private selectSingleTask(taskId: string) {
+    this.selectedTasks = new Set([taskId])
+    this.dispatchEvent(
+      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+        detail: { selectedIds: [taskId] },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * Shift+矢印キーで選択中タスクを移動する
+   */
+  private moveSelectedTasksByKeyboard(direction: 1 | -1) {
+    if (this.selectedTasks.size === 0) return
+
+    const moveStep = this.option.keyboard?.moveStep ?? this.option.snapDuration ?? 1440
+    const moveMs = moveStep * 60 * 1000 * direction
+
+    const newRows = this.rows.map((row) => {
+      const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
+      if (!hasSelectedTask) return row
+
+      return {
+        ...row,
+        tasks: row.tasks.map((t) => {
+          if (!this.selectedTasks.has(t.id)) return t
+          return {
+            ...t,
+            start: new Date(t.start.getTime() + moveMs),
+            end: new Date(t.end.getTime() + moveMs),
+          }
+        }),
+      }
+    })
+
+    // 各選択タスクについて task-update イベントを発火
+    for (const row of this.rows) {
+      for (const task of row.tasks) {
+        if (!this.selectedTasks.has(task.id)) continue
+        const newStart = new Date(task.start.getTime() + moveMs)
+        const newEnd = new Date(task.end.getTime() + moveMs)
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              id: task.id,
+              name: task.name,
+              start: newStart,
+              end: newEnd,
+              dx: 0,
+              dy: 0,
+              isDragging: false,
+              mode: 'move' as GanttTaskMoveMode,
+              targetRowId: row.id,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
+
+    this.rows = newRows
+    this.dispatchEvent(
+      new CustomEvent('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   private handleBarClick(e: CustomEvent<{ task: GanttTask; event: MouseEvent; isMultiSelect: boolean }>) {
     e.stopPropagation()
     const { task, isMultiSelect } = e.detail
@@ -1955,6 +2259,7 @@ export class GanttChartElement extends LitElement {
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
                 .selectedTaskIds="${this._cachedSelectedTaskIds}"
+                .focusedTaskId="${this.focusedTaskId}"
                 .isExporting="${this.isExporting}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"

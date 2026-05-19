@@ -34,6 +34,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Snap feature (grid snap by time unit, automatic monthly snap in month view)
   - `hitTest` method for getting row/date from coordinates
   - Programmatic task selection + auto-scroll (`selectTask`)
+- ⌨️ **Keyboard Operations**: Arrow key navigation & selection, Shift+Arrow task movement, Delete key deletion
 
 ## Installation
 
@@ -457,6 +458,30 @@ document.addEventListener('mousemove', (e) => {
     console.log(`Row: ${result.rowId}, Date: ${result.date}`)
   }
 })
+```
+
+### Keyboard Operations
+
+When the Gantt chart has focus, you can navigate, select, move, and delete tasks using the keyboard.
+
+| Key | Action |
+| :--- | :--- |
+| `←` `→` | Move focus between tasks |
+| `↑` `↓` | Move focus to another row |
+| `Enter` / `Space` | Select the focused task |
+| `Ctrl/Cmd + Enter` | Toggle selection (multi-select) |
+| `Shift + ←` `→` | Move selected tasks |
+| `Delete` / `Backspace` | Fire `task-delete` event |
+| `Escape` | Clear selection and focus |
+
+```javascript
+const option = {
+  keyboard: {
+    enabled: true,    // Default: true
+    moveStep: 60,     // Move amount per Shift+Arrow key press (minutes)
+  },
+  // ...
+}
 ```
 
 ## License

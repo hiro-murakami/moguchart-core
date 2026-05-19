@@ -11,6 +11,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) lane = 0
   @property({ type: Boolean, reflect: true }) selected = false
+  @property({ type: Boolean, reflect: true }) focused = false
   @property({ type: Number }) multiDragDx = 0
   @property({ type: Boolean }) multiDragActive = false
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
@@ -52,6 +53,15 @@ export class GanttBarElement extends LitElement {
       background-color: ${unsafeCSS(DEFAULT_BAR_COLOR)};
     }
     :host([selected]) .bar {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+    }
+    :host([focused]) .bar {
+      outline: 2px dashed #3b82f6;
+      outline-offset: 2px;
+    }
+    :host([selected][focused]) .bar {
       outline: 2px solid #3b82f6;
       outline-offset: 1px;
       box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);

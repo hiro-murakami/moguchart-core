@@ -40,6 +40,9 @@ export class GanttRowElement extends LitElement {
   @property({ type: Array })
   selectedTaskIds: string[] = []
 
+  @property({ type: String })
+  focusedTaskId: string | null = null
+
   @property({ type: Boolean, reflect: true })
   isExporting = false
 
@@ -591,6 +594,7 @@ export class GanttRowElement extends LitElement {
                   .option="${this.option}"
                   .lane="${task.lane}"
                   .selected="${isTaskSelected}"
+                  .focused="${this.focusedTaskId === task.id}"
                   .multiDragDx="${barMultiDragDx}"
                   .multiDragActive="${isPrimaryDrag}"
                   .isExporting="${this.isExporting}"

@@ -7,6 +7,7 @@ import type {
   TaskClickEventDetail,
   TaskContextMenuEventDetail,
   TaskUpdateEventDetail,
+  TaskDeleteEventDetail,
   GanttTask,
   TaskDropEventDetail,
   RowHeaderResizeEventDetail,
@@ -853,6 +854,7 @@ const renderApp = () => {
             @task-update="${handleTaskUpdate}"
             @task-dblclick="${handleTaskDblClick}"
             @task-contextmenu="${handleTaskContextMenu}"
+            @task-delete="${handleTaskDelete}"
             @row-header-resize="${handleRowHeaderResize}"
             @row-selection-change="${(e: CustomEvent<RowSelectionChangeEventDetail>) => {
               selectedIds = e.detail.selectedIds
@@ -1111,6 +1113,35 @@ const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
 const handleTaskDblClick = (e: CustomEvent<TaskClickEventDetail>) => {
   const { task } = e.detail
   alert(t.editDetail(task.name || '', task.id))
+}
+
+const handleTaskDelete = (e: CustomEvent<TaskDeleteEventDetail>) => {
+  const { taskIds } = e.detail
+  if (taskIds.length === 0) return
+
+  // フェードアウトアニメーション付き削除（コンテキストメニューの削除と同じロジック）
+  rows = rows.map((row) => ({
+    ...row,
+    tasks: row.tasks.map((taskItem) => {
+      if (taskIds.includes(taskItem.id)) {
+        return {
+          ...taskItem,
+          style: `${taskItem.style || ''}; animation: fade-out 0.3s ease-out forwards; pointer-events: none;`,
+        }
+      }
+      return taskItem
+    }),
+  }))
+  renderApp()
+
+  setTimeout(() => {
+    rows = rows.map((row) => ({
+      ...row,
+      tasks: row.tasks.filter((taskItem) => !taskIds.includes(taskItem.id)),
+    }))
+    selectedTaskIds = selectedTaskIds.filter((id) => !taskIds.includes(id))
+    renderApp()
+  }, 300)
 }
 
 const handleTaskContextMenu = (e: CustomEvent<TaskContextMenuEventDetail>) => {

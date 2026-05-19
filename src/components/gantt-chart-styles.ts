@@ -14,6 +14,10 @@ export const ganttChartStyles = css`
     box-sizing: border-box;
     position: relative;
   }
+  :host(:focus-visible) {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+  }
   .scroll-container {
     width: 100%;
     height: 100%;
