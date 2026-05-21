@@ -58,6 +58,25 @@ export interface DemoTexts {
   meetingSetup: string
   patternTask: string
   labelStyleTask: string
+  // ショーケース用タスク名
+  planning: string
+  development: string
+  testing: string
+  release: string
+  review: string
+  deployment: string
+  research: string
+  prototyping: string
+  codeReview: string
+  bugfix: string
+  documentation: string
+  integration: string
+  uiDesign: string
+  backendDev: string
+  frontendDev: string
+  qaTest: string
+  staging: string
+  monitoring: string
   // コンテキストメニュー
   edit: string
   duplicate: string
@@ -125,6 +144,24 @@ export const jaTexts: DemoTexts = {
   meetingSetup: '会議設定',
   patternTask: 'パターン付きタスク',
   labelStyleTask: 'ラベルスタイル付き',
+  planning: '企画',
+  development: '開発',
+  testing: 'テスト',
+  release: 'リリース',
+  review: 'レビュー',
+  deployment: 'デプロイ',
+  research: '調査',
+  prototyping: 'プロトタイプ',
+  codeReview: 'コードレビュー',
+  bugfix: 'バグ修正',
+  documentation: 'ドキュメント',
+  integration: '結合',
+  uiDesign: 'UI設計',
+  backendDev: 'バックエンド開発',
+  frontendDev: 'フロントエンド開発',
+  qaTest: 'QAテスト',
+  staging: 'ステージング',
+  monitoring: '監視設定',
   edit: '編集',
   duplicate: '複製',
   delete_: '削除',
@@ -191,6 +228,24 @@ export const enTexts: DemoTexts = {
   meetingSetup: 'Meeting Setup',
   patternTask: 'Patterned Task',
   labelStyleTask: 'Styled Label',
+  planning: 'Planning',
+  development: 'Development',
+  testing: 'Testing',
+  release: 'Release',
+  review: 'Review',
+  deployment: 'Deploy',
+  research: 'Research',
+  prototyping: 'Prototype',
+  codeReview: 'Code Review',
+  bugfix: 'Bugfix',
+  documentation: 'Docs',
+  integration: 'Integration',
+  uiDesign: 'UI Design',
+  backendDev: 'Backend Dev',
+  frontendDev: 'Frontend Dev',
+  qaTest: 'QA Test',
+  staging: 'Staging',
+  monitoring: 'Monitoring',
   edit: 'Edit',
   duplicate: 'Duplicate',
   delete_: 'Delete',
