@@ -342,502 +342,461 @@ const renderApp = () => {
     window._systemThemeListenerAdded = true
   }
 
-  const appStyles =
-    effectiveTheme === 'dark' ? 'background-color: #0f172a; color: #f8fafc;' : 'background-color: #ffffff; color: #333;'
+  // テーマに応じた色定義
+  const isDark = effectiveTheme === 'dark'
+  const c = {
+    bg: isDark ? '#0f172a' : '#ffffff',
+    text: isDark ? '#e2e8f0' : '#1e293b',
+    textMuted: isDark ? '#94a3b8' : '#64748b',
+    cardBg: isDark ? '#1e293b' : '#f8fafc',
+    cardBorder: isDark ? '#334155' : '#e2e8f0',
+    cardHover: isDark ? '#273548' : '#f1f5f9',
+    accent: '#3b82f6',
+    accentHover: '#2563eb',
+    segBg: isDark ? '#0f172a' : '#e2e8f0',
+    segActive: '#3b82f6',
+    segText: isDark ? '#94a3b8' : '#64748b',
+    segActiveText: '#ffffff',
+    toggleBg: isDark ? '#475569' : '#cbd5e1',
+    toggleActive: '#3b82f6',
+    selectBg: isDark ? '#0f172a' : '#ffffff',
+    selectBorder: isDark ? '#475569' : '#d1d5db',
+    headerBorder: isDark ? '#334155' : '#e2e8f0',
+    exportAmber: '#f59e0b',
+    exportRed: '#ef4444',
+  }
+
+  const appStyles = `background-color: ${c.bg}; color: ${c.text};`
 
   const template = html`
     <style>
       @keyframes pop-in {
-        0% {
-          opacity: 0;
-          transform: scale(0.5);
-        }
-        100% {
-          opacity: 1;
-          transform: scale(1);
-        }
+        0% { opacity: 0; transform: scale(0.5); }
+        100% { opacity: 1; transform: scale(1); }
       }
       @keyframes fade-out {
-        to {
-          opacity: 0;
-          transform: scale(0.9);
-        }
+        to { opacity: 0; transform: scale(0.9); }
       }
-      button {
-        background-color: #3b82f6;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
+      * { box-sizing: border-box; }
+
+      /* ── ベースボタン ── */
+      .demo-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 7px 14px; font-size: 13px; font-weight: 500;
+        border-radius: 6px; border: none; cursor: pointer;
+        background: ${c.accent}; color: #fff;
+        transition: background 0.15s, box-shadow 0.15s;
       }
-      button:hover {
-        background-color: #2563eb;
+      .demo-btn:hover { background: ${c.accentHover}; box-shadow: 0 2px 8px rgba(59,130,246,0.25); }
+
+      /* ── セグメントコントロール ── */
+      .seg-group {
+        display: inline-flex; background: ${c.segBg}; border-radius: 8px; padding: 3px; gap: 2px;
       }
+      .seg-group label {
+        padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+        cursor: pointer; user-select: none; transition: all 0.15s;
+        color: ${c.segText}; white-space: nowrap;
+      }
+      .seg-group label:hover { background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}; }
+      .seg-group label.active {
+        background: ${c.segActive}; color: ${c.segActiveText};
+        box-shadow: 0 1px 3px rgba(59,130,246,0.3);
+      }
+      .seg-group input[type="radio"] { display: none; }
+
+      /* ── トグルスイッチ ── */
+      .toggle-label {
+        display: inline-flex; align-items: center; gap: 8px;
+        cursor: pointer; font-size: 13px; color: ${c.text};
+        user-select: none; white-space: nowrap;
+      }
+      .toggle-label input { display: none; }
+      .toggle-track {
+        position: relative; width: 36px; height: 20px; border-radius: 10px;
+        background: ${c.toggleBg}; transition: background 0.2s; flex-shrink: 0;
+      }
+      .toggle-track::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        transition: transform 0.2s;
+      }
+      .toggle-label input:checked + .toggle-track {
+        background: ${c.toggleActive};
+      }
+      .toggle-label input:checked + .toggle-track::after {
+        transform: translateX(16px);
+      }
+
+      /* ── コントロールパネル ── */
+      .ctrl-panel {
+        display: flex; flex-direction: column; gap: 8px;
+        margin-bottom: 14px;
+      }
+      .ctrl-row {
+        display: flex; gap: 8px; flex-wrap: wrap;
+      }
+      .ctrl-card {
+        background: ${c.cardBg}; border: 1px solid ${c.cardBorder};
+        border-radius: 10px; padding: 0; overflow: hidden;
+        transition: box-shadow 0.2s;
+        flex: 1; min-width: 240px;
+      }
+      .ctrl-card:hover { box-shadow: 0 2px 12px ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)'}; }
+      .ctrl-card-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 14px; cursor: pointer; user-select: none;
+        font-size: 13px; font-weight: 600; color: ${c.text};
+        border-bottom: 1px solid ${c.cardBorder};
+        background: ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'};
+      }
+      .ctrl-card-header .icon { font-size: 15px; }
+      .ctrl-card-header .chevron {
+        margin-left: auto; font-size: 12px; color: ${c.textMuted};
+        transition: transform 0.2s;
+      }
+      .ctrl-card-header .chevron.open { transform: rotate(180deg); }
+      .ctrl-card-body {
+        padding: 12px 14px;
+        display: flex; flex-wrap: wrap; gap: 10px 16px;
+        align-items: center;
+      }
+
+      /* ── ミニセレクト ── */
+      .mini-select {
+        font-size: 13px; padding: 4px 8px; border-radius: 6px;
+        border: 1px solid ${c.selectBorder}; background: ${c.selectBg};
+        color: ${c.text}; cursor: pointer; outline: none;
+        transition: border-color 0.15s;
+      }
+      .mini-select:focus { border-color: ${c.accent}; }
+      .select-group {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 13px; color: ${c.text}; white-space: nowrap;
+      }
+
+      /* ── ヘッダー ── */
+      .demo-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 14px; padding-bottom: 12px;
+        border-bottom: 1px solid ${c.headerBorder};
+      }
+      .demo-header h2 {
+        margin: 0; font-size: 22px; font-weight: 700;
+        background: linear-gradient(135deg, ${c.accent}, #8b5cf6);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .lang-group {
+        display: inline-flex; background: ${c.segBg}; border-radius: 8px; padding: 3px; gap: 2px;
+      }
+      .lang-group button {
+        padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+        border: none; cursor: pointer; transition: all 0.15s;
+        background: transparent; color: ${c.segText};
+      }
+      .lang-group button.active {
+        background: ${c.accent}; color: #fff;
+        box-shadow: 0 1px 3px rgba(59,130,246,0.3);
+      }
+      .lang-group button:not(.active):hover {
+        background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+      }
+      .export-group {
+        display: flex; gap: 6px; align-items: center;
+      }
+      .export-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px; font-size: 12px; font-weight: 500;
+        border-radius: 6px; border: none; cursor: pointer; color: #fff;
+        transition: opacity 0.15s, box-shadow 0.15s;
+      }
+      .export-btn:hover { opacity: 0.9; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     </style>
-    <div style="padding: 50px; font-family: sans-serif; min-height: 100vh; box-sizing: border-box; ${appStyles}">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-        <h2 style="margin: 0;">moguchart-core</h2>
-        <div style="display: flex; gap: 4px;">
-          <button
-            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang ===
-            'ja'
-              ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;'
-              : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
-            @click="${() => setLang('ja')}"
-          >
-            日本語
-          </button>
-          <button
-            style="padding: 6px 14px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; ${currentLang ===
-            'en'
-              ? 'background-color: #3b82f6; color: white; border-color: #3b82f6;'
-              : `background-color: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'}; color: ${effectiveTheme === 'dark' ? '#f8fafc' : '#333'};`}"
-            @click="${() => setLang('en')}"
-          >
-            English
-          </button>
+    <div style="padding: 24px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; ${appStyles}">
+      <!-- ヘッダー -->
+      <div class="demo-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <h2>moguchart-core</h2>
+          <div class="export-group">
+            <button
+              class="export-btn"
+              style="background: ${c.exportAmber};"
+              @click="${async () => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
+                }
+              }}"
+            >
+              📸 PNG
+            </button>
+            <button
+              class="export-btn"
+              style="background: ${c.exportRed};"
+              @click="${async () => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
+                }
+              }}"
+            >
+              📄 PDF
+            </button>
+          </div>
+        </div>
+        <div class="lang-group">
+          <button class="${currentLang === 'ja' ? 'active' : ''}" @click="${() => setLang('ja')}">日本語</button>
+          <button class="${currentLang === 'en' ? 'active' : ''}" @click="${() => setLang('en')}">English</button>
         </div>
       </div>
 
-      <div style="margin-bottom: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
-        <button
-          style="background-color: #f59e0b;"
-          @click="${async () => {
-            const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
-            if (chart) {
-              await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
-            }
-          }}"
-        >
-          Export PNG
-        </button>
-        <button
-          style="background-color: #ef4444;"
-          @click="${async () => {
-            const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
-            if (chart) {
-              await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
-            }
-          }}"
-        >
-          Export PDF
-        </button>
-      </div>
+      <!-- コントロールパネル -->
+      <div class="ctrl-panel">
+        <!-- 1行目: 表示モード + テーマ -->
+        <div class="ctrl-row">
+          <!-- 表示モード -->
+          <div class="ctrl-card" style="flex: 2;">
+            <div class="ctrl-card-body" style="border-bottom: none;">
+              <span style="font-weight: 600; font-size: 13px; color: ${c.textMuted};">📊 ${t.viewMode}</span>
+              <div class="seg-group">
+                <label class="${viewMode === 'day' ? 'active' : ''}">
+                  <input type="radio" name="viewMode" value="day" .checked="${viewMode === 'day'}" @change="${() => setViewMode('day')}" />
+                  ${t.dayUnit}
+                </label>
+                <label class="${viewMode === 'week' ? 'active' : ''}">
+                  <input type="radio" name="viewMode" value="week" .checked="${viewMode === 'week'}" @change="${() => setViewMode('week')}" />
+                  ${t.weekUnit}
+                </label>
+                <label class="${viewMode === 'month' ? 'active' : ''}">
+                  <input type="radio" name="viewMode" value="month" .checked="${viewMode === 'month'}" @change="${() => setViewMode('month')}" />
+                  ${t.monthUnit}
+                </label>
+                <label class="${viewMode === 'hour' ? 'active' : ''}">
+                  <input type="radio" name="viewMode" value="hour" .checked="${viewMode === 'hour'}" @change="${() => setViewMode('hour')}" />
+                  ${t.hourUnit}
+                </label>
+              </div>
 
-      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; border-right: 1px solid #ccc; padding-right: 24px;">
-          <span style="margin-right: 8px; font-weight: bold;">${t.viewMode}</span>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
-            <input
-              type="radio"
-              name="viewMode"
-              value="day"
-              .checked="${viewMode === 'day'}"
-              @change="${() => setViewMode('day')}"
-              style="margin-right: 4px;"
-            />
-            ${t.dayUnit}
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
-            <input
-              type="radio"
-              name="viewMode"
-              value="week"
-              .checked="${viewMode === 'week'}"
-              @change="${() => setViewMode('week')}"
-              style="margin-right: 4px;"
-            />
-            ${t.weekUnit}
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
-            <input
-              type="radio"
-              name="viewMode"
-              value="month"
-              .checked="${viewMode === 'month'}"
-              @change="${() => setViewMode('month')}"
-              style="margin-right: 4px;"
-            />
-            ${t.monthUnit}
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer;">
-            <input
-              type="radio"
-              name="viewMode"
-              value="hour"
-              .checked="${viewMode === 'hour'}"
-              @change="${() => setViewMode('hour')}"
-              style="margin-right: 4px;"
-            />
-            ${t.hourUnit}
-          </label>
+              <span style="width: 1px; height: 20px; background: ${c.cardBorder}; margin: 0 4px;"></span>
+
+              <span style="font-weight: 600; font-size: 13px; color: ${c.textMuted};">🎨 ${t.theme}</span>
+              <div class="seg-group">
+                <label class="${theme === undefined ? 'active' : ''}">
+                  <input type="radio" name="theme" value="auto" .checked="${theme === undefined}" @change="${() => { theme = undefined; renderApp() }}" />
+                  Auto
+                </label>
+                <label class="${theme === 'light' ? 'active' : ''}">
+                  <input type="radio" name="theme" value="light" .checked="${theme === 'light'}" @change="${() => { theme = 'light'; renderApp() }}" />
+                  Light
+                </label>
+                <label class="${theme === 'dark' ? 'active' : ''}">
+                  <input type="radio" name="theme" value="dark" .checked="${theme === 'dark'}" @change="${() => { theme = 'dark'; renderApp() }}" />
+                  Dark
+                </label>
+              </div>
+
+              <span style="width: 1px; height: 20px; background: ${c.cardBorder}; margin: 0 4px;"></span>
+
+              <span style="font-weight: 600; font-size: 13px; color: ${c.textMuted};">🔗 ${currentLang === 'ja' ? '接続線' : 'Line Style'}</span>
+              <div class="seg-group">
+                <label class="${dependencyLineStyle === 'curve' ? 'active' : ''}">
+                  <input type="radio" name="depLineStyle" value="curve" .checked="${dependencyLineStyle === 'curve'}" @change="${() => { dependencyLineStyle = 'curve'; renderApp() }}" />
+                  ${currentLang === 'ja' ? '曲線' : 'Curve'}
+                </label>
+                <label class="${dependencyLineStyle === 'orthogonal' ? 'active' : ''}">
+                  <input type="radio" name="depLineStyle" value="orthogonal" .checked="${dependencyLineStyle === 'orthogonal'}" @change="${() => { dependencyLineStyle = 'orthogonal'; renderApp() }}" />
+                  ${currentLang === 'ja' ? '直線' : 'Orthogonal'}
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div style="display: flex; align-items: center;">
-          <span style="margin-right: 8px;">${t.theme}</span>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
-            <input
-              type="radio"
-              name="theme"
-              value="auto"
-              .checked="${theme === undefined}"
-              @change="${() => {
-                theme = undefined
-                renderApp()
-              }}"
-              style="margin-right: 4px;"
-            />
-            Auto
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 12px;">
-            <input
-              type="radio"
-              name="theme"
-              value="light"
-              .checked="${theme === 'light'}"
-              @change="${() => {
-                theme = 'light'
-                renderApp()
-              }}"
-              style="margin-right: 4px;"
-            />
-            Light
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer;">
-            <input
-              type="radio"
-              name="theme"
-              value="dark"
-              .checked="${theme === 'dark'}"
-              @change="${() => {
-                theme = 'dark'
-                renderApp()
-              }}"
-              style="margin-right: 4px;"
-            />
-            Dark
-          </label>
-        </div>
-      </div>
+        <!-- 2行目: カレンダー表示 + 動作設定 + サイズ設定 -->
+        <div class="ctrl-row">
+          <!-- カレンダー表示 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">📅</span>
+              ${t.sectionCalendar}
+            </div>
+            <div class="ctrl-card-body">
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showTime}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showMonths}" @change="${(e: Event) => { showMonths = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showYearMonth}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showDays}" @change="${(e: Event) => { showDays = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showDates}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCurrentTime}" @change="${(e: Event) => { showCurrentTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showCurrentTimeLine}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCurrentTimeBadge}" @change="${(e: Event) => { showCurrentTimeBadge = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showCurrentTimeBadge}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCursorLine}" @change="${(e: Event) => { showCursorLine = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
+              </label>
+              ${viewMode === 'week'
+                ? html`
+                    <span class="select-group">
+                      ${t.weekStartDay}
+                      <select
+                        class="mini-select"
+                        @change="${(e: Event) => {
+                          weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+                          renderApp()
+                        }}"
+                      >
+                        ${t.dayNames.map(
+                          (name: string, i: number) => html`
+                            <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
+                          `,
+                        )}
+                      </select>
+                    </span>
+                  `
+                : ''}
+            </div>
+          </div>
 
-      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${isReadOnly}"
-            @change="${(e: Event) => {
-              isReadOnly = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.readOnlyMode}
-        </label>
+          <!-- 動作設定 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">⚙️</span>
+              ${t.sectionBehavior}
+            </div>
+            <div class="ctrl-card-body">
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${isReadOnly}" @change="${(e: Event) => { isReadOnly = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.readOnlyMode}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showDragInfoOverlay}" @change="${(e: Event) => { showDragInfoOverlay = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showDragInfo}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableRowReordering}" @change="${(e: Event) => { enableRowReordering = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableRowReorder}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${currentTimeUpdateInterval > 0}" @change="${(e: Event) => { currentTimeUpdateInterval = (e.target as HTMLInputElement).checked ? 1000 : 0; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.autoUpdateTime}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableCustomRendering}" @change="${(e: Event) => { enableCustomRendering = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.customRendering}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${rowHeaderResizable}" @change="${(e: Event) => { rowHeaderResizable = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.rowHeaderResize}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showHiddenRows}" @change="${(e: Event) => { showHiddenRows = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showHiddenRows}
+              </label>
+            </div>
+          </div>
 
-        <div style="display: flex; align-items: center; border-left: 1px solid #ccc; padding-left: 16px;">
-          <span style="margin-right: 8px; font-size: 13px;">${currentLang === 'ja' ? '接続線' : 'Line Style'}</span>
-          <label style="display: flex; align-items: center; cursor: pointer; margin-right: 10px;">
-            <input
-              type="radio"
-              name="depLineStyle"
-              value="curve"
-              .checked="${dependencyLineStyle === 'curve'}"
-              @change="${() => {
-                dependencyLineStyle = 'curve'
-                renderApp()
-              }}"
-              style="margin-right: 4px;"
-            />
-            ${currentLang === 'ja' ? '曲線' : 'Curve'}
-          </label>
-          <label style="display: flex; align-items: center; cursor: pointer;">
-            <input
-              type="radio"
-              name="depLineStyle"
-              value="orthogonal"
-              .checked="${dependencyLineStyle === 'orthogonal'}"
-              @change="${() => {
-                dependencyLineStyle = 'orthogonal'
-                renderApp()
-              }}"
-              style="margin-right: 4px;"
-            />
-            ${currentLang === 'ja' ? '直線' : 'Orthogonal'}
-          </label>
-        </div>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showDragInfoOverlay}"
-            @change="${(e: Event) => {
-              showDragInfoOverlay = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showDragInfo}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${enableRowReordering}"
-            @change="${(e: Event) => {
-              enableRowReordering = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.enableRowReorder}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${currentTimeUpdateInterval > 0}"
-            @change="${(e: Event) => {
-              currentTimeUpdateInterval = (e.target as HTMLInputElement).checked ? 1000 : 0
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.autoUpdateTime}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${enableCustomRendering}"
-            @change="${(e: Event) => {
-              enableCustomRendering = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.customRendering}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${rowHeaderResizable}"
-            @change="${(e: Event) => {
-              rowHeaderResizable = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.rowHeaderResize}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showHiddenRows}"
-            @change="${(e: Event) => {
-              showHiddenRows = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showHiddenRows}
-        </label>
-      </div>
-
-      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showTime}"
-            @change="${(e: Event) => {
-              showTime = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showTime}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showMonths}"
-            @change="${(e: Event) => {
-              showMonths = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showYearMonth}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showDays}"
-            @change="${(e: Event) => {
-              showDays = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showDates}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showCurrentTime}"
-            @change="${(e: Event) => {
-              showCurrentTime = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showCurrentTimeLine}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showCurrentTimeBadge}"
-            @change="${(e: Event) => {
-              showCurrentTimeBadge = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${t.showCurrentTimeBadge}
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input
-            type="checkbox"
-            .checked="${showCursorLine}"
-            @change="${(e: Event) => {
-              showCursorLine = (e.target as HTMLInputElement).checked
-              renderApp()
-            }}"
-            style="margin-right: 6px;"
-          />
-          ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
-        </label>
-
-        ${viewMode === 'week'
-          ? html`
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                ${t.weekStartDay}
+          <!-- サイズ設定 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">📐</span>
+              ${t.sectionSize}
+            </div>
+            <div class="ctrl-card-body">
+              <span class="select-group" style="${viewMode === 'month' ? 'opacity: 0.5;' : ''}">
+                ${t.snapUnit}
                 <select
-                  style="font-size: 16px; padding: 4px; margin-left: 6px;"
-                  @change="${(e: Event) => {
-                    weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
-                    renderApp()
-                  }}"
+                  class="mini-select"
+                  .disabled="${viewMode === 'month'}"
+                  @change="${(e: Event) => { snapDuration = Number((e.target as HTMLSelectElement).value); renderApp() }}"
                 >
-                  ${t.dayNames.map(
-                    (name: string, i: number) => html`
-                      <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
+                  ${[6, 15, 30, 60, 180, 720, 1440].map(
+                    (d) => html`
+                      <option value="${d}" ?selected="${snapDuration === d}">
+                        ${d === 1440 ? t.oneDay : d === 43200 ? t.oneMonth : t.minutes(d)}
+                      </option>
                     `,
                   )}
                 </select>
-              </label>
-            `
-          : ''}
-      </div>
-
-      <div style="margin-bottom: 16px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-        <label
-          style="display: flex; align-items: center; cursor: ${viewMode === 'month'
-            ? 'default'
-            : 'pointer'}; ${viewMode === 'month' ? 'opacity: 0.5;' : ''}"
-        >
-          ${t.snapUnit}
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            .disabled="${viewMode === 'month'}"
-            @change="${(e: Event) => {
-              snapDuration = Number((e.target as HTMLSelectElement).value)
-              renderApp()
-            }}"
-          >
-            ${[6, 15, 30, 60, 180, 720, 1440].map(
-              (d) => html`
-                <option value="${d}" ?selected="${snapDuration === d}">
-                  ${d === 1440 ? t.oneDay : d === 43200 ? t.oneMonth : t.minutes(d)}
-                </option>
-              `,
-            )}
-          </select>
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          ${t.barHeight}
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              barHeight = Number((e.target as HTMLSelectElement).value)
-              renderApp()
-            }}"
-          >
-            ${[20, 28, 40, 50, 60].map(
-              (h) => html` <option value="${h}" ?selected="${barHeight === h}">${h}px</option> `,
-            )}
-          </select>
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          ${viewMode === 'month' ? '月幅' : t.dayWidth}
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              const val = Number((e.target as HTMLSelectElement).value)
-              if (viewMode === 'month') {
-                pxPerMonth = val
-              } else {
-                pxPerDay = val
-              }
-              renderApp()
-            }}"
-          >
-            ${viewMode === 'month'
-              ? [24, 48, 64, 128, 256].map(
-                  (w) => html` <option value="${w}" ?selected="${pxPerMonth === w}">${w}px</option> `,
-                )
-              : [12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
-                  (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
-                )}
-          </select>
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          ${t.rowHeaderWidth}
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              rowHeaderWidth = Number((e.target as HTMLSelectElement).value)
-              renderApp()
-            }}"
-          >
-            ${[150, 200, 250, 300, 350].map(
-              (w) => html` <option value="${w}" ?selected="${rowHeaderWidth === w}">${w}px</option> `,
-            )}
-          </select>
-        </label>
-
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          ${t.tooltipDelay}
-          <select
-            style="font-size: 16px; padding: 4px; margin-left: 6px;"
-            @change="${(e: Event) => {
-              tooltipDelay = Number((e.target as HTMLSelectElement).value)
-              renderApp()
-            }}"
-          >
-            ${[0, 500, 1000].map((d) => html` <option value="${d}" ?selected="${tooltipDelay === d}">${d}ms</option> `)}
-          </select>
-        </label>
+              </span>
+              <span class="select-group">
+                ${t.barHeight}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => { barHeight = Number((e.target as HTMLSelectElement).value); renderApp() }}"
+                >
+                  ${[20, 28, 40, 50, 60].map(
+                    (h) => html` <option value="${h}" ?selected="${barHeight === h}">${h}px</option> `,
+                  )}
+                </select>
+              </span>
+              <span class="select-group">
+                ${viewMode === 'month' ? (currentLang === 'ja' ? '月幅' : 'Month Width') : t.dayWidth}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => {
+                    const val = Number((e.target as HTMLSelectElement).value)
+                    if (viewMode === 'month') { pxPerMonth = val } else { pxPerDay = val }
+                    renderApp()
+                  }}"
+                >
+                  ${viewMode === 'month'
+                    ? [24, 48, 64, 128, 256].map(
+                        (w) => html` <option value="${w}" ?selected="${pxPerMonth === w}">${w}px</option> `,
+                      )
+                    : [12, 24, 48, 96, 144, 240, 480, 720, 960, 1440, 2880].map(
+                        (w) => html` <option value="${w}" ?selected="${pxPerDay === w}">${w}px</option> `,
+                      )}
+                </select>
+              </span>
+              <span class="select-group">
+                ${t.rowHeaderWidth}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => { rowHeaderWidth = Number((e.target as HTMLSelectElement).value); renderApp() }}"
+                >
+                  ${[150, 200, 250, 300, 350].map(
+                    (w) => html` <option value="${w}" ?selected="${rowHeaderWidth === w}">${w}px</option> `,
+                  )}
+                </select>
+              </span>
+              <span class="select-group">
+                ${t.tooltipDelay}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => { tooltipDelay = Number((e.target as HTMLSelectElement).value); renderApp() }}"
+                >
+                  ${[0, 500, 1000].map((d) => html` <option value="${d}" ?selected="${tooltipDelay === d}">${d}ms</option> `)}
+                </select>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style="display: flex; gap: 16px; align-items: flex-start;">
@@ -904,9 +863,9 @@ const renderApp = () => {
                   width: ${isUnassignedTasksOpen ? '240px' : '50px'};
                   padding: ${isUnassignedTasksOpen ? '16px' : '0'};
                   flex-shrink: 0;
-                  background: ${effectiveTheme === 'dark' ? '#1e293b' : '#f8fafc'};
-                  border: 1px solid ${effectiveTheme === 'dark' ? '#334155' : '#e2e8f0'};
-                  border-radius: 8px;
+                  background: ${c.cardBg};
+                  border: 1px solid ${c.cardBorder};
+                  border-radius: 10px;
                   height: 50vh;
                   transition: width 0.3s ease, padding 0.3s ease;
                   overflow: hidden;
@@ -950,12 +909,13 @@ const renderApp = () => {
                             @dragend="${handleTaskDragEnd}"
                             style="
                               padding: 12px;
-                              background: ${effectiveTheme === 'dark' ? '#334155' : 'white'};
-                              border: 1px solid ${effectiveTheme === 'dark' ? '#475569' : '#cbd5e1'};
-                              border-radius: 4px;
+                              background: ${isDark ? '#334155' : 'white'};
+                              border: 1px solid ${c.selectBorder};
+                              border-radius: 6px;
                               cursor: grab;
                               user-select: none;
                               box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                              transition: box-shadow 0.15s;
                             "
                           >
                             <div

@@ -23,6 +23,10 @@ export interface DemoTexts {
   dayWidth: string
   rowHeaderWidth: string
   tooltipDelay: string
+  // セクションタイトル
+  sectionCalendar: string
+  sectionBehavior: string
+  sectionSize: string
   oneDay: string
   oneMonth: string
   minutes: (n: number) => string
@@ -88,10 +92,13 @@ export const jaTexts: DemoTexts = {
   dayWidth: '1日の幅:',
   rowHeaderWidth: '行ヘッダーの幅:',
   tooltipDelay: 'ツールチップ遅延:',
+  sectionCalendar: 'カレンダー表示',
+  sectionBehavior: '動作設定',
+  sectionSize: 'サイズ設定',
   oneDay: '1日',
   oneMonth: '1ヶ月',
   minutes: (n) => `${n}分`,
-  candidateTasks: '◯ 追加候補タスク',
+  candidateTasks: '◯ タスクテンプレート',
   duration: '期間:',
   daysUnit: '日',
   hoursUnit: '時間',
@@ -151,10 +158,13 @@ export const enTexts: DemoTexts = {
   dayWidth: 'Day Width:',
   rowHeaderWidth: 'Row Header Width:',
   tooltipDelay: 'Tooltip Delay:',
+  sectionCalendar: 'Calendar',
+  sectionBehavior: 'Behavior',
+  sectionSize: 'Sizing',
   oneDay: '1 day',
   oneMonth: '1 month',
   minutes: (n) => `${n} min`,
-  candidateTasks: '◯ Unassigned Tasks',
+  candidateTasks: '◯ Task Templates',
   duration: 'Duration:',
   daysUnit: 'days',
   hoursUnit: 'hours',
