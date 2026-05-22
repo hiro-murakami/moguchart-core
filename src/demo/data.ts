@@ -597,40 +597,574 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
 
 /**
  * 月単位モードのデモデータを生成します。
+ *
+ * 先頭10行は「ショーケースエリア」として、バーの色・パターン・マーカー・
+ * 行間依存関係の多彩なバリエーションを確認できるように構成しています。
  */
 export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
   const start = new Date(chartStart)
   const rows: GanttRow[] = []
-  for (let i = 1; i <= 40; i++) {
-    // 約5年（60ヶ月）の期間にプロジェクトを散りばめる
-    const offsetMonths = Math.floor((i - 1) * 1.5)
-    const taskStart = new Date(start.getFullYear(), start.getMonth() + offsetMonths, 1)
-    const designStart = new Date(taskStart)
-    designStart.setMonth(designStart.getMonth() + 1)
-    const designEnd = new Date(designStart)
-    designEnd.setMonth(designEnd.getMonth() + 2)
+
+  /** 月オフセットで日付を生成するヘルパー */
+  const m = (base: Date, monthOffset: number, day = 1): Date =>
+    new Date(base.getFullYear(), base.getMonth() + monthOffset, day)
+
+  // 色パレット
+  const colors = {
+    blue: '#3b82f6',
+    purple: '#8b5cf6',
+    green: '#10b981',
+    orange: '#f59e0b',
+    pink: '#ec4899',
+    red: '#ef4444',
+    cyan: '#06b6d4',
+    indigo: '#6366f1',
+    amber: '#d97706',
+    lime: '#84cc16',
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ショーケースエリア (row 1-10): 色・パターン・依存関係のバリエーション
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // ── Row 1: 基本の4フェーズ + マーカー ──
+  rows.push({
+    id: 'mrow1',
+    name: t.project(1),
+    tasks: [
+      {
+        id: 'm1-1',
+        name: t.requirementsDefinition,
+        start: m(start, 0),
+        end: m(start, 2),
+        style: `background-color: ${colors.blue};`,
+        labelStyle: 'font-weight: bold;',
+      },
+      {
+        id: 'm1-2',
+        name: t.design,
+        start: m(start, 2),
+        end: m(start, 5),
+        style: `background-color: ${colors.purple};`,
+        dependencies: ['m1-1'],
+      },
+      {
+        id: 'm1-3',
+        name: t.development,
+        start: m(start, 5),
+        end: m(start, 11),
+        style: `background-color: ${colors.green};`,
+        dependencies: ['m1-2'],
+      },
+      {
+        id: 'm1-4',
+        name: t.release,
+        start: m(start, 11),
+        end: m(start, 13),
+        style: `background-color: ${colors.orange};`,
+        dependencies: ['m1-3'],
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-1-1',
+        date: m(start, 5),
+        anchor: 'start',
+        type: 'diamond',
+        color: colors.purple,
+        name: t.alphaRelease,
+      },
+      {
+        id: 'mm-1-2',
+        date: m(start, 13),
+        anchor: 'end',
+        type: 'triangle-left',
+        color: colors.green,
+        name: '🚀',
+      },
+    ],
+  })
+
+  // ── Row 2: 暖色系 + Row1からの行間依存 ──
+  rows.push({
+    id: 'mrow2',
+    name: t.project(2),
+    tasks: [
+      {
+        id: 'm2-1',
+        name: t.uiDesign,
+        start: m(start, 1),
+        end: m(start, 4),
+        style: `background-color: ${colors.orange};`,
+      },
+      {
+        id: 'm2-2',
+        name: t.frontendDev,
+        start: m(start, 4),
+        end: m(start, 10),
+        style: `background-color: ${colors.pink};`,
+        dependencies: ['m2-1', 'm1-2'], // Row1の設計完了後（行間依存）
+      },
+      {
+        id: 'm2-3',
+        name: t.testing,
+        start: m(start, 10),
+        end: m(start, 13),
+        style: `background-color: ${colors.red};`,
+        dependencies: ['m2-2'],
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-2-1',
+        date: m(start, 4),
+        anchor: 'end',
+        type: 'triangle-right',
+        color: colors.orange,
+        name: t.reviewDeadline,
+      },
+    ],
+  })
+
+  // ── Row 3: 寒色系 + Row1,2からの合流依存 ──
+  rows.push({
+    id: 'mrow3',
+    name: t.project(3),
+    tasks: [
+      {
+        id: 'm3-1',
+        name: t.backendDev,
+        start: m(start, 3),
+        end: m(start, 9),
+        style: `background-color: ${colors.cyan};`,
+        dependencies: ['m1-1'],
+      },
+      {
+        id: 'm3-2',
+        name: t.integration,
+        start: m(start, 10),
+        end: m(start, 15),
+        style: `background-color: ${colors.indigo};`,
+        dependencies: ['m3-1', 'm2-2'], // バックエンド＋フロントエンド合流
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-3-1',
+        date: m(start, 15),
+        anchor: 'center',
+        type: 'square',
+        color: colors.green,
+        name: t.releaseScheduled,
+      },
+    ],
+  })
+
+  // ── Row 4: パターン付きバー（diagonal-stripe系）──
+  rows.push({
+    id: 'mrow4',
+    name: t.project(4),
+    tasks: [
+      {
+        id: 'm4-1',
+        name: t.research,
+        start: m(start, 0),
+        end: m(start, 3),
+        style: `background-color: ${colors.blue};`,
+        pattern: { type: 'diagonal-stripe', color: 'rgba(255,255,255,0.4)' },
+      },
+      {
+        id: 'm4-2',
+        name: t.prototyping,
+        start: m(start, 3),
+        end: m(start, 7),
+        style: `background-color: ${colors.purple};`,
+        pattern: { type: 'diagonal-stripe-reverse', color: 'rgba(255,255,255,0.4)' },
+        dependencies: ['m4-1'],
+      },
+      {
+        id: 'm4-3',
+        name: t.review,
+        start: m(start, 7),
+        end: m(start, 9),
+        style: `background-color: ${colors.green};`,
+        pattern: { type: 'diagonal-stripe-thin', color: 'rgba(255,255,255,0.5)' },
+        dependencies: ['m4-2'],
+      },
+    ],
+  })
+
+  // ── Row 5: dots / checkerboard / grid パターン ──
+  rows.push({
+    id: 'mrow5',
+    name: t.project(5),
+    tasks: [
+      {
+        id: 'm5-1',
+        name: t.planning,
+        start: m(start, 2),
+        end: m(start, 5),
+        style: `background-color: ${colors.orange};`,
+        pattern: { type: 'dots', color: 'rgba(255,255,255,0.5)' },
+      },
+      {
+        id: 'm5-2',
+        name: t.development,
+        start: m(start, 5),
+        end: m(start, 11),
+        style: `background-color: ${colors.pink};`,
+        pattern: { type: 'checkerboard', color: 'rgba(255,255,255,0.3)' },
+        dependencies: ['m5-1'],
+      },
+      {
+        id: 'm5-3',
+        name: t.deployment,
+        start: m(start, 11),
+        end: m(start, 14),
+        style: `background-color: ${colors.cyan};`,
+        pattern: { type: 'grid', color: 'rgba(255,255,255,0.3)' },
+        dependencies: ['m5-2'],
+      },
+    ],
+    visible: false, // 非表示行のデモ
+  })
+
+  // ── Row 6: 長期プロジェクト + vertical/horizontal パターン ──
+  rows.push({
+    id: 'mrow6',
+    name: t.project(6),
+    tasks: [
+      {
+        id: 'm6-1',
+        name: t.planning,
+        start: m(start, 1),
+        end: m(start, 4),
+        style: `background-color: ${colors.indigo};`,
+        pattern: { type: 'vertical-stripe', color: 'rgba(255,255,255,0.35)' },
+      },
+      {
+        id: 'm6-2',
+        name: t.development,
+        start: m(start, 4),
+        end: m(start, 14),
+        style: `background-color: ${colors.amber};`,
+        dependencies: ['m6-1'],
+      },
+      {
+        id: 'm6-3',
+        name: t.documentation,
+        start: m(start, 14),
+        end: m(start, 17),
+        style: `background-color: ${colors.lime};`,
+        pattern: { type: 'horizontal-stripe', color: 'rgba(255,255,255,0.35)' },
+        dependencies: ['m6-2'],
+      },
+      {
+        id: 'm6-4',
+        name: t.deployment,
+        start: m(start, 17),
+        end: m(start, 19),
+        style: `background-color: ${colors.green};`,
+        dependencies: ['m6-3'],
+      },
+    ],
+  })
+
+  // ── Row 7: 並行タスク + triangle/circle パターン ──
+  rows.push({
+    id: 'mrow7',
+    name: t.project(7),
+    tasks: [
+      {
+        id: 'm7-1',
+        name: t.requirementsDefinition,
+        start: m(start, 0),
+        end: m(start, 2),
+        style: `background-color: ${colors.red};`,
+        pattern: { type: 'triangle', color: 'rgba(255,255,255,0.35)' },
+      },
+      {
+        id: 'm7-2',
+        name: t.frontendDev,
+        start: m(start, 2),
+        end: m(start, 8),
+        style: `background-color: ${colors.blue};`,
+        dependencies: ['m7-1'],
+      },
+      {
+        id: 'm7-3',
+        name: t.backendDev,
+        start: m(start, 2),
+        end: m(start, 9),
+        style: `background-color: ${colors.cyan};`,
+        pattern: { type: 'circle', color: 'rgba(255,255,255,0.3)' },
+        dependencies: ['m7-1'],
+      },
+      {
+        id: 'm7-4',
+        name: t.qaTest,
+        start: m(start, 9),
+        end: m(start, 12),
+        style: `background-color: ${colors.purple};`,
+        dependencies: ['m7-2', 'm7-3'], // 並行タスクの合流
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-7-1',
+        date: m(start, 9),
+        anchor: 'center',
+        type: 'triangle-down',
+        color: colors.orange,
+        name: t.betaRelease,
+      },
+    ],
+  })
+
+  // ── Row 8: ラベルスタイルのバリエーション + Row7からの行間依存 ──
+  rows.push({
+    id: 'mrow8',
+    name: t.project(8),
+    tasks: [
+      {
+        id: 'm8-1',
+        name: t.planning,
+        start: m(start, 4),
+        end: m(start, 7),
+        style: `background-color: ${colors.cyan};`,
+        pattern: { type: 'diagonal-stripe-thick', color: 'rgba(255,255,255,0.3)' },
+        labelStyle: 'font-weight: bold; color: yellow;',
+      },
+      {
+        id: 'm8-2',
+        name: t.development,
+        start: m(start, 7),
+        end: m(start, 14),
+        style: `background-color: ${colors.red};`,
+        dependencies: ['m8-1'],
+        labelStyle: 'font-style: italic;',
+      },
+      {
+        id: 'm8-3',
+        name: t.staging,
+        start: m(start, 14),
+        end: m(start, 16),
+        style: `background-color: ${colors.lime};`,
+        pattern: { type: 'dots-dense', color: 'rgba(255,255,255,0.4)' },
+        dependencies: ['m8-2', 'm7-4'], // Row7からの行間依存
+      },
+      {
+        id: 'm8-4',
+        name: t.release,
+        start: m(start, 16),
+        end: m(start, 18),
+        style: `background-color: ${colors.amber};`,
+        dependencies: ['m8-3'],
+      },
+    ],
+  })
+
+  // ── Row 9: 複数行からの集約依存 (Row4,5,6の完了タスクに依存) ──
+  rows.push({
+    id: 'mrow9',
+    name: t.project(9),
+    tasks: [
+      {
+        id: 'm9-1',
+        name: t.integration,
+        start: m(start, 15),
+        end: m(start, 20),
+        style: `background-color: ${colors.indigo};`,
+        dependencies: ['m4-3', 'm5-3', 'm6-4'], // 3行からの集約依存
+      },
+      {
+        id: 'm9-2',
+        name: t.monitoring,
+        start: m(start, 20),
+        end: m(start, 23),
+        style: `background-color: ${colors.green};`,
+        pattern: { type: 'diagonal-stripe', color: 'rgba(255,255,255,0.3)' },
+        dependencies: ['m9-1'],
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-9-1',
+        date: m(start, 23),
+        anchor: 'end',
+        type: 'triangle-up',
+        color: colors.green,
+        name: '🚀',
+      },
+    ],
+  })
+
+  // ── Row 10: 最終統合 + マーカー全種 ──
+  rows.push({
+    id: 'mrow10',
+    name: t.project(10),
+    tasks: [
+      {
+        id: 'm10-1',
+        name: t.review,
+        start: m(start, 18),
+        end: m(start, 21),
+        style: `background-color: ${colors.pink};`,
+        dependencies: ['m3-2', 'm8-4'],
+      },
+      {
+        id: 'm10-2',
+        name: t.release,
+        start: m(start, 21),
+        end: m(start, 25),
+        style: `background-color: ${colors.blue};`,
+        pattern: { type: 'checkerboard', color: 'rgba(255,255,255,0.25)' },
+        dependencies: ['m10-1', 'm9-2'],
+      },
+    ],
+    markers: [
+      {
+        id: 'mm-10-1',
+        date: m(start, 18),
+        anchor: 'start',
+        type: 'triangle-right',
+        color: colors.blue,
+      },
+      {
+        id: 'mm-10-2',
+        date: m(start, 21),
+        anchor: 'center',
+        type: 'diamond',
+        color: colors.purple,
+        name: '✓',
+      },
+      {
+        id: 'mm-10-3',
+        date: m(start, 25),
+        anchor: 'end',
+        type: 'triangle-left',
+        color: colors.green,
+        name: '🎉',
+      },
+    ],
+    visible: false, // 非表示行のデモ
+  })
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 通常データエリア (row 11-40): バリエーション豊富な大量データ
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const barColors = [
+    colors.blue, colors.purple, colors.green, colors.orange,
+    colors.pink, colors.red, colors.cyan, colors.indigo,
+  ]
+  const patternTypes: GanttTaskPattern['type'][] = [
+    'diagonal-stripe', 'dots', 'checkerboard', 'vertical-stripe',
+    'horizontal-stripe', 'grid', 'diagonal-stripe-reverse', 'triangle',
+  ]
+
+  // タスク構成パターン（フェーズの組み合わせ）
+  const taskTemplates: ((idx: number) => { name: string; durationMonths: number }[])[] = [
+    // パターンA: 要件→設計→開発→テスト (4フェーズ)
+    () => [
+      { name: t.requirementsDefinition, durationMonths: 2 },
+      { name: t.design, durationMonths: 2 },
+      { name: t.development, durationMonths: 4 },
+      { name: t.testing, durationMonths: 2 },
+    ],
+    // パターンB: 調査→プロトタイプ→開発 (3フェーズ)
+    () => [
+      { name: t.research, durationMonths: 3 },
+      { name: t.prototyping, durationMonths: 2 },
+      { name: t.development, durationMonths: 5 },
+    ],
+    // パターンC: 設計→開発→デプロイ (3フェーズ)
+    () => [
+      { name: t.design, durationMonths: 2 },
+      { name: t.development, durationMonths: 6 },
+      { name: t.deployment, durationMonths: 1 },
+    ],
+    // パターンD: 企画→UI設計→フロントエンド→QA (4フェーズ)
+    () => [
+      { name: t.planning, durationMonths: 1 },
+      { name: t.uiDesign, durationMonths: 3 },
+      { name: t.frontendDev, durationMonths: 4 },
+      { name: t.qaTest, durationMonths: 2 },
+    ],
+    // パターンE: 要件→バックエンド→結合→リリース (4フェーズ)
+    () => [
+      { name: t.requirementsDefinition, durationMonths: 2 },
+      { name: t.backendDev, durationMonths: 5 },
+      { name: t.integration, durationMonths: 2 },
+      { name: t.release, durationMonths: 1 },
+    ],
+    // パターンF: 企画→開発→レビュー→ドキュメント→デプロイ (5フェーズ)
+    () => [
+      { name: t.planning, durationMonths: 1 },
+      { name: t.development, durationMonths: 3 },
+      { name: t.codeReview, durationMonths: 1 },
+      { name: t.documentation, durationMonths: 1 },
+      { name: t.deployment, durationMonths: 1 },
+    ],
+    // パターンG: 調査→設計→開発→ステージング→監視 (5フェーズ)
+    () => [
+      { name: t.research, durationMonths: 2 },
+      { name: t.design, durationMonths: 2 },
+      { name: t.development, durationMonths: 4 },
+      { name: t.staging, durationMonths: 1 },
+      { name: t.monitoring, durationMonths: 2 },
+    ],
+    // パターンH: 短期 要件→バグ修正→テスト (3フェーズ)
+    () => [
+      { name: t.requirementsDefinition, durationMonths: 1 },
+      { name: t.bugfix, durationMonths: 3 },
+      { name: t.testing, durationMonths: 1 },
+    ],
+  ]
+
+  for (let i = 11; i <= 40; i++) {
+    const templateIdx = (i - 11) % taskTemplates.length
+    const offsetMonths = Math.floor((i - 11) * 1.3)
+    const colorIdx = (i - 11) % barColors.length
+    const hasPattern = i % 3 === 0
+    const patternIdx = (i - 11) % patternTypes.length
+
+    const phases = taskTemplates[templateIdx](i)
+    let currentMonth = offsetMonths
+
+    const tasks = phases.map((phase, phaseIdx) => {
+      const taskStart = m(start, currentMonth)
+      const taskEnd = m(start, currentMonth + phase.durationMonths)
+      currentMonth += phase.durationMonths
+
+      return {
+        id: `m${i}-${phaseIdx + 1}`,
+        name: phase.name,
+        start: taskStart,
+        end: taskEnd,
+        style: `background-color: ${barColors[(colorIdx + phaseIdx) % barColors.length]};`,
+        pattern: hasPattern && phaseIdx === 0
+          ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' } as GanttTaskPattern
+          : undefined,
+        dependencies: phaseIdx > 0 ? [`m${i}-${phaseIdx}`] : undefined,
+      }
+    })
+
+    // 一部の行に行間依存を追加
+    if (i >= 13 && i <= 15) {
+      const prevRowLastTask = `m${i - 1}-${taskTemplates[(i - 12) % taskTemplates.length](i - 1).length}`
+      if (tasks[0]) {
+        tasks[0].dependencies = [prevRowLastTask]
+      }
+    }
+
     rows.push({
       id: `mrow${i}`,
       name: t.project(i),
-      tasks: [
-        {
-          id: `m${i}-1`,
-          name: t.requirementsDefinition,
-          start: taskStart,
-          end: new Date(taskStart.getFullYear(), taskStart.getMonth() + 1, 1),
-          pattern: i % 4 === 0 ? { type: 'diagonal-stripe', color: '#3b82f6' } : undefined,
-        },
-        {
-          id: `m${i}-2`,
-          name: t.design,
-          start: designStart,
-          end: designEnd,
-          dependencies: [`m${i}-1`],
-        },
-      ],
+      tasks,
       visible: i % 5 !== 0,
     })
   }
+
   return rows
 }
 
