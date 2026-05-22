@@ -1988,8 +1988,8 @@ export class GanttChartElement extends LitElement {
             const startY = depTask.y + depTask.height / 2
             const endX = task.x
             const endY = task.y + task.height / 2
-            // 前進方向か（ターゲットタスクが開始タスクより右側にあるか、または同じ位置）
-            const isForward = startX <= endX
+            // 前進方向か（ターゲットタスクが開始タスクより右側にあるか）
+            const isForward = startX < endX
             // 矢印表示時は線の終端を矢印分だけ手前にする
             const rawAdjustedEndX = showArrows ? endX - arrowSize : endX
             // 前進方向の場合、パスの終端がstartXより左に行かないように制限する
