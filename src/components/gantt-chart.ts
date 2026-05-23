@@ -71,6 +71,7 @@ export class GanttChartElement extends LitElement {
     currentEnd: Date
     targetRow?: GanttRow
     visible: boolean
+    clientY?: number
   } | null = null
   @state() private calendarHeight = 0
   @state() private tooltip: {
@@ -302,19 +303,34 @@ export class GanttChartElement extends LitElement {
     dragInfoEl.classList.toggle('visible', this.dragOverlayInfo.visible)
     dragInfoEl.innerHTML = ''
 
+    // マウス位置に応じてオーバーレイの表示位置を上部/下部に自動切り替え（中央寄り）
+    if (this.dragOverlayInfo.clientY !== undefined) {
+      const hostRect = this.getBoundingClientRect()
+      const mouseRelY = this.dragOverlayInfo.clientY - hostRect.top
+      const hostHeight = hostRect.height
+      // マウスがホスト上半分にいる場合は下部寄り中央に、下半分なら上部寄り中央に表示
+      if (mouseRelY < hostHeight / 2) {
+        dragInfoEl.style.top = 'auto'
+        dragInfoEl.style.bottom = '30%'
+      } else {
+        dragInfoEl.style.top = '30%'
+        dragInfoEl.style.bottom = 'auto'
+      }
+    }
+
     const { targetRow } = this.dragOverlayInfo
     const content = this.option.customRendering?.dragInfo
       ? this.option.customRendering.dragInfo(
-          {
-            id: this.dragOverlayInfo.id,
-            name: this.dragOverlayInfo.name,
-            start: this.dragOverlayInfo.start,
-            end: this.dragOverlayInfo.end,
-          } as GanttTask,
-          this.dragOverlayInfo.currentStart,
-          this.dragOverlayInfo.currentEnd,
-          targetRow,
-        )
+        {
+          id: this.dragOverlayInfo.id,
+          name: this.dragOverlayInfo.name,
+          start: this.dragOverlayInfo.start,
+          end: this.dragOverlayInfo.end,
+        } as GanttTask,
+        this.dragOverlayInfo.currentStart,
+        this.dragOverlayInfo.currentEnd,
+        targetRow,
+      )
       : undefined
 
     if (content) {
@@ -344,11 +360,10 @@ export class GanttChartElement extends LitElement {
             ${endLabel}
             (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.option.locale)})
           </div>
-          ${
-            targetRow
-              ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
-              : ''
-          }`
+          ${targetRow
+          ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
+          : ''
+        }`
     }
   }
 
@@ -676,6 +691,7 @@ export class GanttChartElement extends LitElement {
           currentStart: newStart,
           currentEnd: newEnd,
           visible: true,
+          clientY: e.detail.y,
         }
       } else {
         this.dragOverlayInfo = {
@@ -687,6 +703,7 @@ export class GanttChartElement extends LitElement {
           currentEnd: newEnd,
           targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
           visible: true,
+          clientY: e.detail.y,
         }
       }
       this.updateDragOverlay()
@@ -1824,7 +1841,7 @@ export class GanttChartElement extends LitElement {
       if (!bars) continue
       for (const bar of bars) {
         if ((bar as any).task?.id === taskId) {
-          ;(bar as any).connectorDropTarget = value
+          ; (bar as any).connectorDropTarget = value
           return
         }
       }
@@ -2042,9 +2059,9 @@ export class GanttChartElement extends LitElement {
               svg`<g class="dependency-group">
                 ${!isReadOnly
                   ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
-                      e.stopPropagation()
-                      this.handleDependencyLineClick(e, taskId, depId)
-                    }}" />`
+                    e.stopPropagation()
+                    this.handleDependencyLineClick(e, taskId, depId)
+                  }}" />`
                   : ''}
                 <path class="dependency-line" d="${pathD}" />
                 ${showArrows
@@ -2113,7 +2130,7 @@ export class GanttChartElement extends LitElement {
         @connector-drag-end="${this.handleConnectorDragEnd}"
       >
         ${this.option.rowHeader?.resizable !== false
-          ? html`
+        ? html`
               <div
                 style="
                   position: sticky;
@@ -2132,7 +2149,7 @@ export class GanttChartElement extends LitElement {
                 ></div>
               </div>
             `
-          : ''}
+        : ''}
         <gantt-calendar
           id="calendar"
           .option="${currentOption}"
@@ -2145,8 +2162,8 @@ export class GanttChartElement extends LitElement {
           .calendarWeekContent="${this.option.customRendering?.calendarWeekContent}"
           .calendarHourContent="${this.option.customRendering?.calendarHourContent}"
           @milestone-hover-change="${(e: CustomEvent) => {
-            this.hoveredMilestoneId = e.detail.milestoneId
-          }}"
+        this.hoveredMilestoneId = e.detail.milestoneId
+      }}"
         ></gantt-calendar>
 
         <svg
@@ -2156,7 +2173,7 @@ export class GanttChartElement extends LitElement {
           height="${totalHeight + this.calendarHeight}"
         >
           ${showArrows
-            ? svg`<defs>
+        ? svg`<defs>
                 <marker
                   id="dependency-arrowhead"
                   markerWidth="${arrowSize}"
@@ -2173,7 +2190,7 @@ export class GanttChartElement extends LitElement {
                   />
                 </marker>
               </defs>`
-            : ''}
+        : ''}
           <g transform="translate(0, ${this.calendarHeight})">
             ${lines}
             ${connectorPreviewLine}
@@ -2181,9 +2198,9 @@ export class GanttChartElement extends LitElement {
         </svg>
 
         ${this.option.calendar.showCurrentTime &&
-          this.currentTime >= this.option.calendar.start &&
-          this.currentTime <= this.option.calendar.end
-          ? html`
+        this.currentTime >= this.option.calendar.start &&
+        this.currentTime <= this.option.calendar.end
+        ? html`
               <div
                 class="current-time-line"
                 style="
@@ -2202,7 +2219,7 @@ export class GanttChartElement extends LitElement {
                 "
               ></div>
             `
-          : ''}
+        : ''}
         ${(this.option.calendar.milestones ?? []).map(
           (ms) => html`
             <div
@@ -2217,16 +2234,16 @@ export class GanttChartElement extends LitElement {
                 ${ms.style ?? ''}
               "
               @mouseenter="${() => {
-                this.hoveredMilestoneId = ms.id
-              }}"
+              this.hoveredMilestoneId = ms.id
+            }}"
               @mouseleave="${() => {
-                this.hoveredMilestoneId = null
-              }}"
+              this.hoveredMilestoneId = null
+            }}"
             ></div>
           `,
         )}
         ${this.option.calendar.showCursorLine && this.cursorLineX !== null
-          ? html`
+        ? html`
               <div
                 class="cursor-line"
                 style="
@@ -2236,7 +2253,7 @@ export class GanttChartElement extends LitElement {
                 "
               ></div>
             `
-          : ''}
+        : ''}
 
         <div style="height: ${paddingTop}px; width: 1px;"></div>
 
@@ -2251,7 +2268,7 @@ export class GanttChartElement extends LitElement {
                 .option="${currentOption}"
                 .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
-                (this.dragOverRowId === row.id && this.dragOverPosition === null)}"
+              (this.dragOverRowId === row.id && this.dragOverPosition === null)}"
                 .draggingTask="${this.draggingTask}"
                 .draggingTaskIds="${this.draggingTaskIds}"
                 .multiDragDx="${this.multiDragDx}"

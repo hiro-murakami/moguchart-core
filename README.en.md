@@ -268,6 +268,7 @@ const frLocale: MoguchartLocale = {
   monthFormat: 'MMM YYYY',
   monthRowFormat: 'MMM',
   dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  timeUnitDateFormat: (d) => `${d.getDate()} ${['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'][d.getMonth()]} ${d.getFullYear()}`,
   dateTimeFormat: (d) => {
     const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
     const h = d.getHours()
@@ -275,6 +276,7 @@ const frLocale: MoguchartLocale = {
     if (h === 0 && m === 0) return date
     return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
     days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
     hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,

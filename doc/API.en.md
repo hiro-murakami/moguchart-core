@@ -71,7 +71,7 @@ interface GanttChartOption {
   /** Whether to show tooltips */
   showTooltip?: boolean // (default: true)
   /** Delay before showing tooltips (ms) */
-  tooltipDelay?: number // (default: 0)
+  tooltipDelay?: number // (default: 500)
   /** Whether to show the drag info overlay */
   showDragInfoOverlay?: boolean // (default: true)
   /** Theme setting ('light', 'dark', 'system') */

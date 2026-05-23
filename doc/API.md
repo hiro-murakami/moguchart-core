@@ -71,7 +71,7 @@ interface GanttChartOption {
   /** ツールチップを表示するかどうか */
   showTooltip?: boolean // (デフォルト: true)
   /** ツールチップが表示されるまでの遅延時間 (ms) */
-  tooltipDelay?: number // (デフォルト: 0)
+  tooltipDelay?: number // (デフォルト: 500)
   /** ドラッグ中に情報オーバーレイを表示するかどうか */
   showDragInfoOverlay?: boolean // (デフォルト: true)
   /** テーマ設定 ('light', 'dark', 'system') */

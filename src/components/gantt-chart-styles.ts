@@ -64,8 +64,8 @@ export const ganttChartStyles = css`
     border-style: solid;
   }
   .drag-info-overlay {
-    position: fixed;
-    top: 80px;
+    position: absolute;
+    top: 30%;
     left: 50%;
     transform: translateX(-50%);
     padding: 10px 20px;
