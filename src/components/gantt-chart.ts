@@ -71,6 +71,7 @@ export class GanttChartElement extends LitElement {
     currentEnd: Date
     targetRow?: GanttRow
     visible: boolean
+    clientX?: number
     clientY?: number
   } | null = null
   @state() private calendarHeight = 0
@@ -303,21 +304,7 @@ export class GanttChartElement extends LitElement {
     dragInfoEl.classList.toggle('visible', this.dragOverlayInfo.visible)
     dragInfoEl.innerHTML = ''
 
-    // マウス位置に応じてオーバーレイの表示位置を上部/下部に自動切り替え（中央寄り）
-    if (this.dragOverlayInfo.clientY !== undefined) {
-      const hostRect = this.getBoundingClientRect()
-      const mouseRelY = this.dragOverlayInfo.clientY - hostRect.top
-      const hostHeight = hostRect.height
-      // マウスがホスト上半分にいる場合は下部寄り中央に、下半分なら上部寄り中央に表示
-      if (mouseRelY < hostHeight / 2) {
-        dragInfoEl.style.top = 'auto'
-        dragInfoEl.style.bottom = '30%'
-      } else {
-        dragInfoEl.style.top = '30%'
-        dragInfoEl.style.bottom = 'auto'
-      }
-    }
-
+    // --- コンテンツ描画 ---
     const { targetRow } = this.dragOverlayInfo
     const content = this.option.customRendering?.dragInfo
       ? this.option.customRendering.dragInfo(
@@ -364,6 +351,51 @@ export class GanttChartElement extends LitElement {
           ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
           : ''
         }`
+    }
+
+    // --- マウスに追従するポジショニング ---
+    if (this.dragOverlayInfo.clientY !== undefined) {
+      const mouseX = this.dragOverlayInfo.clientX ?? 0
+      const mouseY = this.dragOverlayInfo.clientY
+      const hostRect = this.getBoundingClientRect()
+
+      // マウスがガントチャートの外にある場合はオーバーレイを非表示
+      if (
+        mouseX < hostRect.left || mouseX > hostRect.right ||
+        mouseY < hostRect.top || mouseY > hostRect.bottom
+      ) {
+        dragInfoEl.classList.remove('visible')
+        return
+      }
+
+      const overlayWidth = dragInfoEl.offsetWidth || 200
+      const overlayHeight = dragInfoEl.offsetHeight || 60
+      const gap = 40 // バーとオーバーレイの間隔(px)
+      const margin = 8 // ビューポート端からの最小マージン(px)
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      // X方向: マウスを中心に配置し、画面端でクランプ
+      let left = mouseX - overlayWidth / 2
+      left = Math.max(margin, Math.min(left, viewportWidth - overlayWidth - margin))
+
+      // Y方向: デフォルトはマウスの上に表示
+      let top = mouseY - overlayHeight - gap
+
+      // 上にはみ出す場合はマウスの下に表示
+      if (top < margin) {
+        top = mouseY + gap
+      }
+
+      // 下にはみ出す場合はクランプ
+      if (top + overlayHeight > viewportHeight - margin) {
+        top = viewportHeight - overlayHeight - margin
+      }
+
+      dragInfoEl.style.left = `${left}px`
+      dragInfoEl.style.transform = 'none'
+      dragInfoEl.style.top = `${top}px`
+      dragInfoEl.style.bottom = 'auto'
     }
   }
 
@@ -691,6 +723,7 @@ export class GanttChartElement extends LitElement {
           currentStart: newStart,
           currentEnd: newEnd,
           visible: true,
+          clientX: e.detail.x,
           clientY: e.detail.y,
         }
       } else {
@@ -703,6 +736,7 @@ export class GanttChartElement extends LitElement {
           currentEnd: newEnd,
           targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
           visible: true,
+          clientX: e.detail.x,
           clientY: e.detail.y,
         }
       }
