@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getPatternStyle } from '@/core/patterns'
+import { getPatternStyle } from '../core/patterns'
 
 describe('getPatternStyle', () => {
   it('returns empty string when pattern is undefined', () => {

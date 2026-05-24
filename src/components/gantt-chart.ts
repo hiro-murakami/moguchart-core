@@ -1,5 +1,5 @@
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '@/core/constants'
-import { jaLocale } from '@/core/i18n'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
+import { jaLocale } from '../core/i18n'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
@@ -16,13 +16,13 @@ import type {
   RowSelectionChangeEventDetail,
   TaskDeleteEventDetail,
   TaskUpdateEventDetail,
-} from '@/core/types'
-import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '@/core/utils'
+} from '../core/types'
+import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '../core/utils'
 import { LitElement, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
-import { throttle } from 'lodash'
+import { throttle } from 'lodash-es'
 import './gantt-calendar'
 import './gantt-row'
 import type { GanttRowElement } from './gantt-row'

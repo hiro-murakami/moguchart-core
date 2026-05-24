@@ -11,7 +11,7 @@ export default defineConfig({
   build:
     process.env.BUILD_MODE === 'demo' || process.env.VERCEL
       ? {
-          outDir: 'dist', // Vercelのデフォルト設定（dist）に合わせる
+          outDir: process.env.BUILD_MODE === 'demo' ? 'dist-demo' : 'dist',
         }
       : {
           lib: {
@@ -29,9 +29,8 @@ export default defineConfig({
             external: [
               'lit',
               /^lit\//,
-              'lodash',
+              'lodash-es',
               'dayjs',
-              '@holiday-jp/holiday_jp',
               'html2canvas-pro',
               'jspdf',
             ],
@@ -41,11 +40,10 @@ export default defineConfig({
                 'lit/decorators.js': 'Lit',
                 'lit/directives/repeat.js': 'Lit',
                 'lit/directives/unsafe-html.js': 'Lit',
-                lodash: '_',
+                'lodash-es': '_',
                 dayjs: 'dayjs',
                 'html2canvas-pro': 'html2canvas',
                 jspdf: 'jsPDF',
-                '@holiday-jp/holiday_jp': 'HolidayJp',
               },
             },
           },

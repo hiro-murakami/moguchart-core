@@ -1,6 +1,6 @@
 {
   "name": "@mogura/moguchart-core",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A lightweight, framework-agnostic Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and more.",
   "license": "MIT",
   "author": "Murakami Hiroyuki",
@@ -11,6 +11,9 @@
   "homepage": "https://github.com/hiro-murakami/moguchart-core",
   "bugs": {
     "url": "https://github.com/hiro-murakami/moguchart-core/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "gantt",
@@ -25,7 +28,8 @@
   "sideEffects": true,
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "README.en.md"
   ],
   "main": "./dist/moguchart-core.umd.js",
   "module": "./dist/moguchart-core.mjs",
@@ -50,7 +54,8 @@
     "refresh:packages": "rm -rf node_modules pnpm-lock.yaml && pnpm i"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.21",
+    "@holiday-jp/holiday_jp": "^2.5.1",
+    "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.12.0",
     "jsdom": "^27.4.0",
     "lit": "^3.3.2",
@@ -63,10 +68,9 @@
     "lit": "^3.0.0"
   },
   "dependencies": {
-    "@holiday-jp/holiday_jp": "^2.5.1",
     "dayjs": "^1.11.19",
     "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
-    "lodash": "^4.17.21"
+    "lodash-es": "^4.17.21"
   }
 }
