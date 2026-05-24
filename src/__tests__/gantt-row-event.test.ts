@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import '../components/gantt-row'
 import type { GanttRowElement } from '../components/gantt-row'
-import type { GanttRow, GanttChartOption } from '@/core/types'
+import type { GanttRow, GanttChartOption } from '../core/types'
 
 describe('GanttRowElement', () => {
   it('dispatches row-clicked event', async () => {

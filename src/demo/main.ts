@@ -1,5 +1,5 @@
 import { html, render } from 'lit'
-import { GanttChartElement } from '@/components/gantt-chart'
+import { GanttChartElement } from '../components/gantt-chart'
 import * as holiday_jp from '@holiday-jp/holiday_jp'
 import type {
   GanttChartOption,
@@ -16,12 +16,12 @@ import type {
   RowHeaderContextMenuEventDetail,
   BarSelectionChangeEventDetail,
   DependencyLineStyle,
-} from '@/core/types'
-import type { ThemeColorPalette } from '@/core/types'
-import type { MoguchartLocale } from '@/core/i18n'
-import { jaLocale, enLocale } from '@/core/i18n'
+} from '../core/types'
+import type { ThemeColorPalette } from '../core/types'
+import type { MoguchartLocale } from '../core/i18n'
+import { jaLocale, enLocale } from '../core/i18n'
 import dayjs from 'dayjs'
-import { getPatternStyle } from '@/core/patterns'
+import { getPatternStyle } from '../core/patterns'
 import { jaTexts, enTexts } from './i18n'
 import type { DemoTexts } from './i18n'
 import {

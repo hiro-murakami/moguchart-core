@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { GanttChartElement } from '@/components/gantt-chart'
-import '@/components/gantt-chart'
+import { GanttChartElement } from '../components/gantt-chart'
+import '../components/gantt-chart'
 
 // Window.matchMediaのモック
 const matchMediaMock = vi.fn()

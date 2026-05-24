@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-05-24
+
+### Changed
+
+- パッケージ互換性とバンドルサイズ最適化のため、`lodash` から `lodash-es` に移行
+- 祝日判定用パッケージ `@holiday-jp/holiday_jp` を `dependencies` から `devDependencies` へ移動し、利用側のインストール容量を削減
+- デモビルドの出力先を `dist-demo` に分離し、ライブラリ成果物（`dist`）との混在を防止
+- `package.json` にパブリック公開用のスコープ設定を追加し、英語ドキュメント `README.en.md` をパッケージに同梱
+
+### Fixed
+
+- ビルド出力される型定義ファイル（`.d.ts`）内で、パスエイリアス（`@/`）がそのまま残ってしまい、利用側でコンパイルエラーになる問題を解消するため、すべてのインポートを相対パスに修正
+
 ## [0.5.1] - 2026-05-23
 
 ### Fixed
@@ -35,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.5.2]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.1.0...v0.5.0
 [0.1.0]: https://github.com/hiro-murakami/moguchart-core/releases/tag/v0.1.0

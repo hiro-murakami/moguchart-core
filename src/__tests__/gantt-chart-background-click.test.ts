@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '../components/gantt-chart'
 import type { GanttChartElement } from '../components/gantt-chart'
-import type { GanttRow, GanttChartOption } from '@/core/types'
+import type { GanttRow, GanttChartOption } from '../core/types'
 
 // Mock ResizeObserver
 vi.stubGlobal(

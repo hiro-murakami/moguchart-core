@@ -1,4 +1,4 @@
-import type { GanttRow, GanttTask, GanttTaskPattern } from '@/core/types'
+import type { GanttRow, GanttTask, GanttTaskPattern } from '../core/types'
 import type { DemoTexts } from './i18n'
 
 const chartStart = new Date()
