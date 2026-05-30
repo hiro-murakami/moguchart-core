@@ -44,7 +44,6 @@ export async function exportGanttWithHtml2Canvas(
   let scrollWidth = scrollContainer ? scrollContainer.scrollWidth : chartElement.scrollWidth;
   let scrollHeight = scrollContainer ? scrollContainer.scrollHeight : chartElement.scrollHeight;
 
-  console.log('[export] splitHeight:', splitHeight, 'scrollHeight:', scrollHeight);
 
   // html2canvas-pro は Shadow DOM をネイティブにサポートしています
   let canvas = await html2canvas(chartElement, {
@@ -65,7 +64,6 @@ export async function exportGanttWithHtml2Canvas(
     } else if ((chartElement as any).calendarHeight) {
       calendarHeight = (chartElement as any).calendarHeight;
     }
-    console.log('[export] Splitting Canvas. calendarHeight:', calendarHeight);
 
     // Canvasの実際の出力サイズからスケール比率を計算する
     const actualScaleY = canvas.height / scrollHeight;
@@ -129,7 +127,6 @@ export async function exportGanttWithHtml2Canvas(
         canvas = newCanvas;
         // scrollHeight を更新（以後の PDF 出力などに影響する）
         scrollHeight = newCanvasHeight / actualScaleY;
-        console.log('[export] Split complete. new scrollHeight:', scrollHeight);
       } else {
         console.warn('[export] Failed to get 2D context for new canvas. It might be too large.');
       }

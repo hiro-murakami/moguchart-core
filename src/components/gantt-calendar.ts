@@ -39,7 +39,8 @@ export class GanttCalendarElement extends LitElement {
     } else if (typeof content === 'string') {
       const wrapper = document.createElement('span')
       wrapper.classList.add(className)
-      wrapper.innerHTML = content
+      // textContent で安全に挿入（innerHTML による XSS を防止）
+      wrapper.textContent = content
       target.appendChild(wrapper)
     }
   }

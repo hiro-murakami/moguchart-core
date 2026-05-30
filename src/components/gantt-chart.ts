@@ -21,7 +21,7 @@ import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } 
 import { LitElement, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
-import { unsafeHTML } from 'lit/directives/unsafe-html.js'
+
 import { throttle } from 'lodash-es'
 import './gantt-calendar'
 import './gantt-row'
@@ -251,7 +251,8 @@ export class GanttChartElement extends LitElement {
 
         if (content) {
           if (typeof content === 'string') {
-            render(unsafeHTML(content), tooltipEl)
+            // 文字列コンテンツは textContent で安全に挿入（XSS防止）
+            tooltipEl.textContent = content
           } else {
             render(content, tooltipEl)
           }
@@ -302,9 +303,7 @@ export class GanttChartElement extends LitElement {
     if (!dragInfoEl) return
 
     dragInfoEl.classList.toggle('visible', this.dragOverlayInfo.visible)
-    dragInfoEl.innerHTML = ''
-
-    // --- コンテンツ描画 ---
+    // Lit render() でコンテンツを安全に描画（innerHTML を使わない）
     const { targetRow } = this.dragOverlayInfo
     const content = this.option.customRendering?.dragInfo
       ? this.option.customRendering.dragInfo(
@@ -322,9 +321,7 @@ export class GanttChartElement extends LitElement {
 
     if (content) {
       render(content, dragInfoEl)
-    }
-
-    if (dragInfoEl.innerHTML === '') {
+    } else {
       const locale = this.option.locale ?? jaLocale
       const isMonthlyMode = !!this.option.calendar.pxPerMonth
       let startLabel: string
@@ -338,7 +335,8 @@ export class GanttChartElement extends LitElement {
         startLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentStart)
         endLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentEnd)
       }
-      dragInfoEl.innerHTML = `
+      render(
+        html`
           <div style="font-weight: bold;">
             ${this.dragOverlayInfo.name || locale.dragOverlay.noTitle}
           </div>
@@ -348,9 +346,11 @@ export class GanttChartElement extends LitElement {
             (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.option.locale)})
           </div>
           ${targetRow
-          ? `<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
-          : ''
-        }`
+            ? html`<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
+            : ''}
+        `,
+        dragInfoEl,
+      )
     }
 
     // --- マウスに追従するポジショニング ---
@@ -1142,7 +1142,30 @@ export class GanttChartElement extends LitElement {
 
   private handleExternalTaskDrop(e: DragEvent, taskJson: string) {
     try {
-      const task = JSON.parse(taskJson) as GanttTask
+      const parsed = JSON.parse(taskJson)
+
+      // ランタイムバリデーション: 必須フィールドの存在と型を検証
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        typeof parsed.id !== 'string' ||
+        typeof parsed.name !== 'string' ||
+        !parsed.start ||
+        !parsed.end
+      ) {
+        console.warn('Invalid dropped task data: missing required fields (id, name, start, end)')
+        return
+      }
+
+      // start / end を Date オブジェクトに安全に変換
+      const start = new Date(parsed.start)
+      const end = new Date(parsed.end)
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.warn('Invalid dropped task data: start or end is not a valid date')
+        return
+      }
+
+      const task: GanttTask = { ...parsed, start, end }
       const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
       if (!container) return
 

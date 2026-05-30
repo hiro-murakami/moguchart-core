@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-05-30
+
+### Security
+
+- ツールチップのカスタムレンダリングで使用していた `unsafeHTML` を削除し、文字列コンテンツは `textContent` で安全に挿入するように変更（XSS 防止）
+- ドラッグ情報オーバーレイの `innerHTML` 直接代入を Lit の `render()` + `html` テンプレートリテラルに置換し、自動エスケープを有効化
+- カレンダーヘッダーのカスタムコンテンツ注入（`injectCustomContent`）で使用していた `innerHTML` を `textContent` に変更
+
+### Fixed
+
+- 外部からドロップされたタスクデータ（`handleExternalTaskDrop`）に対して、必須フィールド（`id`, `name`, `start`, `end`）の存在・型検証および `Date` 変換のバリデーションを追加
+- エクスポート機能（`gantt-chart-export.ts`）に残っていたデバッグ用 `console.log` を削除
+
 ## [0.5.2] - 2026-05-24
 
 ### Changed
@@ -48,7 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.5.3]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.1.0...v0.5.0
 [0.1.0]: https://github.com/hiro-murakami/moguchart-core/releases/tag/v0.1.0
+
