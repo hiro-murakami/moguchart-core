@@ -19,6 +19,7 @@ export class GanttBarElement extends LitElement {
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
+  private _connectorEdgeThreshold = 30
 
   static styles = css`
     :host {
@@ -103,8 +104,8 @@ export class GanttBarElement extends LitElement {
       transition: opacity 0.15s ease;
       pointer-events: auto;
     }
-    .task-group:hover .connector-left,
-    .task-group:hover .connector-right {
+    .connector-left.show-connector,
+    .connector-right.show-connector {
       opacity: 1;
     }
     .connector-left {
@@ -687,6 +688,21 @@ export class GanttBarElement extends LitElement {
     }
   }
 
+  private onMouseMoveOnBar = (e: MouseEvent) => {
+    const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
+    if (!taskGroup || this.option.readOnly) return
+
+    const rect = taskGroup.getBoundingClientRect()
+    const localX = e.clientX - rect.left
+    const nearLeft = localX <= this._connectorEdgeThreshold
+    const nearRight = localX >= rect.width - this._connectorEdgeThreshold
+
+    const connLeft = this.shadowRoot?.querySelector('.connector-left')
+    const connRight = this.shadowRoot?.querySelector('.connector-right')
+    if (connLeft) connLeft.classList.toggle('show-connector', nearLeft)
+    if (connRight) connRight.classList.toggle('show-connector', nearRight)
+  }
+
   private onMouseEnter(e: MouseEvent) {
     const target = e.currentTarget as HTMLElement
     if (target.classList.contains('dragging')) {
@@ -698,6 +714,7 @@ export class GanttBarElement extends LitElement {
       if (e.ctrlKey || e.altKey) {
         this.updateCursor(true)
       }
+      target.addEventListener('mousemove', this.onMouseMoveOnBar)
     }
     const rect = target.getBoundingClientRect()
     this.dispatchEvent(
@@ -714,10 +731,19 @@ export class GanttBarElement extends LitElement {
   }
 
   private onMouseLeave() {
+    const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     if (!this.option.readOnly) {
       window.removeEventListener('keydown', this.handleKeyDown)
       window.removeEventListener('keyup', this.handleKeyUp)
       this.updateCursor(false)
+      if (taskGroup) {
+        taskGroup.removeEventListener('mousemove', this.onMouseMoveOnBar)
+      }
+      // 丸印を非表示に戻す
+      const connLeft = this.shadowRoot?.querySelector('.connector-left')
+      const connRight = this.shadowRoot?.querySelector('.connector-right')
+      if (connLeft) connLeft.classList.remove('show-connector')
+      if (connRight) connRight.classList.remove('show-connector')
     }
     this.dispatchEvent(
       new CustomEvent('bar-mouseleave', {
