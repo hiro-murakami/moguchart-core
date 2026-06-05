@@ -13,7 +13,9 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean, reflect: true }) selected = false
   @property({ type: Boolean, reflect: true }) focused = false
   @property({ type: Number }) multiDragDx = 0
+  @property({ type: Number }) multiDragDy = 0
   @property({ type: Boolean }) multiDragActive = false
+  @property({ type: Boolean }) multiDragSameRow = false
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
   @property({ type: Boolean, reflect: true }) isExporting = false
   private _currentDragCursor: string | null = null
@@ -438,7 +440,9 @@ export class GanttBarElement extends LitElement {
         let deltaY = moveEvent.clientY - startY
 
         if (movable === 'y') deltaX = 0
-        if (movable === 'x' || this.multiDragActive) deltaY = 0
+        if (movable === 'x') deltaY = 0
+        // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
+        if (this.multiDragActive && !this.multiDragSameRow) deltaY = 0
 
         let translateX = deltaX
         if (!this.option.calendar.pxPerMonth) {
@@ -543,7 +547,9 @@ export class GanttBarElement extends LitElement {
 
           // movable制限をドロップ時にも適用
           if (movable === 'y') finalTranslateX = 0
-          if (movable === 'x' || this.multiDragActive) finalDeltaY = 0
+          if (movable === 'x') finalDeltaY = 0
+          // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
+          if (this.multiDragActive && !this.multiDragSameRow) finalDeltaY = 0
 
           // 移動量が閾値以下の場合はクリックとして扱う
           if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
@@ -645,12 +651,12 @@ export class GanttBarElement extends LitElement {
       }
     }
 
-    // 複数ドラッグ中の選択バーに水平移動を適用
-    if (changedProperties.has('multiDragDx')) {
+    // 複数ドラッグ中の選択バーに移動を適用
+    if (changedProperties.has('multiDragDx') || changedProperties.has('multiDragDy')) {
       const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
       if (taskGroup) {
-        if (this.multiDragDx !== 0) {
-          taskGroup.style.transform = `translateX(${this.multiDragDx}px)`
+        if (this.multiDragDx !== 0 || this.multiDragDy !== 0) {
+          taskGroup.style.transform = `translate(${this.multiDragDx}px, ${this.multiDragDy}px)`
           taskGroup.style.opacity = '0.6'
           taskGroup.style.pointerEvents = 'none'
         } else {

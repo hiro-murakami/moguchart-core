@@ -23,6 +23,8 @@ export class GanttRowElement extends LitElement {
   } | null = null
   @property({ type: Array }) draggingTaskIds: string[] = []
   @property({ type: Number }) multiDragDx = 0
+  @property({ type: Number }) multiDragDy = 0
+  @property({ type: Boolean }) multiDragSameRow = false
   @property({ type: Object }) externalDragTask: {
     task: GanttTask
     currentStart: Date
@@ -586,6 +588,7 @@ export class GanttRowElement extends LitElement {
                 : task
               const isTaskSelected = this.selectedTaskIds.includes(task.id)
               const barMultiDragDx = isMultiDragging ? this.multiDragDx : 0
+              const barMultiDragDy = isMultiDragging ? this.multiDragDy : 0
               const isPrimaryDrag = isDragging && this.draggingTaskIds.length >= 2
 
               return html`
@@ -596,7 +599,9 @@ export class GanttRowElement extends LitElement {
                   .selected="${isTaskSelected}"
                   .focused="${this.focusedTaskId === task.id}"
                   .multiDragDx="${barMultiDragDx}"
+                  .multiDragDy="${barMultiDragDy}"
                   .multiDragActive="${isPrimaryDrag}"
+                  .multiDragSameRow="${this.multiDragSameRow}"
                   .isExporting="${this.isExporting}"
                 />
               `

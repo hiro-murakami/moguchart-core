@@ -61,6 +61,8 @@ export class GanttChartElement extends LitElement {
   } | null = null
   @state() private draggingTaskIds: string[] = []
   @state() private multiDragDx = 0
+  @state() private multiDragDy = 0
+  @state() private multiDragSameRow = false
   @state() private viewportHeight = 400
   private dragOverlayInfo: {
     id: string
@@ -566,15 +568,38 @@ export class GanttChartElement extends LitElement {
     return this.selectedTasks.size >= 2 && this.selectedTasks.has(taskId)
   }
 
+  /**
+   * 選択中の全タスクが同じ行に属しているかを判定する。
+   * 同じ行なら縦方向（行間）の移動を許可する。
+   */
+  private isMultiDragSameRow(): boolean {
+    if (this.selectedTasks.size < 2) return false
+    let commonRowId: string | null = null
+    for (const row of this.rows) {
+      for (const task of row.tasks) {
+        if (this.selectedTasks.has(task.id)) {
+          if (commonRowId === null) {
+            commonRowId = row.id
+          } else if (commonRowId !== row.id) {
+            return false
+          }
+        }
+      }
+    }
+    return commonRowId !== null
+  }
+
   private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>) {
     e.stopPropagation()
     const { id, start, end, dx, isDragging, mode } = e.detail
     let { dy } = e.detail
 
     const isMulti = this.isMultiDrag(id)
+    const sameRow = isMulti && this.isMultiDragSameRow()
 
-    // 複数選択移動時はdy=0に固定（行移動を無効化）
-    if (isMulti) {
+    // 複数選択移動時：異なる行のバーが含まれる場合はdy=0に固定（行移動を無効化）
+    // 同じ行のバーのみ選択されている場合は縦移動を許可
+    if (isMulti && !sameRow) {
       dy = 0
     }
 
@@ -698,15 +723,23 @@ export class GanttChartElement extends LitElement {
         }
       }
 
-      // 複数ドラッグ中のdx値は毎フレーム更新（ゴースト表示位置の追従のため）
+      // 複数ドラッグ中のdx/dy値は毎フレーム更新（ゴースト表示位置の追従のため）
       if (isMulti) {
         this.multiDragDx = dx ?? 0
-      } else if (this.multiDragDx !== 0) {
+        this.multiDragSameRow = sameRow
+        if (sameRow) {
+          this.multiDragDy = dy
+        } else {
+          this.multiDragDy = 0
+        }
+      } else if (this.multiDragDx !== 0 || this.multiDragDy !== 0) {
         this.multiDragDx = 0
+        this.multiDragDy = 0
       }
 
-      // 複数選択移動時はtargetRowIndexを更新しない（行移動なし）
-      if (!isMulti) {
+      // 複数選択移動時：異なる行のバーが含まれる場合はtargetRowIndexを更新しない
+      // 同じ行のバーのみの場合はtargetRowIndexを更新（行移動を有効化）
+      if (!isMulti || sameRow) {
         const newDragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
         if (this.dragTargetRowIndex !== newDragTargetRowIndex) {
           this.dragTargetRowIndex = newDragTargetRowIndex
@@ -746,9 +779,12 @@ export class GanttChartElement extends LitElement {
 
     // ドロップ時の処理
     const droppedMulti = this.draggingTaskIds.length >= 2
+    const droppedSameRow = this.multiDragSameRow
     this.draggingTask = null
     this.draggingTaskIds = []
     this.multiDragDx = 0
+    this.multiDragDy = 0
+    this.multiDragSameRow = false
     this.dragTargetRowIndex = null
     if (this.dragOverlayInfo) {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
@@ -770,19 +806,24 @@ export class GanttChartElement extends LitElement {
       const pxPerDay = this.option.calendar.pxPerDay ?? 50
       const pxPerMonth = this.option.calendar.pxPerMonth
 
-      const newRows = this.rows.map((row) => {
-        const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
-        if (!hasSelectedTask) return row
+      // 同一行の複数バーが別の行にドロップされた場合の行移動処理
+      const needsRowMove = droppedSameRow && targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows
 
-        return {
-          ...row,
-          tasks: row.tasks.map((t) => {
-            if (!this.selectedTasks.has(t.id)) return t
+      if (needsRowMove) {
+        // 全選択タスクをソース行から取り出してターゲット行に移動
+        const newRows = [...this.rows]
+        const sourceRow = { ...newRows[sourceRowIndex] }
+        const targetRow = { ...newRows[targetRowIndexInRows] }
+        sourceRow.tasks = [...sourceRow.tasks]
+        targetRow.tasks = [...targetRow.tasks]
+
+        const movedTasks: GanttTask[] = []
+        sourceRow.tasks = sourceRow.tasks.filter((t) => {
+          if (this.selectedTasks.has(t.id)) {
             const tStartX = this.getDateX(t.start)
             const tEndX = this.getDateX(t.end)
             const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
             const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-            // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
             if (this.option.calendar.pxPerMonth) {
               if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
               ns.setDate(1)
@@ -798,26 +839,76 @@ export class GanttChartElement extends LitElement {
               ne.setDate(1)
               ne.setHours(0, 0, 0, 0)
             }
-            return {
-              ...t,
-              start: ns,
-              end: ne,
-            }
-          }),
-        }
-      })
+            movedTasks.push({ ...t, start: ns, end: ne })
+            return false
+          }
+          return true
+        })
+        targetRow.tasks.push(...movedTasks)
+        newRows[sourceRowIndex] = sourceRow
+        newRows[targetRowIndexInRows] = targetRow
 
-      // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
-      requestAnimationFrame(() => {
-        this.rows = newRows
-        this.dispatchEvent(
-          new CustomEvent('rows-change', {
-            detail: this.rows,
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      })
+        requestAnimationFrame(() => {
+          this.rows = newRows
+          this.dispatchEvent(
+            new CustomEvent('rows-change', {
+              detail: this.rows,
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
+      } else {
+        // 同じ行内での水平移動のみ
+        const newRows = this.rows.map((row) => {
+          const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
+          if (!hasSelectedTask) return row
+
+          return {
+            ...row,
+            tasks: row.tasks.map((t) => {
+              if (!this.selectedTasks.has(t.id)) return t
+              const tStartX = this.getDateX(t.start)
+              const tEndX = this.getDateX(t.end)
+              const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
+              const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
+              // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
+              if (this.option.calendar.pxPerMonth) {
+                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+                ns.setDate(1)
+                ns.setHours(0, 0, 0, 0)
+                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+                ne.setDate(1)
+                ne.setHours(0, 0, 0, 0)
+              } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
+                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+                ns.setDate(1)
+                ns.setHours(0, 0, 0, 0)
+                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+                ne.setDate(1)
+                ne.setHours(0, 0, 0, 0)
+              }
+              return {
+                ...t,
+                start: ns,
+                end: ne,
+              }
+            }),
+          }
+        })
+
+        // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
+        requestAnimationFrame(() => {
+          this.rows = newRows
+          this.dispatchEvent(
+            new CustomEvent('rows-change', {
+              detail: this.rows,
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
+      }
       return
     }
 
@@ -2329,6 +2420,8 @@ export class GanttChartElement extends LitElement {
                 .draggingTask="${this.draggingTask}"
                 .draggingTaskIds="${this.draggingTaskIds}"
                 .multiDragDx="${this.multiDragDx}"
+                .multiDragDy="${this.multiDragDy}"
+                .multiDragSameRow="${this.multiDragSameRow}"
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
