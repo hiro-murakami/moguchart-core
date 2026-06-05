@@ -1,6 +1,6 @@
 {
   "name": "@mogura/moguchart-core",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "A lightweight, framework-agnostic Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and more.",
   "license": "MIT",
   "author": "Murakami Hiroyuki",
