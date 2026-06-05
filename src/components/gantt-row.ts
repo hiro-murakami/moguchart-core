@@ -1,5 +1,5 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import type { GanttChartOption, GanttRow, GanttTask, GanttTaskMoveMode, MarkerType, RowHeaderContextMenuEventDetail } from '../core/types'
+import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerType, RowHeaderContextMenuEventDetail } from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -80,6 +80,83 @@ export class GanttRowElement extends LitElement {
       default:
         return `M 0 ${size} L ${half} 0 L ${size} ${size} Z`
     }
+  }
+
+  /**
+   * マーカーの表示幅を推定する（アイコン＋ラベル）
+   */
+  private estimateMarkerWidth(marker: { name?: string; anchor?: string }, markerSize: number): number {
+    const labelWidth = marker.name ? marker.name.length * 7 + 4 : 0 // 大まかな文字幅推定
+    const isCenter = marker.anchor === 'center'
+    if (isCenter) {
+      // center配置: ラベルは下に出るのでアイコン幅のみ考慮
+      return markerSize
+    }
+    return markerSize + labelWidth
+  }
+
+  /**
+   * マーカーのX方向の占有範囲を計算する
+   */
+  private getMarkerXRange(marker: { date: Date; name?: string; anchor?: string }, markerSize: number): { left: number; right: number } {
+    const x = this.getDateX(marker.date)
+    const totalWidth = this.estimateMarkerWidth(marker, markerSize)
+    const isCenter = marker.anchor === 'center'
+    const labelOnLeft = marker.anchor === 'end'
+
+    let left: number
+    if (marker.anchor === 'start') {
+      left = x
+    } else if (marker.anchor === 'end') {
+      left = x - markerSize
+    } else {
+      left = x - markerSize / 2
+    }
+
+    if (isCenter) {
+      return { left, right: left + markerSize }
+    }
+    if (labelOnLeft) {
+      const labelWidth = totalWidth - markerSize
+      return { left: left - labelWidth, right: left + markerSize }
+    }
+    return { left, right: left + totalWidth }
+  }
+
+  /**
+   * マーカー群のレーン（段）を計算して重なりを回避する
+   */
+  private calculateMarkerLanes(markers: GanttMarker[], markerSize: number): { marker: GanttMarker; lane: number }[] {
+    if (!markers.length) return []
+
+    // X座標でソート
+    const sorted = markers.map((m) => ({
+      marker: m,
+      range: this.getMarkerXRange(m, markerSize),
+    })).sort((a, b) => a.range.left - b.range.left)
+
+    // 各レーンの右端を記録
+    const laneEnds: number[] = []
+    const result: { marker: GanttMarker; lane: number }[] = []
+
+    for (const item of sorted) {
+      let assignedLane = -1
+      const GAP = 2 // マーカー間の最低間隔（px）
+      for (let i = 0; i < laneEnds.length; i++) {
+        if (item.range.left >= laneEnds[i] + GAP) {
+          laneEnds[i] = item.range.right
+          assignedLane = i
+          break
+        }
+      }
+      if (assignedLane === -1) {
+        laneEnds.push(item.range.right)
+        assignedLane = laneEnds.length - 1
+      }
+      result.push({ marker: item.marker, lane: assignedLane })
+    }
+
+    return result
   }
 
   static styles = css`
@@ -375,7 +452,22 @@ export class GanttRowElement extends LitElement {
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
-    const rowHeight = laneCount * (barHeight + barMargin) + barMargin
+    // マーカーのレーン計算
+    const markers = this.row.markers ?? []
+    const markerSize = Math.min(barHeight, 12)
+    const markerItemHeight = markerSize + 2 // マーカー1段あたりの高さ（余白含む）
+    const markersWithLanes = this.calculateMarkerLanes(markers, markerSize)
+    const markerLaneCount = markersWithLanes.length > 0
+      ? Math.max(...markersWithLanes.map((m) => m.lane)) + 1
+      : 0
+
+    // タスクエリアの高さ
+    const taskAreaHeight = laneCount * (barHeight + barMargin) + barMargin
+    // マーカーエリアの高さ（複数段ある場合のみ追加スペース）
+    const markerAreaHeight = markerLaneCount > 1
+      ? (markerLaneCount - 1) * markerItemHeight
+      : 0
+    const rowHeight = taskAreaHeight + markerAreaHeight
 
     this.style.height = `${rowHeight}px`
 
@@ -607,14 +699,14 @@ export class GanttRowElement extends LitElement {
               `
             },
           )}
-          ${(this.row.markers ?? []).map((marker) => {
-            const markerSize = Math.min(barHeight, 12)
+          ${markersWithLanes.map(({ marker, lane: markerLane }) => {
             const x = this.getDateX(marker.date)
             const markerColor = marker.color ?? '#ef4444'
             // ラベル表示モード: 'center'の場合は下部表示、'end'は左側、それ以外は右側
             const isCenter = marker.anchor === 'center'
-            // center: マーカーの下端が行の中心に来るように配置
-            const markerY = isCenter ? (rowHeight / 2 - markerSize) : (rowHeight - markerSize) / 2
+            // マーカーのY位置: タスクエリアの中心を基準に、レーンに応じてオフセット
+            const baseY = isCenter ? (taskAreaHeight / 2 - markerSize) : (taskAreaHeight - markerSize) / 2
+            const markerY = baseY + markerLane * markerItemHeight
             // anchor: 'start' → dateがマーカー左端, 'end' → dateがマーカー右端, 'center'/未指定 → 中央
             const markerLeft = marker.anchor === 'start' ? x
               : marker.anchor === 'end' ? x - markerSize
