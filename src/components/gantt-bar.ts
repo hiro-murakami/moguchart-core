@@ -18,6 +18,7 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean }) multiDragSameRow = false
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
   @property({ type: Boolean, reflect: true }) isExporting = false
+  @property({ type: Boolean, reflect: true, attribute: 'critical-path' }) isCriticalPath = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
@@ -125,6 +126,15 @@ export class GanttBarElement extends LitElement {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
       box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+    }
+    :host([critical-path]) .bar {
+      outline: 2px solid var(--critical-path-color, rgba(220, 38, 38, 0.85));
+      outline-offset: 1px;
+    }
+    :host([selected][critical-path]) .bar {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
     }
     .bar-label {
       color: white;

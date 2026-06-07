@@ -352,6 +352,8 @@ export interface GanttChartOptionDependency {
   cornerRadius?: number
   /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
   showConnectors?: boolean
+  /** クリティカルパスを表示するかどうか (デフォルト: false) */
+  showCriticalPath?: boolean
 }
 
 /**
@@ -622,6 +624,8 @@ export interface ThemeColorPalette {
   thursday?: string
   /** 金曜日の背景色 (オプション) */
   friday?: string
+  /** クリティカルパスの色 (オプション) */
+  criticalPath?: string
 }
 
 /**

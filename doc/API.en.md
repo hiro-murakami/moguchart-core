@@ -813,6 +813,7 @@ interface ThemeColorPalette {
   wednesday?: string // Wednesday background color (optional)
   thursday?: string // Thursday background color (optional)
   friday?: string // Friday background color (optional)
+  criticalPath?: string // Critical path highlight color (optional)
 }
 ```
 
@@ -852,6 +853,8 @@ interface GanttChartOptionDependency {
   cornerRadius?: number
   /** Whether to show connector points (circles) on task bars (default: true) */
   showConnectors?: boolean
+  /** Whether to show the critical path (default: false). Automatically calculates the longest chain in the dependency graph and highlights relevant task bars and lines */
+  showCriticalPath?: boolean
 }
 ```
 
@@ -1140,6 +1143,29 @@ chart.addEventListener('dependency-click', (e) => {
     chart.rows = rows
   }
 })
+```
+
+## Critical Path Visualization
+
+Set `dependency.showCriticalPath: true` to automatically calculate the longest task chain (critical path) in the dependency graph and highlight the relevant task bars and connection lines in red.
+
+- Only tasks that participate in dependencies are included in the calculation. Independent tasks (not connected to any dependency) are excluded.
+- Supports manual scheduling (tasks with gaps between them).
+- The highlight color can be customized with `customTheme.criticalPath`.
+
+### Usage Example
+
+```javascript
+const option = {
+  dependency: {
+    showCriticalPath: true, // Show critical path
+    showArrows: true,
+  },
+  customTheme: {
+    criticalPath: 'rgba(220, 38, 38, 0.85)', // Highlight color (optional)
+  },
+  // ...
+}
 ```
 
 ## Keyboard Operations

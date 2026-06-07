@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zoom-change` イベント（`ZoomChangeEventDetail` 型定義）：ズーム変更時に `pxPerDay` / `pxPerMonth` を通知
 - `zoom` オプション（`enabled`, `min`, `max`, `step`）：ズーム機能の有効化と制限値・倍率の設定
 - `dependency.showConnectors` オプション：接続ポイント（丸印）の表示/非表示を制御（デフォルト: `true`）。`false` に設定するとバーのホバー時にコネクターが表示されなくなり、ドラッグによる依存関係の新規作成を無効化できる
+- `dependency.showCriticalPath` オプション：依存関係グラフからクリティカルパス（最長チェーン）を自動計算し、該当するタスクバーと接続線を赤色でハイライト表示する機能を追加。テーマカラー `criticalPath` でハイライト色をカスタマイズ可能
 - `getRowPositions()` メソッド：各行のY座標レイアウト情報（`top`, `height`, `bottom`）を取得
 
 ### Changed

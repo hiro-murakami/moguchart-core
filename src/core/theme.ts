@@ -27,6 +27,7 @@ export const THEME_COLORS: ThemeColors = {
     rowHiddenBg: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
+    criticalPath: 'rgba(220, 38, 38, 0.85)',
   },
   dark: {
     bg: '#1e293b',
@@ -54,5 +55,6 @@ export const THEME_COLORS: ThemeColors = {
     rowHiddenBg: 'repeating-linear-gradient(45deg, #0f172a, #0f172a 10px, #1e293b 10px, #1e293b 20px)',
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
+    criticalPath: 'rgba(248, 113, 113, 0.85)',
   },
 }

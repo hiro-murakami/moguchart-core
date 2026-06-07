@@ -724,6 +724,7 @@ interface ThemeColorPalette {
   wednesday?: string // 水曜日の背景色 (オプション)
   thursday?: string // 木曜日の背景色 (オプション)
   friday?: string // 金曜日の背景色 (オプション)
+  criticalPath?: string // クリティカルパスのハイライト色 (オプション)
 }
 ```
 
@@ -763,6 +764,8 @@ interface GanttChartOptionDependency {
   cornerRadius?: number
   /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
   showConnectors?: boolean
+  /** クリティカルパスを表示するかどうか (デフォルト: false)。依存関係グラフの最長チェーンを自動計算し、該当するタスクバーと接続線をハイライト表示する */
+  showCriticalPath?: boolean
 }
 ```
 
@@ -1122,6 +1125,29 @@ chart.addEventListener('dependency-click', (e) => {
     chart.rows = rows
   }
 })
+```
+
+## クリティカルパスの表示
+
+`dependency.showCriticalPath: true` を設定すると、依存関係グラフの中で最長のタスクチェーン（クリティカルパス）を自動的に計算し、該当するタスクバーと接続線を赤色でハイライト表示します。
+
+- 依存関係を持つタスクのみが計算対象です。独立タスク（依存関係に参加していないタスク）はクリティカルパスの計算から除外されます
+- 手動スケジュール（タスク間にギャップがある場合）にも対応しています
+- ハイライトの色は `customTheme.criticalPath` でカスタマイズできます
+
+### 使用例
+
+```javascript
+const option = {
+  dependency: {
+    showCriticalPath: true, // クリティカルパスを表示
+    showArrows: true,
+  },
+  customTheme: {
+    criticalPath: 'rgba(220, 38, 38, 0.85)', // ハイライト色（省略可）
+  },
+  // ...
+}
 ```
 
 ## キーボード操作

@@ -48,6 +48,9 @@ export class GanttRowElement extends LitElement {
   @property({ type: Boolean, reflect: true })
   isExporting = false
 
+  @property({ type: Array })
+  criticalPathTaskIds: string[] = []
+
   // 月境界線キャッシュ（option.calendar.start/end/pxPerDay/pxPerMonth が変わらない限り再計算不要）
   private _cachedMonthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
   private _cachedMonthGridStartTime = 0
@@ -695,6 +698,7 @@ export class GanttRowElement extends LitElement {
                   .multiDragActive="${isPrimaryDrag}"
                   .multiDragSameRow="${this.multiDragSameRow}"
                   .isExporting="${this.isExporting}"
+                  .isCriticalPath="${this.criticalPathTaskIds.includes(task.id)}"
                 />
               `
             },

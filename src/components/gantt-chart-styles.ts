@@ -113,6 +113,9 @@ export const ganttChartStyles = css`
   .dependency-group:hover .dependency-hit-area ~ .dependency-line {
     opacity: 1;
   }
+  .dependency-line.critical-path {
+    stroke-width: 3;
+  }
   .current-time-line {
     position: absolute;
     width: 2px;
@@ -184,6 +187,9 @@ export function buildDynamicStyles(
       stroke-dasharray: 6 3;
       fill: none;
       opacity: 0.7;
+    }
+    .dependency-line.critical-path {
+      stroke: ${colors.criticalPath ?? colors.dependencyLine};
     }
     .header-resizer {
       width: 4px;

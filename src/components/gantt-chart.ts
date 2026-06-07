@@ -30,6 +30,7 @@ import type { GanttRowElement } from './gantt-row'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
 import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './gantt-chart-export'
+import { computeCriticalPath } from '../core/critical-path'
 
 
 @customElement('gantt-chart')
@@ -2370,6 +2371,8 @@ export class GanttChartElement extends LitElement {
     const arrowSize = this.option.dependency?.arrowSize ?? 8
     const lineStyle: DependencyLineStyle = this.option.dependency?.lineStyle ?? 'orthogonal'
     const cornerRadius = this.option.dependency?.cornerRadius ?? 8
+    const showCriticalPath = this.option.dependency?.showCriticalPath === true
+    const criticalPathTaskIds = showCriticalPath ? computeCriticalPath(this.displayRows) : new Set<string>()
     for (const [taskId, task] of taskCoords) {
       if (task.dependencies) {
         for (const depId of task.dependencies) {
@@ -2437,9 +2440,9 @@ export class GanttChartElement extends LitElement {
                     this.handleDependencyLineClick(e, taskId, depId)
                   }}" />`
                   : ''}
-                <path class="dependency-line" d="${pathD}" />
+                <path class="dependency-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${pathD}" />
                 ${showArrows
-                  ? svg`<path class="dependency-line dependency-arrow-line" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
+                  ? svg`<path class="dependency-line dependency-arrow-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
                   : ''}
               </g>`,
             )
@@ -2484,7 +2487,11 @@ export class GanttChartElement extends LitElement {
     }
 
     return html`
-      <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
+      <style>${buildDynamicStyles(this.theme, this.option.customTheme)}
+        :host {
+          --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
+        }
+      </style>
       ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; border-radius: 0 !important; border: none !important; }</style>` : ''}
       <div
         class="scroll-container"
@@ -2656,6 +2663,7 @@ export class GanttChartElement extends LitElement {
                 .selectedTaskIds="${this._cachedSelectedTaskIds}"
                 .focusedTaskId="${this.focusedTaskId}"
                 .isExporting="${this.isExporting}"
+                .criticalPathTaskIds="${showCriticalPath ? [...criticalPathTaskIds] : []}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"

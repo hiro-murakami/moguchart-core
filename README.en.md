@@ -18,7 +18,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Light/Dark/System theme switching + custom color themes
   - Task bar fill patterns (13 types including stripes, dots, checkerboard, etc.)
   - CSS styling
-- 🔗 **Dependency Visualization**: Curved lines with arrows showing task dependencies (S-curve support for reverse direction)
+- 🔗 **Dependency Visualization**: Curved lines with arrows showing task dependencies (S-curve support for reverse direction). Automatic critical path detection and highlighting
 - 📅 **Flexible Calendar**:
   - Day / Week / Month view switching
   - Adjustable zoom level (pixels per day or per month) and display period
