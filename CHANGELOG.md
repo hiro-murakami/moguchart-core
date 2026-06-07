@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `resetZoom()` メソッド：ズームをリセットし、`option` で設定された元のスケールに復元
 - `zoom-change` イベント（`ZoomChangeEventDetail` 型定義）：ズーム変更時に `pxPerDay` / `pxPerMonth` を通知
 - `zoom` オプション（`enabled`, `min`, `max`, `step`）：ズーム機能の有効化と制限値・倍率の設定
+- `dependency.showConnectors` オプション：接続ポイント（丸印）の表示/非表示を制御（デフォルト: `true`）。`false` に設定するとバーのホバー時にコネクターが表示されなくなり、ドラッグによる依存関係の新規作成を無効化できる
 
 ## [0.6.0] - 2026-06-06
 

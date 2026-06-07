@@ -761,6 +761,8 @@ interface GanttChartOptionDependency {
   lineStyle?: DependencyLineStyle
   /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
   cornerRadius?: number
+  /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
+  showConnectors?: boolean
 }
 ```
 
@@ -1060,6 +1062,7 @@ const option = {
 - ターゲットタスクは青いアウトラインでハイライトされます
 - ドロップ成功時に `dependency-create` イベントが発火します
 - `readOnly` モードではコネクターポイントは表示されません
+- `dependency.showConnectors: false` を設定するとコネクターポイントを非表示にできます（既存の依存関係線は引き続き表示されます）
 
 ### 使用例
 

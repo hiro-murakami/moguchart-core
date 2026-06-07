@@ -350,6 +350,8 @@ export interface GanttChartOptionDependency {
   lineStyle?: DependencyLineStyle
   /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
   cornerRadius?: number
+  /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
+  showConnectors?: boolean
 }
 
 /**

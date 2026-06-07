@@ -697,6 +697,7 @@ export class GanttBarElement extends LitElement {
   private onMouseMoveOnBar = (e: MouseEvent) => {
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     if (!taskGroup || this.option.readOnly) return
+    if (this.option.dependency?.showConnectors === false) return
 
     const rect = taskGroup.getBoundingClientRect()
     const localX = e.clientX - rect.left
@@ -941,7 +942,7 @@ export class GanttBarElement extends LitElement {
               <div class="handle-right" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"></div>
             `
           : ''}
-        ${!isReadOnly
+        ${!isReadOnly && this.option.dependency?.showConnectors !== false
           ? html`
               <div
                 class="connector-left"

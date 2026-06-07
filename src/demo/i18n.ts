@@ -13,6 +13,7 @@ export interface DemoTexts {
   customRendering: string
   rowHeaderResize: string
   showHiddenRows: string
+  showConnectors: string
   showTime: string
   showYearMonth: string
   showDates: string
@@ -101,6 +102,7 @@ export const jaTexts: DemoTexts = {
   customRendering: 'カスタムレンダリング有効',
   rowHeaderResize: '行ヘッダーのリサイズ許可',
   showHiddenRows: '非表示行を表示 (5行おき)',
+  showConnectors: '接続ポイント（丸印）を表示',
   showTime: '時間を表示',
   showYearMonth: '年月を表示',
   showDates: '日付を表示',
@@ -251,6 +253,7 @@ export const enTexts: DemoTexts = {
   customRendering: 'Custom Rendering',
   rowHeaderResize: 'Resizable Row Header',
   showHiddenRows: 'Show Hidden Rows (every 5)',
+  showConnectors: 'Show Connectors',
   showTime: 'Show Time',
   showYearMonth: 'Show Year/Month',
   showDates: 'Show Dates',

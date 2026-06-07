@@ -99,6 +99,7 @@ let weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1
 let weekTextAlign: 'left' | 'center' | 'right' = 'left'
 let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
 let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
+let showConnectors = true
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
@@ -325,6 +326,7 @@ const renderApp = () => {
     locale: currentLocale,
     dependency: {
       lineStyle: dependencyLineStyle,
+      showConnectors,
     },
     zoom: {
       enabled: true,
@@ -720,6 +722,11 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${showHiddenRows}" @change="${(e: Event) => { showHiddenRows = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.showHiddenRows}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showConnectors}" @change="${(e: Event) => { showConnectors = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showConnectors}
               </label>
             </div>
           </div>

@@ -850,6 +850,8 @@ interface GanttChartOptionDependency {
   lineStyle?: DependencyLineStyle
   /** Corner radius in px for orthogonal style (default: 8) */
   cornerRadius?: number
+  /** Whether to show connector points (circles) on task bars (default: true) */
+  showConnectors?: boolean
 }
 ```
 
@@ -1078,6 +1080,7 @@ When you hover over a task bar, connector points (blue circles) will appear on t
 - The target task is highlighted with a blue outline.
 - The `dependency-create` event fires upon a successful drop.
 - Connector points are not displayed in `readOnly` mode.
+- Set `dependency.showConnectors: false` to hide connector points (existing dependency lines will still be displayed).
 
 ### Usage Example
 
