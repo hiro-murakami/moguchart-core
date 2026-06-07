@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Ctrl/Cmd + マウスホイールによるズームイン・ズームアウト機能を追加（`zoom` オプションで有効化）
+- `zoomTo(value)` メソッド：指定した `pxPerDay`（月単位モードでは `pxPerMonth`）にズームレベルを設定
+- `zoomToFit()` メソッド：全タスクが表示領域に収まるようズームレベルを自動調整
+- `resetZoom()` メソッド：ズームをリセットし、`option` で設定された元のスケールに復元
+- `zoom-change` イベント（`ZoomChangeEventDetail` 型定義）：ズーム変更時に `pxPerDay` / `pxPerMonth` を通知
+- `zoom` オプション（`enabled`, `min`, `max`, `step`）：ズーム機能の有効化と制限値・倍率の設定
+
 ## [0.6.0] - 2026-06-06
 
 ### Added

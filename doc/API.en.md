@@ -117,6 +117,17 @@ interface GanttChartOption {
     /** Task move amount per Shift+Arrow key press (in minutes). Uses snapDuration when omitted */
     moveStep?: number
   }
+  /** Zoom feature settings */
+  zoom?: {
+    /** Whether to enable zoom (default: false) */
+    enabled?: boolean
+    /** Minimum pxPerDay (default: 2). Acts as minimum pxPerMonth in monthly mode */
+    min?: number
+    /** Maximum pxPerDay (default: 200). Acts as maximum pxPerMonth in monthly mode */
+    max?: number
+    /** Zoom multiplier per wheel tick (default: 1.2) */
+    step?: number
+  }
 }
 ```
 
@@ -144,6 +155,7 @@ Custom events dispatched by the component.
 | `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
 | `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
 | `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
+| `zoom-change`            | `ZoomChangeEventDetail`           | Fired when the zoom level changes (via Ctrl+wheel, `zoomTo()`, or `resetZoom()`).    |
 
 ## Methods
 
@@ -154,6 +166,9 @@ Public methods that can be called on the component instance.
 | `selectTask`  | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
 | `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
 | `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `zoomTo`      | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
+| `zoomToFit`   | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
+| `resetZoom`   | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
 
 ### Usage Examples
 
@@ -224,6 +239,35 @@ interface ExportImageOptions {
 ```
 
 > **Note:** `exportImage` exports the entire chart (all scrollable area) regardless of current scroll position. Shadow DOM styles are automatically collected. However, external fonts or images might not render correctly if they are cross-origin.
+
+#### zoomTo / zoomToFit / resetZoom
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Enable zoom (requires option configuration)
+chart.option = {
+  ...chart.option,
+  zoom: { enabled: true, min: 5, max: 200, step: 1.2 }
+}
+
+// Zoom to a specific pxPerDay
+chart.zoomTo(100)
+
+// Auto-fit all tasks into the viewport
+chart.zoomToFit()
+
+// Reset to original scale
+chart.resetZoom()
+
+// Listen for zoom change events
+chart.addEventListener('zoom-change', (e) => {
+  console.log(`pxPerDay: ${e.detail.pxPerDay}`)
+  // Optionally sync option.calendar.pxPerDay
+})
+```
+
+> **Note:** Zoom can also be controlled via `Ctrl+mouse wheel` (Mac: `Cmd+wheel`). During zoom, the scroll position is automatically adjusted to keep the date under the cursor in place. Setting `option` to a new object resets the zoom.
 
 ## Type Definitions
 
@@ -828,6 +872,15 @@ interface DependencyCreateEventDetail {
 interface TaskDeleteEventDetail {
   taskIds: string[] // Array of task IDs to be deleted
   event: KeyboardEvent // Original keyboard event
+}
+```
+
+### ZoomChangeEventDetail
+
+```typescript
+interface ZoomChangeEventDetail {
+  pxPerDay: number // pxPerDay after zoom
+  pxPerMonth?: number // pxPerMonth after zoom (only in monthly mode)
 }
 ```
 

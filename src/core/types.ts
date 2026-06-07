@@ -393,6 +393,17 @@ export interface GanttChartOption {
     /** Shift+矢印キーでのタスク移動量（分）。省略時は snapDuration を使用 */
     moveStep?: number
   }
+  /** ズーム機能の設定 */
+  zoom?: {
+    /** ズーム機能を有効にするか (デフォルト: false) */
+    enabled?: boolean
+    /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth */
+    min?: number
+    /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth */
+    max?: number
+    /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
+    step?: number
+  }
 }
 
 /**
@@ -663,4 +674,14 @@ export interface TaskDeleteEventDetail {
   taskIds: string[]
   /** 元のキーボードイベント */
   event: KeyboardEvent
+}
+
+/**
+ * ズーム変更イベントの詳細データ
+ */
+export interface ZoomChangeEventDetail {
+  /** ズーム後の pxPerDay */
+  pxPerDay: number
+  /** ズーム後の pxPerMonth（月単位モード時のみ） */
+  pxPerMonth?: number
 }

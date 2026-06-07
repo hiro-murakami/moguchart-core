@@ -326,6 +326,9 @@ const renderApp = () => {
     dependency: {
       lineStyle: dependencyLineStyle,
     },
+    zoom: {
+      enabled: true,
+    },
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')

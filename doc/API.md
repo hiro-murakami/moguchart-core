@@ -117,6 +117,17 @@ interface GanttChartOption {
     /** Shift+矢印キーでのタスク移動量（分）。省略時は snapDuration を使用 */
     moveStep?: number
   }
+  /** ズーム機能の設定 */
+  zoom?: {
+    /** ズーム機能を有効にするか (デフォルト: false) */
+    enabled?: boolean
+    /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth */
+    min?: number
+    /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth */
+    max?: number
+    /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
+    step?: number
+  }
 }
 ```
 
@@ -144,6 +155,7 @@ interface GanttChartOption {
 | `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
 | `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
 | `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
+| `zoom-change`            | `ZoomChangeEventDetail`           | ズームレベルが変更されたときに発火します（Ctrl+ホイール、`zoomTo()`、`resetZoom()` 時）。   |
 
 ## メソッド (Methods)
 
@@ -154,6 +166,9 @@ interface GanttChartOption {
 | `selectTask`  | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
 | `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
 | `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `zoomTo`      | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
+| `zoomToFit`   | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
+| `resetZoom`   | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
 
 ### 使用例
 
@@ -224,6 +239,35 @@ interface ExportImageOptions {
 ```
 
 > **Note:** `exportImage` はスクロール位置によらずチャート全体（スクロール領域すべて）をエクスポートします。Shadow DOM のスタイルも自動的に収集されます。ただし、外部フォントや画像がクロスオリジンの場合は正しく描画されないことがあります。
+
+#### zoomTo / zoomToFit / resetZoom
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// ズームを有効にする（オプション設定が必要）
+chart.option = {
+  ...chart.option,
+  zoom: { enabled: true, min: 5, max: 200, step: 1.2 }
+}
+
+// 指定した pxPerDay にズーム
+chart.zoomTo(100)
+
+// 全タスクが画面に収まるようにズーム
+chart.zoomToFit()
+
+// 元のスケールに戻す
+chart.resetZoom()
+
+// ズーム変更イベントをリッスン
+chart.addEventListener('zoom-change', (e) => {
+  console.log(`pxPerDay: ${e.detail.pxPerDay}`)
+  // 必要に応じて option.calendar.pxPerDay を追従更新
+})
+```
+
+> **Note:** ズームは `Ctrl+マウスホイール`（Mac: `Cmd+ホイール`）でも操作できます。ズーム時はカーソル位置を基準にスクロール位置が自動補正されます。`option` を新しいオブジェクトで更新するとズームはリセットされます。
 
 ## 型定義 (Types)
 
@@ -739,6 +783,16 @@ interface DependencyCreateEventDetail {
 interface TaskDeleteEventDetail {
   taskIds: string[] // 削除対象のタスクID配列
   event: KeyboardEvent // 元のキーボードイベント
+}
+```
+
+
+### ZoomChangeEventDetail
+
+```typescript
+interface ZoomChangeEventDetail {
+  pxPerDay: number // ズーム後の pxPerDay
+  pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
 }
 ```
 

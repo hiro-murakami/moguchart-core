@@ -16,6 +16,7 @@ import type {
   RowSelectionChangeEventDetail,
   TaskDeleteEventDetail,
   TaskUpdateEventDetail,
+  ZoomChangeEventDetail,
 } from '../core/types'
 import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '../core/utils'
 import { LitElement, html, render, svg, type PropertyValues } from 'lit'
@@ -117,6 +118,8 @@ export class GanttChartElement extends LitElement {
   @state() private isExporting = false
   @state() private focusedTaskId: string | null = null
   @state() private focusedRowId: string | null = null
+  @state() private zoomPxPerDay: number | null = null
+  @state() private zoomPxPerMonth: number | null = null
 
   private _layoutCache: {
     layouts: any[]
@@ -129,12 +132,29 @@ export class GanttChartElement extends LitElement {
   private _cachedCurrentOption: GanttChartOption | null = null
   private _lastOptionRef: GanttChartOption | null = null
   private _lastLabelWidth: number = -1
+  private _lastZoomPxPerDay: number | null = null
+  private _lastZoomPxPerMonth: number | null = null
+  private _scrollContainer: HTMLElement | null = null
 
   private get displayRows() {
     if (this.option.showHiddenRows) {
       return this.rows
     }
     return this.rows.filter((row) => row.visible !== false)
+  }
+
+  /**
+   * 現在有効な pxPerDay（ズームオーバーライドがあればそちらを優先）
+   */
+  private get effectivePxPerDay(): number {
+    return this.zoomPxPerDay ?? this.option.calendar.pxPerDay ?? 50
+  }
+
+  /**
+   * 現在有効な pxPerMonth（ズームオーバーライドがあればそちらを優先）
+   */
+  private get effectivePxPerMonth(): number | undefined {
+    return this.zoomPxPerMonth ?? this.option.calendar.pxPerMonth
   }
 
   static styles = ganttChartStyles
@@ -156,6 +176,11 @@ export class GanttChartElement extends LitElement {
     if (calendar) {
       this.resizeObserver.observe(calendar)
     }
+
+    // wheel イベントは scroll-container に直接登録する
+    // ホスト要素に登録するとブラウザのネイティブスクロールが先に処理されてしまう
+    this._scrollContainer = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    this._scrollContainer?.addEventListener('wheel', this.handleWheel, { passive: false })
   }
 
   connectedCallback(): void {
@@ -183,6 +208,8 @@ export class GanttChartElement extends LitElement {
     this.stopCurrentTimeTimer()
     this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
     this.removeEventListener('keydown', this.handleKeyDown)
+    this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
+    this._scrollContainer = null
   }
 
   private handleSystemThemeChange = (e: MediaQueryListEvent) => {
@@ -205,11 +232,16 @@ export class GanttChartElement extends LitElement {
       if (!this.isResizingHeader) {
         this.currentRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
       }
+      // 利用側が option を直接変更した場合、ズームオーバーライドをリセット
+      this.zoomPxPerDay = null
+      this.zoomPxPerMonth = null
     }
     if (
       changedProperties.has('rows') ||
       changedProperties.has('option') ||
-      changedProperties.has('currentRowHeaderWidth')
+      changedProperties.has('currentRowHeaderWidth') ||
+      changedProperties.has('zoomPxPerDay') ||
+      changedProperties.has('zoomPxPerMonth')
     ) {
       this._layoutCache = null
     }
@@ -507,8 +539,8 @@ export class GanttChartElement extends LitElement {
     return dateToX(
       date,
       this.option.calendar.start,
-      this.option.calendar.pxPerDay ?? 50,
-      this.option.calendar.pxPerMonth,
+      this.effectivePxPerDay,
+      this.effectivePxPerMonth,
     )
   }
 
@@ -607,8 +639,8 @@ export class GanttChartElement extends LitElement {
     let newEnd = end
 
     if (dx !== undefined) {
-      const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const pxPerMonth = this.option.calendar.pxPerMonth
+      const pxPerDay = this.effectivePxPerDay
+      const pxPerMonth = this.effectivePxPerMonth
       const startX = this.getDateX(start)
       const endX = this.getDateX(end)
       newStart = xToDate(startX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
@@ -803,8 +835,8 @@ export class GanttChartElement extends LitElement {
 
     // 複数バー移動のドロップ処理
     if (droppedMulti && dx !== undefined) {
-      const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const pxPerMonth = this.option.calendar.pxPerMonth
+      const pxPerDay = this.effectivePxPerDay
+      const pxPerMonth = this.effectivePxPerMonth
 
       // 同一行の複数バーが別の行にドロップされた場合の行移動処理
       const needsRowMove = droppedSameRow && targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows
@@ -1146,8 +1178,8 @@ export class GanttChartElement extends LitElement {
           const labelWidth = this.currentRowHeaderWidth
           const scrollLeft = container.scrollLeft
           const x = e.clientX - rect.left + scrollLeft - labelWidth
-          const pxPerDay = this.option.calendar.pxPerDay ?? 50
-          const pxPerMonth = this.option.calendar.pxPerMonth
+          const pxPerDay = this.effectivePxPerDay
+          const pxPerMonth = this.effectivePxPerMonth
 
           // スナップ計算
           const snapDuration = this.option.snapDuration ?? 1440
@@ -1267,8 +1299,8 @@ export class GanttChartElement extends LitElement {
 
       // X座標 -> 日時
       const x = e.clientX - rect.left + scrollLeft - labelWidth
-      const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const pxPerMonth = this.option.calendar.pxPerMonth
+      const pxPerDay = this.effectivePxPerDay
+      const pxPerMonth = this.effectivePxPerMonth
       const dropDate = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
       // Y座標 -> 行
@@ -1389,8 +1421,8 @@ export class GanttChartElement extends LitElement {
     if (targetRowId) {
       // X座標 -> 日時
       const x = e.clientX - rect.left + scrollLeft - labelWidth
-      const pxPerDay = this.option.calendar.pxPerDay ?? 50
-      const pxPerMonth = this.option.calendar.pxPerMonth
+      const pxPerDay = this.effectivePxPerDay
+      const pxPerMonth = this.effectivePxPerMonth
       const date = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
       this.dispatchEvent(
@@ -1437,8 +1469,8 @@ export class GanttChartElement extends LitElement {
     if (!targetRowId) return null
 
     const x = clientX - rect.left + scrollLeft - labelWidth
-    const pxPerDay = this.option.calendar.pxPerDay ?? 50
-    const pxPerMonth = this.option.calendar.pxPerMonth
+    const pxPerDay = this.effectivePxPerDay
+    const pxPerMonth = this.effectivePxPerMonth
     const date = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
 
     return { rowId: targetRowId, date }
@@ -1460,6 +1492,175 @@ export class GanttChartElement extends LitElement {
     } finally {
       this.isExporting = false
       await this.updateComplete
+    }
+  }
+
+  // --- ズーム操作 ---
+
+  /**
+   * Ctrl/Cmd + マウスホイールによるズーム処理
+   */
+  private handleWheel = (e: WheelEvent) => {
+    // Ctrl/Meta キーが押されていない場合は通常スクロール
+    if (!e.ctrlKey && !e.metaKey) return
+    // ズームが無効の場合は無視
+    if (this.option.zoom?.enabled !== true) return
+
+    e.preventDefault()
+
+    const container = this._scrollContainer
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const labelWidth = this.currentRowHeaderWidth
+
+    // マウス位置のコンテンツ内X座標（行ヘッダーを除く）
+    const mouseContentX = e.clientX - rect.left + container.scrollLeft - labelWidth
+
+    // 現在のズーム値
+    const isMonthMode = this.effectivePxPerMonth !== undefined
+    const currentScale = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
+
+    // ズーム倍率計算
+    const step = this.option.zoom?.step ?? 1.2
+    const defaultMin = isMonthMode ? 20 : 2
+    const defaultMax = isMonthMode ? 600 : 200
+    const min = this.option.zoom?.min ?? defaultMin
+    const max = this.option.zoom?.max ?? defaultMax
+
+    // deltaY > 0 ならズームアウト（縮小）、< 0 ならズームイン（拡大）
+    const factor = e.deltaY > 0 ? 1 / step : step
+    const newScale = Math.max(min, Math.min(max, currentScale * factor))
+
+    // 値が変わらなければ何もしない
+    if (newScale === currentScale) return
+
+    // ズーム値を先に更新（Litの再レンダリングをトリガー）
+    if (isMonthMode) {
+      this.zoomPxPerMonth = newScale
+    } else {
+      this.zoomPxPerDay = newScale
+    }
+
+    // 再レンダリング後にスクロール位置を補正
+    // マウスカーソル位置の日付が画面上の同じ位置に留まるようにする
+    const ratio = newScale / currentScale
+    this.updateComplete.then(() => {
+      const newMouseContentX = mouseContentX * ratio
+      const scrollDelta = newMouseContentX - mouseContentX
+      container.scrollLeft += scrollDelta
+    })
+
+    // イベント通知
+    this.dispatchEvent(
+      new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
+        detail: {
+          pxPerDay: isMonthMode ? this.effectivePxPerDay : newScale,
+          pxPerMonth: isMonthMode ? newScale : undefined,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 指定した pxPerDay（または pxPerMonth）にズームを設定する。
+   * @param value ズーム先の pxPerDay（月単位モード時は pxPerMonth）
+   */
+  public zoomTo(value: number): void {
+    const isMonthMode = this.effectivePxPerMonth !== undefined
+    const defaultMin = isMonthMode ? 20 : 2
+    const defaultMax = isMonthMode ? 600 : 200
+    const min = this.option.zoom?.min ?? defaultMin
+    const max = this.option.zoom?.max ?? defaultMax
+    const clamped = Math.max(min, Math.min(max, value))
+
+    if (isMonthMode) {
+      this.zoomPxPerMonth = clamped
+    } else {
+      this.zoomPxPerDay = clamped
+    }
+
+    this.dispatchEvent(
+      new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
+        detail: {
+          pxPerDay: isMonthMode ? this.effectivePxPerDay : clamped,
+          pxPerMonth: isMonthMode ? clamped : undefined,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 全タスクが表示領域に収まるようにズームレベルを自動調整する。
+   */
+  public zoomToFit(): void {
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (!container) return
+
+    // 全タスクの最小開始日・最大終了日を取得
+    let minStart: Date | null = null
+    let maxEnd: Date | null = null
+    for (const row of this.displayRows) {
+      for (const task of row.tasks) {
+        if (!minStart || task.start < minStart) minStart = task.start
+        if (!maxEnd || task.end > maxEnd) maxEnd = task.end
+      }
+    }
+
+    if (!minStart || !maxEnd) return
+
+    const labelWidth = this.currentRowHeaderWidth
+    const availableWidth = container.clientWidth - labelWidth
+    if (availableWidth <= 0) return
+
+    const isMonthMode = this.effectivePxPerMonth !== undefined
+
+    if (isMonthMode) {
+      // 月数を計算
+      const monthDiff =
+        (maxEnd.getFullYear() - minStart.getFullYear()) * 12 + (maxEnd.getMonth() - minStart.getMonth())
+      const totalMonths = Math.max(1, monthDiff)
+      const targetPxPerMonth = availableWidth / totalMonths
+      this.zoomTo(targetPxPerMonth)
+    } else {
+      // 日数を計算
+      const diffMs = maxEnd.getTime() - minStart.getTime()
+      const totalDays = Math.max(1, diffMs / (1000 * 60 * 60 * 24))
+      const targetPxPerDay = availableWidth / totalDays
+      this.zoomTo(targetPxPerDay)
+    }
+
+    // タスク開始位置にスクロール
+    requestAnimationFrame(() => {
+      const startX = this.getDateX(minStart!) + labelWidth
+      container.scrollLeft = Math.max(0, startX - 10)
+    })
+  }
+
+  /**
+   * ズームをリセットし、option で設定された元のスケールに戻す。
+   */
+  public resetZoom(): void {
+    const wasZoomed = this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null
+    this.zoomPxPerDay = null
+    this.zoomPxPerMonth = null
+
+    if (wasZoomed) {
+      const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+      this.dispatchEvent(
+        new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
+          detail: {
+            pxPerDay: this.option.calendar.pxPerDay ?? 50,
+            pxPerMonth: isMonthMode ? this.option.calendar.pxPerMonth : undefined,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
   }
 
@@ -2091,18 +2292,30 @@ export class GanttChartElement extends LitElement {
     const { layouts: rowLayouts, taskCoords, totalHeight } = this.calculateLayout()
     const labelWidth = this.currentRowHeaderWidth
 
-    // currentOptionはoption参照またはlabelWidthが変わった時だけ再生成
+    // currentOptionはoption参照、labelWidth、またはズーム値が変わった時だけ再生成
     // 毎回新オブジェクトを作ると全gantt-rowが再レンダリングされる
-    if (this._lastOptionRef !== this.option || this._lastLabelWidth !== labelWidth) {
+    if (
+      this._lastOptionRef !== this.option ||
+      this._lastLabelWidth !== labelWidth ||
+      this._lastZoomPxPerDay !== this.zoomPxPerDay ||
+      this._lastZoomPxPerMonth !== this.zoomPxPerMonth
+    ) {
       this._cachedCurrentOption = {
         ...this.option,
         rowHeader: {
           ...this.option.rowHeader,
           width: labelWidth,
         },
+        calendar: {
+          ...this.option.calendar,
+          pxPerDay: this.effectivePxPerDay,
+          pxPerMonth: this.effectivePxPerMonth,
+        },
       }
       this._lastOptionRef = this.option
       this._lastLabelWidth = labelWidth
+      this._lastZoomPxPerDay = this.zoomPxPerDay
+      this._lastZoomPxPerMonth = this.zoomPxPerMonth
     }
     const currentOption = this._cachedCurrentOption!
 
