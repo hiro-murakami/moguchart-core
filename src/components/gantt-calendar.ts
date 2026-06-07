@@ -18,6 +18,7 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: String })
   theme: 'light' | 'dark' = 'light'
   @property({ type: Object }) currentTime = new Date()
+  @property({ type: Boolean }) isExporting = false
   @property({ type: String }) hoveredMilestoneId: string | null = null
   @property({ attribute: false }) cornerContent?: () => string | unknown
   @property({ attribute: false }) calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
@@ -684,7 +685,8 @@ export class GanttCalendarElement extends LitElement {
           }
           return lines
         })()}
-        ${this.option.calendar.showCurrentTime &&
+        ${!this.isExporting &&
+        this.option.calendar.showCurrentTime &&
         this.option.calendar.showCurrentTimeBadge === true &&
         this.currentTime >= this.option.calendar.start &&
         this.currentTime <= this.option.calendar.end

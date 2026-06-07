@@ -1478,6 +1478,19 @@ export class GanttChartElement extends LitElement {
 
 
   /**
+   * 各行のY座標（カレンダーヘッダーを含まない、行領域の上端からの相対位置）
+   * のレイアウト情報を取得します。
+   */
+  public getRowPositions(): { top: number; height: number; bottom: number }[] {
+    const { layouts } = this.calculateLayout()
+    return layouts.map((l) => ({
+      top: l.top,
+      height: l.height,
+      bottom: l.top + l.height,
+    }))
+  }
+
+  /**
    * html2canvas を使用してガントチャートを画像としてエクスポートする。
    * (Shadow DOMネイティブ対応版 html2canvas-pro を使用)
    *
@@ -2472,7 +2485,7 @@ export class GanttChartElement extends LitElement {
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}</style>
-      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; }</style>` : ''}
+      ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; border-radius: 0 !important; border: none !important; }</style>` : ''}
       <div
         class="scroll-container"
         style="overflow-x: ${this.isExporting ? 'visible' : 'auto'}; overflow-y: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: auto;"
@@ -2516,6 +2529,7 @@ export class GanttChartElement extends LitElement {
           .option="${currentOption}"
           .theme="${this.theme}"
           .currentTime="${this.currentTime}"
+          .isExporting="${this.isExporting}"
           .hoveredMilestoneId="${this.hoveredMilestoneId}"
           .cornerContent="${this.option.customRendering?.cornerContent}"
           .calendarMonthContent="${this.option.customRendering?.calendarMonthContent}"
@@ -2558,7 +2572,8 @@ export class GanttChartElement extends LitElement {
           </g>
         </svg>
 
-        ${this.option.calendar.showCurrentTime &&
+        ${!this.isExporting &&
+        this.option.calendar.showCurrentTime &&
         this.currentTime >= this.option.calendar.start &&
         this.currentTime <= this.option.calendar.end
         ? html`

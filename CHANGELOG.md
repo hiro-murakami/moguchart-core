@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zoom-change` イベント（`ZoomChangeEventDetail` 型定義）：ズーム変更時に `pxPerDay` / `pxPerMonth` を通知
 - `zoom` オプション（`enabled`, `min`, `max`, `step`）：ズーム機能の有効化と制限値・倍率の設定
 - `dependency.showConnectors` オプション：接続ポイント（丸印）の表示/非表示を制御（デフォルト: `true`）。`false` に設定するとバーのホバー時にコネクターが表示されなくなり、ドラッグによる依存関係の新規作成を無効化できる
+- `getRowPositions()` メソッド：各行のY座標レイアウト情報（`top`, `height`, `bottom`）を取得
+
+### Changed
+
+- 画像/PDFエクスポートの分割時、`splitHeight` による分割位置が行の途中で切れないよう、行の境界に合わせて自動調整するように改善
+
+### Fixed
+
+- エクスポート時に現在時刻線（タイムインジケーター）およびバッジが出力画像に描画されてしまう問題を修正
+- エクスポート時にホスト要素の `border-radius` と `border` が出力画像に影響する問題を修正
 
 ## [0.6.0] - 2026-06-06
 

@@ -7,6 +7,7 @@
 
 import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
+import type { GanttChartElement } from './gantt-chart'
 
 
 export interface ExportImageOptions {
@@ -35,7 +36,7 @@ function triggerDownload(dataUrl: string, filename: string): void {
  * html2canvas-pro を使用してエクスポートする（Shadow DOMネイティブ対応版）
  */
 export async function exportGanttWithHtml2Canvas(
-  chartElement: HTMLElement,
+  chartElement: GanttChartElement,
   format: 'png' | 'pdf' = 'png',
   options: ExportImageOptions = {}
 ): Promise<string | Blob> {
@@ -68,22 +69,96 @@ export async function exportGanttWithHtml2Canvas(
     // Canvasの実際の出力サイズからスケール比率を計算する
     const actualScaleY = canvas.height / scrollHeight;
 
-    const scaledSplitHeight = Math.floor(splitHeight * actualScaleY);
-    const scaledCalendarHeight = Math.floor(calendarHeight * actualScaleY);
-    const scaledScrollHeight = canvas.height;
-    const scaledScrollWidth = canvas.width;
+    // スケール適用前のボディ全体の高さ
+    const originalBodyHeight = scrollHeight - calendarHeight;
+    // 分割1ブロックあたりの理想的なボディ高さ (スケール適用前)
+    const originalBlockBodyHeight = splitHeight - calendarHeight;
 
-    // ボディ部分の高さ
-    const bodyHeight = scaledScrollHeight - scaledCalendarHeight;
-    // 分割1ブロックあたりのボディ高さ (スケール適用済み)
-    const blockBodyHeight = scaledSplitHeight - scaledCalendarHeight;
+    // 行境界位置（ボディ上端からの相対Y座標）を取得
+    let rowBottoms: number[] = [];
+    if (typeof chartElement.getRowPositions === 'function') {
+      const positions = chartElement.getRowPositions();
+      rowBottoms = positions.map(p => p.bottom);
+    }
 
-    if (blockBodyHeight > 0) {
-      // 必要なブロック数を計算
-      const numBlocks = Math.ceil(bodyHeight / blockBodyHeight);
+    // 分割点（元のボディ座標系での相対Y座標）のリストを計算する
+    const splitPoints: number[] = [0]; // 最初はボディの開始 (0)
+    let currentBodyY = 0;
 
-      // 新しいキャンバスの高さを計算
-      const newCanvasHeight = scaledScrollHeight + (numBlocks - 1) * scaledCalendarHeight;
+    if (originalBlockBodyHeight > 0) {
+      while (currentBodyY < originalBodyHeight) {
+        const idealNextBodyY = currentBodyY + originalBlockBodyHeight;
+
+        if (idealNextBodyY >= originalBodyHeight) {
+          // 残りが理想の高さ以下の場合は、ボディの終端を次の分割点にする
+          splitPoints.push(originalBodyHeight);
+          break;
+        }
+
+        // idealNextBodyY を超えない最大の行境界を探す
+        // ただし、currentBodyY より大きいものである必要がある
+        let nextBodyY = -1;
+        for (let i = 0; i < rowBottoms.length; i++) {
+          const bottom = rowBottoms[i];
+          if (bottom > currentBodyY && bottom <= idealNextBodyY) {
+            nextBodyY = Math.max(nextBodyY, bottom);
+          }
+        }
+
+        // もし idealNextBodyY を超えない最大の行境界が見つからなかった場合
+        // （例えば、ある1行の高さが originalBlockBodyHeight を超えている場合など）
+        // その場合は、currentBodyY より大きい最小の行境界（その大きな行の終わり）を選択する
+        if (nextBodyY === -1) {
+          for (let i = 0; i < rowBottoms.length; i++) {
+            const bottom = rowBottoms[i];
+            if (bottom > currentBodyY) {
+              nextBodyY = bottom;
+              break;
+            }
+          }
+        }
+
+        // それでも見つからないか、更新されない場合は安全のために idealNextBodyY を使う
+        if (nextBodyY === -1 || nextBodyY === currentBodyY) {
+          nextBodyY = idealNextBodyY;
+        }
+
+        splitPoints.push(nextBodyY);
+        currentBodyY = nextBodyY;
+      }
+    } else {
+      splitPoints.push(originalBodyHeight);
+    }
+
+    const numBlocks = splitPoints.length - 1;
+
+    if (numBlocks > 0) {
+      const scaledCalendarHeight = Math.floor(calendarHeight * actualScaleY);
+      const scaledScrollWidth = canvas.width;
+
+      // 新しいキャンバスの高さを計算する
+      let newCanvasHeight = 0;
+      const blockHeights: { srcStart: number; srcEnd: number; destHeight: number }[] = [];
+
+      for (let i = 0; i < numBlocks; i++) {
+        const startY = splitPoints[i];
+        const endY = splitPoints[i + 1];
+
+        // ボディの開始・終了座標をスケール適用後のピクセル座標に変換する
+        // 浮動小数点の隙間や重複を防ぐために、上端からの絶対座標に対して丸めを行う
+        const srcBodyStartScaled = Math.round((calendarHeight + startY) * actualScaleY);
+        const srcBodyEndScaled = Math.round((calendarHeight + endY) * actualScaleY);
+        const copyHeightScaled = srcBodyEndScaled - srcBodyStartScaled;
+
+        blockHeights.push({
+          srcStart: srcBodyStartScaled,
+          srcEnd: srcBodyEndScaled,
+          destHeight: copyHeightScaled
+        });
+
+        // このブロックの高さ = カレンダーの高さ + ボディの高さ
+        newCanvasHeight += scaledCalendarHeight + copyHeightScaled;
+      }
 
       const newCanvas = document.createElement('canvas');
       newCanvas.width = scaledScrollWidth;
@@ -91,18 +166,10 @@ export async function exportGanttWithHtml2Canvas(
       const ctx = newCanvas.getContext('2d');
 
       if (ctx) {
-        // 最初のブロック (ヘッダー含む) をコピー
-        ctx.drawImage(
-          canvas,
-          0, 0, scaledScrollWidth, scaledSplitHeight,
-          0, 0, scaledScrollWidth, scaledSplitHeight
-        );
+        let currentDestY = 0;
 
-        let currentSourceY = scaledSplitHeight;
-        let currentDestY = scaledSplitHeight;
-
-        for (let i = 1; i < numBlocks; i++) {
-          // ヘッダーを描画
+        for (let i = 0; i < numBlocks; i++) {
+          // 1. カレンダー部分を描画
           ctx.drawImage(
             canvas,
             0, 0, scaledScrollWidth, scaledCalendarHeight,
@@ -110,18 +177,14 @@ export async function exportGanttWithHtml2Canvas(
           );
           currentDestY += scaledCalendarHeight;
 
-          // ボディの残りを描画
-          const remainingHeight = scaledScrollHeight - currentSourceY;
-          const copyHeight = Math.min(blockBodyHeight, remainingHeight);
-
+          // 2. ボディ部分を描画
+          const block = blockHeights[i];
           ctx.drawImage(
             canvas,
-            0, currentSourceY, scaledScrollWidth, copyHeight,
-            0, currentDestY, scaledScrollWidth, copyHeight
+            0, block.srcStart, scaledScrollWidth, block.destHeight,
+            0, currentDestY, scaledScrollWidth, block.destHeight
           );
-
-          currentSourceY += copyHeight;
-          currentDestY += copyHeight;
+          currentDestY += block.destHeight;
         }
 
         canvas = newCanvas;
