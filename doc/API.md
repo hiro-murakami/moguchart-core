@@ -156,19 +156,22 @@ interface GanttChartOption {
 | `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
 | `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
 | `zoom-change`            | `ZoomChangeEventDetail`           | ズームレベルが変更されたときに発火します（Ctrl+ホイール、`zoomTo()`、`resetZoom()` 時）。   |
+| `marker-dblclick`        | `MarkerDblClickEventDetail`       | マーカーをダブルクリックしたときに発火します。                                               |
+| `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | マーカーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。   |
 
 ## メソッド (Methods)
 
 コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
 
-| メソッド名    | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
-| :------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`  | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
-| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
-| `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
-| `zoomTo`      | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
-| `zoomToFit`   | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
-| `resetZoom`   | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
+| メソッド名          | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
+| :------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`        | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `hitTest`           | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
+| `exportImage`       | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `zoomTo`            | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
+| `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
+| `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
+| `getRowPositions`   | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
 
 ### 使用例
 
@@ -281,6 +284,7 @@ interface GanttRow {
   name: string // 行ヘッダーに表示するラベル
   tasks: GanttTask[] // この行に含まれるタスクの配列
   markers?: GanttMarker[] // この行に表示するマーカーの配列
+  selectedMarkerId?: string // 現在選択中（編集中）のマーカーID
   visible?: boolean // 行を表示するかどうか (デフォルト: true)
 }
 ```
@@ -525,6 +529,20 @@ interface GanttChartMilestone {
 type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
 ```
 
+### MarkerFontSize
+
+```typescript
+type MarkerFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+```
+
+| 値   | フォントサイズ |
+| :--- | :------------- |
+| `xs` | 8px (極小)     |
+| `sm` | 10px (小)      |
+| `md` | 12px (中)      |
+| `lg` | 14px (大)      |
+| `xl` | 18px (特大)    |
+
 ### AnchorType
 
 ```typescript
@@ -541,6 +559,7 @@ interface GanttMarker {
   anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 'center': dateがマーカー中央＋ラベル下部表示, 未指定: 中央)
   type: MarkerType // マーカーの形状
   color?: string // マーカーの色 (CSS color string)
+  fontSize?: MarkerFontSize // マーカーのラベルのフォントサイズ (デフォルト: 'sm' = 10px)
   style?: string // マーカーのカスタムスタイル (CSS文字列)
 }
 ```
@@ -807,6 +826,26 @@ interface ZoomChangeEventDetail {
 interface DependencyClickEventDetail {
   sourceTaskId: string // 接続元（依存元）のタスクID
   targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  event: MouseEvent // 元のマウスイベント
+}
+```
+
+### MarkerDblClickEventDetail
+
+```typescript
+interface MarkerDblClickEventDetail {
+  marker: GanttMarker // 対象のマーカー
+  rowId: string // マーカーが属する行ID
+  event: MouseEvent // 元のマウスイベント
+}
+```
+
+### MarkerContextMenuEventDetail
+
+```typescript
+interface MarkerContextMenuEventDetail {
+  marker: GanttMarker // 対象のマーカー
+  rowId: string // マーカーが属する行ID
   event: MouseEvent // 元のマウスイベント
 }
 ```

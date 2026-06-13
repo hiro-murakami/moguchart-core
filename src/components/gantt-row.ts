@@ -1,5 +1,5 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerType, RowHeaderContextMenuEventDetail } from '../core/types'
+import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail } from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -86,10 +86,26 @@ export class GanttRowElement extends LitElement {
   }
 
   /**
+   * マーカーのフォントサイズ名をpx値に変換する
+   */
+  private resolveMarkerFontSize(size?: MarkerFontSize): number {
+    switch (size) {
+      case 'xs': return 8
+      case 'sm': return 10
+      case 'md': return 12
+      case 'lg': return 14
+      case 'xl': return 18
+      default: return 10
+    }
+  }
+
+  /**
    * マーカーの表示幅を推定する（アイコン＋ラベル）
    */
-  private estimateMarkerWidth(marker: { name?: string; anchor?: string }, markerSize: number): number {
-    const labelWidth = marker.name ? marker.name.length * 7 + 4 : 0 // 大まかな文字幅推定
+  private estimateMarkerWidth(marker: { name?: string; anchor?: string; fontSize?: MarkerFontSize }, markerSize: number): number {
+    const fontSize = this.resolveMarkerFontSize(marker.fontSize)
+    const charWidth = fontSize * 0.7 // フォントサイズに応じた文字幅推定
+    const labelWidth = marker.name ? marker.name.length * charWidth + 4 : 0
     const isCenter = marker.anchor === 'center'
     if (isCenter) {
       // center配置: ラベルは下に出るのでアイコン幅のみ考慮
@@ -105,23 +121,19 @@ export class GanttRowElement extends LitElement {
     const x = this.getDateX(marker.date)
     const totalWidth = this.estimateMarkerWidth(marker, markerSize)
     const isCenter = marker.anchor === 'center'
-    const labelOnLeft = marker.anchor === 'end'
 
     let left: number
     if (marker.anchor === 'start') {
       left = x
     } else if (marker.anchor === 'end') {
-      left = x - markerSize
+      // 全体（アイコン＋ラベル）の右端が x に来るようにする
+      left = x - totalWidth
     } else {
       left = x - markerSize / 2
     }
 
     if (isCenter) {
       return { left, right: left + markerSize }
-    }
-    if (labelOnLeft) {
-      const labelWidth = totalWidth - markerSize
-      return { left: left - labelWidth, right: left + markerSize }
     }
     return { left, right: left + totalWidth }
   }
@@ -224,6 +236,33 @@ export class GanttRowElement extends LitElement {
     .bars-container {
       flex: none;
       position: relative;
+    }
+    .marker-wrapper {
+      transition: transform 0.15s ease, filter 0.15s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .marker-wrapper.marker-anchor-end {
+      transform: translateX(-100%);
+    }
+    .marker-wrapper:hover {
+      transform: scale(1.3);
+      filter: brightness(1.15) drop-shadow(0 2px 6px rgba(0,0,0,0.4)) drop-shadow(0 0 8px rgba(255,255,255,0.5));
+      z-index: 10 !important;
+    }
+    .marker-wrapper.marker-anchor-end:hover {
+      transform: translateX(-100%) scale(1.3);
+    }
+    .marker-wrapper.marker-selected {
+      filter: brightness(1.2) drop-shadow(0 0 6px rgba(59,130,246,0.7)) drop-shadow(0 0 10px rgba(59,130,246,0.4));
+      z-index: 10 !important;
+    }
+    .marker-wrapper.marker-selected .marker-icon {
+      animation: marker-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes marker-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
     }
     .grid-background {
       position: absolute;
@@ -711,14 +750,17 @@ export class GanttRowElement extends LitElement {
             // マーカーのY位置: タスクエリアの中心を基準に、レーンに応じてオフセット
             const baseY = isCenter ? (taskAreaHeight / 2 - markerSize) : (taskAreaHeight - markerSize) / 2
             const markerY = baseY + markerLane * markerItemHeight
-            // anchor: 'start' → dateがマーカー左端, 'end' → dateがマーカー右端, 'center'/未指定 → 中央
+            // anchor: 'start' → dateが全体の左端, 'end' → dateが全体（ラベル含む）の右端, 'center'/未指定 → 中央
+            // 'end' は left:x + translateX(-100%) で実際のレンダリング幅に基づき右端をxに揃える
             const markerLeft = marker.anchor === 'start' ? x
-              : marker.anchor === 'end' ? x - markerSize
+              : marker.anchor === 'end' ? x
               : x - markerSize / 2
-            const labelOnLeft = marker.anchor === 'end'
+            const isAnchorEnd = marker.anchor === 'end'
+            const labelOnLeft = isAnchorEnd
+            const isSelected = this.row.selectedMarkerId === marker.id
             return html`
               <div
-                class="marker-wrapper"
+                class="marker-wrapper${isSelected ? ' marker-selected' : ''}${isAnchorEnd ? ' marker-anchor-end' : ''}"
                 style="
                   position: absolute;
                   left: ${markerLeft}px;
@@ -727,10 +769,41 @@ export class GanttRowElement extends LitElement {
                   display: flex;
                   ${isCenter ? `flex-direction: column; align-items: center; width: ${markerSize}px; overflow: visible;` : `align-items: center; ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}`}
                   pointer-events: auto;
-                  cursor: default;
+                  cursor: pointer;
                   white-space: nowrap;
                 "
                 title="${marker.name ?? ''}"
+                @dblclick="${(e: MouseEvent) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  window.getSelection()?.removeAllRanges()
+                  this.dispatchEvent(
+                    new CustomEvent<MarkerDblClickEventDetail>('marker-dblclick', {
+                      detail: {
+                        marker,
+                        rowId: this.row.id,
+                        event: e,
+                      },
+                      bubbles: true,
+                      composed: true,
+                    }),
+                  )
+                }}"
+                @contextmenu="${(e: MouseEvent) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  this.dispatchEvent(
+                    new CustomEvent<MarkerContextMenuEventDetail>('marker-contextmenu', {
+                      detail: {
+                        marker,
+                        rowId: this.row.id,
+                        event: e,
+                      },
+                      bubbles: true,
+                      composed: true,
+                    }),
+                  )
+                }}"
               >
                 <svg
                   class="marker-icon"
@@ -747,7 +820,7 @@ export class GanttRowElement extends LitElement {
                 </svg>
                 ${marker.name
                   ? html`<span style="
-                      font-size: 10px;
+                      font-size: ${this.resolveMarkerFontSize(marker.fontSize)}px;
                       color: ${markerColor};
                       line-height: 1;
                       ${isCenter ? 'padding: 1px 0 0 0;' : 'padding: 0 2px;'}

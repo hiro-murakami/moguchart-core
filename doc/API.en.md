@@ -156,19 +156,22 @@ Custom events dispatched by the component.
 | `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
 | `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
 | `zoom-change`            | `ZoomChangeEventDetail`           | Fired when the zoom level changes (via Ctrl+wheel, `zoomTo()`, or `resetZoom()`).    |
+| `marker-dblclick`        | `MarkerDblClickEventDetail`       | Fired when a marker is double-clicked.                                               |
+| `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | Fired when a marker is right-clicked. Use for implementing custom context menus.     |
 
 ## Methods
 
 Public methods that can be called on the component instance.
 
-| Method        | Signature                                                                                   | Description                                                                                                                                                                                     |
-| :------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`  | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
-| `hitTest`     | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
-| `exportImage` | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
-| `zoomTo`      | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
-| `zoomToFit`   | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
-| `resetZoom`   | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
+| Method            | Signature                                                                                   | Description                                                                                                                                                                                     |
+| :---------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`      | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `hitTest`         | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
+| `exportImage`     | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `zoomTo`          | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
+| `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
+| `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
+| `getRowPositions` | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
 
 ### Usage Examples
 
@@ -281,6 +284,7 @@ interface GanttRow {
   name: string // Label displayed in the row header
   tasks: GanttTask[] // Array of tasks in this row
   markers?: GanttMarker[] // Array of markers displayed in this row
+  selectedMarkerId?: string // Currently selected (editing) marker ID
   visible?: boolean // Whether to show the row (default: true)
 }
 ```
@@ -525,6 +529,20 @@ interface GanttChartMilestone {
 type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-right' | 'diamond' | 'square'
 ```
 
+### MarkerFontSize
+
+```typescript
+type MarkerFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+```
+
+| Value | Font Size       |
+| :---- | :-------------- |
+| `xs`  | 8px (extra small) |
+| `sm`  | 10px (small)    |
+| `md`  | 12px (medium)   |
+| `lg`  | 14px (large)    |
+| `xl`  | 18px (extra large) |
+
 ### AnchorType
 
 ```typescript
@@ -541,6 +559,7 @@ interface GanttMarker {
   anchor?: AnchorType // Anchor position ('start': date is marker's left edge, 'end': date is marker's right edge, 'center': date is marker's center + label below, unset: center)
   type: MarkerType // Marker shape
   color?: string // Marker color (CSS color string)
+  fontSize?: MarkerFontSize // Marker label font size (default: 'sm' = 10px)
   style?: string // Custom marker style (CSS string)
 }
 ```
@@ -895,6 +914,26 @@ interface ZoomChangeEventDetail {
 interface DependencyClickEventDetail {
   sourceTaskId: string // Source (dependency) task ID
   targetTaskId: string // Target (dependent) task ID
+  event: MouseEvent // Original mouse event
+}
+```
+
+### MarkerDblClickEventDetail
+
+```typescript
+interface MarkerDblClickEventDetail {
+  marker: GanttMarker // Target marker
+  rowId: string // Row ID the marker belongs to
+  event: MouseEvent // Original mouse event
+}
+```
+
+### MarkerContextMenuEventDetail
+
+```typescript
+interface MarkerContextMenuEventDetail {
+  marker: GanttMarker // Target marker
+  rowId: string // Row ID the marker belongs to
   event: MouseEvent // Original mouse event
 }
 ```

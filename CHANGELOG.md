@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `marker-dblclick` イベント（`MarkerDblClickEventDetail` 型定義）：マーカーのダブルクリック時に発火
+- `marker-contextmenu` イベント（`MarkerContextMenuEventDetail` 型定義）：マーカーの右クリック時に発火
+- `GanttMarker` に `fontSize` プロパティ（`MarkerFontSize` 型: `'xs'` | `'sm'` | `'md'` | `'lg'` | `'xl'`）を追加：マーカーラベルのフォントサイズを指定可能
+- `GanttRow` に `selectedMarkerId` プロパティを追加：現在選択中（編集中）のマーカーを指定可能（選択時にパルスアニメーション・グローエフェクトが適用される）
+
 ## [0.7.0] - 2026-06-13
 
 ### Added

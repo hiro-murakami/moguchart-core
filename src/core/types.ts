@@ -39,6 +39,11 @@ export type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'tr
 export type AnchorType = 'start' | 'end' | 'center'
 
 /**
+ * マーカーのフォントサイズ
+ */
+export type MarkerFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+
+/**
  * マーカーの設定
  */
 export interface GanttMarker {
@@ -54,6 +59,8 @@ export interface GanttMarker {
   type: MarkerType
   /** マーカーの色 (CSS color string) */
   color?: string
+  /** マーカーのラベルのフォントサイズ ('xs'=極小, 'sm'=小, 'md'=中, 'lg'=大, 'xl'=特大) */
+  fontSize?: MarkerFontSize
   /** マーカーのカスタムスタイル (CSS文字列) */
   style?: string
 }
@@ -102,6 +109,8 @@ export interface GanttRow {
   tasks: GanttTask[]
   /** マーカーの配列 */
   markers?: GanttMarker[]
+  /** 現在選択中（編集中）のマーカーID */
+  selectedMarkerId?: string
   /** 行を表示するかどうか (デフォルト: true) */
   visible?: boolean
 }
@@ -668,6 +677,30 @@ export interface DependencyClickEventDetail {
   sourceTaskId: string
   /** 接続先のタスクID */
   targetTaskId: string
+  /** 元のマウスイベント */
+  event: MouseEvent
+}
+
+/**
+ * マーカーダブルクリックイベントの詳細データ
+ */
+export interface MarkerDblClickEventDetail {
+  /** 対象のマーカー */
+  marker: GanttMarker
+  /** マーカーが属する行ID */
+  rowId: string
+  /** 元のマウスイベント */
+  event: MouseEvent
+}
+
+/**
+ * マーカー右クリック（コンテキストメニュー）イベントの詳細データ
+ */
+export interface MarkerContextMenuEventDetail {
+  /** 対象のマーカー */
+  marker: GanttMarker
+  /** マーカーが属する行ID */
+  rowId: string
   /** 元のマウスイベント */
   event: MouseEvent
 }
