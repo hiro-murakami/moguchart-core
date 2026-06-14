@@ -491,14 +491,14 @@ export class GanttRowElement extends LitElement {
       laneCount = result.laneCount
     }
 
-    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
     // マーカーのレーン計算
     const markers = this.row.markers ?? []
-    const markerSize = Math.min(barHeight, 12)
-    const markerItemHeight = markerSize + 2 // マーカー1段あたりの高さ（余白含む）
-    const markersWithLanes = this.calculateMarkerLanes(markers, markerSize)
+    const defaultMarkerSize = Math.min(barHeight, 12)
+    const markerItemHeight = defaultMarkerSize + 2 // マーカー1段あたりの高さ（余白含む）
+    const markersWithLanes = this.calculateMarkerLanes(markers, defaultMarkerSize)
     const markerLaneCount = markersWithLanes.length > 0
       ? Math.max(...markersWithLanes.map((m) => m.lane)) + 1
       : 0
@@ -745,16 +745,19 @@ export class GanttRowElement extends LitElement {
           ${markersWithLanes.map(({ marker, lane: markerLane }) => {
             const x = this.getDateX(marker.date)
             const markerColor = marker.color ?? '#ef4444'
+            // フォントサイズからシンボルサイズを算出（フォントサイズに連動）
+            const fontSize = this.resolveMarkerFontSize(marker.fontSize)
+            const individualMarkerSize = Math.min(barHeight, Math.max(8, Math.round(fontSize * 1.2)))
             // ラベル表示モード: 'center'の場合は下部表示、'end'は左側、それ以外は右側
             const isCenter = marker.anchor === 'center'
             // マーカーのY位置: タスクエリアの中心を基準に、レーンに応じてオフセット
-            const baseY = isCenter ? (taskAreaHeight / 2 - markerSize) : (taskAreaHeight - markerSize) / 2
+            const baseY = isCenter ? (taskAreaHeight / 2 - individualMarkerSize) : (taskAreaHeight - individualMarkerSize) / 2
             const markerY = baseY + markerLane * markerItemHeight
             // anchor: 'start' → dateが全体の左端, 'end' → dateが全体（ラベル含む）の右端, 'center'/未指定 → 中央
             // 'end' は left:x + translateX(-100%) で実際のレンダリング幅に基づき右端をxに揃える
             const markerLeft = marker.anchor === 'start' ? x
               : marker.anchor === 'end' ? x
-              : x - markerSize / 2
+              : x - individualMarkerSize / 2
             const isAnchorEnd = marker.anchor === 'end'
             const labelOnLeft = isAnchorEnd
             const isSelected = this.row.selectedMarkerId === marker.id
@@ -767,7 +770,7 @@ export class GanttRowElement extends LitElement {
                   top: ${markerY}px;
                   z-index: 2;
                   display: flex;
-                  ${isCenter ? `flex-direction: column; align-items: center; width: ${markerSize}px; overflow: visible;` : `align-items: center; ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}`}
+                  ${isCenter ? `flex-direction: column; align-items: center; width: ${individualMarkerSize}px; overflow: visible;` : `align-items: center; ${labelOnLeft ? 'flex-direction: row-reverse;' : ''}`}
                   pointer-events: auto;
                   cursor: pointer;
                   white-space: nowrap;
@@ -807,20 +810,20 @@ export class GanttRowElement extends LitElement {
               >
                 <svg
                   class="marker-icon"
-                  width="${markerSize}"
-                  height="${markerSize}"
-                  viewBox="0 0 ${markerSize} ${markerSize}"
+                  width="${individualMarkerSize}"
+                  height="${individualMarkerSize}"
+                  viewBox="0 0 ${individualMarkerSize} ${individualMarkerSize}"
                   style="
                     flex-shrink: 0;
                     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
                     ${marker.style ?? ''}
                   "
                 >
-                  <path d="${this.getMarkerPath(marker.type, markerSize)}" fill="${markerColor}" />
+                  <path d="${this.getMarkerPath(marker.type, individualMarkerSize)}" fill="${markerColor}" />
                 </svg>
                 ${marker.name
                   ? html`<span style="
-                      font-size: ${this.resolveMarkerFontSize(marker.fontSize)}px;
+                      font-size: ${fontSize}px;
                       color: ${markerColor};
                       line-height: 1;
                       ${isCenter ? 'padding: 1px 0 0 0;' : 'padding: 0 2px;'}
