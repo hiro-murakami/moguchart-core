@@ -107,6 +107,8 @@ interface GanttChartOption {
     calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
     /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
     chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
+    /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれ、文字列・HTMLElement・TemplateResult を返すことができます。 */
+    rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
   }
   /** 依存関係線の設定 */
   dependency?: GanttChartOptionDependency
@@ -343,6 +345,8 @@ interface GanttChartOptionCustomRendering {
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
+  /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれ、文字列・HTMLElement・TemplateResult を返すことができます。 */
+  rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
 }
 ```
 
@@ -509,6 +513,48 @@ const option = {
 > **Note:** `chartBackground` はデフォルトの背景色（土日・祝日の色分け）の上にオーバーレイとしてレンダリングされます。デフォルト背景色は `defaultColor` プロパティで取得できます。`rowId` を使用して行ごとに異なる背景を表示することも可能です。
 
 > **Note:** カスタムレンダリング関数は `HTMLElement` または HTML文字列を返すことができます。HTMLElement の場合は直接DOMに追加され、文字列の場合は `innerHTML` として設定されます。カスタムレンダリングを設定した場合、デフォルトのテキストは非表示になります。
+
+#### rowHeaderTooltip の使用例
+
+行ヘッダーにマウスをホバーした際にツールチップを表示できます。`customRendering.rowHeaderTooltip` に関数を設定すると、遅延表示（`tooltipDelay` を共有）でツールチップが表示されます。
+
+```javascript
+const option = {
+  customRendering: {
+    // 文字列を返す場合
+    rowHeaderTooltip: (row) => {
+      return `${row.name} (タスク数: ${row.tasks.length})`
+    },
+  },
+}
+```
+
+```javascript
+const option = {
+  customRendering: {
+    // HTMLElement を返す場合（リッチなツールチップ）
+    rowHeaderTooltip: (row) => {
+      const container = document.createElement('div')
+      container.style.maxWidth = '300px'
+
+      const title = document.createElement('div')
+      title.style.fontWeight = 'bold'
+      title.textContent = row.name
+      container.appendChild(title)
+
+      const info = document.createElement('div')
+      info.style.fontSize = '11px'
+      info.style.marginTop = '4px'
+      info.textContent = `タスク数: ${row.tasks.length}`
+      container.appendChild(info)
+
+      return container
+    },
+  },
+}
+```
+
+> **Note:** `rowHeaderTooltip` が `null` または `undefined` を返した場合、ツールチップは表示されません。ツールチップの表示遅延は `option.tooltipDelay`（デフォルト: 500ms）を共有します。ツールチップは行ヘッダーの右側に表示され、画面端での自動位置補正が行われます。
 
 ### GanttChartMilestone
 

@@ -275,6 +275,9 @@ export class GanttRowElement extends LitElement {
   `
 
   private handleDragStart(e: DragEvent) {
+    // ドラッグ開始時にツールチップをクリア
+    this.handleHeaderMouseLeave()
+
     // If dragging an unselected row, trigger selection
     if (!this.isSelected) {
       this.dispatchEvent(
@@ -424,6 +427,101 @@ export class GanttRowElement extends LitElement {
         composed: true,
       }),
     )
+  }
+
+  // --- 行ヘッダーツールチップ ---
+  private _rowHeaderTooltipEl: HTMLElement | null = null
+  private _rowHeaderTooltipTimer: number | undefined
+
+  private handleHeaderMouseEnter(e: MouseEvent) {
+    const tooltipFn = this.option.customRendering?.rowHeaderTooltip
+    if (!tooltipFn) return
+
+    const delay = this.option.tooltipDelay ?? 500
+    const target = e.currentTarget as HTMLElement
+
+    const show = () => {
+      const content = tooltipFn(this.row)
+      if (!content) return
+
+      const el = document.createElement('div')
+      el.style.position = 'fixed'
+      el.style.zIndex = '9999'
+      el.style.pointerEvents = 'none'
+      el.style.opacity = '0'
+      el.style.transition = 'opacity 0.15s ease'
+      el.style.maxWidth = '360px'
+      el.style.borderRadius = '8px'
+      el.style.padding = '8px 12px'
+      el.style.fontSize = '12px'
+      el.style.lineHeight = '1.5'
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
+
+      // テーマに応じた配色
+      const colors = getThemeColors(this.theme, this.option.customTheme)
+      el.style.backgroundColor = colors.tooltipBg
+      el.style.color = colors.tooltipText
+
+      if (typeof content === 'string') {
+        el.textContent = content
+      } else if (content instanceof HTMLElement) {
+        el.appendChild(content)
+      } else {
+        // Lit TemplateResult 等
+        render(content, el)
+      }
+
+      document.body.appendChild(el)
+      this._rowHeaderTooltipEl = el
+
+      // 位置計算: ヘッダーの右側に表示
+      const rect = target.getBoundingClientRect()
+      const elRect = el.getBoundingClientRect()
+      const margin = 6
+
+      let left = rect.right + margin
+      let top = rect.top
+
+      // 右にはみ出す場合は左側に表示
+      if (left + elRect.width > window.innerWidth - margin) {
+        left = rect.left - elRect.width - margin
+      }
+
+      // 下にはみ出す場合は上方向にずらす
+      if (top + elRect.height > window.innerHeight - margin) {
+        top = window.innerHeight - elRect.height - margin
+      }
+
+      // 上にはみ出す場合
+      if (top < margin) {
+        top = margin
+      }
+
+      el.style.left = `${left}px`
+      el.style.top = `${top}px`
+
+      // フェードイン
+      requestAnimationFrame(() => {
+        el.style.opacity = '1'
+      })
+    }
+
+    if (delay > 0) {
+      this._rowHeaderTooltipTimer = window.setTimeout(show, delay)
+    } else {
+      show()
+    }
+  }
+
+  private handleHeaderMouseLeave() {
+    if (this._rowHeaderTooltipTimer !== undefined) {
+      window.clearTimeout(this._rowHeaderTooltipTimer)
+      this._rowHeaderTooltipTimer = undefined
+    }
+    if (this._rowHeaderTooltipEl) {
+      this._rowHeaderTooltipEl.remove()
+      this._rowHeaderTooltipEl = null
+    }
   }
 
   protected updated(changedProperties: PropertyValues): void {
@@ -674,6 +772,8 @@ export class GanttRowElement extends LitElement {
           @click="${this.handleHeaderClick}"
           @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
+          @mouseenter="${this.handleHeaderMouseEnter}"
+          @mouseleave="${this.handleHeaderMouseLeave}"
         >
           <div
             class="row-header-content"

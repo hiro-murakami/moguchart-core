@@ -107,6 +107,8 @@ interface GanttChartOption {
     calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
     /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
     chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
+    /** Function to render row header tooltip content. Called on mouse hover. Can return a string, HTMLElement, or Lit TemplateResult. */
+    rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
   }
   /** Dependency line settings */
   dependency?: GanttChartOptionDependency
@@ -343,6 +345,8 @@ interface GanttChartOptionCustomRendering {
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
+  /** Function to render row header tooltip content. Called on mouse hover. Can return a string, HTMLElement, or Lit TemplateResult. */
+  rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
 }
 ```
 
@@ -509,6 +513,48 @@ const option = {
 > **Note:** `chartBackground` renders as an overlay on top of the default background colors (weekend/holiday color coding). The default background color can be accessed via the `defaultColor` property. You can also use `rowId` to display different backgrounds per row.
 
 > **Note:** Custom rendering functions can return an `HTMLElement` or an HTML string. HTMLElements are appended directly to the DOM, while strings are set as `innerHTML`. When a custom rendering function is set, the default text content is hidden.
+
+#### rowHeaderTooltip Usage Example
+
+Display a tooltip when hovering over a row header. Setting a function on `customRendering.rowHeaderTooltip` will show a tooltip with a delay (shares the `tooltipDelay` setting).
+
+```javascript
+const option = {
+  customRendering: {
+    // Return a string
+    rowHeaderTooltip: (row) => {
+      return `${row.name} (Tasks: ${row.tasks.length})`
+    },
+  },
+}
+```
+
+```javascript
+const option = {
+  customRendering: {
+    // Return an HTMLElement (rich tooltip)
+    rowHeaderTooltip: (row) => {
+      const container = document.createElement('div')
+      container.style.maxWidth = '300px'
+
+      const title = document.createElement('div')
+      title.style.fontWeight = 'bold'
+      title.textContent = row.name
+      container.appendChild(title)
+
+      const info = document.createElement('div')
+      info.style.fontSize = '11px'
+      info.style.marginTop = '4px'
+      info.textContent = `Tasks: ${row.tasks.length}`
+      container.appendChild(info)
+
+      return container
+    },
+  },
+}
+```
+
+> **Note:** If `rowHeaderTooltip` returns `null` or `undefined`, no tooltip is displayed. The display delay shares `option.tooltipDelay` (default: 500ms). The tooltip appears to the right of the row header, with automatic repositioning at screen edges.
 
 ### GanttChartMilestone
 

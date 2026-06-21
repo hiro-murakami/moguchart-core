@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `marker-contextmenu` イベント（`MarkerContextMenuEventDetail` 型定義）：マーカーの右クリック時に発火
 - `GanttMarker` に `fontSize` プロパティ（`MarkerFontSize` 型: `'xs'` | `'sm'` | `'md'` | `'lg'` | `'xl'`）を追加：マーカーラベルのフォントサイズを指定可能
 - `GanttRow` に `selectedMarkerId` プロパティを追加：現在選択中（編集中）のマーカーを指定可能（選択時にパルスアニメーション・グローエフェクトが適用される）
+- `customRendering.rowHeaderTooltip` を追加：行ヘッダーにマウスホバーした際にツールチップを表示する機能。文字列・HTMLElement・Lit TemplateResult を返す関数を設定可能。表示遅延は `tooltipDelay` を共有し、テーマに応じた配色が自動適用される
 
 ## [0.7.0] - 2026-06-13
 

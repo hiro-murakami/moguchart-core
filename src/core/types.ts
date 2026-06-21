@@ -325,6 +325,8 @@ export interface GanttChartOptionCustomRendering {
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返す */
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
+  /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれる */
+  rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
 }
 
 /**
