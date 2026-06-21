@@ -253,6 +253,9 @@ export class GanttCalendarElement extends LitElement {
       transition: opacity 0.2s ease;
       cursor: default;
     }
+    .milestone-badge.milestone-hovered {
+      z-index: 200;
+    }
     .milestone-connector {
       position: absolute;
       top: 19px;
@@ -262,6 +265,9 @@ export class GanttCalendarElement extends LitElement {
       pointer-events: auto;
       transition: opacity 0.2s ease;
       cursor: default;
+    }
+    .milestone-connector.milestone-hovered {
+      z-index: 199;
     }
   `
 
@@ -706,7 +712,7 @@ export class GanttCalendarElement extends LitElement {
         ${(this.option.calendar.milestones ?? []).map(
           (ms) => html`
             <div
-              class="milestone-connector"
+              class="milestone-connector ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
                 left: ${this.getDateX(ms.start) + 1}px;
                 width: ${ms.width ?? 2}px;
@@ -733,7 +739,7 @@ export class GanttCalendarElement extends LitElement {
               }}"
             ></div>
             <div
-              class="milestone-badge"
+              class="milestone-badge ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
                 left: ${this.getDateX(ms.start)}px;
                 background-color: ${ms.color};

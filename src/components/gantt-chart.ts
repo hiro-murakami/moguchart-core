@@ -2606,7 +2606,7 @@ export class GanttChartElement extends LitElement {
         ${(this.option.calendar.milestones ?? []).map(
           (ms) => html`
             <div
-              class="milestone-line"
+              class="milestone-line ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
                 top: ${this.calendarHeight}px;
                 left: ${this.getDateX(ms.start) + labelWidth}px;

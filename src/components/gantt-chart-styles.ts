@@ -135,8 +135,11 @@ export const ganttChartStyles = css`
     position: absolute;
     z-index: 59;
     pointer-events: auto;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, z-index 0s;
     cursor: default;
+  }
+  .milestone-line.milestone-hovered {
+    z-index: 200;
   }
   .cursor-line {
     position: absolute;
