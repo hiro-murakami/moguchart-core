@@ -323,6 +323,36 @@ export class GanttChartElement extends LitElement {
             )
           }
         }
+
+        // ツールチップが画面外にはみ出す場合に位置を調整する
+        const margin = 6
+        const elRect = tooltipEl.getBoundingClientRect()
+
+        // CSS の transform: translate(-50%, -100%) が適用されているため、
+        // 実際の描画位置は left - width/2, top - height で算出される。
+        // はみ出しを検知し、style.left / style.top を直接上書きして補正する。
+        let adjustedLeft = this.tooltip.x
+        let adjustedTop = this.tooltip.y
+
+        // 右端はみ出し: 描画右端が画面幅を超える場合
+        if (elRect.right > window.innerWidth - margin) {
+          adjustedLeft = window.innerWidth - margin - elRect.width / 2
+        }
+        // 左端はみ出し: 描画左端が0を下回る場合
+        if (elRect.left < margin) {
+          adjustedLeft = margin + elRect.width / 2
+        }
+        // 上端はみ出し: 描画上端が0を下回る場合はバーの下に表示
+        if (elRect.top < margin) {
+          // transform を上方表示から下方表示に変更
+          tooltipEl.style.transform = 'translate(-50%, 0)'
+          tooltipEl.style.marginTop = '6px'
+        }
+
+        if (adjustedLeft !== this.tooltip.x || adjustedTop !== this.tooltip.y) {
+          tooltipEl.style.left = `${adjustedLeft}px`
+          tooltipEl.style.top = `${adjustedTop}px`
+        }
       }
     }
   }
