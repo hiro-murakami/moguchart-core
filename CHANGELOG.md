@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2026-06-26
 
 ### Added
 
@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GanttMarker` に `fontSize` プロパティ（`MarkerFontSize` 型: `'xs'` | `'sm'` | `'md'` | `'lg'` | `'xl'`）を追加：マーカーラベルのフォントサイズを指定可能
 - `GanttRow` に `selectedMarkerId` プロパティを追加：現在選択中（編集中）のマーカーを指定可能（選択時にパルスアニメーション・グローエフェクトが適用される）
 - `customRendering.rowHeaderTooltip` を追加：行ヘッダーにマウスホバーした際にツールチップを表示する機能。文字列・HTMLElement・Lit TemplateResult を返す関数を設定可能。表示遅延は `tooltipDelay` を共有し、テーマに応じた配色が自動適用される
+
+### Improved
+
+- マイルストーンのホバー時にz-indexが正しく適用され、重なり順序が改善
+- マーカーサイズがフォントサイズに応じて動的に調整されるように改善
+- ツールチップがビューポートからはみ出さないよう位置自動調整を追加
 
 ## [0.7.0] - 2026-06-13
 
@@ -103,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.2...v0.5.3
