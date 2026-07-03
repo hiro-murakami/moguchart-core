@@ -41,7 +41,7 @@ export const ganttChartStyles = css`
     font-size: 11px;
     white-space: nowrap;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 2000;
     margin-top: -6px;
     text-align: left;
     line-height: 1.4;
@@ -62,6 +62,14 @@ export const ganttChartStyles = css`
     margin-left: -4px;
     border-width: 4px;
     border-style: solid;
+  }
+  .tooltip.below {
+    transform: translate(-50%, 0);
+    margin-top: 6px;
+  }
+  .tooltip.below::after {
+    top: auto;
+    bottom: 100%;
   }
   .drag-info-overlay {
     position: fixed;
@@ -173,6 +181,9 @@ export function buildDynamicStyles(
     }
     .tooltip::after {
       border-color: ${colors.tooltipBg} transparent transparent transparent;
+    }
+    .tooltip.below::after {
+      border-color: transparent transparent ${colors.tooltipBg} transparent;
     }
     .drag-info-overlay {
       background: ${colors.dragOverlayBg};

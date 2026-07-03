@@ -740,6 +740,7 @@ export class GanttBarElement extends LitElement {
           task: this.task,
           x: rect.left + rect.width / 2,
           y: rect.top,
+          barBottom: rect.bottom,
         },
         bubbles: true,
         composed: true,

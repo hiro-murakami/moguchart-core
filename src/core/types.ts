@@ -451,8 +451,10 @@ export interface BarHoverEventDetail {
   task: GanttTask
   /** マウスのX座標 */
   x: number
-  /** マウスのY座標 */
+  /** マウスのY座標（バー上辺） */
   y: number
+  /** バー下辺のY座標 */
+  barBottom: number
 }
 
 /**

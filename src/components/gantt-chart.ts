@@ -83,7 +83,9 @@ export class GanttChartElement extends LitElement {
     task: GanttTask
     x: number
     y: number
+    barBottom: number
     visible: boolean
+    below: boolean
   } | null = null
   @state() private dragOverRowId: string | null = null
   @state() private dragOverPosition: 'top' | 'bottom' | null = null
@@ -328,11 +330,16 @@ export class GanttChartElement extends LitElement {
         const margin = 6
         const elRect = tooltipEl.getBoundingClientRect()
 
-        // CSS の transform: translate(-50%, -100%) が適用されているため、
-        // 実際の描画位置は left - width/2, top - height で算出される。
-        // はみ出しを検知し、style.left / style.top を直接上書きして補正する。
+        // 上端はみ出し: バーの下に表示するようリアクティブ状態を切り替え
+        // 一度 below にしたら同一ツールチップ表示中は維持する（振動防止）
+        if (!this.tooltip.below && elRect.top < margin) {
+          this.tooltip = { ...this.tooltip, below: true }
+          return // テンプレート再描画で正しい位置に配置される
+        }
+
+        // CSS の transform: translate(-50%, ...) が適用されているため、
+        // 実際の描画位置は left - width/2 で算出される。
         let adjustedLeft = this.tooltip.x
-        let adjustedTop = this.tooltip.y
 
         // 右端はみ出し: 描画右端が画面幅を超える場合
         if (elRect.right > window.innerWidth - margin) {
@@ -342,16 +349,9 @@ export class GanttChartElement extends LitElement {
         if (elRect.left < margin) {
           adjustedLeft = margin + elRect.width / 2
         }
-        // 上端はみ出し: 描画上端が0を下回る場合はバーの下に表示
-        if (elRect.top < margin) {
-          // transform を上方表示から下方表示に変更
-          tooltipEl.style.transform = 'translate(-50%, 0)'
-          tooltipEl.style.marginTop = '6px'
-        }
 
-        if (adjustedLeft !== this.tooltip.x || adjustedTop !== this.tooltip.y) {
+        if (adjustedLeft !== this.tooltip.x) {
           tooltipEl.style.left = `${adjustedLeft}px`
-          tooltipEl.style.top = `${adjustedTop}px`
         }
       }
     }
@@ -1051,10 +1051,10 @@ export class GanttChartElement extends LitElement {
     const delay = this.option.tooltipDelay ?? 500
     if (delay > 0) {
       this.hoverTimer = window.setTimeout(() => {
-        this.tooltip = { ...e.detail, visible: true }
+        this.tooltip = { ...e.detail, visible: true, below: false }
       }, delay)
     } else {
-      this.tooltip = { ...e.detail, visible: true }
+      this.tooltip = { ...e.detail, visible: true, below: false }
     }
   }
 
@@ -2711,8 +2711,8 @@ export class GanttChartElement extends LitElement {
       ${this.tooltip
         ? html`
             <div
-              class="tooltip ${this.tooltip.visible ? 'visible' : ''}"
-              style="top: ${this.tooltip.y}px; left: ${this.tooltip.x}px;"
+              class="tooltip ${this.tooltip.visible ? 'visible' : ''} ${this.tooltip.below ? 'below' : ''}"
+              style="top: ${this.tooltip.below ? this.tooltip.barBottom : this.tooltip.y}px; left: ${this.tooltip.x}px;"
             />
           `
         : ''}
