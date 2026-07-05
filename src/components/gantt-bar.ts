@@ -410,6 +410,9 @@ export class GanttBarElement extends LitElement {
   }
 
   // --- 追加: 移動（Move）ロジック ---
+  /** ドラッグ開始と判定するための移動閾値（px） */
+  private static readonly DRAG_THRESHOLD = 3
+
   private onMoveStart(e: PointerEvent) {
     // 右クリック（button === 2）はコンテキストメニュー用なので無視
     if (e.button === 2) return
@@ -424,11 +427,7 @@ export class GanttBarElement extends LitElement {
     const movable = this.task.movable ?? 'both'
     if (movable === 'none') return
 
-    const initialCursor = e.ctrlKey || e.altKey ? 'copy' : 'grabbing'
-    this._currentDragCursor = initialCursor
-    target.style.cursor = initialCursor
     target.setPointerCapture(e.pointerId)
-    taskGroup.classList.add('dragging')
 
     const startX = e.clientX
     const startY = e.clientY
@@ -438,16 +437,35 @@ export class GanttBarElement extends LitElement {
 
     const snapDuration = this.option.snapDuration ?? 1440
 
+    // ドラッグ閾値を超えたかどうかを追跡
+    let dragStarted = false
+
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
+        const rawDeltaX = moveEvent.clientX - startX
+        const rawDeltaY = moveEvent.clientY - startY
+
+        // ドラッグ閾値を超えていない場合は何もしない
+        if (!dragStarted) {
+          if (Math.abs(rawDeltaX) < GanttBarElement.DRAG_THRESHOLD && Math.abs(rawDeltaY) < GanttBarElement.DRAG_THRESHOLD) {
+            return
+          }
+          // 閾値を超えたのでドラッグを開始
+          dragStarted = true
+          const initialCursor = moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
+          this._currentDragCursor = initialCursor
+          target.style.cursor = initialCursor
+          taskGroup.classList.add('dragging')
+        }
+
         const newCursor = moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
         this._currentDragCursor = newCursor
         target.style.cursor = newCursor
 
-        let deltaX = moveEvent.clientX - startX
-        let deltaY = moveEvent.clientY - startY
+        let deltaX = rawDeltaX
+        let deltaY = rawDeltaY
 
         if (movable === 'y') deltaX = 0
         if (movable === 'x') deltaY = 0
@@ -513,6 +531,25 @@ export class GanttBarElement extends LitElement {
         if (this._dragAnimationFrame) {
           cancelAnimationFrame(this._dragAnimationFrame)
           this._dragAnimationFrame = null
+        }
+
+        // ドラッグ閾値を超えていなかった場合はクリックとして扱う
+        if (!dragStarted) {
+          if (upEvent) {
+            this.dispatchEvent(
+              new CustomEvent('bar-click', {
+                detail: {
+                  task: this.task,
+                  event: upEvent,
+                  isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
+            this._wasDragging = true
+          }
+          return
         }
 
         if (isCancel) {
