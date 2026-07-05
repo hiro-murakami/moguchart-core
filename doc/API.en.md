@@ -784,7 +784,8 @@ interface BarSelectionChangeEventDetail {
 interface BarHoverEventDetail {
   task: GanttTask // Target task data
   x: number // Mouse X coordinate
-  y: number // Mouse Y coordinate
+  y: number // Mouse Y coordinate (bar top edge)
+  barBottom: number // Bar bottom edge Y coordinate
 }
 ```
 

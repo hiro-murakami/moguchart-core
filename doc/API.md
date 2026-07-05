@@ -695,7 +695,8 @@ interface BarSelectionChangeEventDetail {
 interface BarHoverEventDetail {
   task: GanttTask // 対象のタスクデータ
   x: number // マウスのX座標
-  y: number // マウスのY座標
+  y: number // マウスのY座標（バー上辺）
+  barBottom: number // バー下辺のY座標
 }
 ```
 

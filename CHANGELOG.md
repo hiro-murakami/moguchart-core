@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-07-05
+
+### Added
+
+- `BarHoverEventDetail` に `barBottom` プロパティ（バー下辺のY座標）を追加：ツールチップをバーの下方向に表示する際の位置計算に使用
+
+### Improved
+
+- タスクバーのツールチップが、バーが画面上部に近い場合はバーの下方向に表示されるように位置決定ロジックを改善。ツールチップの z-index も引き上げ、他の要素に隠れにくくなった
+- タスクバーのクリックとドラッグを正しく区別するため、ドラッグ開始に3pxの移動閾値を導入。バーをクリックして選択する際に意図しない移動（スナップ単位への吸着）が発生しなくなった
+
 ## [0.8.0] - 2026-06-26
 
 ### Added
@@ -109,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.8.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.3...v0.6.0
