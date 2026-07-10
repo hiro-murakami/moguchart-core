@@ -774,6 +774,7 @@ export class GanttRowElement extends LitElement {
           @contextmenu="${this.handleHeaderContextMenu}"
           @mouseenter="${this.handleHeaderMouseEnter}"
           @mouseleave="${this.handleHeaderMouseLeave}"
+          @row-header-mouseleave="${this.handleHeaderMouseLeave}"
         >
           <div
             class="row-header-content"
