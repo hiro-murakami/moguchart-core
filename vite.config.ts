@@ -19,8 +19,8 @@ export default defineConfig({
           entry: 'src/index.ts',
           // ライブラリ名（UMD形式などで使用されます）
           name: 'MoguchartCore',
-          // 出力されるファイル名のベース
-          fileName: 'moguchart-core',
+          // 出力されるファイル名
+          fileName: (format) => `moguchart-core.${format === 'es' ? 'mjs' : 'umd.js'}`,
           // 出力形式
           formats: ['es', 'umd'],
         },
