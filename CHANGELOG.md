@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-08-14
+
+### Added
+
+- デモページ（`src/demo/main.ts`）のヘッダーに npm パッケージおよび GitHub リポジトリへの外部リンクを追加
+- `gantt-row` コンポーネントに `row-header-mouseleave` カスタムイベントのハンドリングを追加
+
+### Changed
+
+- パッケージを純粋な ES Module (`"type": "module"`) として再構成し、Vite 設定およびビルド出力を最適化
+- パッケージマネージャーを pnpm 11 (`pnpm@11.21.0`) へ移行・更新
+- `package.json` のメタデータ（`description`, `keywords`, `files` に `README.md` を追加）を拡充
+- `README.md` および `README.en.md` にオンラインデモサイト（Vercel）へのリンクを追加
+
 ## [0.8.1] - 2026-07-05
 
 ### Added
@@ -120,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.6.0...v0.7.0
@@ -129,5 +144,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.5.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.1.0...v0.5.0
 [0.1.0]: https://github.com/hiro-murakami/moguchart-core/releases/tag/v0.1.0
+
 
 

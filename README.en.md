@@ -1,6 +1,10 @@
 # @mogura/moguchart-core
 
+[日本語](./README.md) | [Demo](https://moguchart-core.vercel.app/)
+
 A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and any other framework.
+
+- **Demo**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
 
 ## Features
 

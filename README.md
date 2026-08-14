@@ -1,8 +1,10 @@
 # @mogura/moguchart-core
 
-[English](./README.en.md)
+[English](./README.en.md) | [Demo](https://moguchart-core.vercel.app/)
 
 Vue, React, Angular, Svelte など、どのフレームワークでも動作する、軽量で高機能な Web Components 製ガントチャートコンポーネントです。Lit で構築されています。
+
+- **デモ**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
 
 ## 特徴
 

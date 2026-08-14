@@ -1,9 +1,9 @@
 {
   "name": "@mogura/moguchart-core",
   "type": "module",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "packageManager": "pnpm@11.21.0",
-  "description": "A lightweight, framework-agnostic Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and more.",
+  "description": "軽量でフレームワーク非依存のWeb Components製ガントチャートコンポーネント (Lit)。A lightweight, framework-agnostic Gantt chart Web Component for Vue, React, Angular, and Svelte.",
   "license": "MIT",
   "author": "Murakami Hiroyuki",
   "repository": {
@@ -20,9 +20,14 @@
   "keywords": [
     "gantt",
     "gantt-chart",
-    "chart",
+    "ガントチャート",
+    "ガント",
+    "工程表",
+    "スケジュール",
     "web-components",
     "lit",
+    "vue-gantt",
+    "react-gantt",
     "project-management",
     "timeline",
     "scheduler"
@@ -31,6 +36,7 @@
   "files": [
     "dist",
     "LICENSE",
+    "README.md",
     "README.en.md"
   ],
   "main": "./dist/moguchart-core.umd.js",
