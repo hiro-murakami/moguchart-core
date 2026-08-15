@@ -1,6 +1,6 @@
 import { html, render } from 'lit'
 import { GanttChartElement } from '../components/gantt-chart'
-import * as holiday_jp from '@holiday-jp/holiday_jp'
+import { isHoliday } from './holidays'
 import type {
   GanttChartOption,
   GanttRow,
@@ -195,7 +195,7 @@ const renderApp = () => {
       end: chartEnd,
       pxPerDay,
       pxPerMonth,
-      isHoliday: holiday_jp.isHoliday,
+      isHoliday,
       showTime,
       showMonths,
       showDays,

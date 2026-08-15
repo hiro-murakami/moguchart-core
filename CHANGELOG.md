@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-08-15
+
+### Removed
+
+- `devDependencies` から不要になった `@holiday-jp/holiday_jp` への依存を削除
+
+### Changed
+
+- デモ環境（`src/demo/`）およびテストにおける祝日判定を、内製の祝日判定モジュール（`src/demo/holidays.ts`）およびモック関数を利用する構成へ移行
+- 祝日判定ロジックの単体テスト（`src/__tests__/holidays.test.ts`）を追加
+
 ## [0.9.0] - 2026-08-14
 
 ### Added
@@ -134,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.9.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.7.0...v0.8.0

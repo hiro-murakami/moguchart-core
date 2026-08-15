@@ -1,7 +1,7 @@
 {
   "name": "@mogura/moguchart-core",
   "type": "module",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "packageManager": "pnpm@11.21.0",
   "description": "軽量でフレームワーク非依存のWeb Components製ガントチャートコンポーネント (Lit)。A lightweight, framework-agnostic Gantt chart Web Component for Vue, React, Angular, and Svelte.",
   "license": "MIT",
@@ -62,7 +62,6 @@
     "refresh:packages": "rm -rf node_modules pnpm-lock.yaml && pnpm i"
   },
   "devDependencies": {
-    "@holiday-jp/holiday_jp": "^2.5.1",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.12.0",
     "jsdom": "^27.4.0",
