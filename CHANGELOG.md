@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-22
+
+### Added
+
+- `enableCrossRowMove` オプション（デフォルト: `true`）を追加：タスクバーのドラッグ時に行を跨いだ移動（縦方向の移動）を許可するかどうかを設定可能（`false` の場合は同一行内でのみ移動可能）
+- デモ画面（`src/demo/main.ts`）に `enableCrossRowMove` の設定トグルおよび多言語ラベルを追加
+- ガントチャート領域外またはタスクが存在しない行外へカーソルが移動した際のドラッグキャンセル・復帰機能を追加
+- `TaskUpdateEventDetail` にプロパティを追加：`barX`, `barTop`, `barBottom`（タスクバー座標情報）、`isOutside`（チャート領域外判定フラグ）、`isCancel`（キャンセル判定フラグ）
+- ドラッグキャンセルおよび行間移動制御の単体テスト（`src/__tests__/gantt-bar-drag-cancel.test.ts`）を追加
+
+### Improved
+
+- ドラッグ中の情報オーバーレイの表示位置計算をマウス座標追従からタスクバー基準（上下配置）へと改善し、ドラッグ中のタスクとの視認性を向上
+- ガントチャートの表示領域外や有効な行が存在しない場所へドラッグした際、タスクバーが初期位置に戻り、オーバーレイが非表示になるよう挙動を改善。また、その位置でドロップされた場合は移動処理をキャンセルするように改善
+
 ## [0.9.1] - 2026-08-15
 
 ### Removed
@@ -145,6 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.10.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.0...v0.8.1

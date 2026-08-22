@@ -80,6 +80,8 @@ interface GanttChartOption {
   customTheme?: Partial<ThemeColorPalette>
   /** 行のドラッグ＆ドロップによる並び替えを有効にするか */
   enableRowReordering?: boolean // (デフォルト: false)
+  /** タスクの行間移動を有効にするかどうか (デフォルト: true) */
+  enableCrossRowMove?: boolean // (デフォルト: true)
   /** タスクドラッグ時のスナップ間隔（分単位）。例えば60を指定すると1時間単位でスナップします。 */
   snapDuration?: number // (デフォルト: 1440 = 1日)
   /** 非表示に設定された行（visible: false）を表示するかどうか */
@@ -632,8 +634,13 @@ interface TaskUpdateEventDetail extends GanttTask {
   targetRowId?: string // 移動先の行ID（行をまたぐ移動の場合）
   x?: number // マウスのX座標（ドラッグ中のみ）
   y?: number // マウスのY座標（ドラッグ中のみ）
+  barX?: number // タスクバーの中心X座標（ドラッグ中のみ）
+  barTop?: number // タスクバーの上端Y座標（ドラッグ中のみ）
+  barBottom?: number // タスクバーの下端Y座標（ドラッグ中のみ）
   mode: GanttTaskMoveMode // 移動モード ('move' | 'copy')
   selectedTaskIds?: string[] // 複数選択移動時の対象タスクID配列
+  isOutside?: boolean // ガントチャート外にカーソルがあるかどうか
+  isCancel?: boolean // ドラッグがキャンセルされたかどうか
 }
 ```
 

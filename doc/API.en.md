@@ -80,6 +80,8 @@ interface GanttChartOption {
   customTheme?: Partial<ThemeColorPalette>
   /** Enable drag & drop row reordering */
   enableRowReordering?: boolean // (default: false)
+  /** Whether to allow dragging tasks across different rows (default: true) */
+  enableCrossRowMove?: boolean // (default: true)
   /** Snap interval for task dragging (in minutes). E.g., 60 snaps to 1-hour intervals. */
   snapDuration?: number // (default: 1440 = 1 day)
   /** Whether to show rows with visible: false */
@@ -721,8 +723,13 @@ interface TaskUpdateEventDetail extends GanttTask {
   targetRowId?: string // Target row ID (for cross-row moves)
   x?: number // Mouse X coordinate (during drag only)
   y?: number // Mouse Y coordinate (during drag only)
+  barX?: number // Task bar center X coordinate (during drag only)
+  barTop?: number // Task bar top edge Y coordinate (during drag only)
+  barBottom?: number // Task bar bottom edge Y coordinate (during drag only)
   mode: GanttTaskMoveMode // Move mode ('move' | 'copy')
   selectedTaskIds?: string[] // Target task IDs for multi-selection drag
+  isOutside?: boolean // Whether the cursor is outside the Gantt chart area
+  isCancel?: boolean // Whether the drag operation was canceled
 }
 ```
 
