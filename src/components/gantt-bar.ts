@@ -339,6 +339,7 @@ export class GanttBarElement extends LitElement {
         }
 
         this._dragAnimationFrame = requestAnimationFrame(() => {
+          const barRect = taskGroup?.getBoundingClientRect()
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
@@ -349,6 +350,9 @@ export class GanttBarElement extends LitElement {
                 isDragging: true,
                 x: moveEvent.clientX,
                 y: moveEvent.clientY,
+                barX: barRect ? barRect.left + barRect.width / 2 : undefined,
+                barTop: barRect?.top,
+                barBottom: barRect?.bottom,
               },
               bubbles: true,
               composed: true,
@@ -409,6 +413,23 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private getGanttChartElement(): HTMLElement | null {
+    let node: Node | null = this
+    while (node) {
+      if (node instanceof HTMLElement && node.tagName.toLowerCase() === 'gantt-chart') {
+        return node
+      }
+      if (node.parentNode) {
+        node = node.parentNode
+      } else if ((node as ShadowRoot).host) {
+        node = (node as ShadowRoot).host
+      } else {
+        break
+      }
+    }
+    return null
+  }
+
   // --- 追加: 移動（Move）ロジック ---
   /** ドラッグ開始と判定するための移動閾値（px） */
   private static readonly DRAG_THRESHOLD = 3
@@ -429,6 +450,7 @@ export class GanttBarElement extends LitElement {
 
     target.setPointerCapture(e.pointerId)
 
+    const chartEl = this.getGanttChartElement()
     const startX = e.clientX
     const startY = e.clientY
     // 開始時の一時的な日付を保持
@@ -439,6 +461,34 @@ export class GanttBarElement extends LitElement {
 
     // ドラッグ閾値を超えたかどうかを追跡
     let dragStarted = false
+
+    const checkIsOutside = (clientX: number, clientY: number) => {
+      if (!chartEl) return false
+      const rect = chartEl.getBoundingClientRect()
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return true
+      }
+
+      // 行を跨ぐ移動が有効な場合、行が存在しないエリア（ヘッダー上や行リスト外）も外側扱いにする
+      if (this.option.enableCrossRowMove !== false) {
+        const rows = chartEl.shadowRoot?.querySelectorAll('gantt-row')
+        if (rows && rows.length > 0) {
+          const firstRowRect = rows[0].getBoundingClientRect()
+          const lastRowRect = rows[rows.length - 1].getBoundingClientRect()
+          if (lastRowRect.bottom > firstRowRect.top) {
+            if (clientY < firstRowRect.top || clientY > lastRowRect.bottom) {
+              return true
+            }
+          }
+        }
+      }
+      return false
+    }
 
     this.setupDragEvents(
       target,
@@ -460,15 +510,50 @@ export class GanttBarElement extends LitElement {
           taskGroup.classList.add('dragging')
         }
 
-        const newCursor = moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
+        const isCopy = moveEvent.ctrlKey || moveEvent.altKey
+        const newCursor = isCopy ? 'copy' : 'grabbing'
         this._currentDragCursor = newCursor
         target.style.cursor = newCursor
+
+        const isOutside = checkIsOutside(moveEvent.clientX, moveEvent.clientY)
+
+        if (isOutside) {
+          // ガントチャート外または行外の場合はバーを元の位置に表示
+          taskGroup.style.transform = ''
+
+          if (this._dragAnimationFrame) {
+            cancelAnimationFrame(this._dragAnimationFrame)
+          }
+
+          this._dragAnimationFrame = requestAnimationFrame(() => {
+            this.dispatchEvent(
+              new CustomEvent('task-update', {
+                detail: {
+                  ...this.task,
+                  start: originalStart,
+                  end: originalEnd,
+                  dx: 0,
+                  dy: 0,
+                  isDragging: true,
+                  isOutside: true,
+                  x: moveEvent.clientX,
+                  y: moveEvent.clientY,
+                  mode: isCopy ? 'copy' : 'move',
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
+          })
+          return
+        }
 
         let deltaX = rawDeltaX
         let deltaY = rawDeltaY
 
         if (movable === 'y') deltaX = 0
         if (movable === 'x') deltaY = 0
+        if (this.option.enableCrossRowMove === false) deltaY = 0
         // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
         if (this.multiDragActive && !this.multiDragSameRow) deltaY = 0
 
@@ -503,7 +588,7 @@ export class GanttBarElement extends LitElement {
         }
 
         this._dragAnimationFrame = requestAnimationFrame(() => {
-          const isCopy = moveEvent.ctrlKey || moveEvent.altKey
+          const barRect = taskGroup?.getBoundingClientRect()
           this.dispatchEvent(
             new CustomEvent('task-update', {
               detail: {
@@ -513,8 +598,12 @@ export class GanttBarElement extends LitElement {
                 dx: translateX,
                 dy: deltaY,
                 isDragging: true,
+                isOutside: false,
                 x: moveEvent.clientX,
                 y: moveEvent.clientY,
+                barX: barRect ? barRect.left + barRect.width / 2 : undefined,
+                barTop: barRect?.top,
+                barBottom: barRect?.bottom,
                 mode: isCopy ? 'copy' : 'move',
               },
               bubbles: true,
@@ -552,7 +641,10 @@ export class GanttBarElement extends LitElement {
           return
         }
 
-        if (isCancel) {
+        const isOutside = upEvent ? checkIsOutside(upEvent.clientX, upEvent.clientY) : false
+
+        if (isCancel || isOutside) {
+          this._wasDragging = true
           this.requestUpdate()
           this.dispatchEvent(
             new CustomEvent('task-update', {
@@ -563,6 +655,8 @@ export class GanttBarElement extends LitElement {
                 dx: 0,
                 dy: 0,
                 isDragging: false,
+                isCancel: true,
+                isOutside,
               },
               bubbles: true,
               composed: true,
@@ -595,6 +689,7 @@ export class GanttBarElement extends LitElement {
           // movable制限をドロップ時にも適用
           if (movable === 'y') finalTranslateX = 0
           if (movable === 'x') finalDeltaY = 0
+          if (this.option.enableCrossRowMove === false) finalDeltaY = 0
           // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
           if (this.multiDragActive && !this.multiDragSameRow) finalDeltaY = 0
 
@@ -649,6 +744,7 @@ export class GanttBarElement extends LitElement {
                 dx: finalTranslateX,
                 dy: finalDeltaY,
                 isDragging: false, // ドロップしたことを示す
+                isOutside: false,
                 mode: isCopy ? 'copy' : 'move',
               },
               bubbles: true,

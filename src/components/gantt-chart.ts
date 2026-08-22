@@ -77,6 +77,9 @@ export class GanttChartElement extends LitElement {
     visible: boolean
     clientX?: number
     clientY?: number
+    barX?: number
+    barTop?: number
+    barBottom?: number
   } | null = null
   @state() private calendarHeight = 0
   @state() private tooltip: {
@@ -418,16 +421,17 @@ export class GanttChartElement extends LitElement {
       )
     }
 
-    // --- マウスに追従するポジショニング ---
-    if (this.dragOverlayInfo.clientY !== undefined) {
+    // --- タスクバーに追従するポジショニング ---
+    if (this.dragOverlayInfo.barTop !== undefined || this.dragOverlayInfo.clientY !== undefined) {
       const mouseX = this.dragOverlayInfo.clientX ?? 0
-      const mouseY = this.dragOverlayInfo.clientY
+      const mouseY = this.dragOverlayInfo.clientY ?? 0
       const hostRect = this.getBoundingClientRect()
 
       // マウスがガントチャートの外にある場合はオーバーレイを非表示
       if (
-        mouseX < hostRect.left || mouseX > hostRect.right ||
-        mouseY < hostRect.top || mouseY > hostRect.bottom
+        this.dragOverlayInfo.clientY !== undefined &&
+        (mouseX < hostRect.left || mouseX > hostRect.right ||
+        mouseY < hostRect.top || mouseY > hostRect.bottom)
       ) {
         dragInfoEl.classList.remove('visible')
         return
@@ -435,21 +439,25 @@ export class GanttChartElement extends LitElement {
 
       const overlayWidth = dragInfoEl.offsetWidth || 200
       const overlayHeight = dragInfoEl.offsetHeight || 60
-      const gap = 40 // バーとオーバーレイの間隔(px)
+      const gap = 10 // バーとオーバーレイの間隔(px)
       const margin = 8 // ビューポート端からの最小マージン(px)
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
-      // X方向: マウスを中心に配置し、画面端でクランプ
-      let left = mouseX - overlayWidth / 2
+      const targetX = this.dragOverlayInfo.barX ?? mouseX
+      const targetTop = this.dragOverlayInfo.barTop ?? mouseY
+      const targetBottom = this.dragOverlayInfo.barBottom ?? mouseY
+
+      // X方向: バーの中心に配置し、画面端でクランプ
+      let left = targetX - overlayWidth / 2
       left = Math.max(margin, Math.min(left, viewportWidth - overlayWidth - margin))
 
-      // Y方向: デフォルトはマウスの上に表示
-      let top = mouseY - overlayHeight - gap
+      // Y方向: デフォルトはバーの上に表示
+      let top = targetTop - overlayHeight - gap
 
-      // 上にはみ出す場合はマウスの下に表示
+      // 上にはみ出す場合はバーの下に表示
       if (top < margin) {
-        top = mouseY + gap
+        top = targetBottom + gap
       }
 
       // 下にはみ出す場合はクランプ
@@ -727,13 +735,19 @@ export class GanttChartElement extends LitElement {
     const taskInitialY = lane * (barHeight + barMargin) + barMargin
     const currentY = dragStartRowTop + taskInitialY + dy + barHeight / 2
 
+    const allowCrossRowMove = this.option.enableCrossRowMove !== false
     let targetRowIndex = -1
-    for (let i = 0; i < rowLayouts.length; i++) {
-      const rowLayout = rowLayouts[i]
-      if (currentY >= rowLayout.top && currentY < rowLayout.top + rowLayout.height) {
-        targetRowIndex = i
-        break
+    if (allowCrossRowMove) {
+      for (let i = 0; i < rowLayouts.length; i++) {
+        const rowLayout = rowLayouts[i]
+        if (currentY >= rowLayout.top && currentY < rowLayout.top + rowLayout.height) {
+          targetRowIndex = i
+          break
+        }
       }
+    } else {
+      const sourceRow = this.rows[sourceRowIndex]
+      targetRowIndex = this.displayRows.findIndex((r) => r.id === sourceRow.id)
     }
 
     const targetRowId = targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
@@ -763,6 +777,18 @@ export class GanttChartElement extends LitElement {
       // ドラッグ中はツールチップを非表示にする
       if (this.tooltip) {
         this.tooltip = null
+      }
+
+      if (e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
+        // ガントチャート外または行外にあるときは、ドラッグ状態の表示を初期状態（移動なし）に戻す
+        this.multiDragDx = 0
+        this.multiDragDy = 0
+        this.dragTargetRowIndex = null
+        if (this.dragOverlayInfo) {
+          this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
+          this.hideDragOverlay()
+        }
+        return
       }
 
       // draggingTaskの更新は、IDが変わった時やドラッグ開始時のみ行う
@@ -821,6 +847,9 @@ export class GanttChartElement extends LitElement {
           visible: true,
           clientX: e.detail.x,
           clientY: e.detail.y,
+          barX: e.detail.barX,
+          barTop: e.detail.barTop,
+          barBottom: e.detail.barBottom,
         }
       } else {
         this.dragOverlayInfo = {
@@ -830,10 +859,16 @@ export class GanttChartElement extends LitElement {
           end,
           currentStart: newStart,
           currentEnd: newEnd,
-          targetRow: targetRowIndex >= 0 ? this.displayRows[targetRowIndex] : undefined,
+          targetRow:
+            targetRowIndex >= 0 && this.displayRows[targetRowIndex]?.id !== this.rows[sourceRowIndex]?.id
+              ? this.displayRows[targetRowIndex]
+              : undefined,
           visible: true,
           clientX: e.detail.x,
           clientY: e.detail.y,
+          barX: e.detail.barX,
+          barTop: e.detail.barTop,
+          barBottom: e.detail.barBottom,
         }
       }
       this.updateDragOverlay()
@@ -855,6 +890,11 @@ export class GanttChartElement extends LitElement {
     }
     if (this.tooltip) {
       this.tooltip = { ...this.tooltip, visible: false }
+    }
+
+    // キャンセル、チャート外、または行が存在しない場所でドロップされた場合は、タスク移動を適用しない
+    if (e.detail.isCancel || e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
+      return
     }
 
     // targetRowIndex は displayRows のインデックスなので、this.rows のインデックスに変換

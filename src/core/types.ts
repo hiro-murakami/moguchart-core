@@ -391,6 +391,8 @@ export interface GanttChartOption {
   customTheme?: Partial<ThemeColorPalette>
   /** 行の並び替えを有効にするかどうか */
   enableRowReordering?: boolean
+  /** タスクの行間移動を有効にするかどうか (デフォルト: true) */
+  enableCrossRowMove?: boolean
   /** スナップする時間単位（分）。デフォルトは1440（1日） */
   snapDuration?: number
   /** 非表示に設定された行を表示するかどうか (デフォルト: false) */
@@ -437,10 +439,20 @@ export interface TaskUpdateEventDetail extends GanttTask {
   x?: number
   /** マウスのY座標（ドラッグ中のみ） */
   y?: number
+  /** タスクバーの中心X座標（ドラッグ中のみ） */
+  barX?: number
+  /** タスクバーの上端Y座標（ドラッグ中のみ） */
+  barTop?: number
+  /** タスクバーの下端Y座標（ドラッグ中のみ） */
+  barBottom?: number
   /** タスク移動モード(move/copy) */
   mode: GanttTaskMoveMode
   /** 複数選択移動時の対象タスクID配列 */
   selectedTaskIds?: string[]
+  /** ガントチャート外にカーソルがあるかどうか */
+  isOutside?: boolean
+  /** ドラッグがキャンセルされたかどうか */
+  isCancel?: boolean
 }
 
 /**
