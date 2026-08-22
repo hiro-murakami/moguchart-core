@@ -9,6 +9,7 @@ export interface DemoTexts {
   readOnlyMode: string
   showDragInfo: string
   enableRowReorder: string
+  enableCrossRowMove: string
   autoUpdateTime: string
   customRendering: string
   rowHeaderResize: string
@@ -98,6 +99,7 @@ export const jaTexts: DemoTexts = {
   readOnlyMode: '表示専用モード',
   showDragInfo: 'ドラッグ情報を表示',
   enableRowReorder: '行の並び替えを有効化',
+  enableCrossRowMove: '行を跨いだタスク移動を有効化',
   autoUpdateTime: '現在時刻を自動更新',
   customRendering: 'カスタムレンダリング有効',
   rowHeaderResize: '行ヘッダーのリサイズ許可',
@@ -249,6 +251,7 @@ export const enTexts: DemoTexts = {
   readOnlyMode: 'Read Only',
   showDragInfo: 'Show Drag Info',
   enableRowReorder: 'Enable Row Reorder',
+  enableCrossRowMove: 'Enable Cross-Row Move',
   autoUpdateTime: 'Auto Update Time',
   customRendering: 'Custom Rendering',
   rowHeaderResize: 'Resizable Row Header',

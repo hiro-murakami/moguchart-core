@@ -79,6 +79,7 @@ let tooltipDelay = 500
 let showDragInfoOverlay = true
 let theme: 'light' | 'dark' | undefined = undefined // Default to Auto (System)
 let enableRowReordering = true
+let enableCrossRowMove = true
 let snapDuration = 1440
 let showTime = false
 let showMonths = true
@@ -238,6 +239,7 @@ const renderApp = () => {
     theme,
     customTheme,
     enableRowReordering,
+    enableCrossRowMove,
     snapDuration,
     showHiddenRows,
     customRendering: enableCustomRendering
@@ -750,6 +752,11 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${enableRowReordering}" @change="${(e: Event) => { enableRowReordering = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.enableRowReorder}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableCrossRowMove}" @change="${(e: Event) => { enableCrossRowMove = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableCrossRowMove}
               </label>
               <label class="toggle-label">
                 <input type="checkbox" .checked="${currentTimeUpdateInterval > 0}" @change="${(e: Event) => { currentTimeUpdateInterval = (e.target as HTMLInputElement).checked ? 1000 : 0; renderApp() }}" />
