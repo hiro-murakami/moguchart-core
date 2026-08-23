@@ -80,6 +80,7 @@ let showDragInfoOverlay = true
 let theme: 'light' | 'dark' | undefined = undefined // Default to Auto (System)
 let enableRowReordering = true
 let enableCrossRowMove = true
+let showMinimap = true
 let snapDuration = 1440
 let showTime = false
 let showMonths = true
@@ -240,6 +241,9 @@ const renderApp = () => {
     customTheme,
     enableRowReordering,
     enableCrossRowMove,
+    minimap: {
+      enabled: showMinimap,
+    },
     snapDuration,
     showHiddenRows,
     customRendering: enableCustomRendering
@@ -757,6 +761,11 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${enableCrossRowMove}" @change="${(e: Event) => { enableCrossRowMove = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.enableCrossRowMove}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showMinimap}" @change="${(e: Event) => { showMinimap = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showMinimap}
               </label>
               <label class="toggle-label">
                 <input type="checkbox" .checked="${currentTimeUpdateInterval > 0}" @change="${(e: Event) => { currentTimeUpdateInterval = (e.target as HTMLInputElement).checked ? 1000 : 0; renderApp() }}" />

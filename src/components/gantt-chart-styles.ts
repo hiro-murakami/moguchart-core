@@ -174,6 +174,11 @@ export function buildDynamicStyles(
       border-radius: 8px;
       overflow: hidden;
       color: ${colors.text};
+      --minimap-bg: ${colors.minimapBg ?? (theme === 'dark' ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.92)')};
+      --minimap-border: ${colors.minimapBorder ?? colors.border};
+      --minimap-text: ${colors.text};
+      --minimap-viewport: ${colors.minimapViewport ?? 'rgba(59, 130, 246, 0.2)'};
+      --minimap-viewport-border: ${colors.minimapViewportBorder ?? '#3b82f6'};
     }
     .tooltip {
       background-color: ${colors.tooltipBg};

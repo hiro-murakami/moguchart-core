@@ -44,7 +44,7 @@ describe('GanttChartElement Zoom', () => {
     element.rows = [
       {
         id: 'row-1',
-        label: 'Row 1',
+        name: 'Row 1',
         tasks: [
           {
             id: 'task-1',

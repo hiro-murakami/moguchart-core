@@ -263,7 +263,7 @@ describe('GanttBar Drag Cancel & Outside Behavior', () => {
 
   it('handles multi-task drag when moving outside and inside', async () => {
     // 2つのタスクを選択状態にする
-    chart.selectedTasks = new Set(['task1', 'task2'])
+    ;(chart as any).selectedTasks = new Set(['task1', 'task2'])
     await chart.updateComplete
 
     const rows = chart.shadowRoot?.querySelectorAll('gantt-row')

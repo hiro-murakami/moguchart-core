@@ -32,6 +32,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Locale support (Japanese, English, and custom locales)
 - 🏁 **Milestones**: Display milestones (vertical line + name badge) on the chart
 - 📍 **Markers**: Show triangle icons with labels on row timelines
+- 🗺️ **Overview Minimap**: Bird's-eye preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, and collapsible floating window
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move/copy mode

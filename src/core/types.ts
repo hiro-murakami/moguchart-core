@@ -421,6 +421,59 @@ export interface GanttChartOption {
     /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
     step?: number
   }
+  /** ミニマップ（Overview Minimap）機能の設定 */
+  minimap?: GanttChartOptionMinimap
+}
+
+/**
+ * ミニマップ（Overview Minimap）に関するオプション
+ */
+export interface GanttChartOptionMinimap {
+  /** ミニマップを表示するかどうか (デフォルト: false) */
+  enabled?: boolean
+  /** ミニマップの幅 (px)。デフォルト: 200 */
+  width?: number
+  /** ミニマップの高さ (px)。デフォルト: 120 */
+  height?: number
+  /** 縦横比維持時の最大高さ (px)。デフォルト: height または 120 */
+  maxHeight?: number
+  /** ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true) */
+  preserveAspectRatio?: boolean
+  /** ユーザーによるドラッグリサイズ（サイズ変更）を許可するかどうか (デフォルト: true) */
+  resizable?: boolean
+  /** リサイズ時の最小幅 (px)。デフォルト: 120 */
+  minWidth?: number
+  /** リサイズ時の最大幅 (px)。デフォルト: 600 */
+  maxWidth?: number
+  /** リサイズ時の最小高さ (px)。デフォルト: 60 */
+  minHeight?: number
+  /** 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true) */
+  collapsible?: boolean
+  /** 初期状態で折りたたまれているかどうか (デフォルト: false) */
+  collapsed?: boolean
+  /** マイルストーンを表示するかどうか (デフォルト: true) */
+  showMilestones?: boolean
+  /** 現在時刻線を表示するかどうか (デフォルト: true) */
+  showCurrentTime?: boolean
+  /** ミニマップの初期位置（親要素に対する座標 px） */
+  position?: { x: number; y: number }
+}
+
+/**
+ * ミニマップの移動イベントの詳細データ
+ */
+export interface MinimapMoveEventDetail {
+  x: number
+  y: number
+}
+
+/**
+ * ミニマップのリサイズイベントの詳細データ
+ */
+export interface MinimapResizeEventDetail {
+  width: number
+  height: number
+  position?: { x: number; y: number }
 }
 
 /**
@@ -651,6 +704,16 @@ export interface ThemeColorPalette {
   friday?: string
   /** クリティカルパスの色 (オプション) */
   criticalPath?: string
+  /** ミニマップの背景色 (オプション) */
+  minimapBg?: string
+  /** ミニマップの枠線色 (オプション) */
+  minimapBorder?: string
+  /** ミニマップのビューポート枠背景色 (オプション) */
+  minimapViewport?: string
+  /** ミニマップのビューポート枠ボーダー色 (オプション) */
+  minimapViewportBorder?: string
+  /** ミニマップのタスク描画色 (オプション) */
+  minimapTask?: string
 }
 
 /**

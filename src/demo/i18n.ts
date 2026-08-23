@@ -10,6 +10,7 @@ export interface DemoTexts {
   showDragInfo: string
   enableRowReorder: string
   enableCrossRowMove: string
+  showMinimap: string
   autoUpdateTime: string
   customRendering: string
   rowHeaderResize: string
@@ -100,6 +101,7 @@ export const jaTexts: DemoTexts = {
   showDragInfo: 'ドラッグ情報を表示',
   enableRowReorder: '行の並び替えを有効化',
   enableCrossRowMove: '行を跨いだタスク移動を有効化',
+  showMinimap: 'ミニマップ（全体鳥瞰）を表示',
   autoUpdateTime: '現在時刻を自動更新',
   customRendering: 'カスタムレンダリング有効',
   rowHeaderResize: '行ヘッダーのリサイズ許可',
@@ -252,6 +254,7 @@ export const enTexts: DemoTexts = {
   showDragInfo: 'Show Drag Info',
   enableRowReorder: 'Enable Row Reorder',
   enableCrossRowMove: 'Enable Cross-Row Move',
+  showMinimap: 'Show Minimap (Overview)',
   autoUpdateTime: 'Auto Update Time',
   customRendering: 'Custom Rendering',
   rowHeaderResize: 'Resizable Row Header',

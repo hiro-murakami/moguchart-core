@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-08-23
+
+### Added
+
+- フローティング小窓型のミニマップ（Overview Minimap）コンポーネント（`<gantt-minimap>`）を追加
+  - チャート全体の全タスク・マイルストーン・現在時刻線を `<canvas>` で高速・軽量に鳥瞰描画
+  - 現在の表示領域（ビューポート）を半透明枠（ファインダー）で可視化
+  - ファインダー枠のドラッグによるスクロール同期（パン操作）およびミニマップクリックによるジャンプ移動に対応
+  - ミニマップをドラッグしてチャート内の任意の位置へ自由に移動できる機能および `minimap-move` イベント（`MinimapMoveEventDetail` 型定義）を追加
+  - 折りたたみ（最小化 / 展開）機能およびアニメーション
+  - ミニマップの四隅やエッジをドラッグしてサイズを自由に変更（ドラッグリサイズ）できる機能および `minimap-resize` イベント（`MinimapResizeEventDetail` 型定義）を追加
+  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`）
+  - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
+  - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
+  - ミニマップ単体およびガントチャート統合の単体テスト（`src/__tests__/gantt-minimap.test.ts`）を追加
+
 ## [0.10.0] - 2026-08-23
 
 ### Added
@@ -160,6 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[0.11.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.8.1...v0.9.0
