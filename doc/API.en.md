@@ -137,6 +137,12 @@ interface GanttChartOption {
     enabled?: boolean // Whether to enable minimap (default: false)
     width?: number // Width of the minimap in px (default: 200)
     height?: number // Height of the minimap in px (default: 120)
+    maxHeight?: number // Maximum height when preserving aspect ratio in px (default: height or 120)
+    preserveAspectRatio?: boolean // Whether to preserve the chart content aspect ratio (default: true)
+    resizable?: boolean // Whether to allow drag resizing by user (default: true)
+    minWidth?: number // Minimum width during resize in px (default: 120)
+    maxWidth?: number // Maximum width during resize in px (default: 600)
+    minHeight?: number // Minimum height during resize in px (default: 60)
     collapsible?: boolean // Whether to show collapse button (default: true)
     collapsed?: boolean // Whether initially collapsed (default: false)
     showMilestones?: boolean // Whether to display milestones on minimap (default: true)
@@ -158,6 +164,7 @@ Custom events dispatched by the component.
 | `bar-hover`              | `BarHoverEventDetail`             | Fired when a task bar is hovered over.                                               |
 | `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
+| `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |

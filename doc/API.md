@@ -137,6 +137,12 @@ interface GanttChartOption {
     enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
     width?: number // ミニマップの幅 (px、デフォルト: 200)
     height?: number // ミニマップの高さ (px、デフォルト: 120)
+    maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
+    preserveAspectRatio?: boolean // ガントチャート全体の縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
+    resizable?: boolean // ドラッグによるリサイズを許可するかどうか (デフォルト: true)
+    minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
+    maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
+    minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
     collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
     collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
     showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
@@ -158,6 +164,7 @@ interface GanttChartOption {
 | `bar-hover`              | `BarHoverEventDetail`             | タスクバーにマウスがホバーしたときに発火します。                                             |
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |

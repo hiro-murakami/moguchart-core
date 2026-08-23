@@ -45,6 +45,9 @@ export class GanttMinimapElement extends LitElement {
   @state() private isCollapsed = false
   @state() private isDragging = false
   @state() private isHeaderDragging = false
+  @state() private isResizing = false
+  @state() private customWidth: number | null = null
+  @state() private customHeight: number | null = null
   @state() private position: { x: number; y: number } | null = null
 
   @query('canvas') private canvasEl?: HTMLCanvasElement
@@ -58,6 +61,14 @@ export class GanttMinimapElement extends LitElement {
   private headerDragStartY = 0
   private headerDragOriginX = 0
   private headerDragOriginY = 0
+
+  private resizeHandleType = ''
+  private resizeStartPointerX = 0
+  private resizeStartPointerY = 0
+  private resizeStartWidth = 0
+  private resizeStartHeight = 0
+  private resizeStartOriginX = 0
+  private resizeStartOriginY = 0
 
   static styles = css`
     :host {
@@ -77,11 +88,99 @@ export class GanttMinimapElement extends LitElement {
       background-color: var(--minimap-bg, rgba(255, 255, 255, 0.92));
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
+      overflow: visible;
+      transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .minimap-container.resizing {
+      transition: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), 0 0 0 1.5px var(--minimap-viewport-border, #3b82f6);
+    }
+
+    .minimap-inner-wrapper {
+      position: relative;
+      border-radius: 8px;
       overflow: hidden;
-      transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                  height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity 0.2s ease,
-                  box-shadow 0.2s ease;
+    }
+
+    .minimap-resize-handle {
+      position: absolute;
+      z-index: 20;
+      touch-action: none;
+      background: transparent;
+    }
+
+    /* 四隅（コーナー）: 14px x 14px */
+    .minimap-resize-handle.nw {
+      top: -4px;
+      left: -4px;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+    }
+    .minimap-resize-handle.ne {
+      top: -4px;
+      right: -4px;
+      width: 14px;
+      height: 14px;
+      cursor: nesw-resize;
+    }
+    .minimap-resize-handle.sw {
+      bottom: -4px;
+      left: -4px;
+      width: 14px;
+      height: 14px;
+      cursor: nesw-resize;
+    }
+    .minimap-resize-handle.se {
+      bottom: -4px;
+      right: -4px;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+    }
+
+    /* 四辺（エッジ） */
+    .minimap-resize-handle.w {
+      top: 10px;
+      bottom: 10px;
+      left: -4px;
+      width: 8px;
+      cursor: ew-resize;
+    }
+    .minimap-resize-handle.e {
+      top: 10px;
+      bottom: 10px;
+      right: -4px;
+      width: 8px;
+      cursor: ew-resize;
+    }
+    .minimap-resize-handle.n {
+      left: 10px;
+      right: 10px;
+      top: -4px;
+      height: 8px;
+      cursor: ns-resize;
+    }
+    .minimap-resize-handle.s {
+      left: 10px;
+      right: 10px;
+      bottom: -4px;
+      height: 8px;
+      cursor: ns-resize;
+    }
+
+    .minimap-resize-indicator {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 6px;
+      height: 6px;
+      border-top: 2px solid var(--minimap-text, #475569);
+      border-left: 2px solid var(--minimap-text, #475569);
+      border-top-left-radius: 3px;
+      opacity: 0.35;
+      pointer-events: none;
     }
 
     .minimap-container:hover {
@@ -285,12 +384,204 @@ export class GanttMinimapElement extends LitElement {
     this.isHeaderDragging = false
   }
 
+  private get isResizable(): boolean {
+    return this.option?.minimap?.resizable !== false
+  }
+
+  private get minMinimapWidth(): number {
+    return this.option?.minimap?.minWidth ?? 120
+  }
+
+  private get maxMinimapWidth(): number {
+    const parentW = (this.parentElement?.clientWidth && this.parentElement.clientWidth > 0)
+      ? this.parentElement.clientWidth
+      : (this.viewportWidth && this.viewportWidth > 0)
+        ? this.viewportWidth
+        : (typeof window !== 'undefined' && window.innerWidth > 0)
+          ? window.innerWidth
+          : 1200
+    const calculatedMax = Math.max(this.minMinimapWidth, Math.round(parentW * 0.8))
+    return this.option?.minimap?.maxWidth ?? Math.max(this.minMinimapWidth, Math.min(800, calculatedMax))
+  }
+
+  private get minMinimapHeight(): number {
+    return this.option?.minimap?.minHeight ?? 60
+  }
+
+  private get baseMinimapWidth(): number {
+    return this.customWidth ?? this.option?.minimap?.width ?? 200
+  }
+
+  private get baseMinimapHeight(): number {
+    return this.customHeight ?? this.option?.minimap?.height ?? 120
+  }
+
+  private get maxMinimapHeight(): number {
+    const parentH = (this.parentElement?.clientHeight && this.parentElement.clientHeight > 0)
+      ? this.parentElement.clientHeight
+      : (this.viewportHeight && this.viewportHeight > 0)
+        ? this.viewportHeight
+        : (typeof window !== 'undefined' && window.innerHeight > 0)
+          ? window.innerHeight
+          : 800
+    const calculatedMax = Math.max(this.minMinimapHeight, Math.round(parentH * 0.8))
+    return this.option?.minimap?.maxHeight ?? Math.max(this.minMinimapHeight, Math.min(600, calculatedMax))
+  }
+
+  private get preserveAspectRatio(): boolean {
+    return this.option?.minimap?.preserveAspectRatio !== false
+  }
+
+  /**
+   * アスペクト比維持（等倍スケーリング）時の共通スケール
+   * baseMinimapWidth x baseMinimapHeight の最大バウンディングボックスに収まる最大の等倍縮尺
+   */
+  private get uniformScale(): number {
+    const sX = this.baseMinimapWidth / this.effectiveContentWidth
+    const sY = this.baseMinimapHeight / this.effectiveContentHeight
+    return Math.min(sX, sY)
+  }
+
+  private get scaleX(): number {
+    if (this.preserveAspectRatio) {
+      return this.uniformScale
+    }
+    return this.minimapWidth / this.effectiveContentWidth
+  }
+
+  private get scaleY(): number {
+    if (this.preserveAspectRatio) {
+      return this.uniformScale
+    }
+    return this.minimapHeight / this.effectiveContentHeight
+  }
+
   private get minimapWidth(): number {
-    return this.option?.minimap?.width ?? 200
+    if (!this.preserveAspectRatio) {
+      return this.baseMinimapWidth
+    }
+    return Math.max(40, Math.round(this.effectiveContentWidth * this.uniformScale))
   }
 
   private get minimapHeight(): number {
-    return this.option?.minimap?.height ?? 120
+    if (!this.preserveAspectRatio) {
+      return this.baseMinimapHeight
+    }
+    return Math.max(20, Math.round(this.effectiveContentHeight * this.uniformScale))
+  }
+
+  private handleResizePointerDown(e: PointerEvent, handle: string) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    this.isResizing = true
+    this.resizeHandleType = handle
+    this.resizeStartPointerX = e.clientX
+    this.resizeStartPointerY = e.clientY
+    this.resizeStartWidth = this.minimapWidth
+    this.resizeStartHeight = this.minimapHeight
+
+    const hostRect = this.getBoundingClientRect()
+    const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
+    if (parentRect) {
+      const curX = hostRect.left - parentRect.left
+      const curY = hostRect.top - parentRect.top
+      this.position = { x: curX, y: curY }
+    }
+    this.resizeStartOriginX = this.position?.x ?? 0
+    this.resizeStartOriginY = this.position?.y ?? 0
+  }
+
+  private handleResizePointerMove(e: PointerEvent) {
+    if (!this.isResizing) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const dx = e.clientX - this.resizeStartPointerX
+    const dy = e.clientY - this.resizeStartPointerY
+
+    let deltaW = 0
+    let deltaH = 0
+
+    if (this.resizeHandleType.includes('e')) deltaW = dx
+    if (this.resizeHandleType.includes('w')) deltaW = -dx
+    if (this.resizeHandleType.includes('s')) deltaH = dy
+    if (this.resizeHandleType.includes('n')) deltaH = -dy
+
+    const minW = this.minMinimapWidth
+    const maxW = this.maxMinimapWidth
+    const minH = this.minMinimapHeight
+    const maxH = this.maxMinimapHeight
+
+    if (this.preserveAspectRatio) {
+      const aspect = this.effectiveContentWidth / this.effectiveContentHeight
+      const effectiveDelta = Math.abs(deltaW) >= Math.abs(deltaH) ? deltaW : deltaH * aspect
+      const targetW = Math.max(minW, Math.min(maxW, Math.round(this.resizeStartWidth + effectiveDelta)))
+      const targetH = Math.max(minH, Math.min(maxH, Math.round(targetW / aspect)))
+
+      this.customWidth = targetW
+      this.customHeight = targetH
+
+      if (this.position) {
+        let newX = this.resizeStartOriginX
+        let newY = this.resizeStartOriginY
+
+        if (this.resizeHandleType.includes('w')) {
+          newX = this.resizeStartOriginX - (targetW - this.resizeStartWidth)
+        }
+        if (this.resizeHandleType.includes('n')) {
+          newY = this.resizeStartOriginY - (targetH - this.resizeStartHeight)
+        }
+
+        this.position = { x: Math.max(0, newX), y: Math.max(0, newY) }
+        this.updateHostPosition()
+      }
+    } else {
+      if (deltaW !== 0) {
+        const targetW = Math.max(minW, Math.min(maxW, Math.round(this.resizeStartWidth + deltaW)))
+        this.customWidth = targetW
+        if (this.position && this.resizeHandleType.includes('w')) {
+          const newX = this.resizeStartOriginX - (targetW - this.resizeStartWidth)
+          this.position = { ...this.position, x: Math.max(0, newX) }
+        }
+      }
+      if (deltaH !== 0) {
+        const targetH = Math.max(minH, Math.min(maxH, Math.round(this.resizeStartHeight + deltaH)))
+        this.customHeight = targetH
+        if (this.position && this.resizeHandleType.includes('n')) {
+          const newY = this.resizeStartOriginY - (targetH - this.resizeStartHeight)
+          this.position = { ...this.position, y: Math.max(0, newY) }
+        }
+      }
+      if (this.position) {
+        this.updateHostPosition()
+      }
+    }
+  }
+
+  private handleResizePointerUp(e: PointerEvent) {
+    if (!this.isResizing) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const target = e.currentTarget as HTMLElement
+    try {
+      target.releasePointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
+    this.isResizing = false
+
+    this.dispatchEvent(
+      new CustomEvent('minimap-resize', {
+        detail: { width: this.minimapWidth, height: this.minimapHeight },
+        bubbles: true,
+        composed: true,
+      }),
+    )
   }
 
   private get effectiveContentWidth(): number {
@@ -322,8 +613,8 @@ export class GanttMinimapElement extends LitElement {
     ctx.clearRect(0, 0, width, height)
 
     const colors = getThemeColors(this.theme, this.option?.customTheme)
-    const scaleX = width / this.effectiveContentWidth
-    const scaleY = height / this.effectiveContentHeight
+    const scaleX = this.scaleX
+    const scaleY = this.scaleY
 
     // 全体背景描画
     ctx.fillStyle = colors.minimapBg ?? (this.theme === 'dark' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)')
@@ -465,8 +756,8 @@ export class GanttMinimapElement extends LitElement {
     const clickX = e.clientX - rect.left
     const clickY = e.clientY - rect.top
 
-    const scaleX = this.minimapWidth / this.effectiveContentWidth
-    const scaleY = this.minimapHeight / this.effectiveContentHeight
+    const scaleX = this.scaleX
+    const scaleY = this.scaleY
 
     // クリック位置がビューポートの中心になるように計算
     const targetScrollLeft = clickX / scaleX - this.viewportWidth / 2
@@ -500,8 +791,8 @@ export class GanttMinimapElement extends LitElement {
     const dx = e.clientX - this.dragStartX
     const dy = e.clientY - this.dragStartY
 
-    const scaleX = this.minimapWidth / this.effectiveContentWidth
-    const scaleY = this.minimapHeight / this.effectiveContentHeight
+    const scaleX = this.scaleX
+    const scaleY = this.scaleY
 
     const deltaScrollLeft = dx / scaleX
     const deltaScrollTop = dy / scaleY
@@ -573,8 +864,8 @@ export class GanttMinimapElement extends LitElement {
       `
     }
 
-    const scaleX = this.minimapWidth / this.effectiveContentWidth
-    const scaleY = this.minimapHeight / this.effectiveContentHeight
+    const scaleX = this.scaleX
+    const scaleY = this.scaleY
 
     const vpLeft = Math.max(0, this.scrollLeft * scaleX)
     const vpTop = Math.max(0, this.scrollTop * scaleY)
@@ -582,64 +873,127 @@ export class GanttMinimapElement extends LitElement {
     const vpHeight = Math.min(this.minimapHeight - vpTop, Math.max(8, this.viewportHeight * scaleY))
 
     return html`
-      <div class="minimap-container" style="${dynamicStyle}; width: ${this.minimapWidth}px;">
-        <div
-          class="minimap-header ${this.isHeaderDragging ? 'dragging' : ''}"
-          @pointerdown="${this.handleHeaderPointerDown}"
-          @pointermove="${this.handleHeaderPointerMove}"
-          @pointerup="${this.handleHeaderPointerUp}"
-          @pointercancel="${this.handleHeaderPointerUp}"
-        >
-          <div class="minimap-title">
-            <span class="minimap-drag-icon">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="8" cy="6" r="2.5"></circle>
-                <circle cx="16" cy="6" r="2.5"></circle>
-                <circle cx="8" cy="12" r="2.5"></circle>
-                <circle cx="16" cy="12" r="2.5"></circle>
-                <circle cx="8" cy="18" r="2.5"></circle>
-                <circle cx="16" cy="18" r="2.5"></circle>
-              </svg>
-            </span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
-              <line x1="9" y1="3" x2="9" y2="18"></line>
-              <line x1="15" y1="6" x2="15" y2="21"></line>
-            </svg>
-            <span>Overview</span>
-          </div>
-          ${collapsible
-            ? html`
-                <button
-                  class="minimap-toggle-btn"
-                  title="ミニマップを折りたたむ"
-                  aria-label="ミニマップを折りたたむ"
-                  @click="${this.toggleCollapse}"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              `
-            : ''}
-        </div>
-        <div
-          class="minimap-body"
-          style="width: ${this.minimapWidth}px; height: ${this.minimapHeight}px;"
-          @pointerdown="${this.handleBodyPointerDown}"
-        >
-          <canvas
-            style="width: ${this.minimapWidth}px; height: ${this.minimapHeight}px;"
-          ></canvas>
+      <div class="minimap-container ${this.isResizing ? 'resizing' : ''}" style="${dynamicStyle}; width: ${this.minimapWidth}px;">
+        ${this.isResizable
+          ? html`
+              <div
+                class="minimap-resize-handle nw"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'nw')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle ne"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'ne')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle sw"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'sw')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle se"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'se')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle w"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'w')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle e"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'e')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle n"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 'n')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div
+                class="minimap-resize-handle s"
+                @pointerdown="${(e: PointerEvent) => this.handleResizePointerDown(e, 's')}"
+                @pointermove="${this.handleResizePointerMove}"
+                @pointerup="${this.handleResizePointerUp}"
+                @pointercancel="${this.handleResizePointerUp}"
+              ></div>
+              <div class="minimap-resize-indicator"></div>
+            `
+          : ''}
+        <div class="minimap-inner-wrapper">
           <div
-            class="minimap-viewport ${this.isDragging ? 'dragging' : ''}"
-            style="left: ${vpLeft}px; top: ${vpTop}px; width: ${vpWidth}px; height: ${vpHeight}px;"
-            @pointerdown="${this.handleViewportPointerDown}"
-            @pointermove="${this.handleViewportPointerMove}"
-            @pointerup="${this.handleViewportPointerUp}"
-            @pointercancel="${this.handleViewportPointerUp}"
-          ></div>
+            class="minimap-header ${this.isHeaderDragging ? 'dragging' : ''}"
+            @pointerdown="${this.handleHeaderPointerDown}"
+            @pointermove="${this.handleHeaderPointerMove}"
+            @pointerup="${this.handleHeaderPointerUp}"
+            @pointercancel="${this.handleHeaderPointerUp}"
+          >
+            <div class="minimap-title">
+              <span class="minimap-drag-icon">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="8" cy="6" r="2.5"></circle>
+                  <circle cx="16" cy="6" r="2.5"></circle>
+                  <circle cx="8" cy="12" r="2.5"></circle>
+                  <circle cx="16" cy="12" r="2.5"></circle>
+                  <circle cx="8" cy="18" r="2.5"></circle>
+                  <circle cx="16" cy="18" r="2.5"></circle>
+                </svg>
+              </span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+                <line x1="9" y1="3" x2="9" y2="18"></line>
+                <line x1="15" y1="6" x2="15" y2="21"></line>
+              </svg>
+              <span>Overview</span>
+            </div>
+            ${collapsible
+              ? html`
+                  <button
+                    class="minimap-toggle-btn"
+                    title="ミニマップを折りたたむ"
+                    aria-label="ミニマップを折りたたむ"
+                    @click="${this.toggleCollapse}"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                `
+              : ''}
+          </div>
+          <div
+            class="minimap-body"
+            style="width: ${this.minimapWidth}px; height: ${this.minimapHeight}px;"
+            @pointerdown="${this.handleBodyPointerDown}"
+          >
+            <canvas
+              style="width: ${this.minimapWidth}px; height: ${this.minimapHeight}px;"
+            ></canvas>
+            <div
+              class="minimap-viewport ${this.isDragging ? 'dragging' : ''}"
+              style="left: ${vpLeft}px; top: ${vpTop}px; width: ${vpWidth}px; height: ${vpHeight}px;"
+              @pointerdown="${this.handleViewportPointerDown}"
+              @pointermove="${this.handleViewportPointerMove}"
+              @pointerup="${this.handleViewportPointerUp}"
+              @pointercancel="${this.handleViewportPointerUp}"
+            ></div>
+          </div>
         </div>
       </div>
     `

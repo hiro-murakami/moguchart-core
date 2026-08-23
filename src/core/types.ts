@@ -435,6 +435,18 @@ export interface GanttChartOptionMinimap {
   width?: number
   /** ミニマップの高さ (px)。デフォルト: 120 */
   height?: number
+  /** 縦横比維持時の最大高さ (px)。デフォルト: height または 120 */
+  maxHeight?: number
+  /** ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true) */
+  preserveAspectRatio?: boolean
+  /** ユーザーによるドラッグリサイズ（サイズ変更）を許可するかどうか (デフォルト: true) */
+  resizable?: boolean
+  /** リサイズ時の最小幅 (px)。デフォルト: 120 */
+  minWidth?: number
+  /** リサイズ時の最大幅 (px)。デフォルト: 600 */
+  maxWidth?: number
+  /** リサイズ時の最小高さ (px)。デフォルト: 60 */
+  minHeight?: number
   /** 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true) */
   collapsible?: boolean
   /** 初期状態で折りたたまれているかどうか (デフォルト: false) */
@@ -443,6 +455,14 @@ export interface GanttChartOptionMinimap {
   showMilestones?: boolean
   /** 現在時刻線を表示するかどうか (デフォルト: true) */
   showCurrentTime?: boolean
+}
+
+/**
+ * ミニマップのリサイズイベントの詳細データ
+ */
+export interface MinimapResizeEventDetail {
+  width: number
+  height: number
 }
 
 /**

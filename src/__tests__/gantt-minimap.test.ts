@@ -360,4 +360,114 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     minimap.remove()
   })
+
+  it('preserves aspect ratio matching the content width and height', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        height: 120,
+        preserveAspectRatio: true,
+      },
+    }
+    // 2:1 のコンテンツ (幅2000px, 高さ1000px)
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 1000
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    const bodyEl = minimap.shadowRoot?.querySelector('.minimap-body') as HTMLElement
+
+    // 幅200pxに対して、高さは 200 / 2 = 100px になるはず
+    expect(container.style.width).toBe('200px')
+    expect(bodyEl.style.height).toBe('100px')
+
+    minimap.remove()
+  })
+
+  it('resizes minimap when dragging the resize handle', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        height: 120,
+        preserveAspectRatio: false,
+        resizable: true,
+      },
+    }
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 1000
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const resizeListener = vi.fn()
+    minimap.addEventListener('minimap-resize', (e: any) => {
+      resizeListener(e.detail)
+    })
+
+    const seHandle = minimap.shadowRoot?.querySelector('.minimap-resize-handle.se') as HTMLElement
+    expect(seHandle).not.toBeNull()
+
+    seHandle.setPointerCapture = vi.fn()
+    seHandle.releasePointerCapture = vi.fn()
+
+    // 1. ドラッグ開始
+    seHandle.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        clientX: 200,
+        clientY: 120,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    expect(seHandle.setPointerCapture).toHaveBeenCalledWith(1)
+
+    // 2. ドラッグ移動 (+50px, +30px)
+    seHandle.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: 250,
+        clientY: 150,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    expect(container.style.width).toBe('250px')
+
+    // 3. ドラッグ終了
+    seHandle.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    expect(seHandle.releasePointerCapture).toHaveBeenCalledWith(1)
+    expect(resizeListener).toHaveBeenCalledWith({ width: 250, height: 150 })
+
+    minimap.remove()
+  })
 })

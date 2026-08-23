@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ファインダー枠のドラッグによるスクロール同期（パン操作）およびミニマップクリックによるジャンプ移動に対応
   - ミニマップのタイトルバーをドラッグしてチャート内の任意の位置へ自由に移動（ドラッガブルウィンドウ）できる機能を追加
   - 折りたたみ（最小化 / 展開）機能およびアニメーション
-  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`）
+  - ミニマップの四隅やエッジをドラッグしてサイズを自由に変更（ドラッグリサイズ）できる機能を追加（`resizable`, `minWidth`, `maxWidth`, `minHeight`, `minimap-resize` イベント）
+  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`）
   - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
   - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
   - ミニマップ単体およびガントチャート統合の単体テスト（`src/__tests__/gantt-minimap.test.ts`）を追加
