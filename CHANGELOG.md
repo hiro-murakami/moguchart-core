@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
   - ミニマップ単体およびガントチャート統合の単体テスト（`src/__tests__/gantt-minimap.test.ts`）を追加
 
+### Fixed
+
+- PNG/PDF エクスポート（`exportImage` / `exportGanttWithHtml2Canvas`）時に、中身が描画されず背景色のみが出力されてしまう問題を修正
+  - `html2canvas` の描画対象を Web Components ホスト要素から Shadow DOM 内の実描画コンテナ（`.scroll-container`）に変更
+  - キャプチャ座標およびスクロールオフセット（`scrollX: 0, scrollY: 0, x: 0, y: 0`）を明示的に指定
+  - テーマ設定（Light / Dark / Custom）に応じた背景色が出力画像に反映されるよう改善
+  - エクスポート実行時に現在のスクロール位置がリセットされず保持・復元されるよう改善
+- エクスポート処理およびスクロール位置保持を検証する単体テストを追加
+
 ## [0.10.0] - 2026-08-23
 
 ### Added

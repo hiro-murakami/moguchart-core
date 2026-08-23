@@ -1591,6 +1591,10 @@ export class GanttChartElement extends LitElement {
    * @param options エクスポートオプション。
    */
   public async exportImage(format: 'png' | 'pdf' = 'png', options: ExportImageOptions = {}): Promise<string | Blob> {
+    const scrollContainer = this._scrollContainer || (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    const prevScrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0
+    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0
+
     this.isExporting = true
     await this.updateComplete
     await new Promise(r => requestAnimationFrame(r))
@@ -1599,6 +1603,10 @@ export class GanttChartElement extends LitElement {
     } finally {
       this.isExporting = false
       await this.updateComplete
+      if (scrollContainer) {
+        scrollContainer.scrollLeft = prevScrollLeft
+        scrollContainer.scrollTop = prevScrollTop
+      }
     }
   }
 

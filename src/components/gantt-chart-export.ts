@@ -8,6 +8,7 @@
 import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
 import type { GanttChartElement } from './gantt-chart'
+import { getThemeColors } from '../core/utils'
 
 
 export interface ExportImageOptions {
@@ -45,15 +46,23 @@ export async function exportGanttWithHtml2Canvas(
   let scrollWidth = scrollContainer ? scrollContainer.scrollWidth : chartElement.scrollWidth;
   let scrollHeight = scrollContainer ? scrollContainer.scrollHeight : chartElement.scrollHeight;
 
+  const targetEl = scrollContainer || chartElement;
+  const colors = getThemeColors(chartElement.theme, chartElement.option?.customTheme);
+  const bgColor = colors.bg || '#ffffff';
 
   // html2canvas-pro は Shadow DOM をネイティブにサポートしています
-  let canvas = await html2canvas(chartElement, {
-    backgroundColor: '#ffffff',
+  let canvas = await html2canvas(targetEl, {
+    backgroundColor: bgColor,
     scale: scale,
     width: scrollWidth,
     height: scrollHeight,
     windowWidth: scrollWidth,
     windowHeight: scrollHeight,
+    scrollX: 0,
+    scrollY: 0,
+    x: 0,
+    y: 0,
+    logging: false,
   });
 
   if (splitHeight && scrollHeight > splitHeight) {
