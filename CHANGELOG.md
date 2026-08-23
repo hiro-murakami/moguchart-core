@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- フローティング小窓型のミニマップ（Overview Minimap）コンポーネント（`<gantt-minimap>`）を追加
+  - チャート全体の全タスク・マイルストーン・現在時刻線を `<canvas>` で高速・軽量に鳥瞰描画
+  - 現在の表示領域（ビューポート）を半透明枠（ファインダー）で可視化
+  - ファインダー枠のドラッグによるスクロール同期（パン操作）およびミニマップクリックによるジャンプ移動に対応
+  - ミニマップのタイトルバーをドラッグしてチャート内の任意の位置へ自由に移動（ドラッガブルウィンドウ）できる機能を追加
+  - 折りたたみ（最小化 / 展開）機能およびアニメーション
+  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`）
+  - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
+  - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
+  - ミニマップ単体およびガントチャート統合の単体テスト（`src/__tests__/gantt-minimap.test.ts`）を追加
+
 ## [0.10.0] - 2026-08-23
 
 ### Added

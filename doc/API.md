@@ -132,6 +132,16 @@ interface GanttChartOption {
     /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
     step?: number
   }
+  /** ミニマップ（Overview Minimap）機能の設定 */
+  minimap?: {
+    enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
+    width?: number // ミニマップの幅 (px、デフォルト: 200)
+    height?: number // ミニマップの高さ (px、デフォルト: 120)
+    collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
+    collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
+    showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
+    showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
+  }
 }
 ```
 
@@ -798,6 +808,11 @@ interface ThemeColorPalette {
   thursday?: string // 木曜日の背景色 (オプション)
   friday?: string // 金曜日の背景色 (オプション)
   criticalPath?: string // クリティカルパスのハイライト色 (オプション)
+  minimapBg?: string // ミニマップの背景色 (オプション)
+  minimapBorder?: string // ミニマップの枠線色 (オプション)
+  minimapViewport?: string // ミニマップのビューポート枠背景色 (オプション)
+  minimapViewportBorder?: string // ミニマップのビューポート枠ボーダー色 (オプション)
+  minimapTask?: string // ミニマップのタスク描画色 (オプション)
 }
 ```
 

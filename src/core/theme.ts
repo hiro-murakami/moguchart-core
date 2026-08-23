@@ -28,6 +28,11 @@ export const THEME_COLORS: ThemeColors = {
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
     criticalPath: 'rgba(220, 38, 38, 0.85)',
+    minimapBg: 'rgba(255, 255, 255, 0.92)',
+    minimapBorder: '#cbd5e1',
+    minimapViewport: 'rgba(59, 130, 246, 0.2)',
+    minimapViewportBorder: '#3b82f6',
+    minimapTask: '#3b82f6',
   },
   dark: {
     bg: '#1e293b',
@@ -56,5 +61,10 @@ export const THEME_COLORS: ThemeColors = {
     currentTimeLine: 'rgba(239, 68, 68, 0.5)',
     currentTimeLineText: '#ffffff',
     criticalPath: 'rgba(248, 113, 113, 0.85)',
+    minimapBg: 'rgba(15, 23, 42, 0.92)',
+    minimapBorder: '#334155',
+    minimapViewport: 'rgba(96, 165, 250, 0.25)',
+    minimapViewportBorder: '#60a5fa',
+    minimapTask: '#60a5fa',
   },
 }

@@ -26,6 +26,8 @@ import { repeat } from 'lit/directives/repeat.js'
 import { throttle } from 'lodash-es'
 import './gantt-calendar'
 import './gantt-row'
+import './gantt-minimap'
+import type { MinimapScrollEventDetail } from './gantt-minimap'
 import type { GanttRowElement } from './gantt-row'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
@@ -51,6 +53,9 @@ export class GanttChartElement extends LitElement {
   @state() private selectedTasks = new Set<string>()
   @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
+  @state() private currentScrollLeft = 0
+  @state() private currentScrollTop = 0
+  @state() private viewportWidth = 800
   @state() private dragTargetRowIndex: number | null = null
   @state() private draggingTask: {
     id: string
@@ -173,6 +178,7 @@ export class GanttChartElement extends LitElement {
       for (const entry of entries) {
         if (entry.target === this) {
           this.viewportHeight = entry.contentRect.height
+          this.viewportWidth = entry.contentRect.width
         } else if (entry.target === calendar) {
           this.calendarHeight = (entry.target as HTMLElement).offsetHeight
         }
@@ -186,6 +192,10 @@ export class GanttChartElement extends LitElement {
     // wheel イベントは scroll-container に直接登録する
     // ホスト要素に登録するとブラウザのネイティブスクロールが先に処理されてしまう
     this._scrollContainer = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    if (this._scrollContainer) {
+      this.currentScrollLeft = this._scrollContainer.scrollLeft
+      this.currentScrollTop = this._scrollContainer.scrollTop
+    }
     this._scrollContainer?.addEventListener('wheel', this.handleWheel, { passive: false })
   }
 
@@ -540,6 +550,8 @@ export class GanttChartElement extends LitElement {
 
   private handleScroll = (e: Event) => {
     const target = e.target as HTMLElement
+    this.currentScrollLeft = target.scrollLeft
+    this.currentScrollTop = target.scrollTop
     this.updateScrollTop(target.scrollTop)
 
     if (this.hoverTimer !== undefined) {
@@ -547,6 +559,17 @@ export class GanttChartElement extends LitElement {
     }
     if (this.tooltip) {
       this.tooltip = { ...this.tooltip, visible: false }
+    }
+  }
+
+  private handleMinimapScroll = (e: CustomEvent<MinimapScrollEventDetail>) => {
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    if (container) {
+      container.scrollLeft = e.detail.scrollLeft
+      container.scrollTop = e.detail.scrollTop
+      this.currentScrollLeft = e.detail.scrollLeft
+      this.currentScrollTop = e.detail.scrollTop
+      this.virtualScrollTop = e.detail.scrollTop
     }
   }
 
@@ -2754,6 +2777,25 @@ export class GanttChartElement extends LitElement {
               class="tooltip ${this.tooltip.visible ? 'visible' : ''} ${this.tooltip.below ? 'below' : ''}"
               style="top: ${this.tooltip.below ? this.tooltip.barBottom : this.tooltip.y}px; left: ${this.tooltip.x}px;"
             />
+          `
+        : ''}
+      ${!this.isExporting && this.option.minimap?.enabled === true
+        ? html`
+            <gantt-minimap
+              .rows="${this.displayRows}"
+              .option="${currentOption}"
+              .theme="${this.theme}"
+              .scrollLeft="${this.currentScrollLeft}"
+              .scrollTop="${this.currentScrollTop}"
+              .viewportWidth="${this.viewportWidth}"
+              .viewportHeight="${this.viewportHeight}"
+              .contentWidth="${this.getDateX(this.option.calendar.end) + labelWidth}"
+              .contentHeight="${totalHeight + this.calendarHeight}"
+              .calendarHeight="${this.calendarHeight}"
+              .rowHeaderWidth="${labelWidth}"
+              .currentTime="${this.currentTime}"
+              @minimap-scroll="${this.handleMinimapScroll}"
+            ></gantt-minimap>
           `
         : ''}
     `

@@ -132,6 +132,16 @@ interface GanttChartOption {
     /** Zoom multiplier per wheel tick (default: 1.2) */
     step?: number
   }
+  /** Overview Minimap configuration */
+  minimap?: {
+    enabled?: boolean // Whether to enable minimap (default: false)
+    width?: number // Width of the minimap in px (default: 200)
+    height?: number // Height of the minimap in px (default: 120)
+    collapsible?: boolean // Whether to show collapse button (default: true)
+    collapsed?: boolean // Whether initially collapsed (default: false)
+    showMilestones?: boolean // Whether to display milestones on minimap (default: true)
+    showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
+  }
 }
 ```
 
@@ -887,6 +897,11 @@ interface ThemeColorPalette {
   thursday?: string // Thursday background color (optional)
   friday?: string // Friday background color (optional)
   criticalPath?: string // Critical path highlight color (optional)
+  minimapBg?: string // Minimap background color (optional)
+  minimapBorder?: string // Minimap border color (optional)
+  minimapViewport?: string // Minimap viewport background color (optional)
+  minimapViewportBorder?: string // Minimap viewport border color (optional)
+  minimapTask?: string // Minimap task bar color (optional)
 }
 ```
 
