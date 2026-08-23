@@ -101,7 +101,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
     expect(minimapEl).toBeNull()
   })
 
-  it('renders gantt-minimap when option.minimap.enabled is true', async () => {
+  it('renders gantt-minimap when option.minimap.enabled is true with timeline bounds', async () => {
     chart.option = {
       ...chart.option,
       minimap: {
@@ -117,6 +117,11 @@ describe('GanttMinimap & GanttChart Integration', () => {
     expect(minimapEl).not.toBeNull()
     expect(minimapEl?.option?.minimap?.width).toBe(220)
     expect(minimapEl?.option?.minimap?.height).toBe(140)
+
+    // contentWidth が純粋なタイムライン幅 (30日 * 40px = 1200px) になり、行ヘッダー幅 (200px) を含まないこと
+    expect(minimapEl?.contentWidth).toBe(1200)
+    // viewportWidth が (ガントチャートのビューポート幅 850 - 行ヘッダー幅 200 = 650) になっていること
+    expect(minimapEl?.viewportWidth).toBe(650)
   })
 
   it('renders canvas and viewport frame inside gantt-minimap', async () => {
@@ -155,7 +160,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
     minimap.remove()
   })
 
-  it('toggles collapse state when clicking minimize / expand button', async () => {
+  it('toggles collapse state when clicking minimize / expand button and positions collapsed icon at bottom-right', async () => {
     const minimap = new GanttMinimapElement()
     minimap.option = {
       calendar: {
@@ -167,28 +172,38 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         collapsible: true,
         collapsed: false,
+        position: { x: 100, y: 100 },
       },
     }
 
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
-    // 最初は展開状態
+    // 最初は展開状態かつカスタム位置
+    expect(minimap.style.left).toBe('100px')
+    expect(minimap.style.top).toBe('100px')
+
     const toggleBtn = minimap.shadowRoot?.querySelector('.minimap-toggle-btn') as HTMLElement
     expect(toggleBtn).not.toBeNull()
 
     toggleBtn.click()
     await minimap.updateComplete
 
-    // 折りたたみボタン（マップアイコン）が表示される
+    // 折りたたみ時はスタイルがクリアされ右下（CSSデフォルト）に配置される
     const collapsedBtn = minimap.shadowRoot?.querySelector('.minimap-collapsed-btn') as HTMLElement
     expect(collapsedBtn).not.toBeNull()
+    expect(minimap.style.left).toBe('')
+    expect(minimap.style.top).toBe('')
+    expect(minimap.style.right).toBe('')
+    expect(minimap.style.bottom).toBe('')
 
-    // 再度クリックで展開
+    // 再度クリックで展開すると、元のカスタム位置に復元される
     collapsedBtn.click()
     await minimap.updateComplete
 
     expect(minimap.shadowRoot?.querySelector('.minimap-toggle-btn')).not.toBeNull()
+    expect(minimap.style.left).toBe('100px')
+    expect(minimap.style.top).toBe('100px')
 
     minimap.remove()
   })
@@ -343,10 +358,10 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     await minimap.updateComplete
 
-    expect(minimap.style.left).toContain('px')
-    expect(minimap.style.top).toContain('px')
-    expect(minimap.style.right).toBe('auto')
-    expect(minimap.style.bottom).toBe('auto')
+    const moveListener = vi.fn()
+    minimap.addEventListener('minimap-move', (e: any) => {
+      moveListener(e.detail)
+    })
 
     // 3. ドラッグ終了
     header.dispatchEvent(
@@ -357,6 +372,36 @@ describe('GanttMinimap & GanttChart Integration', () => {
     )
 
     expect(header.releasePointerCapture).toHaveBeenCalledWith(1)
+    expect(moveListener).toHaveBeenCalled()
+    const moveDetail = moveListener.mock.calls[0][0]
+    expect(moveDetail.x).toBe(484)
+    expect(moveDetail.y).toBe(414)
+
+    minimap.remove()
+  })
+
+  it('restores initial position when option.minimap.position is provided', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        height: 120,
+        position: { x: 150, y: 80 },
+      },
+    }
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    expect(minimap.style.left).toBe('150px')
+    expect(minimap.style.top).toBe('80px')
+    expect(minimap.style.right).toBe('auto')
+    expect(minimap.style.bottom).toBe('auto')
 
     minimap.remove()
   })
@@ -391,6 +436,41 @@ describe('GanttMinimap & GanttChart Integration', () => {
     // 幅200pxに対して、高さは 200 / 2 = 100px になるはず
     expect(container.style.width).toBe('200px')
     expect(bodyEl.style.height).toBe('100px')
+
+    minimap.remove()
+  })
+
+  it('preserves specified width when option.minimap.height is omitted even with tall content', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 300,
+        // height 未指定
+        preserveAspectRatio: true,
+      },
+    }
+    // コンテンツ幅 1500px, コンテンツ高さ 2000px (縦長コンテンツ)
+    minimap.contentWidth = 1500
+    minimap.contentHeight = 2000
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    const bodyEl = minimap.shadowRoot?.querySelector('.minimap-body') as HTMLElement
+
+    // width 300px が正しく維持されること (従来の120px上限で縮小されないこと)
+    expect(container.style.width).toBe('300px')
+    // 高さ = 300 * (2000 / 1500) = 400px
+    expect(bodyEl.style.height).toBe('400px')
 
     minimap.remove()
   })
@@ -466,7 +546,87 @@ describe('GanttMinimap & GanttChart Integration', () => {
     )
 
     expect(seHandle.releasePointerCapture).toHaveBeenCalledWith(1)
-    expect(resizeListener).toHaveBeenCalledWith({ width: 250, height: 150 })
+    expect(resizeListener).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 250, height: 150 }),
+    )
+
+    minimap.remove()
+  })
+
+  it('includes blank area in minimap when content height is smaller than viewport height (preserveAspectRatio: true)', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        height: 120,
+        preserveAspectRatio: true,
+      },
+    }
+    // コンテンツ高さ200px < ビューポート高さ600px（下部に余白がある状態）
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 200
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+    minimap.scrollLeft = 0
+    minimap.scrollTop = 0
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    const bodyEl = minimap.shadowRoot?.querySelector('.minimap-body') as HTMLElement
+    const viewport = minimap.shadowRoot?.querySelector('.minimap-viewport') as HTMLElement
+
+    // effectiveContentHeight が 600px になり、アスペクト比 2000:600 (scale: 0.1)
+    // 幅200px に対して ミニマップ全体の高さは 600 * 0.1 = 60px になる
+    expect(container.style.width).toBe('200px')
+    expect(bodyEl.style.height).toBe('60px')
+
+    // ビューポート枠は縦全体 (60px) をカバーする
+    expect(viewport.style.height).toBe('60px')
+    expect(viewport.style.width).toBe('80px') // 800 * 0.1 = 80px
+
+    minimap.remove()
+  })
+
+  it('includes blank area in minimap when content height is smaller than viewport height (preserveAspectRatio: false)', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        height: 120,
+        preserveAspectRatio: false,
+      },
+    }
+    // コンテンツ高さ200px < ビューポート高さ600px
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 200
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+    minimap.scrollLeft = 0
+    minimap.scrollTop = 0
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const bodyEl = minimap.shadowRoot?.querySelector('.minimap-body') as HTMLElement
+    const viewport = minimap.shadowRoot?.querySelector('.minimap-viewport') as HTMLElement
+
+    expect(bodyEl.style.height).toBe('120px')
+    // scaleY = 120 / 600 = 0.2 なので、viewportHeight(600) * 0.2 = 120px
+    expect(viewport.style.height).toBe('120px')
 
     minimap.remove()
   })

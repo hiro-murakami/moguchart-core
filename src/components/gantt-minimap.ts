@@ -1,6 +1,6 @@
 import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property, state, query } from 'lit/decorators.js'
-import type { GanttChartOption, GanttRow } from '../core/types'
+import type { GanttChartOption, GanttRow, MinimapMoveEventDetail, MinimapResizeEventDetail } from '../core/types'
 import { calculateTaskLanes, dateToX, getThemeColors } from '../core/utils'
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '../core/constants'
 
@@ -11,6 +11,8 @@ export interface MinimapScrollEventDetail {
   scrollLeft: number
   scrollTop: number
 }
+
+export type { MinimapMoveEventDetail, MinimapResizeEventDetail }
 
 /**
  * タスクのstyle属性から背景色を抽出するヘルパー
@@ -295,6 +297,28 @@ export class GanttMinimapElement extends LitElement {
     if (this.option?.minimap?.collapsed !== undefined) {
       this.isCollapsed = this.option.minimap.collapsed
     }
+    if (this.option?.minimap?.position) {
+      this.position = { ...this.option.minimap.position }
+    }
+  }
+
+  override willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate(changedProperties)
+    if (changedProperties.has('option')) {
+      if (!this.isHeaderDragging && !this.isResizing) {
+        if (this.option?.minimap?.position) {
+          this.position = { ...this.option.minimap.position }
+        } else if (this.option?.minimap?.position === null) {
+          this.position = null
+        }
+        if (this.option?.minimap?.width !== undefined) {
+          this.customWidth = this.option.minimap.width
+        }
+        if (this.option?.minimap?.height !== undefined) {
+          this.customHeight = this.option.minimap.height
+        }
+      }
+    }
   }
 
   override updated(changedProperties: PropertyValues) {
@@ -306,11 +330,16 @@ export class GanttMinimapElement extends LitElement {
   }
 
   private updateHostPosition() {
-    if (this.position) {
+    if (!this.isCollapsed && this.position) {
       this.style.left = `${this.position.x}px`
       this.style.top = `${this.position.y}px`
       this.style.right = 'auto'
       this.style.bottom = 'auto'
+    } else {
+      this.style.left = ''
+      this.style.top = ''
+      this.style.right = ''
+      this.style.bottom = ''
     }
   }
 
@@ -329,10 +358,12 @@ export class GanttMinimapElement extends LitElement {
     const hostRect = this.getBoundingClientRect()
     const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
 
-    if (parentRect) {
+    if (parentRect && (parentRect.width > 0 || parentRect.height > 0)) {
       const curX = hostRect.left - parentRect.left
       const curY = hostRect.top - parentRect.top
       this.position = { x: curX, y: curY }
+    } else if (!this.position) {
+      this.position = { x: hostRect.left, y: hostRect.top }
     }
 
     this.headerDragStartX = e.clientX
@@ -354,8 +385,12 @@ export class GanttMinimapElement extends LitElement {
 
     // 親要素の領域内でクランプ
     const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
-    const parentWidth = parentRect?.width ?? this.viewportWidth ?? window.innerWidth
-    const parentHeight = parentRect?.height ?? this.viewportHeight ?? window.innerHeight
+    const parentWidth = (parentRect?.width && parentRect.width > 0)
+      ? parentRect.width
+      : (this.viewportWidth > 0 ? this.viewportWidth : (typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1200))
+    const parentHeight = (parentRect?.height && parentRect.height > 0)
+      ? parentRect.height
+      : (this.viewportHeight > 0 ? this.viewportHeight : (typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 800))
 
     const currentW = this.isCollapsed ? 32 : this.minimapWidth
     const currentH = this.isCollapsed ? 32 : (this.minimapHeight + 28)
@@ -382,6 +417,16 @@ export class GanttMinimapElement extends LitElement {
       // ignore
     }
     this.isHeaderDragging = false
+
+    if (this.position) {
+      this.dispatchEvent(
+        new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
+          detail: { x: this.position.x, y: this.position.y },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
   }
 
   private get isResizable(): boolean {
@@ -438,8 +483,17 @@ export class GanttMinimapElement extends LitElement {
    */
   private get uniformScale(): number {
     const sX = this.baseMinimapWidth / this.effectiveContentWidth
-    const sY = this.baseMinimapHeight / this.effectiveContentHeight
-    return Math.min(sX, sY)
+    if (this.customHeight !== null) {
+      const sY = this.customHeight / this.effectiveContentHeight
+      return Math.min(sX, sY)
+    }
+    if (this.option?.minimap?.height !== undefined) {
+      const sY = this.option.minimap.height / this.effectiveContentHeight
+      return Math.min(sX, sY)
+    }
+    // option.minimap.height が未指定の場合は、幅基準（ただし maxHeight を超えない）
+    const maxScaleY = this.maxMinimapHeight / this.effectiveContentHeight
+    return Math.min(sX, maxScaleY)
   }
 
   private get scaleX(): number {
@@ -486,10 +540,12 @@ export class GanttMinimapElement extends LitElement {
 
     const hostRect = this.getBoundingClientRect()
     const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
-    if (parentRect) {
+    if (parentRect && (parentRect.width > 0 || parentRect.height > 0)) {
       const curX = hostRect.left - parentRect.left
       const curY = hostRect.top - parentRect.top
       this.position = { x: curX, y: curY }
+    } else if (!this.position) {
+      this.position = { x: hostRect.left, y: hostRect.top }
     }
     this.resizeStartOriginX = this.position?.x ?? 0
     this.resizeStartOriginY = this.position?.y ?? 0
@@ -576,20 +632,34 @@ export class GanttMinimapElement extends LitElement {
     this.isResizing = false
 
     this.dispatchEvent(
-      new CustomEvent('minimap-resize', {
-        detail: { width: this.minimapWidth, height: this.minimapHeight },
+      new CustomEvent<MinimapResizeEventDetail>('minimap-resize', {
+        detail: {
+          width: this.minimapWidth,
+          height: this.minimapHeight,
+          position: this.position ? { x: this.position.x, y: this.position.y } : undefined,
+        },
         bubbles: true,
         composed: true,
       }),
     )
+
+    if (this.position) {
+      this.dispatchEvent(
+        new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
+          detail: { x: this.position.x, y: this.position.y },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
   }
 
   private get effectiveContentWidth(): number {
-    return Math.max(this.contentWidth, 1)
+    return Math.max(this.contentWidth, this.viewportWidth, 1)
   }
 
   private get effectiveContentHeight(): number {
-    return Math.max(this.contentHeight, 1)
+    return Math.max(this.contentHeight, this.viewportHeight, 1)
   }
 
   private renderCanvas() {
@@ -620,27 +690,12 @@ export class GanttMinimapElement extends LitElement {
     ctx.fillStyle = colors.minimapBg ?? (this.theme === 'dark' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)')
     ctx.fillRect(0, 0, width, height)
 
-    const labelWidthMini = this.rowHeaderWidth * scaleX
     const calHeightMini = this.calendarHeight * scaleY
 
     // カレンダーヘッダー領域の背景
     if (calHeightMini > 0) {
       ctx.fillStyle = colors.calendarBg ?? (this.theme === 'dark' ? '#0f172a' : '#e2e8f0')
       ctx.fillRect(0, 0, width, calHeightMini)
-    }
-
-    // 行ヘッダー領域の背景
-    if (labelWidthMini > 0) {
-      ctx.fillStyle = colors.rowHeaderBg ?? (this.theme === 'dark' ? '#0f172a' : '#e2e8f0')
-      ctx.fillRect(0, 0, labelWidthMini, height)
-
-      // 行ヘッダー境界線
-      ctx.strokeStyle = colors.border ?? (this.theme === 'dark' ? '#263040' : '#cbd5e1')
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(labelWidthMini, 0)
-      ctx.lineTo(labelWidthMini, height)
-      ctx.stroke()
     }
 
     // 行グリッドラインおよびタスク描画
@@ -667,7 +722,7 @@ export class GanttMinimapElement extends LitElement {
       // 偶数行の薄いゼブラ背景（チャート領域）
       if (i % 2 === 1) {
         ctx.fillStyle = this.theme === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)'
-        ctx.fillRect(labelWidthMini, rowTopMini, width - labelWidthMini, rowHeightMini)
+        ctx.fillRect(0, rowTopMini, width, rowHeightMini)
       }
 
       // 行の区切り線
@@ -680,8 +735,8 @@ export class GanttMinimapElement extends LitElement {
 
       // タスクの描画
       for (const task of tasksWithLanes) {
-        const taskX = this.rowHeaderWidth + dateToX(task.start, startDate, pxPerDay, pxPerMonth)
-        const taskEndX = this.rowHeaderWidth + dateToX(task.end, startDate, pxPerDay, pxPerMonth)
+        const taskX = dateToX(task.start, startDate, pxPerDay, pxPerMonth)
+        const taskEndX = dateToX(task.end, startDate, pxPerDay, pxPerMonth)
         const taskW = Math.max(taskEndX - taskX, 1)
         const taskY = currentY + task.lane * (barHeight + barMargin * 2) + barMargin
 
@@ -713,7 +768,7 @@ export class GanttMinimapElement extends LitElement {
     // マイルストーンの描画
     if (this.option?.minimap?.showMilestones !== false && this.option?.calendar?.milestones) {
       for (const ms of this.option.calendar.milestones) {
-        const msX = (this.rowHeaderWidth + dateToX(ms.start, startDate, pxPerDay, pxPerMonth)) * scaleX
+        const msX = dateToX(ms.start, startDate, pxPerDay, pxPerMonth) * scaleX
         ctx.strokeStyle = ms.color || '#8b5cf6'
         ctx.lineWidth = 1
         ctx.setLineDash([2, 2])
@@ -731,8 +786,8 @@ export class GanttMinimapElement extends LitElement {
       this.option?.calendar?.showCurrentTime
     ) {
       const now = this.currentTime || new Date()
-      const nowX = (this.rowHeaderWidth + dateToX(now, startDate, pxPerDay, pxPerMonth)) * scaleX
-      if (nowX >= labelWidthMini && nowX <= width) {
+      const nowX = dateToX(now, startDate, pxPerDay, pxPerMonth) * scaleX
+      if (nowX >= 0 && nowX <= width) {
         ctx.strokeStyle = colors.currentTimeLine || 'rgba(239, 68, 68, 0.7)'
         ctx.lineWidth = 1
         ctx.beginPath()

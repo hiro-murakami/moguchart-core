@@ -147,6 +147,7 @@ interface GanttChartOption {
     collapsed?: boolean // Whether initially collapsed (default: false)
     showMilestones?: boolean // Whether to display milestones on minimap (default: true)
     showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
+    position?: { x: number; y: number } // Initial position of minimap in px relative to parent
   }
 }
 ```
@@ -165,6 +166,7 @@ Custom events dispatched by the component.
 | `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
+| `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
@@ -1014,6 +1016,46 @@ interface MarkerContextMenuEventDetail {
 }
 ```
 
+### GanttChartOptionMinimap
+
+```typescript
+interface GanttChartOptionMinimap {
+  enabled?: boolean // Whether to enable minimap (default: false)
+  width?: number // Width of the minimap in px (default: 200)
+  height?: number // Height of the minimap in px (default: 120)
+  maxHeight?: number // Maximum height when preserving aspect ratio in px (default: height or 120)
+  preserveAspectRatio?: boolean // Whether to preserve the chart content aspect ratio (default: true)
+  resizable?: boolean // Whether to allow drag resizing by user (default: true)
+  minWidth?: number // Minimum width during resize in px (default: 120)
+  maxWidth?: number // Maximum width during resize in px (default: 600)
+  minHeight?: number // Minimum height during resize in px (default: 60)
+  collapsible?: boolean // Whether to show collapse button (default: true)
+  collapsed?: boolean // Whether initially collapsed (default: false)
+  showMilestones?: boolean // Whether to display milestones on minimap (default: true)
+  showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
+  position?: { x: number; y: number } // Initial position of minimap in px relative to parent
+}
+```
+
+### MinimapResizeEventDetail
+
+```typescript
+interface MinimapResizeEventDetail {
+  width: number // New width after resize (px)
+  height: number // New height after resize (px)
+  position?: { x: number; y: number } // Position update resulting from resize (px)
+}
+```
+
+### MinimapMoveEventDetail
+
+```typescript
+interface MinimapMoveEventDetail {
+  x: number // New X coordinate (px)
+  y: number // New Y coordinate (px)
+}
+```
+
 ## Multi-Task Selection and Dragging
 
 Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks. Selection state is communicated via the `bar-selection-change` event.
@@ -1329,3 +1371,43 @@ chart.addEventListener('task-delete', (e) => {
     chart.rows = rows
   }
 })
+```
+
+## Overview Minimap
+
+By setting the `minimap` option, you can display a floating overview window that provides a bird's-eye view of all tasks, milestones, and current time line across the entire Gantt chart.
+
+- **Viewport Navigation**: Drag the translucent finder frame inside the minimap to pan/scroll, or click anywhere on the minimap to jump directly to that position.
+- **Draggable Window**: Drag the minimap title bar to move and position it anywhere within the chart container. Fires the `minimap-move` event when moved.
+- **Drag Resizing**: Drag the corners or edges of the minimap to resize it freely while optionally preserving the aspect ratio. Fires the `minimap-resize` event when resized.
+- **Collapsible**: Collapse or expand the minimap via the minimize button.
+- **Theme Support**: Customize colors using `customTheme` keys like `minimapBg`, `minimapViewport`, and more.
+
+### Usage Example
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  minimap: {
+    enabled: true,
+    width: 240,
+    preserveAspectRatio: true,
+    resizable: true,
+    position: { x: 20, y: 50 }, // Initial position (px)
+  },
+}
+
+// Listen to resize events
+chart.addEventListener('minimap-resize', (e) => {
+  const { width, height, position } = e.detail
+  console.log(`Minimap resized: ${width}x${height}`, position)
+})
+
+// Listen to move events
+chart.addEventListener('minimap-move', (e) => {
+  const { x, y } = e.detail
+  console.log(`Minimap moved to: (${x}, ${y})`)
+})
+```

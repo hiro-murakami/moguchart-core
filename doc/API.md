@@ -147,6 +147,7 @@ interface GanttChartOption {
     collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
     showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
     showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
+    position?: { x: number; y: number } // ミニマップの初期位置（親要素に対する座標 px）
   }
 }
 ```
@@ -165,6 +166,7 @@ interface GanttChartOption {
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
+| `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
@@ -926,6 +928,46 @@ interface MarkerContextMenuEventDetail {
 }
 ```
 
+### GanttChartOptionMinimap
+
+```typescript
+interface GanttChartOptionMinimap {
+  enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
+  width?: number // ミニマップの幅 (px、デフォルト: 200)
+  height?: number // ミニマップの高さ (px、デフォルト: 120)
+  maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
+  preserveAspectRatio?: boolean // ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
+  resizable?: boolean // ユーザーによるドラッグリサイズを許可するかどうか (デフォルト: true)
+  minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
+  maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
+  minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
+  collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
+  collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
+  showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
+  showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
+  position?: { x: number; y: number } // ミニマップの初期位置（親要素に対する座標 px）
+}
+```
+
+### MinimapResizeEventDetail
+
+```typescript
+interface MinimapResizeEventDetail {
+  width: number // リサイズ後の幅 (px)
+  height: number // リサイズ後の高さ (px)
+  position?: { x: number; y: number } // リサイズに伴う位置の変更 (px)
+}
+```
+
+### MinimapMoveEventDetail
+
+```typescript
+interface MinimapMoveEventDetail {
+  x: number // 移動後のX座標 (px)
+  y: number // 移動後のY座標 (px)
+}
+```
+
 ### MoguchartLocale
 
 ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
@@ -1310,5 +1352,44 @@ chart.addEventListener('task-delete', (e) => {
     }))
     chart.rows = rows
   }
+})
+```
+
+## ミニマップ（Overview Minimap）
+
+`minimap` オプションを設定することで、ガントチャート全体のタスク配置やマイルストーン、現在時刻線を鳥瞰できるフローティング小窓型のミニマップを表示できます。
+
+- **ビューポートナビゲーション**: ミニマップ内の半透明ファインダー枠をドラッグしてスクロール（パン）したり、クリックして目的の位置へジャンプ移動できます。
+- **ドラッグ移動**: ミニマップのタイトルバーをドラッグして、チャート内の任意の位置へ自由に移動できます。移動完了時に `minimap-move` イベントが発火します。
+- **ドラッグリサイズ**: ミニマップの四隅やエッジをドラッグして、サイズを自由に拡大・縮小できます。リサイズ完了時に `minimap-resize` イベントが発火します。
+- **折りたたみ**: 最小化ボタンでコンパクトに折りたたむことができます。
+- **テーマ対応**: `customTheme` の `minimapBg` や `minimapViewport` などで色をカスタマイズできます。
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  minimap: {
+    enabled: true,
+    width: 240,
+    preserveAspectRatio: true,
+    resizable: true,
+    position: { x: 20, y: 50 }, // 初期表示位置 (px)
+  },
+}
+
+// リサイズイベントのハンドリング
+chart.addEventListener('minimap-resize', (e) => {
+  const { width, height, position } = e.detail
+  console.log(`Minimap resized: ${width}x${height}`, position)
+})
+
+// ドラッグ移動イベントのハンドリング
+chart.addEventListener('minimap-move', (e) => {
+  const { x, y } = e.detail
+  console.log(`Minimap moved to: (${x}, ${y})`)
 })
 ```
