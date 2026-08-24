@@ -262,7 +262,7 @@ export class GanttMinimapElement extends LitElement {
       position: absolute;
       border: 1.5px solid var(--minimap-viewport-border, #3b82f6);
       background-color: var(--minimap-viewport, rgba(59, 130, 246, 0.2));
-      border-radius: 2px;
+      border-radius: 8px;
       cursor: grab;
       box-sizing: border-box;
       pointer-events: auto;
