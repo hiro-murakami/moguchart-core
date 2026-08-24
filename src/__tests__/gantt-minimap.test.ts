@@ -553,6 +553,288 @@ describe('GanttMinimap & GanttChart Integration', () => {
     minimap.remove()
   })
 
+  it('anchors vertical size to bottom edge when resizing width with preserveAspectRatio: true', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        preserveAspectRatio: true,
+        resizable: true,
+        position: { x: 500, y: 300 },
+      },
+    }
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 1000
+    minimap.viewportWidth = 800
+    minimap.viewportHeight = 600
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    // 初期状態: 幅 200px, 高さ 100px (アスペクト比 2:1)
+    // position: x = 500, y = 300
+    expect(minimap.style.left).toBe('500px')
+    expect(minimap.style.top).toBe('300px')
+
+    const resizeListener = vi.fn()
+    minimap.addEventListener('minimap-resize', (e: any) => {
+      resizeListener(e.detail)
+    })
+
+    // 1. 右端 (e) ハンドルで幅を +100px 拡大 (200px -> 300px)
+    // アスペクト比維持のため高さは 100px -> 150px (+50px) になる
+    // 下端基準のため、上端 (top / y) は 300 - 50 = 250px に移動する
+    const eHandle = minimap.shadowRoot?.querySelector('.minimap-resize-handle.e') as HTMLElement
+    expect(eHandle).not.toBeNull()
+
+    eHandle.setPointerCapture = vi.fn()
+    eHandle.releasePointerCapture = vi.fn()
+
+    eHandle.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        clientX: 700,
+        clientY: 350,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    eHandle.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: 800, // +100px
+        clientY: 350,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    expect(container.style.width).toBe('300px')
+    expect(minimap.style.left).toBe('500px') // 左端固定
+    expect(minimap.style.top).toBe('250px') // 下端基準で上に伸びる (300 - 50 = 250px)
+
+    eHandle.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+
+    expect(resizeListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 300,
+        height: 150,
+        position: { x: 500, y: 250 },
+      }),
+    )
+
+    // 2. 左端 (w) ハンドルで幅を -60px 縮小 (300px -> 240px)
+    // 幅 300px -> 240px (-60px), 高さ 150px -> 120px (-30px)
+    // wハンドルのため右端固定 (左端 x は 500 + 60 = 560px)
+    // 下端基準のため y は 250 + 30 = 280px に下がる
+    const wHandle = minimap.shadowRoot?.querySelector('.minimap-resize-handle.w') as HTMLElement
+    expect(wHandle).not.toBeNull()
+
+    wHandle.setPointerCapture = vi.fn()
+    wHandle.releasePointerCapture = vi.fn()
+
+    wHandle.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        clientX: 500,
+        clientY: 260,
+        pointerId: 2,
+        bubbles: true,
+      }),
+    )
+
+    wHandle.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: 560, // dx = +60 => deltaW = -60
+        clientY: 260,
+        pointerId: 2,
+        bubbles: true,
+      }),
+    )
+
+    await minimap.updateComplete
+
+    expect(container.style.width).toBe('240px')
+    expect(minimap.style.left).toBe('560px') // 右端固定で左端が移動 (500 + 60 = 560px)
+    expect(minimap.style.top).toBe('280px') // 下端基準 (250 + 30 = 280px)
+
+    wHandle.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 2,
+        bubbles: true,
+      }),
+    )
+
+    minimap.remove()
+  })
+
+  it('tracks container resize and maintains bottom-right relative position when position is set', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        preserveAspectRatio: false,
+        position: { x: 750, y: 450 },
+      },
+    }
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 1000
+    minimap.viewportWidth = 1000
+    minimap.viewportHeight = 600
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    expect(minimap.style.left).toBe('750px')
+    expect(minimap.style.top).toBe('450px')
+
+    const moveListener = vi.fn()
+    minimap.addEventListener('minimap-move', (e: any) => {
+      moveListener(e.detail)
+    })
+
+    // 1. 親領域（viewport）が 1000x600 -> 1200x800 に拡大 (+200px, +200px)
+    minimap.viewportWidth = 1200
+    minimap.viewportHeight = 800
+    await minimap.updateComplete
+
+    expect(minimap.style.left).toBe('950px') // 750 + 200 = 950px
+    expect(minimap.style.top).toBe('650px') // 450 + 200 = 650px
+    expect(moveListener).toHaveBeenCalledWith({ x: 950, y: 650 })
+
+    // 2. 親領域（viewport）が 1200x800 -> 900x500 に縮小 (-300px, -300px)
+    minimap.viewportWidth = 900
+    minimap.viewportHeight = 500
+    await minimap.updateComplete
+
+    expect(minimap.style.left).toBe('650px') // 950 - 300 = 650px
+    expect(minimap.style.top).toBe('350px') // 650 - 300 = 350px
+    expect(moveListener).toHaveBeenCalledWith({ x: 650, y: 350 })
+
+    minimap.remove()
+  })
+
+  it('anchors to bottom edge when minimap height changes due to container resize (preserveAspectRatio: true)', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        preserveAspectRatio: true,
+        position: { x: 750, y: 400 },
+      },
+    }
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 200
+    minimap.viewportWidth = 1000
+    minimap.viewportHeight = 500
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    // 初期状態: effectiveContentHeight = 500, アスペクト比 4:1 -> minimapHeight = 50px
+    // position: y = 400 (下端 Y = 400 + 50 = 450px, 親下端500に対する下余白50px)
+    expect(minimap.style.top).toBe('400px')
+
+    const moveListener = vi.fn()
+    minimap.addEventListener('minimap-move', (e: any) => {
+      moveListener(e.detail)
+    })
+
+    // 1. 親領域の高さが 500 -> 1000 に拡大 (+500px)
+    // effectiveContentHeight = 1000, アスペクト比 2:1 -> minimapHeight = 100px (+50px)
+    // 下端を基準とするため、top は 400 + 500 (親高さ変化) - 50 (ミニマップ高さ増加) = 850px になる
+    // 新しい下端 Y = 850 + 100 = 950px (親下端1000に対する下余白50pxを維持)
+    minimap.viewportHeight = 1000
+    await minimap.updateComplete
+
+    expect(minimap.style.top).toBe('850px')
+    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ y: 850 }))
+
+    // 2. 親領域の高さは1000のまま、contentWidthが 2000 -> 4000 に変更
+    // effectiveContentWidth = 4000, アスペクト比 4:1 -> minimapHeight = 50px (-50px)
+    // 下端基準のため、top は 850 - (-50) = 900px に下がる
+    // 新しい下端 Y = 900 + 50 = 950px (下端が固定)
+    minimap.contentWidth = 4000
+    await minimap.updateComplete
+
+    expect(minimap.style.top).toBe('900px')
+    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ y: 900 }))
+
+    minimap.remove()
+  })
+
+  it('anchors to right edge and bottom edge when container and minimap dimensions change', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        width: 200,
+        preserveAspectRatio: true,
+        position: { x: 700, y: 350 },
+      },
+    }
+    minimap.contentWidth = 2000
+    minimap.contentHeight = 1000
+    minimap.viewportWidth = 1000
+    minimap.viewportHeight = 500
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    // 初期状態: 幅 200px, 高さ 100px
+    // position: x = 700 (右端 X = 700 + 200 = 900px, 親幅1000に対する右余白100px)
+    // position: y = 350 (下端 Y = 350 + 100 = 450px, 親高さ500に対する下余白50px)
+    expect(minimap.style.left).toBe('700px')
+    expect(minimap.style.top).toBe('350px')
+
+    const moveListener = vi.fn()
+    minimap.addEventListener('minimap-move', (e: any) => {
+      moveListener(e.detail)
+    })
+
+    // 1. 親領域が 1000x500 -> 1200x700 に拡大 (+200px, +200px)
+    minimap.viewportWidth = 1200
+    minimap.viewportHeight = 700
+    await minimap.updateComplete
+
+    // 右端 X = 900 + 200 = 1100px -> left = 1100 - 200 = 900px (右余白100px維持)
+    // 下端 Y = 450 + 200 = 650px -> top = 650 - 100 = 550px (下余白50px維持)
+    expect(minimap.style.left).toBe('900px')
+    expect(minimap.style.top).toBe('550px')
+    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ x: 900, y: 550 }))
+
+    minimap.remove()
+  })
+
   it('includes blank area in minimap when content height is smaller than viewport height (preserveAspectRatio: true)', async () => {
     const minimap = new GanttMinimapElement()
     minimap.option = {

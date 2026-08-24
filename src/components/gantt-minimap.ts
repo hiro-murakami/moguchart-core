@@ -72,6 +72,12 @@ export class GanttMinimapElement extends LitElement {
   private resizeStartOriginX = 0
   private resizeStartOriginY = 0
 
+  private lastParentWidth: number | null = null
+  private lastParentHeight: number | null = null
+  private lastMinimapWidth: number | null = null
+  private lastMinimapHeight: number | null = null
+  private parentResizeObserver: ResizeObserver | null = null
+
   static styles = css`
     :host {
       display: block;
@@ -300,6 +306,119 @@ export class GanttMinimapElement extends LitElement {
     if (this.option?.minimap?.position) {
       this.position = { ...this.option.minimap.position }
     }
+    this.setupParentResizeObserver()
+  }
+
+  override firstUpdated(changedProperties: PropertyValues) {
+    super.firstUpdated(changedProperties)
+    this.setupParentResizeObserver()
+    const { width, height } = this.getParentDimensions()
+    if (width > 0 && height > 0) {
+      this.lastParentWidth = width
+      this.lastParentHeight = height
+      this.lastMinimapWidth = this.minimapWidth
+      this.lastMinimapHeight = this.minimapHeight
+    }
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback()
+    this.parentResizeObserver?.disconnect()
+    this.parentResizeObserver = null
+  }
+
+  private getParentTarget(): HTMLElement | null {
+    return (this.parentElement as HTMLElement | null) ?? (this.offsetParent as HTMLElement | null) ?? ((this.getRootNode() as ShadowRoot)?.host as HTMLElement | null)
+  }
+
+  private getParentDimensions(): { width: number; height: number } {
+    const parentEl = this.getParentTarget()
+    const parentRect = parentEl?.getBoundingClientRect()
+    const width = (parentRect?.width && parentRect.width > 0)
+      ? parentRect.width
+      : (parentEl?.clientWidth && parentEl.clientWidth > 0)
+        ? parentEl.clientWidth
+        : (this.viewportWidth > 0 ? this.viewportWidth : (typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1200))
+    const height = (parentRect?.height && parentRect.height > 0)
+      ? parentRect.height
+      : (parentEl?.clientHeight && parentEl.clientHeight > 0)
+        ? parentEl.clientHeight
+        : (this.viewportHeight > 0 ? this.viewportHeight : (typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 800))
+    return { width, height }
+  }
+
+  private setupParentResizeObserver() {
+    if (typeof ResizeObserver === 'undefined') return
+    if (this.parentResizeObserver) return
+
+    const parentEl = this.getParentTarget()
+    if (!parentEl) return
+
+    this.parentResizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cr = entry.contentRect
+        if (cr && cr.width > 0 && cr.height > 0) {
+          this.handleParentResize(cr.width, cr.height)
+        }
+      }
+    })
+    this.parentResizeObserver.observe(parentEl)
+  }
+
+  private handleParentResize(newWidth: number, newHeight: number) {
+    if (newWidth <= 0 || newHeight <= 0) return
+
+    const currentMinimapH = this.minimapHeight
+    const currentMinimapW = this.minimapWidth
+
+    if (this.lastParentWidth === null || this.lastParentHeight === null || this.lastMinimapHeight === null || this.lastMinimapWidth === null) {
+      this.lastParentWidth = newWidth
+      this.lastParentHeight = newHeight
+      this.lastMinimapWidth = currentMinimapW
+      this.lastMinimapHeight = currentMinimapH
+      return
+    }
+
+    const deltaParentW = newWidth - this.lastParentWidth
+    const deltaParentH = newHeight - this.lastParentHeight
+    const deltaMinimapW = currentMinimapW - this.lastMinimapWidth
+    const deltaMinimapH = currentMinimapH - this.lastMinimapHeight
+
+    this.lastParentWidth = newWidth
+    this.lastParentHeight = newHeight
+    this.lastMinimapWidth = currentMinimapW
+    this.lastMinimapHeight = currentMinimapH
+
+    if (deltaParentW === 0 && deltaParentH === 0 && deltaMinimapW === 0 && deltaMinimapH === 0) return
+    if (this.isHeaderDragging || this.isResizing) return
+
+    if (this.position) {
+      const currentW = this.isCollapsed ? 32 : currentMinimapW
+      const currentH = this.isCollapsed ? 32 : (currentMinimapH + 28)
+
+      // 親の幅変化 deltaParentW に追従し、ミニマップ自体の幅変化 deltaMinimapW は右端を基準（左方向に伸縮）として配置
+      const nextX = this.position.x + deltaParentW - deltaMinimapW
+      // 親の高さ変化 deltaParentH に追従し、ミニマップ自体の高さ変化 deltaMinimapH は下端を基準（上方向に伸縮）として配置
+      const nextY = this.position.y + deltaParentH - deltaMinimapH
+
+      const maxX = Math.max(0, newWidth - currentW)
+      const maxY = Math.max(0, newHeight - currentH)
+
+      const clampedX = Math.max(0, Math.min(maxX, nextX))
+      const clampedY = Math.max(0, Math.min(maxY, nextY))
+
+      if (clampedX !== this.position.x || clampedY !== this.position.y) {
+        this.position = { x: clampedX, y: clampedY }
+        this.updateHostPosition()
+        this.dispatchEvent(
+          new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
+            detail: { x: clampedX, y: clampedY },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
   }
 
   override willUpdate(changedProperties: PropertyValues) {
@@ -317,6 +436,18 @@ export class GanttMinimapElement extends LitElement {
         if (this.option?.minimap?.height !== undefined) {
           this.customHeight = this.option.minimap.height
         }
+      }
+    }
+    if (
+      changedProperties.has('viewportWidth') ||
+      changedProperties.has('viewportHeight') ||
+      changedProperties.has('contentHeight') ||
+      changedProperties.has('contentWidth') ||
+      changedProperties.has('rows')
+    ) {
+      const { width, height } = this.getParentDimensions()
+      if (width > 0 && height > 0) {
+        this.handleParentResize(width, height)
       }
     }
   }
@@ -366,6 +497,12 @@ export class GanttMinimapElement extends LitElement {
       this.position = { x: hostRect.left, y: hostRect.top }
     }
 
+    const { width: pW, height: pH } = this.getParentDimensions()
+    this.lastParentWidth = pW
+    this.lastParentHeight = pH
+    this.lastMinimapWidth = this.minimapWidth
+    this.lastMinimapHeight = this.minimapHeight
+
     this.headerDragStartX = e.clientX
     this.headerDragStartY = e.clientY
     this.headerDragOriginX = this.position?.x ?? 0
@@ -384,13 +521,7 @@ export class GanttMinimapElement extends LitElement {
     const nextY = this.headerDragOriginY + dy
 
     // 親要素の領域内でクランプ
-    const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
-    const parentWidth = (parentRect?.width && parentRect.width > 0)
-      ? parentRect.width
-      : (this.viewportWidth > 0 ? this.viewportWidth : (typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1200))
-    const parentHeight = (parentRect?.height && parentRect.height > 0)
-      ? parentRect.height
-      : (this.viewportHeight > 0 ? this.viewportHeight : (typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 800))
+    const { width: parentWidth, height: parentHeight } = this.getParentDimensions()
 
     const currentW = this.isCollapsed ? 32 : this.minimapWidth
     const currentH = this.isCollapsed ? 32 : (this.minimapHeight + 28)
@@ -418,6 +549,12 @@ export class GanttMinimapElement extends LitElement {
     }
     this.isHeaderDragging = false
 
+    const { width: pW, height: pH } = this.getParentDimensions()
+    this.lastParentWidth = pW
+    this.lastParentHeight = pH
+    this.lastMinimapWidth = this.minimapWidth
+    this.lastMinimapHeight = this.minimapHeight
+
     if (this.position) {
       this.dispatchEvent(
         new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
@@ -438,13 +575,7 @@ export class GanttMinimapElement extends LitElement {
   }
 
   private get maxMinimapWidth(): number {
-    const parentW = (this.parentElement?.clientWidth && this.parentElement.clientWidth > 0)
-      ? this.parentElement.clientWidth
-      : (this.viewportWidth && this.viewportWidth > 0)
-        ? this.viewportWidth
-        : (typeof window !== 'undefined' && window.innerWidth > 0)
-          ? window.innerWidth
-          : 1200
+    const { width: parentW } = this.getParentDimensions()
     const calculatedMax = Math.max(this.minMinimapWidth, Math.round(parentW * 0.8))
     return this.option?.minimap?.maxWidth ?? Math.max(this.minMinimapWidth, Math.min(800, calculatedMax))
   }
@@ -462,13 +593,7 @@ export class GanttMinimapElement extends LitElement {
   }
 
   private get maxMinimapHeight(): number {
-    const parentH = (this.parentElement?.clientHeight && this.parentElement.clientHeight > 0)
-      ? this.parentElement.clientHeight
-      : (this.viewportHeight && this.viewportHeight > 0)
-        ? this.viewportHeight
-        : (typeof window !== 'undefined' && window.innerHeight > 0)
-          ? window.innerHeight
-          : 800
+    const { height: parentH } = this.getParentDimensions()
     const calculatedMax = Math.max(this.minMinimapHeight, Math.round(parentH * 0.8))
     return this.option?.minimap?.maxHeight ?? Math.max(this.minMinimapHeight, Math.min(600, calculatedMax))
   }
@@ -549,6 +674,12 @@ export class GanttMinimapElement extends LitElement {
     }
     this.resizeStartOriginX = this.position?.x ?? 0
     this.resizeStartOriginY = this.position?.y ?? 0
+
+    const { width: pW, height: pH } = this.getParentDimensions()
+    this.lastParentWidth = pW
+    this.lastParentHeight = pH
+    this.lastMinimapWidth = this.minimapWidth
+    this.lastMinimapHeight = this.minimapHeight
   }
 
   private handleResizePointerMove(e: PointerEvent) {
@@ -588,7 +719,8 @@ export class GanttMinimapElement extends LitElement {
         if (this.resizeHandleType.includes('w')) {
           newX = this.resizeStartOriginX - (targetW - this.resizeStartWidth)
         }
-        if (this.resizeHandleType.includes('n')) {
+        // 下側ハンドル (s, se, sw) 以外は下端を基準として上方向に伸縮
+        if (!this.resizeHandleType.includes('s')) {
           newY = this.resizeStartOriginY - (targetH - this.resizeStartHeight)
         }
 
@@ -630,6 +762,12 @@ export class GanttMinimapElement extends LitElement {
       // ignore
     }
     this.isResizing = false
+
+    const { width: pW, height: pH } = this.getParentDimensions()
+    this.lastParentWidth = pW
+    this.lastParentHeight = pH
+    this.lastMinimapWidth = this.minimapWidth
+    this.lastMinimapHeight = this.minimapHeight
 
     this.dispatchEvent(
       new CustomEvent<MinimapResizeEventDetail>('minimap-resize', {
