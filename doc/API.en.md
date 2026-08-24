@@ -1380,6 +1380,7 @@ By setting the `minimap` option, you can display a floating overview window that
 - **Viewport Navigation**: Drag the translucent finder frame inside the minimap to pan/scroll, or click anywhere on the minimap to jump directly to that position.
 - **Draggable Window**: Drag the minimap title bar to move and position it anywhere within the chart container. Fires the `minimap-move` event when moved.
 - **Drag Resizing**: Drag the corners or edges of the minimap to resize it freely while optionally preserving the aspect ratio. Fires the `minimap-resize` event when resized.
+- **Auto-Anchoring and Clamping**: Automatically follows container resizing or content updates using a bottom-right anchor and clamps within the parent container to prevent overflowing.
 - **Collapsible**: Collapse or expand the minimap via the minimize button.
 - **Theme Support**: Customize colors using `customTheme` keys like `minimapBg`, `minimapViewport`, and more.
 

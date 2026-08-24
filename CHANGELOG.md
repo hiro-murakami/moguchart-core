@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.0] - 2026-08-23
+## [0.11.0] - 2026-08-24
 
 ### Added
 
@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 現在の表示領域（ビューポート）を半透明枠（ファインダー）で可視化
   - ファインダー枠のドラッグによるスクロール同期（パン操作）およびミニマップクリックによるジャンプ移動に対応
   - ミニマップをドラッグしてチャート内の任意の位置へ自由に移動できる機能および `minimap-move` イベント（`MinimapMoveEventDetail` 型定義）を追加
-  - 折りたたみ（最小化 / 展開）機能およびアニメーション
+  - チャートのビューポート（親要素）サイズ変更やコンテンツ更新時に、右下アンカー基準でミニマップの表示位置を自動追従し、親コンテナ外へのはみ出しを防止
   - ミニマップの四隅やエッジをドラッグしてサイズを自由に変更（ドラッグリサイズ）できる機能および `minimap-resize` イベント（`MinimapResizeEventDetail` 型定義）を追加
+  - 折りたたみ（最小化 / 展開）機能およびアニメーション
   - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`）
   - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
   - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
