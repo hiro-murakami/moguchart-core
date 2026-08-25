@@ -455,18 +455,30 @@ export interface GanttChartOptionMinimap {
   showMilestones?: boolean
   /** 現在時刻線を表示するかどうか (デフォルト: true) */
   showCurrentTime?: boolean
-  /** ミニマップの初期位置（親要素に対する座標 px） */
-  position?: { x: number; y: number }
+  /** ミニマップの初期位置（親要素に対する右下基準の座標 px） */
+  position?: MinimapPosition
   /** ミニマップの不透明度 (0.1 〜 1.0)。デフォルト: 1.0 */
   opacity?: number
+}
+
+/**
+ * ミニマップの表示位置（親要素の右端・下端からのオフセット距離 px）
+ */
+export interface MinimapPosition {
+  /** 親要素の右端からミニマップ右端までの距離 (px) */
+  right: number
+  /** 親要素の下端からミニマップ下端までの距離 (px) */
+  bottom: number
 }
 
 /**
  * ミニマップの移動イベントの詳細データ
  */
 export interface MinimapMoveEventDetail {
-  x: number
-  y: number
+  /** 親要素の右端からミニマップ右端までの距離 (px) */
+  right: number
+  /** 親要素の下端からミニマップ下端までの距離 (px) */
+  bottom: number
 }
 
 /**
@@ -475,7 +487,7 @@ export interface MinimapMoveEventDetail {
 export interface MinimapResizeEventDetail {
   width: number
   height: number
-  position?: { x: number; y: number }
+  position?: MinimapPosition
 }
 
 /**

@@ -1044,7 +1044,7 @@ interface GanttChartOptionMinimap {
 interface MinimapResizeEventDetail {
   width: number // New width after resize (px)
   height: number // New height after resize (px)
-  position?: { x: number; y: number } // Position update resulting from resize (px)
+  position?: MinimapPosition // Position update resulting from resize (px)
 }
 ```
 
@@ -1052,8 +1052,8 @@ interface MinimapResizeEventDetail {
 
 ```typescript
 interface MinimapMoveEventDetail {
-  x: number // New X coordinate (px)
-  y: number // New Y coordinate (px)
+  right: number // Distance from parent container right edge (px)
+  bottom: number // Distance from parent container bottom edge (px)
 }
 ```
 

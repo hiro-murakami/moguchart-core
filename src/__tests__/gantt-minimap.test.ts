@@ -172,7 +172,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         collapsible: true,
         collapsed: false,
-        position: { x: 100, y: 100 },
+        position: { right: 100, bottom: 100 },
       },
     }
 
@@ -180,8 +180,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
     await minimap.updateComplete
 
     // 最初は展開状態かつカスタム位置
-    expect(minimap.style.left).toBe('100px')
-    expect(minimap.style.top).toBe('100px')
+    expect(minimap.style.right).toBe('100px')
+    expect(minimap.style.bottom).toBe('100px')
 
     const toggleBtn = minimap.shadowRoot?.querySelector('.minimap-toggle-btn') as HTMLElement
     expect(toggleBtn).not.toBeNull()
@@ -202,8 +202,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
     await minimap.updateComplete
 
     expect(minimap.shadowRoot?.querySelector('.minimap-toggle-btn')).not.toBeNull()
-    expect(minimap.style.left).toBe('100px')
-    expect(minimap.style.top).toBe('100px')
+    expect(minimap.style.right).toBe('100px')
+    expect(minimap.style.bottom).toBe('100px')
 
     minimap.remove()
   })
@@ -317,16 +317,17 @@ describe('GanttMinimap & GanttChart Integration', () => {
     const header = minimap.shadowRoot?.querySelector('.minimap-header') as HTMLElement
     expect(header).not.toBeNull()
 
-    // getBoundingClientRect モック
+    // getBoundingClientRect モック (親 800x600, 右下余白 16px, 16px)
+    // left: 800 - 16 - 200 = 584, top: 600 - 16 - 148 = 436, right: 784, bottom: 584
     vi.spyOn(minimap, 'getBoundingClientRect').mockReturnValue({
       left: 584,
-      top: 464,
+      top: 436,
       right: 784,
       bottom: 584,
       width: 200,
-      height: 120,
+      height: 148,
       x: 584,
-      y: 464,
+      y: 436,
       toJSON: () => {},
     })
 
@@ -334,7 +335,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
     header.setPointerCapture = vi.fn()
     header.releasePointerCapture = vi.fn()
 
-    // 1. ドラッグ開始 (584, 464)
+    // 1. ドラッグ開始
     header.dispatchEvent(
       new PointerEvent('pointerdown', {
         clientX: 590,
@@ -346,7 +347,9 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     expect(header.setPointerCapture).toHaveBeenCalledWith(1)
 
-    // 2. ドラッグ移動 (X: -100px, Y: -50px)
+    // 2. ドラッグ移動 (左に100px: clientX 590 -> 490, 上に50px: clientY 470 -> 420)
+    // 右端からの距離 right は 16 - (-100) = 116px
+    // 下端からの距離 bottom は 16 - (-50) = 66px
     header.dispatchEvent(
       new PointerEvent('pointermove', {
         clientX: 490,
@@ -374,8 +377,10 @@ describe('GanttMinimap & GanttChart Integration', () => {
     expect(header.releasePointerCapture).toHaveBeenCalledWith(1)
     expect(moveListener).toHaveBeenCalled()
     const moveDetail = moveListener.mock.calls[0][0]
-    expect(moveDetail.x).toBe(484)
-    expect(moveDetail.y).toBe(414)
+    expect(moveDetail.right).toBe(116)
+    expect(moveDetail.bottom).toBe(66)
+    expect(minimap.style.right).toBe('116px')
+    expect(minimap.style.bottom).toBe('66px')
 
     minimap.remove()
   })
@@ -392,19 +397,21 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         width: 200,
         height: 120,
-        position: { x: 150, y: 80 },
+        position: { right: 150, bottom: 80 },
       },
     }
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
-    expect(minimap.style.left).toBe('150px')
-    expect(minimap.style.top).toBe('80px')
-    expect(minimap.style.right).toBe('auto')
-    expect(minimap.style.bottom).toBe('auto')
+    expect(minimap.style.right).toBe('150px')
+    expect(minimap.style.bottom).toBe('80px')
+    expect(minimap.style.left).toBe('auto')
+    expect(minimap.style.top).toBe('auto')
 
     minimap.remove()
   })
+
+
 
   it('preserves aspect ratio matching the content width and height', async () => {
     const minimap = new GanttMinimapElement()
@@ -566,7 +573,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
         width: 200,
         preserveAspectRatio: true,
         resizable: true,
-        position: { x: 500, y: 300 },
+        position: { right: 100, bottom: 50 },
       },
     }
     minimap.contentWidth = 2000
@@ -578,9 +585,9 @@ describe('GanttMinimap & GanttChart Integration', () => {
     await minimap.updateComplete
 
     // 初期状態: 幅 200px, 高さ 100px (アスペクト比 2:1)
-    // position: x = 500, y = 300
-    expect(minimap.style.left).toBe('500px')
-    expect(minimap.style.top).toBe('300px')
+    // position: right = 100, bottom = 50
+    expect(minimap.style.right).toBe('100px')
+    expect(minimap.style.bottom).toBe('50px')
 
     const resizeListener = vi.fn()
     minimap.addEventListener('minimap-resize', (e: any) => {
@@ -589,7 +596,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     // 1. 右端 (e) ハンドルで幅を +100px 拡大 (200px -> 300px)
     // アスペクト比維持のため高さは 100px -> 150px (+50px) になる
-    // 下端基準のため、上端 (top / y) は 300 - 50 = 250px に移動する
+    // 左端固定のため、右端が右に伸びて right は 100 - 100 = 0px に移動する
+    // 下端固定のため、bottom は 50px のまま
     const eHandle = minimap.shadowRoot?.querySelector('.minimap-resize-handle.e') as HTMLElement
     expect(eHandle).not.toBeNull()
 
@@ -618,8 +626,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
     expect(container.style.width).toBe('300px')
-    expect(minimap.style.left).toBe('500px') // 左端固定
-    expect(minimap.style.top).toBe('250px') // 下端基準で上に伸びる (300 - 50 = 250px)
+    expect(minimap.style.right).toBe('0px') // 左端固定で右端が移動 (100 - 100 = 0px)
+    expect(minimap.style.bottom).toBe('50px') // 下端固定
 
     eHandle.dispatchEvent(
       new PointerEvent('pointerup', {
@@ -632,14 +640,14 @@ describe('GanttMinimap & GanttChart Integration', () => {
       expect.objectContaining({
         width: 300,
         height: 150,
-        position: { x: 500, y: 250 },
+        position: expect.objectContaining({ right: 0, bottom: 50 }),
       }),
     )
 
     // 2. 左端 (w) ハンドルで幅を -60px 縮小 (300px -> 240px)
     // 幅 300px -> 240px (-60px), 高さ 150px -> 120px (-30px)
-    // wハンドルのため右端固定 (左端 x は 500 + 60 = 560px)
-    // 下端基準のため y は 250 + 30 = 280px に下がる
+    // wハンドルのため右端固定 (right は 0px のまま)
+    // 下端固定のため bottom は 50px のまま
     const wHandle = minimap.shadowRoot?.querySelector('.minimap-resize-handle.w') as HTMLElement
     expect(wHandle).not.toBeNull()
 
@@ -667,8 +675,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
     await minimap.updateComplete
 
     expect(container.style.width).toBe('240px')
-    expect(minimap.style.left).toBe('560px') // 右端固定で左端が移動 (500 + 60 = 560px)
-    expect(minimap.style.top).toBe('280px') // 下端基準 (250 + 30 = 280px)
+    expect(minimap.style.right).toBe('0px') // 右端固定
+    expect(minimap.style.bottom).toBe('50px') // 下端固定
 
     wHandle.dispatchEvent(
       new PointerEvent('pointerup', {
@@ -692,7 +700,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         width: 200,
         preserveAspectRatio: false,
-        position: { x: 750, y: 450 },
+        position: { right: 50, bottom: 30 },
       },
     }
     minimap.contentWidth = 2000
@@ -703,8 +711,8 @@ describe('GanttMinimap & GanttChart Integration', () => {
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
-    expect(minimap.style.left).toBe('750px')
-    expect(minimap.style.top).toBe('450px')
+    expect(minimap.style.right).toBe('50px')
+    expect(minimap.style.bottom).toBe('30px')
 
     const moveListener = vi.fn()
     minimap.addEventListener('minimap-move', (e: any) => {
@@ -712,22 +720,29 @@ describe('GanttMinimap & GanttChart Integration', () => {
     })
 
     // 1. 親領域（viewport）が 1000x600 -> 1200x800 に拡大 (+200px, +200px)
+    // CSSの right/bottom により、右下からの距離は自動的に 50px, 30px が保たれる
     minimap.viewportWidth = 1200
     minimap.viewportHeight = 800
     await minimap.updateComplete
 
-    expect(minimap.style.left).toBe('950px') // 750 + 200 = 950px
-    expect(minimap.style.top).toBe('650px') // 450 + 200 = 650px
-    expect(moveListener).toHaveBeenCalledWith({ x: 950, y: 650 })
+    expect(minimap.style.right).toBe('50px')
+    expect(minimap.style.bottom).toBe('30px')
 
     // 2. 親領域（viewport）が 1200x800 -> 900x500 に縮小 (-300px, -300px)
     minimap.viewportWidth = 900
     minimap.viewportHeight = 500
     await minimap.updateComplete
 
-    expect(minimap.style.left).toBe('650px') // 950 - 300 = 650px
-    expect(minimap.style.top).toBe('350px') // 650 - 300 = 350px
-    expect(moveListener).toHaveBeenCalledWith({ x: 650, y: 350 })
+    expect(minimap.style.right).toBe('50px')
+    expect(minimap.style.bottom).toBe('30px')
+
+    // 3. 親領域が極端に縮小（ミニマップサイズ＋余白より小さくなる）した場合にクランプされる
+    // 幅 200px に対し親幅 220px -> maxRight = 20px (50pxから20pxにクランプ)
+    minimap.viewportWidth = 220
+    await minimap.updateComplete
+
+    expect(minimap.style.right).toBe('20px')
+    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ right: 20 }))
 
     minimap.remove()
   })
@@ -744,7 +759,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         width: 200,
         preserveAspectRatio: true,
-        position: { x: 750, y: 400 },
+        position: { right: 50, bottom: 50 },
       },
     }
     minimap.contentWidth = 2000
@@ -755,34 +770,14 @@ describe('GanttMinimap & GanttChart Integration', () => {
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
-    // 初期状態: effectiveContentHeight = 500, アスペクト比 4:1 -> minimapHeight = 50px
-    // position: y = 400 (下端 Y = 400 + 50 = 450px, 親下端500に対する下余白50px)
-    expect(minimap.style.top).toBe('400px')
+    expect(minimap.style.bottom).toBe('50px')
 
-    const moveListener = vi.fn()
-    minimap.addEventListener('minimap-move', (e: any) => {
-      moveListener(e.detail)
-    })
-
-    // 1. 親領域の高さが 500 -> 1000 に拡大 (+500px)
-    // effectiveContentHeight = 1000, アスペクト比 2:1 -> minimapHeight = 100px (+50px)
-    // 下端を基準とするため、top は 400 + 500 (親高さ変化) - 50 (ミニマップ高さ増加) = 850px になる
-    // 新しい下端 Y = 850 + 100 = 950px (親下端1000に対する下余白50pxを維持)
+    // 親領域の高さが 500 -> 1000 に拡大
+    // 下端を基準（CSS bottom: 50px）としているため、下余白50pxが常に維持される
     minimap.viewportHeight = 1000
     await minimap.updateComplete
 
-    expect(minimap.style.top).toBe('850px')
-    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ y: 850 }))
-
-    // 2. 親領域の高さは1000のまま、contentWidthが 2000 -> 4000 に変更
-    // effectiveContentWidth = 4000, アスペクト比 4:1 -> minimapHeight = 50px (-50px)
-    // 下端基準のため、top は 850 - (-50) = 900px に下がる
-    // 新しい下端 Y = 900 + 50 = 950px (下端が固定)
-    minimap.contentWidth = 4000
-    await minimap.updateComplete
-
-    expect(minimap.style.top).toBe('900px')
-    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ y: 900 }))
+    expect(minimap.style.bottom).toBe('50px')
 
     minimap.remove()
   })
@@ -799,7 +794,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
         enabled: true,
         width: 200,
         preserveAspectRatio: true,
-        position: { x: 700, y: 350 },
+        position: { right: 100, bottom: 50 },
       },
     }
     minimap.contentWidth = 2000
@@ -810,27 +805,17 @@ describe('GanttMinimap & GanttChart Integration', () => {
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
-    // 初期状態: 幅 200px, 高さ 100px
-    // position: x = 700 (右端 X = 700 + 200 = 900px, 親幅1000に対する右余白100px)
-    // position: y = 350 (下端 Y = 350 + 100 = 450px, 親高さ500に対する下余白50px)
-    expect(minimap.style.left).toBe('700px')
-    expect(minimap.style.top).toBe('350px')
+    expect(minimap.style.right).toBe('100px')
+    expect(minimap.style.bottom).toBe('50px')
 
-    const moveListener = vi.fn()
-    minimap.addEventListener('minimap-move', (e: any) => {
-      moveListener(e.detail)
-    })
-
-    // 1. 親領域が 1000x500 -> 1200x700 に拡大 (+200px, +200px)
+    // 親領域が 1000x500 -> 1200x700 に拡大
+    // CSSの right/bottom により右余白100px、下余白50pxが自動維持される
     minimap.viewportWidth = 1200
     minimap.viewportHeight = 700
     await minimap.updateComplete
 
-    // 右端 X = 900 + 200 = 1100px -> left = 1100 - 200 = 900px (右余白100px維持)
-    // 下端 Y = 450 + 200 = 650px -> top = 650 - 100 = 550px (下余白50px維持)
-    expect(minimap.style.left).toBe('900px')
-    expect(minimap.style.top).toBe('550px')
-    expect(moveListener).toHaveBeenCalledWith(expect.objectContaining({ x: 900, y: 550 }))
+    expect(minimap.style.right).toBe('100px')
+    expect(minimap.style.bottom).toBe('50px')
 
     minimap.remove()
   })

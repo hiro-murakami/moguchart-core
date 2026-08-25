@@ -50,7 +50,7 @@ export class GanttMinimapElement extends LitElement {
   @state() private isResizing = false
   @state() private customWidth: number | null = null
   @state() private customHeight: number | null = null
-  @state() private position: { x: number; y: number } | null = null
+  @state() private position: { right: number; bottom: number } | null = null
 
   @query('canvas') private canvasEl?: HTMLCanvasElement
 
@@ -61,16 +61,16 @@ export class GanttMinimapElement extends LitElement {
 
   private headerDragStartX = 0
   private headerDragStartY = 0
-  private headerDragOriginX = 0
-  private headerDragOriginY = 0
+  private headerDragOriginRight = 0
+  private headerDragOriginBottom = 0
 
   private resizeHandleType = ''
   private resizeStartPointerX = 0
   private resizeStartPointerY = 0
   private resizeStartWidth = 0
   private resizeStartHeight = 0
-  private resizeStartOriginX = 0
-  private resizeStartOriginY = 0
+  private resizeStartOriginRight = 0
+  private resizeStartOriginBottom = 0
 
   private lastParentWidth: number | null = null
   private lastParentHeight: number | null = null
@@ -313,10 +313,21 @@ export class GanttMinimapElement extends LitElement {
     if (this.option?.minimap?.collapsed !== undefined) {
       this.isCollapsed = this.option.minimap.collapsed
     }
-    if (this.option?.minimap?.position) {
-      this.position = { ...this.option.minimap.position }
-    }
+    this.initPositionFromOption()
     this.setupParentResizeObserver()
+  }
+
+  private initPositionFromOption() {
+    if (!this.option?.minimap?.position) {
+      if (this.option?.minimap?.position === null) {
+        this.position = null
+      }
+      return
+    }
+    const pos = this.option.minimap.position
+    if (typeof pos.right === 'number' && typeof pos.bottom === 'number') {
+      this.position = { right: pos.right, bottom: pos.bottom }
+    }
   }
 
   override firstUpdated(changedProperties: PropertyValues) {
@@ -389,40 +400,34 @@ export class GanttMinimapElement extends LitElement {
       return
     }
 
-    const deltaParentW = newWidth - this.lastParentWidth
-    const deltaParentH = newHeight - this.lastParentHeight
-    const deltaMinimapW = currentMinimapW - this.lastMinimapWidth
-    const deltaMinimapH = currentMinimapH - this.lastMinimapHeight
-
     this.lastParentWidth = newWidth
     this.lastParentHeight = newHeight
     this.lastMinimapWidth = currentMinimapW
     this.lastMinimapHeight = currentMinimapH
 
-    if (deltaParentW === 0 && deltaParentH === 0 && deltaMinimapW === 0 && deltaMinimapH === 0) return
     if (this.isHeaderDragging || this.isResizing) return
 
     if (this.position) {
       const currentW = this.isCollapsed ? 32 : currentMinimapW
       const currentH = this.isCollapsed ? 32 : (currentMinimapH + 28)
 
-      // 親の幅変化 deltaParentW に追従し、ミニマップ自体の幅変化 deltaMinimapW は右端を基準（左方向に伸縮）として配置
-      const nextX = this.position.x + deltaParentW - deltaMinimapW
-      // 親の高さ変化 deltaParentH に追従し、ミニマップ自体の高さ変化 deltaMinimapH は下端を基準（上方向に伸縮）として配置
-      const nextY = this.position.y + deltaParentH - deltaMinimapH
+      // CSSが right/bottom なので、親要素の拡大縮小時も自動的に右下基準を維持
+      // 親要素が小さくなってミニマップが親要素の左上からはみ出る場合のみクランプ
+      const maxRight = Math.max(0, newWidth - currentW)
+      const maxBottom = Math.max(0, newHeight - currentH)
 
-      const maxX = Math.max(0, newWidth - currentW)
-      const maxY = Math.max(0, newHeight - currentH)
+      const clampedRight = Math.max(0, Math.min(maxRight, this.position.right))
+      const clampedBottom = Math.max(0, Math.min(maxBottom, this.position.bottom))
 
-      const clampedX = Math.max(0, Math.min(maxX, nextX))
-      const clampedY = Math.max(0, Math.min(maxY, nextY))
-
-      if (clampedX !== this.position.x || clampedY !== this.position.y) {
-        this.position = { x: clampedX, y: clampedY }
+      if (clampedRight !== this.position.right || clampedBottom !== this.position.bottom) {
+        this.position = { right: clampedRight, bottom: clampedBottom }
         this.updateHostPosition()
         this.dispatchEvent(
           new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
-            detail: { x: clampedX, y: clampedY },
+            detail: {
+              right: clampedRight,
+              bottom: clampedBottom,
+            },
             bubbles: true,
             composed: true,
           }),
@@ -436,7 +441,7 @@ export class GanttMinimapElement extends LitElement {
     if (changedProperties.has('option')) {
       if (!this.isHeaderDragging && !this.isResizing) {
         if (this.option?.minimap?.position) {
-          this.position = { ...this.option.minimap.position }
+          this.initPositionFromOption()
         } else if (this.option?.minimap?.position === null) {
           this.position = null
         }
@@ -472,15 +477,15 @@ export class GanttMinimapElement extends LitElement {
 
   private updateHostPosition() {
     if (!this.isCollapsed && this.position) {
-      this.style.left = `${this.position.x}px`
-      this.style.top = `${this.position.y}px`
-      this.style.right = 'auto'
-      this.style.bottom = 'auto'
+      this.style.right = `${this.position.right}px`
+      this.style.bottom = `${this.position.bottom}px`
+      this.style.left = 'auto'
+      this.style.top = 'auto'
     } else {
-      this.style.left = ''
-      this.style.top = ''
       this.style.right = ''
       this.style.bottom = ''
+      this.style.left = ''
+      this.style.top = ''
     }
   }
 
@@ -495,16 +500,16 @@ export class GanttMinimapElement extends LitElement {
     header.setPointerCapture(e.pointerId)
     this.isHeaderDragging = true
 
-    // 現在の配置（親要素に対する相対位置）を初期値として設定
+    // 現在の配置（親要素に対する右下基準の相対位置）を初期値として設定
     const hostRect = this.getBoundingClientRect()
     const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
 
     if (parentRect && (parentRect.width > 0 || parentRect.height > 0)) {
-      const curX = hostRect.left - parentRect.left
-      const curY = hostRect.top - parentRect.top
-      this.position = { x: curX, y: curY }
+      const curRight = parentRect.right - hostRect.right
+      const curBottom = parentRect.bottom - hostRect.bottom
+      this.position = { right: curRight, bottom: curBottom }
     } else if (!this.position) {
-      this.position = { x: hostRect.left, y: hostRect.top }
+      this.position = { right: 16, bottom: 16 }
     }
 
     const { width: pW, height: pH } = this.getParentDimensions()
@@ -515,8 +520,8 @@ export class GanttMinimapElement extends LitElement {
 
     this.headerDragStartX = e.clientX
     this.headerDragStartY = e.clientY
-    this.headerDragOriginX = this.position?.x ?? 0
-    this.headerDragOriginY = this.position?.y ?? 0
+    this.headerDragOriginRight = this.position?.right ?? 16
+    this.headerDragOriginBottom = this.position?.bottom ?? 16
   }
 
   private handleHeaderPointerMove(e: PointerEvent) {
@@ -527,8 +532,9 @@ export class GanttMinimapElement extends LitElement {
     const dx = e.clientX - this.headerDragStartX
     const dy = e.clientY - this.headerDragStartY
 
-    const nextX = this.headerDragOriginX + dx
-    const nextY = this.headerDragOriginY + dy
+    // 右に動くと右端からの距離(right)は減少し、下に動くと下端からの距離(bottom)は減少する
+    const nextRight = this.headerDragOriginRight - dx
+    const nextBottom = this.headerDragOriginBottom - dy
 
     // 親要素の領域内でクランプ
     const { width: parentWidth, height: parentHeight } = this.getParentDimensions()
@@ -536,13 +542,13 @@ export class GanttMinimapElement extends LitElement {
     const currentW = this.isCollapsed ? 32 : this.minimapWidth
     const currentH = this.isCollapsed ? 32 : (this.minimapHeight + 28)
 
-    const maxX = Math.max(0, parentWidth - currentW)
-    const maxY = Math.max(0, parentHeight - currentH)
+    const maxRight = Math.max(0, parentWidth - currentW)
+    const maxBottom = Math.max(0, parentHeight - currentH)
 
-    const clampedX = Math.max(0, Math.min(maxX, nextX))
-    const clampedY = Math.max(0, Math.min(maxY, nextY))
+    const clampedRight = Math.max(0, Math.min(maxRight, nextRight))
+    const clampedBottom = Math.max(0, Math.min(maxBottom, nextBottom))
 
-    this.position = { x: clampedX, y: clampedY }
+    this.position = { right: clampedRight, bottom: clampedBottom }
     this.updateHostPosition()
   }
 
@@ -568,7 +574,10 @@ export class GanttMinimapElement extends LitElement {
     if (this.position) {
       this.dispatchEvent(
         new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
-          detail: { x: this.position.x, y: this.position.y },
+          detail: {
+            right: this.position.right,
+            bottom: this.position.bottom,
+          },
           bubbles: true,
           composed: true,
         }),
@@ -676,14 +685,14 @@ export class GanttMinimapElement extends LitElement {
     const hostRect = this.getBoundingClientRect()
     const parentRect = this.parentElement?.getBoundingClientRect() ?? this.offsetParent?.getBoundingClientRect()
     if (parentRect && (parentRect.width > 0 || parentRect.height > 0)) {
-      const curX = hostRect.left - parentRect.left
-      const curY = hostRect.top - parentRect.top
-      this.position = { x: curX, y: curY }
+      const curRight = parentRect.right - hostRect.right
+      const curBottom = parentRect.bottom - hostRect.bottom
+      this.position = { right: curRight, bottom: curBottom }
     } else if (!this.position) {
-      this.position = { x: hostRect.left, y: hostRect.top }
+      this.position = { right: 16, bottom: 16 }
     }
-    this.resizeStartOriginX = this.position?.x ?? 0
-    this.resizeStartOriginY = this.position?.y ?? 0
+    this.resizeStartOriginRight = this.position?.right ?? 16
+    this.resizeStartOriginBottom = this.position?.bottom ?? 16
 
     const { width: pW, height: pH } = this.getParentDimensions()
     this.lastParentWidth = pW
@@ -723,35 +732,36 @@ export class GanttMinimapElement extends LitElement {
       this.customHeight = targetH
 
       if (this.position) {
-        let newX = this.resizeStartOriginX
-        let newY = this.resizeStartOriginY
+        let newRight = this.resizeStartOriginRight
+        let newBottom = this.resizeStartOriginBottom
 
-        if (this.resizeHandleType.includes('w')) {
-          newX = this.resizeStartOriginX - (targetW - this.resizeStartWidth)
+        // 右側ハンドル (e, ne, se) は左端固定にするため right を調整
+        if (this.resizeHandleType.includes('e')) {
+          newRight = this.resizeStartOriginRight - (targetW - this.resizeStartWidth)
         }
-        // 下側ハンドル (s, se, sw) 以外は下端を基準として上方向に伸縮
-        if (!this.resizeHandleType.includes('s')) {
-          newY = this.resizeStartOriginY - (targetH - this.resizeStartHeight)
+        // 下側ハンドル (s, se, sw) は上端固定にするため bottom を調整
+        if (this.resizeHandleType.includes('s')) {
+          newBottom = this.resizeStartOriginBottom - (targetH - this.resizeStartHeight)
         }
 
-        this.position = { x: Math.max(0, newX), y: Math.max(0, newY) }
+        this.position = { right: Math.max(0, newRight), bottom: Math.max(0, newBottom) }
         this.updateHostPosition()
       }
     } else {
       if (deltaW !== 0) {
         const targetW = Math.max(minW, Math.min(maxW, Math.round(this.resizeStartWidth + deltaW)))
         this.customWidth = targetW
-        if (this.position && this.resizeHandleType.includes('w')) {
-          const newX = this.resizeStartOriginX - (targetW - this.resizeStartWidth)
-          this.position = { ...this.position, x: Math.max(0, newX) }
+        if (this.position && this.resizeHandleType.includes('e')) {
+          const newRight = this.resizeStartOriginRight - (targetW - this.resizeStartWidth)
+          this.position = { ...this.position, right: Math.max(0, newRight) }
         }
       }
       if (deltaH !== 0) {
         const targetH = Math.max(minH, Math.min(maxH, Math.round(this.resizeStartHeight + deltaH)))
         this.customHeight = targetH
-        if (this.position && this.resizeHandleType.includes('n')) {
-          const newY = this.resizeStartOriginY - (targetH - this.resizeStartHeight)
-          this.position = { ...this.position, y: Math.max(0, newY) }
+        if (this.position && this.resizeHandleType.includes('s')) {
+          const newBottom = this.resizeStartOriginBottom - (targetH - this.resizeStartHeight)
+          this.position = { ...this.position, bottom: Math.max(0, newBottom) }
         }
       }
       if (this.position) {
@@ -779,12 +789,19 @@ export class GanttMinimapElement extends LitElement {
     this.lastMinimapWidth = this.minimapWidth
     this.lastMinimapHeight = this.minimapHeight
 
+    const posDetail = this.position
+      ? {
+          right: this.position.right,
+          bottom: this.position.bottom,
+        }
+      : undefined
+
     this.dispatchEvent(
       new CustomEvent<MinimapResizeEventDetail>('minimap-resize', {
         detail: {
           width: this.minimapWidth,
           height: this.minimapHeight,
-          position: this.position ? { x: this.position.x, y: this.position.y } : undefined,
+          position: posDetail,
         },
         bubbles: true,
         composed: true,
@@ -794,7 +811,10 @@ export class GanttMinimapElement extends LitElement {
     if (this.position) {
       this.dispatchEvent(
         new CustomEvent<MinimapMoveEventDetail>('minimap-move', {
-          detail: { x: this.position.x, y: this.position.y },
+          detail: {
+            right: this.position.right,
+            bottom: this.position.bottom,
+          },
           bubbles: true,
           composed: true,
         }),

@@ -956,7 +956,7 @@ interface GanttChartOptionMinimap {
 interface MinimapResizeEventDetail {
   width: number // リサイズ後の幅 (px)
   height: number // リサイズ後の高さ (px)
-  position?: { x: number; y: number } // リサイズに伴う位置の変更 (px)
+  position?: MinimapPosition // リサイズに伴う位置の変更 (px)
 }
 ```
 
@@ -964,8 +964,8 @@ interface MinimapResizeEventDetail {
 
 ```typescript
 interface MinimapMoveEventDetail {
-  x: number // 移動後のX座標 (px)
-  y: number // 移動後のY座標 (px)
+  right: number // 親要素右端からの距離 (px)
+  bottom: number // 親要素下端からの距離 (px)
 }
 ```
 
