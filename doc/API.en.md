@@ -1034,6 +1034,7 @@ interface GanttChartOptionMinimap {
   showMilestones?: boolean // Whether to display milestones on minimap (default: true)
   showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
   position?: { x: number; y: number } // Initial position of minimap in px relative to parent
+  opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
 }
 ```
 

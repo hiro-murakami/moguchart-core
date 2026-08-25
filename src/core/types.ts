@@ -457,6 +457,8 @@ export interface GanttChartOptionMinimap {
   showCurrentTime?: boolean
   /** ミニマップの初期位置（親要素に対する座標 px） */
   position?: { x: number; y: number }
+  /** ミニマップの不透明度 (0.1 〜 1.0)。デフォルト: 1.0 */
+  opacity?: number
 }
 
 /**

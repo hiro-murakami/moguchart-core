@@ -912,4 +912,60 @@ describe('GanttMinimap & GanttChart Integration', () => {
 
     minimap.remove()
   })
+
+  it('applies custom opacity to minimap container style', async () => {
+    const minimap = new GanttMinimapElement()
+    minimap.option = {
+      calendar: {
+        start: new Date('2024-01-01T00:00:00Z'),
+        end: new Date('2024-01-31T00:00:00Z'),
+        pxPerDay: 40,
+      },
+      minimap: {
+        enabled: true,
+        opacity: 0.65,
+      },
+    }
+
+    document.body.appendChild(minimap)
+    await minimap.updateComplete
+
+    const container = minimap.shadowRoot?.querySelector('.minimap-container') as HTMLElement
+    expect(container).not.toBeNull()
+    expect(container.getAttribute('style')).toContain('--minimap-opacity: 0.65')
+
+    // 未指定時はデフォルト 1
+    minimap.option = {
+      ...minimap.option,
+      minimap: { enabled: true },
+    }
+    await minimap.updateComplete
+    expect(container.getAttribute('style')).toContain('--minimap-opacity: 1')
+
+    // 範囲外の値のクランプ (0.05 -> 0.1, 1.5 -> 1)
+    minimap.option = {
+      ...minimap.option,
+      minimap: { enabled: true, opacity: 0.05 },
+    }
+    await minimap.updateComplete
+    expect(container.getAttribute('style')).toContain('--minimap-opacity: 0.1')
+
+    minimap.option = {
+      ...minimap.option,
+      minimap: { enabled: true, opacity: 1.5 },
+    }
+    await minimap.updateComplete
+    expect(container.getAttribute('style')).toContain('--minimap-opacity: 1')
+
+    // 折りたたみ時にも適用されること
+    minimap.option = {
+      ...minimap.option,
+      minimap: { enabled: true, opacity: 0.5, collapsed: true },
+    }
+    await minimap.updateComplete
+    const collapsedWrapper = minimap.shadowRoot?.querySelector('div[style*="--minimap-opacity: 0.5"]')
+    expect(collapsedWrapper).not.toBeNull()
+
+    minimap.remove()
+  })
 })

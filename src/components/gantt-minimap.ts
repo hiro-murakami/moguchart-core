@@ -97,7 +97,15 @@ export class GanttMinimapElement extends LitElement {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       overflow: visible;
+      opacity: var(--minimap-opacity, 1);
       transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .minimap-container:hover,
+    .minimap-container.resizing,
+    .minimap-container:has(.minimap-header.dragging),
+    .minimap-container:has(.minimap-viewport.dragging) {
+      opacity: 1;
     }
 
     .minimap-container.resizing {
@@ -289,10 +297,12 @@ export class GanttMinimapElement extends LitElement {
       color: var(--minimap-text, #475569);
       cursor: pointer;
       padding: 0;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+      opacity: var(--minimap-opacity, 1);
+      transition: opacity 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     }
 
     .minimap-collapsed-btn:hover {
+      opacity: 1;
       transform: scale(1.05);
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
     }
@@ -1029,6 +1039,10 @@ export class GanttMinimapElement extends LitElement {
   override render() {
     const collapsible = this.option?.minimap?.collapsible !== false
     const colors = getThemeColors(this.theme, this.option?.customTheme)
+    const minimapOpacity =
+      typeof this.option?.minimap?.opacity === 'number'
+        ? Math.max(0.1, Math.min(1, this.option.minimap.opacity))
+        : 1
 
     const dynamicStyle = `
       --minimap-bg: ${colors.minimapBg};
@@ -1036,6 +1050,7 @@ export class GanttMinimapElement extends LitElement {
       --minimap-text: ${colors.text};
       --minimap-viewport: ${colors.minimapViewport};
       --minimap-viewport-border: ${colors.minimapViewportBorder};
+      --minimap-opacity: ${minimapOpacity};
     `
 
     if (this.isCollapsed) {

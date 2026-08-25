@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - チャートのビューポート（親要素）サイズ変更やコンテンツ更新時に、右下アンカー基準でミニマップの表示位置を自動追従し、親コンテナ外へのはみ出しを防止
   - ミニマップの四隅やエッジをドラッグしてサイズを自由に変更（ドラッグリサイズ）できる機能および `minimap-resize` イベント（`MinimapResizeEventDetail` 型定義）を追加
   - 折りたたみ（最小化 / 展開）機能およびアニメーション
-  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`）
+  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`, `opacity`）
+  - ミニマップの不透明度（`opacity`）設定およびホバー・ドラッグ・リサイズ時の視認性向上スタイルの追加
   - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
   - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加
   - ミニマップ単体およびガントチャート統合の単体テスト（`src/__tests__/gantt-minimap.test.ts`）を追加

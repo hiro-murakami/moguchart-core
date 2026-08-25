@@ -946,6 +946,7 @@ interface GanttChartOptionMinimap {
   showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
   showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
   position?: { x: number; y: number } // ミニマップの初期位置（親要素に対する座標 px）
+  opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
 }
 ```
 
