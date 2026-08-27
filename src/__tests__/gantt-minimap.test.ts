@@ -160,7 +160,7 @@ describe('GanttMinimap & GanttChart Integration', () => {
     minimap.remove()
   })
 
-  it('toggles collapse state when clicking minimize / expand button and positions collapsed icon at bottom-right', async () => {
+  it('toggles collapse state when clicking minimize / expand button, dispatches minimap-collapse event and positions collapsed icon at bottom-right', async () => {
     const minimap = new GanttMinimapElement()
     minimap.option = {
       calendar: {
@@ -176,6 +176,11 @@ describe('GanttMinimap & GanttChart Integration', () => {
       },
     }
 
+    const collapseEvents: Array<{ collapsed: boolean }> = []
+    minimap.addEventListener('minimap-collapse', (e: Event) => {
+      collapseEvents.push((e as CustomEvent).detail)
+    })
+
     document.body.appendChild(minimap)
     await minimap.updateComplete
 
@@ -189,6 +194,10 @@ describe('GanttMinimap & GanttChart Integration', () => {
     toggleBtn.click()
     await minimap.updateComplete
 
+    // minimap-collapse イベントが発火（collapsed: true）
+    expect(collapseEvents).toHaveLength(1)
+    expect(collapseEvents[0]).toEqual({ collapsed: true })
+
     // 折りたたみ時はスタイルがクリアされ右下（CSSデフォルト）に配置される
     const collapsedBtn = minimap.shadowRoot?.querySelector('.minimap-collapsed-btn') as HTMLElement
     expect(collapsedBtn).not.toBeNull()
@@ -201,9 +210,24 @@ describe('GanttMinimap & GanttChart Integration', () => {
     collapsedBtn.click()
     await minimap.updateComplete
 
+    // minimap-collapse イベントが発火（collapsed: false）
+    expect(collapseEvents).toHaveLength(2)
+    expect(collapseEvents[1]).toEqual({ collapsed: false })
+
     expect(minimap.shadowRoot?.querySelector('.minimap-toggle-btn')).not.toBeNull()
     expect(minimap.style.right).toBe('100px')
     expect(minimap.style.bottom).toBe('100px')
+
+    // option の変更によるリアクティブな collapsed 反映
+    minimap.option = {
+      ...minimap.option,
+      minimap: {
+        ...minimap.option.minimap,
+        collapsed: true,
+      },
+    }
+    await minimap.updateComplete
+    expect(minimap.shadowRoot?.querySelector('.minimap-collapsed-btn')).not.toBeNull()
 
     minimap.remove()
   })

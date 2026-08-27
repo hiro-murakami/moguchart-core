@@ -167,6 +167,7 @@ interface GanttChartOption {
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
 | `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
+| `minimap-collapse`       | `MinimapCollapseEventDetail`      | ミニマップが最小化（折りたたみ）または展開されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
@@ -978,6 +979,14 @@ interface MinimapMoveEventDetail {
 }
 ```
 
+### MinimapCollapseEventDetail
+
+```typescript
+interface MinimapCollapseEventDetail {
+  collapsed: boolean // 最小化されているかどうか
+}
+```
+
 ### MoguchartLocale
 
 ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
@@ -1404,5 +1413,11 @@ chart.addEventListener('minimap-resize', (e) => {
 chart.addEventListener('minimap-move', (e) => {
   const { right, bottom } = e.detail
   console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
+})
+
+// 折りたたみ（最小化）イベントのハンドリング
+chart.addEventListener('minimap-collapse', (e) => {
+  const { collapsed } = e.detail
+  console.log(`Minimap collapsed: ${collapsed}`)
 })
 ```

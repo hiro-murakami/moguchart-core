@@ -167,6 +167,7 @@ Custom events dispatched by the component.
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
 | `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
+| `minimap-collapse`       | `MinimapCollapseEventDetail`      | Fired when the minimap is collapsed or expanded.                                     |
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
@@ -1066,6 +1067,14 @@ interface MinimapMoveEventDetail {
 }
 ```
 
+### MinimapCollapseEventDetail
+
+```typescript
+interface MinimapCollapseEventDetail {
+  collapsed: boolean // Whether the minimap is collapsed
+}
+```
+
 ## Multi-Task Selection and Dragging
 
 Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks. Selection state is communicated via the `bar-selection-change` event.
@@ -1422,5 +1431,11 @@ chart.addEventListener('minimap-resize', (e) => {
 chart.addEventListener('minimap-move', (e) => {
   const { right, bottom } = e.detail
   console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
+})
+
+// Listen to collapse events
+chart.addEventListener('minimap-collapse', (e) => {
+  const { collapsed } = e.detail
+  console.log(`Minimap collapsed: ${collapsed}`)
 })
 ```

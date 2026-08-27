@@ -491,6 +491,14 @@ export interface MinimapResizeEventDetail {
 }
 
 /**
+ * ミニマップの折りたたみ（最小化）イベントの詳細データ
+ */
+export interface MinimapCollapseEventDetail {
+  /** 最小化されているかどうか */
+  collapsed: boolean
+}
+
+/**
  * タスク更新イベントの詳細データ
  */
 export interface TaskUpdateEventDetail extends GanttTask {

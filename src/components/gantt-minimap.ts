@@ -1,6 +1,12 @@
 import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property, state, query } from 'lit/decorators.js'
-import type { GanttChartOption, GanttRow, MinimapMoveEventDetail, MinimapResizeEventDetail } from '../core/types'
+import type {
+  GanttChartOption,
+  GanttRow,
+  MinimapCollapseEventDetail,
+  MinimapMoveEventDetail,
+  MinimapResizeEventDetail,
+} from '../core/types'
 import { calculateTaskLanes, dateToX, getThemeColors } from '../core/utils'
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '../core/constants'
 
@@ -12,7 +18,7 @@ export interface MinimapScrollEventDetail {
   scrollTop: number
 }
 
-export type { MinimapMoveEventDetail, MinimapResizeEventDetail }
+export type { MinimapCollapseEventDetail, MinimapMoveEventDetail, MinimapResizeEventDetail }
 
 /**
  * タスクのstyle属性から背景色を抽出するヘルパー
@@ -439,6 +445,9 @@ export class GanttMinimapElement extends LitElement {
   override willUpdate(changedProperties: PropertyValues) {
     super.willUpdate(changedProperties)
     if (changedProperties.has('option')) {
+      if (this.option?.minimap?.collapsed !== undefined) {
+        this.isCollapsed = this.option.minimap.collapsed
+      }
       if (!this.isHeaderDragging && !this.isResizing) {
         if (this.option?.minimap?.position) {
           this.initPositionFromOption()
@@ -1054,6 +1063,13 @@ export class GanttMinimapElement extends LitElement {
   private toggleCollapse(e: MouseEvent) {
     e.stopPropagation()
     this.isCollapsed = !this.isCollapsed
+    this.dispatchEvent(
+      new CustomEvent<MinimapCollapseEventDetail>('minimap-collapse', {
+        detail: { collapsed: this.isCollapsed },
+        bubbles: true,
+        composed: true,
+      }),
+    )
   }
 
   override render() {
