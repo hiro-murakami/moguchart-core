@@ -1033,8 +1033,17 @@ interface GanttChartOptionMinimap {
   collapsed?: boolean // Whether initially collapsed (default: false)
   showMilestones?: boolean // Whether to display milestones on minimap (default: true)
   showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
-  position?: { x: number; y: number } // Initial position of minimap in px relative to parent
+  position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
   opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
+}
+```
+
+### MinimapPosition
+
+```typescript
+interface MinimapPosition {
+  right: number // Distance from parent container right edge (px)
+  bottom: number // Distance from parent container bottom edge (px)
 }
 ```
 
@@ -1382,6 +1391,7 @@ By setting the `minimap` option, you can display a floating overview window that
 - **Draggable Window**: Drag the minimap title bar to move and position it anywhere within the chart container. Fires the `minimap-move` event when moved.
 - **Drag Resizing**: Drag the corners or edges of the minimap to resize it freely while optionally preserving the aspect ratio. Fires the `minimap-resize` event when resized.
 - **Auto-Anchoring and Clamping**: Automatically follows container resizing or content updates using a bottom-right anchor and clamps within the parent container to prevent overflowing.
+- **Opacity (Transparency) Control**: Set opacity using the `opacity` option (`0.1` to `1.0`). Opacity automatically transitions to 1.0 (opaque) during hover, drag, or resize interactions for enhanced visibility.
 - **Collapsible**: Collapse or expand the minimap via the minimize button.
 - **Theme Support**: Customize colors using `customTheme` keys like `minimapBg`, `minimapViewport`, and more.
 
@@ -1397,7 +1407,8 @@ chart.option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
-    position: { x: 20, y: 50 }, // Initial position (px)
+    position: { right: 16, bottom: 16 }, // Initial position relative to bottom-right (px)
+    opacity: 0.85, // Opacity (0.1 to 1.0)
   },
 }
 
@@ -1409,7 +1420,7 @@ chart.addEventListener('minimap-resize', (e) => {
 
 // Listen to move events
 chart.addEventListener('minimap-move', (e) => {
-  const { x, y } = e.detail
-  console.log(`Minimap moved to: (${x}, ${y})`)
+  const { right, bottom } = e.detail
+  console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
 })
 ```

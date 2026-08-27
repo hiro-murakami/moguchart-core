@@ -5,20 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.0] - 2026-08-24
+## [0.11.0] - 2026-08-27
 
 ### Added
 
 - フローティング小窓型のミニマップ（Overview Minimap）コンポーネント（`<gantt-minimap>`）を追加
   - チャート全体の全タスク・マイルストーン・現在時刻線を `<canvas>` で高速・軽量に鳥瞰描画
-  - 現在の表示領域（ビューポート）を半透明枠（ファインダー）で可視化
+  - 現在の表示領域（ビューポート）を半透明枠（ファインダー、角丸 8px）で可視化
   - ファインダー枠のドラッグによるスクロール同期（パン操作）およびミニマップクリックによるジャンプ移動に対応
   - ミニマップをドラッグしてチャート内の任意の位置へ自由に移動できる機能および `minimap-move` イベント（`MinimapMoveEventDetail` 型定義）を追加
-  - ミニマップの表示位置・保存座標を親要素の右下基準（`right`, `bottom` オフセット）として管理し、画面リサイズ時や解像度変更時にも安定して右下相対位置を保持するよう設計
+  - ミニマップの表示位置・保存座標を親要素の右下基準（`MinimapPosition` 型: `right`, `bottom` オフセット）として管理し、画面リサイズ時や解像度変更時にも安定して右下相対位置を保持するよう設計
   - チャートのビューポート（親要素）サイズ変更やコンテンツ更新時に、右下アンカー基準でミニマップの表示位置を自動追従し、親コンテナ外へのはみ出しを防止
   - ミニマップの四隅やエッジをドラッグしてサイズを自由に変更（ドラッグリサイズ）できる機能および `minimap-resize` イベント（`MinimapResizeEventDetail` 型定義）を追加
   - 折りたたみ（最小化 / 展開）機能およびアニメーション
-  - `GanttChartOptionMinimap` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`, `opacity`）
+  - `GanttChartOptionMinimap`, `MinimapPosition` 型定義および `GanttChartOption.minimap` オプション（`enabled`, `width`, `height`, `maxHeight`, `preserveAspectRatio`, `resizable`, `minWidth`, `maxWidth`, `minHeight`, `collapsible`, `collapsed`, `showMilestones`, `showCurrentTime`, `position`, `opacity`）
   - ミニマップの不透明度（`opacity`）設定およびホバー・ドラッグ・リサイズ時の視認性向上スタイルの追加
   - テーマカラー（`minimapBg`, `minimapBorder`, `minimapViewport`, `minimapViewportBorder`, `minimapTask`）のサポート
   - デモ画面（`src/demo/main.ts`）にミニマップ表示トグルを追加

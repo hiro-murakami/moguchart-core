@@ -945,8 +945,17 @@ interface GanttChartOptionMinimap {
   collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
   showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
   showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
-  position?: { x: number; y: number } // ミニマップの初期位置（親要素に対する座標 px）
+  position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
   opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
+}
+```
+
+### MinimapPosition
+
+```typescript
+interface MinimapPosition {
+  right: number // 親要素右端からの距離 (px)
+  bottom: number // 親要素下端からの距離 (px)
 }
 ```
 
@@ -1364,6 +1373,7 @@ chart.addEventListener('task-delete', (e) => {
 - **ドラッグ移動**: ミニマップのタイトルバーをドラッグして、チャート内の任意の位置へ自由に移動できます。移動完了時に `minimap-move` イベントが発火します。
 - **ドラッグリサイズ**: ミニマップの四隅やエッジをドラッグして、サイズを自由に拡大・縮小できます。リサイズ完了時に `minimap-resize` イベントが発火します。
 - **自動アンカーと配置追従**: チャートの表示領域（親要素）サイズ変更やコンテンツ更新時、右下アンカー基準でミニマップの表示位置が自動追従・クランプされ、表示領域外へのはみ出しを防ぎます。
+- **不透明度（透過率）の調整**: `opacity` オプション（`0.1` 〜 `1.0`）でミニマップの不透明度を設定できます。ホバー時やドラッグ・リサイズ操作中は自動的に 1.0（不透明）になり視認性が保たれます。
 - **折りたたみ**: 最小化ボタンでコンパクトに折りたたむことができます。
 - **テーマ対応**: `customTheme` の `minimapBg` や `minimapViewport` などで色をカスタマイズできます。
 
@@ -1379,7 +1389,8 @@ chart.option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
-    position: { x: 20, y: 50 }, // 初期表示位置 (px)
+    position: { right: 16, bottom: 16 }, // 初期表示位置（親要素右下基準 px）
+    opacity: 0.85, // 不透明度 (0.1 〜 1.0)
   },
 }
 
@@ -1391,7 +1402,7 @@ chart.addEventListener('minimap-resize', (e) => {
 
 // ドラッグ移動イベントのハンドリング
 chart.addEventListener('minimap-move', (e) => {
-  const { x, y } = e.detail
-  console.log(`Minimap moved to: (${x}, ${y})`)
+  const { right, bottom } = e.detail
+  console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
 })
 ```
