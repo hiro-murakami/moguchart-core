@@ -147,7 +147,8 @@ interface GanttChartOption {
     collapsed?: boolean // Whether initially collapsed (default: false)
     showMilestones?: boolean // Whether to display milestones on minimap (default: true)
     showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
-    position?: { x: number; y: number } // Initial position of minimap in px relative to parent
+    position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
+    opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
   }
 }
 ```
@@ -632,95 +633,6 @@ interface GanttMarker {
 }
 ```
 
-### MoguchartLocale
-
-Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
-
-```typescript
-interface MoguchartLocale {
-  /** Default month display format (dayjs-compatible format string) */
-  monthFormat: string
-  /** Month display format for monthly view mode (e.g., 'MMM') */
-  monthRowFormat: string
-  /** Date format function (e.g., "1/15/2024") */
-  dateFormat: (date: Date) => string
-  /** Date format function for time-unit mode (e.g., "Jan 15, 2024") */
-  timeUnitDateFormat: (date: Date) => string
-  /** Date-time format function (used when time is not 00:00) */
-  dateTimeFormat: (date: Date) => string
-  /** Year-month format function (used in tooltips and drag overlays for monthly view) */
-  yearMonthFormat: (date: Date) => string
-  /** Duration formatting */
-  duration: {
-    /** Days format (e.g., 3 → "3 days") */
-    days: (n: number) => string
-    /** Hours format (e.g., 2 → "2 hours") */
-    hours: (n: number) => string
-    /** Minutes format (e.g., 30 → "30 minutes") */
-    minutes: (n: number) => string
-    /** Display when duration is zero */
-    zero: string
-  }
-  /** Default tooltip strings */
-  tooltip: {
-    /** Duration display (e.g., 5 → "Duration: 5 days") */
-    duration: (days: number) => string
-  }
-  /** Drag overlay strings */
-  dragOverlay: {
-    /** Fallback when title is not set */
-    noTitle: string
-    /** Move target display (e.g., "Move to: Row1") */
-    moveTo: (name: string) => string
-    /** Multi-task move display (e.g., "Moving 3 tasks") */
-    movingTasks: (count: number) => string
-  }
-}
-```
-
-#### Usage Example
-
-```javascript
-import { enLocale } from '@mogura/moguchart-core'
-
-const option = {
-  locale: enLocale,
-  // ...
-}
-```
-
-To create a custom locale, implement the `MoguchartLocale` interface:
-
-```typescript
-import type { MoguchartLocale } from '@mogura/moguchart-core'
-
-const frLocale: MoguchartLocale = {
-  monthFormat: 'MMM YYYY',
-  monthRowFormat: 'MMM',
-  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
-  dateTimeFormat: (d) => {
-    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
-    const h = d.getHours()
-    const m = d.getMinutes()
-    if (h === 0 && m === 0) return date
-    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-  },
-  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
-  duration: {
-    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
-    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
-    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
-    zero: '0 minute',
-  },
-  tooltip: { duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}` },
-  dragOverlay: {
-    noTitle: 'Sans titre',
-    moveTo: (name) => `Déplacer vers: ${name}`,
-    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
-  },
-}
-```
-
 ### RowReorderEventDetail
 
 ```typescript
@@ -1075,6 +987,95 @@ interface MinimapCollapseEventDetail {
 }
 ```
 
+### MoguchartLocale
+
+Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
+
+```typescript
+interface MoguchartLocale {
+  /** Default month display format (dayjs-compatible format string) */
+  monthFormat: string
+  /** Month display format for monthly view mode (e.g., 'MMM') */
+  monthRowFormat: string
+  /** Date format function (e.g., "1/15/2024") */
+  dateFormat: (date: Date) => string
+  /** Date format function for time-unit mode (e.g., "Jan 15, 2024") */
+  timeUnitDateFormat: (date: Date) => string
+  /** Date-time format function (used when time is not 00:00) */
+  dateTimeFormat: (date: Date) => string
+  /** Year-month format function (used in tooltips and drag overlays for monthly view) */
+  yearMonthFormat: (date: Date) => string
+  /** Duration formatting */
+  duration: {
+    /** Days format (e.g., 3 → "3 days") */
+    days: (n: number) => string
+    /** Hours format (e.g., 2 → "2 hours") */
+    hours: (n: number) => string
+    /** Minutes format (e.g., 30 → "30 minutes") */
+    minutes: (n: number) => string
+    /** Display when duration is zero */
+    zero: string
+  }
+  /** Default tooltip strings */
+  tooltip: {
+    /** Duration display (e.g., 5 → "Duration: 5 days") */
+    duration: (days: number) => string
+  }
+  /** Drag overlay strings */
+  dragOverlay: {
+    /** Fallback when title is not set */
+    noTitle: string
+    /** Move target display (e.g., "Move to: Row1") */
+    moveTo: (name: string) => string
+    /** Multi-task move display (e.g., "Moving 3 tasks") */
+    movingTasks: (count: number) => string
+  }
+}
+```
+
+#### Usage Example
+
+```javascript
+import { enLocale } from '@mogura/moguchart-core'
+
+const option = {
+  locale: enLocale,
+  // ...
+}
+```
+
+To create a custom locale, implement the `MoguchartLocale` interface:
+
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart-core'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  dateTimeFormat: (d) => {
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
+  duration: {
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
+  },
+  tooltip: { duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}` },
+  dragOverlay: {
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
+  },
+}
+```
+
 ## Multi-Task Selection and Dragging
 
 Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks. Selection state is communicated via the `bar-selection-change` event.
@@ -1342,6 +1343,17 @@ const option = {
   },
   // ...
 }
+```
+
+### computeCriticalPath Function
+
+A utility function that computes the set of task IDs (`Set<string>`) on the critical path directly from the dependency graph is also exported.
+
+```typescript
+import { computeCriticalPath } from '@mogura/moguchart-core'
+
+const criticalTaskIds: Set<string> = computeCriticalPath(rows)
+console.log('Critical path task IDs:', Array.from(criticalTaskIds))
 ```
 
 ## Keyboard Operations

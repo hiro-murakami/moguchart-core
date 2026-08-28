@@ -138,8 +138,8 @@ interface GanttChartOption {
     width?: number // ミニマップの幅 (px、デフォルト: 200)
     height?: number // ミニマップの高さ (px、デフォルト: 120)
     maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
-    preserveAspectRatio?: boolean // ガントチャート全体の縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
-    resizable?: boolean // ドラッグによるリサイズを許可するかどうか (デフォルト: true)
+    preserveAspectRatio?: boolean // ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
+    resizable?: boolean // ユーザーによるドラッグリサイズを許可するかどうか (デフォルト: true)
     minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
     maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
     minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
@@ -147,7 +147,8 @@ interface GanttChartOption {
     collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
     showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
     showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
-    position?: { x: number; y: number } // ミニマップの初期位置（親要素に対する座標 px）
+    position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
+    opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
   }
 }
 ```
@@ -1324,6 +1325,17 @@ const option = {
   },
   // ...
 }
+```
+
+### computeCriticalPath 関数
+
+依存関係グラフからクリティカルパス上のタスクIDの集合（`Set<string>`）を直接計算するユーティリティ関数もエクスポートされています。
+
+```typescript
+import { computeCriticalPath } from '@mogura/moguchart-core'
+
+const criticalTaskIds: Set<string> = computeCriticalPath(rows)
+console.log('クリティカルパス上のタスクID:', Array.from(criticalTaskIds))
 ```
 
 ## キーボード操作
