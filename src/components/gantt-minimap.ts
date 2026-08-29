@@ -937,6 +937,31 @@ export class GanttMinimapElement extends LitElement {
         } else {
           ctx.fillRect(miniX, miniY, miniW, miniH)
         }
+
+        // 進捗バーの描画
+        if (
+          typeof task.progress === 'number' &&
+          !Number.isNaN(task.progress) &&
+          this.option?.progress?.enabled !== false &&
+          task.progress > 0
+        ) {
+          const progressClamped = Math.min(100, Math.max(0, task.progress))
+          const progressW = (miniW * progressClamped) / 100
+          if (progressW > 0.5) {
+            ctx.fillStyle = this.theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.25)'
+            if (miniW > 3 && miniH > 3) {
+              ctx.beginPath()
+              if (typeof ctx.roundRect === 'function') {
+                ctx.roundRect(miniX, miniY, progressW, miniH, 1)
+              } else {
+                ctx.rect(miniX, miniY, progressW, miniH)
+              }
+              ctx.fill()
+            } else {
+              ctx.fillRect(miniX, miniY, progressW, miniH)
+            }
+          }
+        }
       }
 
       currentY += rowHeight

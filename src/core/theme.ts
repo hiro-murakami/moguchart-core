@@ -33,6 +33,8 @@ export const THEME_COLORS: ThemeColors = {
     minimapViewport: 'rgba(59, 130, 246, 0.2)',
     minimapViewportBorder: '#3b82f6',
     minimapTask: '#3b82f6',
+    taskProgress: 'rgba(0, 0, 0, 0.2)',
+    taskProgressHandle: '#2563eb',
   },
   dark: {
     bg: '#1e293b',
@@ -66,5 +68,7 @@ export const THEME_COLORS: ThemeColors = {
     minimapViewport: 'rgba(96, 165, 250, 0.25)',
     minimapViewportBorder: '#60a5fa',
     minimapTask: '#60a5fa',
+    taskProgress: 'rgba(255, 255, 255, 0.25)',
+    taskProgressHandle: '#60a5fa',
   },
 }

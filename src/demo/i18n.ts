@@ -26,9 +26,13 @@ export interface DemoTexts {
   dayWidth: string
   rowHeaderWidth: string
   tooltipDelay: string
+  enableProgress: string
+  editableProgress: string
+  showProgressLabel: string
   // セクションタイトル
   sectionCalendar: string
   sectionBehavior: string
+  sectionProgress: string
   sectionSize: string
   oneDay: string
   oneMonth: string
@@ -117,8 +121,12 @@ export const jaTexts: DemoTexts = {
   dayWidth: '1日の幅:',
   rowHeaderWidth: '行ヘッダーの幅:',
   tooltipDelay: 'ツールチップ遅延:',
+  enableProgress: '進捗表示',
+  editableProgress: '進捗ドラッグ編集',
+  showProgressLabel: '進捗ラベル表示',
   sectionCalendar: 'カレンダー表示',
   sectionBehavior: '動作設定',
+  sectionProgress: '進捗管理',
   sectionSize: 'サイズ設定',
   oneDay: '1日',
   oneMonth: '1ヶ月',
@@ -270,8 +278,12 @@ export const enTexts: DemoTexts = {
   dayWidth: 'Day Width:',
   rowHeaderWidth: 'Row Header Width:',
   tooltipDelay: 'Tooltip Delay:',
+  enableProgress: 'Show Progress',
+  editableProgress: 'Editable Progress',
+  showProgressLabel: 'Show Progress Label',
   sectionCalendar: 'Calendar',
   sectionBehavior: 'Behavior',
+  sectionProgress: 'Progress Management',
   sectionSize: 'Sizing',
   oneDay: '1 day',
   oneMonth: '1 month',

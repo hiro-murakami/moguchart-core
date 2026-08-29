@@ -95,6 +95,14 @@ export interface GanttTask {
   movable?: 'both' | 'x' | 'y' | 'none'
   /** リサイズ可否 (指定がない場合はmovableの設定に準ずる) */
   resizable?: boolean
+  /** 進捗率 (0〜100 の数値) */
+  progress?: number
+  /** 進捗バーのカスタム色 (CSSカラー文字列) */
+  progressColor?: string
+  /** 進捗バーのカスタムスタイル (CSS文字列) */
+  progressStyle?: string
+  /** 進捗バーのドラッグ編集可否 (指定がない場合はoption.progress.editableに準ずる) */
+  progressResizable?: boolean
 }
 
 /**
@@ -423,6 +431,30 @@ export interface GanttChartOption {
   }
   /** ミニマップ（Overview Minimap）機能の設定 */
   minimap?: GanttChartOptionMinimap
+  /** 進捗管理機能の設定 */
+  progress?: GanttChartOptionProgress
+}
+
+/**
+ * タスク進捗管理に関するオプション
+ */
+export interface GanttChartOptionProgress {
+  /** 進捗表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false) */
+  editable?: boolean
+  /** 進捗バーのデフォルト色 (CSSカラー文字列) */
+  color?: string
+  /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
+  showLabel?: boolean
+  /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
+  labelPosition?: 'inside' | 'right' | 'left' | 'center'
+  /** 進捗ラベルのカスタムフォーマット関数 */
+  labelFormatter?: (progress: number, task: GanttTask) => string
+  /** ドラッグ編集時の進捗率スナップ単位 (1, 5, 10 など。デフォルト: 1) */
+  snapStep?: number
+  /** 進捗インジケーターのスタイル ('full' | 'bottom' | 'top') (デフォルト: 'full') */
+  indicatorPosition?: 'full' | 'bottom' | 'top'
 }
 
 /**
@@ -736,6 +768,10 @@ export interface ThemeColorPalette {
   minimapViewportBorder?: string
   /** ミニマップのタスク描画色 (オプション) */
   minimapTask?: string
+  /** タスク進捗バーの描画色 (オプション) */
+  taskProgress?: string
+  /** タスク進捗変更ハンドルの描画色 (オプション) */
+  taskProgressHandle?: string
 }
 
 /**
@@ -824,4 +860,18 @@ export interface ZoomChangeEventDetail {
   pxPerDay: number
   /** ズーム後の pxPerMonth（月単位モード時のみ） */
   pxPerMonth?: number
+}
+
+/**
+ * タスク進捗変更イベントの詳細データ
+ */
+export interface TaskProgressChangeEventDetail {
+  /** 対象のタスク */
+  task: GanttTask
+  /** 新しい進捗率 (0〜100) */
+  progress: number
+  /** 変更前の進捗率 */
+  originalProgress?: number
+  /** キャンセルされたかどうか */
+  cancelled?: boolean
 }

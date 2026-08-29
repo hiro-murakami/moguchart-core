@@ -32,7 +32,15 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Locale support (Japanese, English, and custom locales)
 - 🏁 **Milestones**: Display milestones (vertical line + name badge) on the chart
 - 📍 **Markers**: Show triangle icons with labels on row timelines
-- 🗺️ **Overview Minimap**: Bird's-eye preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, and collapsible floating window
+- 🗺️ **Overview Minimap**: Bird's-eye preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move & resize, and collapsible floating window
+- 📊 **Task Progress Management**:
+  - Task bar progress overlay (full, bottom, or top indicator styles)
+  - Interactive drag-adjust handle for quick progress modification (with snap support)
+  - Configurable progress labels (custom positioning & formatters)
+  - `task-progress-change` custom event
+  - Progress calculation utility functions (simple & weighted row/project averages)
+  - Automatic progress visualization on the overview minimap
+- 📷 **Export**: Export full Gantt chart to PNG image or PDF format (with automatic download support and scroll preservation)
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move/copy mode
@@ -443,6 +451,57 @@ const option = {
 }
 ```
 
+### Task Progress Management
+
+Visually display progress on task bars by specifying the `progress` property (`0` - `100`). Enable interactive drag editing of progress percentages with `editable: true`.
+
+```javascript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+const option = {
+  progress: {
+    enabled: true,
+    editable: true,       // Enable drag-adjusting progress
+    showLabel: true,      // Display progress label (e.g. "50%")
+    labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
+    snapStep: 5,          // Snap by 5% increments
+    indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
+  },
+}
+
+// Progress change event
+chart.addEventListener('task-progress-change', (e) => {
+  const { task, progress, originalProgress, cancelled } = e.detail
+  console.log(`Task ${task.id}: ${originalProgress}% -> ${progress}%`)
+})
+
+// Progress calculation helpers
+const rowAvg = calculateRowProgress(row)
+const projectProgress = calculateProjectProgress(rows)
+```
+
+### Overview Minimap
+
+Display a floating bird's-eye minimap window showing all tasks, milestones, and the current viewport.
+
+```javascript
+const option = {
+  minimap: {
+    enabled: true,
+    width: 240,
+    preserveAspectRatio: true,
+    resizable: true,
+    position: { right: 16, bottom: 16 }, // Initial position relative to bottom-right (px)
+    opacity: 0.85,
+  },
+}
+```
+
 ### Public Methods
 
 #### selectTask
@@ -465,6 +524,29 @@ document.addEventListener('mousemove', (e) => {
     console.log(`Row: ${result.rowId}, Date: ${result.date}`)
   }
 })
+```
+
+#### exportImage
+
+Exports the entire Gantt chart as a PNG image or PDF document.
+
+```javascript
+// Automatically download as PNG image
+await chart.exportImage('png', {
+  fileName: 'gantt-chart.png',
+  download: true,
+})
+
+// Export as PDF Blob
+const pdfBlob = await chart.exportImage('pdf')
+```
+
+#### Zoom Operations (zoomTo / zoomToFit / resetZoom)
+
+```javascript
+chart.zoomTo(50)    // Zoom to 50px per day
+chart.zoomToFit()   // Auto-adjust zoom level so all tasks fit in view
+chart.resetZoom()   // Reset zoom to initial option scale
 ```
 
 ### Keyboard Operations

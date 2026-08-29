@@ -150,6 +150,17 @@ interface GanttChartOption {
     position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
     opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
   }
+  /** 進捗管理機能の設定 */
+  progress?: {
+    enabled?: boolean // 進捗表示を有効にするかどうか (デフォルト: true)
+    editable?: boolean // 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false)
+    color?: string // 進捗バーのデフォルト色 (CSSカラー文字列)
+    showLabel?: boolean // 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false)
+    labelPosition?: 'inside' | 'right' | 'left' | 'center' // 進捗ラベルの表示位置 (デフォルト: 'inside')
+    labelFormatter?: (progress: number, task: GanttTask) => string // 進捗ラベルのカスタムフォーマット関数
+    snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
+    indicatorPosition?: 'full' | 'bottom' | 'top' // 進捗インジケーターのスタイル (デフォルト: 'full')
+  }
 }
 ```
 
@@ -166,6 +177,7 @@ interface GanttChartOption {
 | `bar-hover`              | `BarHoverEventDetail`             | タスクバーにマウスがホバーしたときに発火します。                                             |
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
+| `task-progress-change`   | `TaskProgressChangeEventDetail`   | 進捗バーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。       |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
 | `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | ミニマップが最小化（折りたたみ）または展開されたときに発火します。                           |
@@ -328,6 +340,10 @@ interface GanttTask {
   dependencies?: string[] // 依存関係にあるタスクのID配列
   movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)
   resizable?: boolean // リサイズ可否 (未指定時はmovable設定に準拠)
+  progress?: number // 進捗率 (0〜100 の数値)
+  progressColor?: string // 進捗バーのカスタム色 (CSSカラー文字列)
+  progressStyle?: string // 進捗バーのカスタムスタイル (CSS文字列)
+  progressResizable?: boolean // 進捗バーのドラッグ編集可否 (未指定時はoption.progress.editableに準拠)
 }
 ```
 
@@ -665,6 +681,19 @@ interface TaskUpdateEventDetail extends GanttTask {
 }
 ```
 
+### TaskProgressChangeEventDetail
+
+進捗バーのドラッグ編集が完了した時（またはEscでキャンセルされた時）に `task-progress-change` イベントとして発火されます。
+
+```typescript
+interface TaskProgressChangeEventDetail {
+  task: GanttTask // 対象のタスクデータ
+  progress: number // 新しい進捗率 (0〜100)
+  originalProgress?: number // 変更前の進捗率
+  cancelled?: boolean // Escキー等でキャンセルされたかどうか
+}
+```
+
 ### TaskDropEventDetail
 
 ```typescript
@@ -824,6 +853,8 @@ interface ThemeColorPalette {
   minimapViewport?: string // ミニマップのビューポート枠背景色 (オプション)
   minimapViewportBorder?: string // ミニマップのビューポート枠ボーダー色 (オプション)
   minimapTask?: string // ミニマップのタスク描画色 (オプション)
+  taskProgress?: string // タスク進捗バーの描画色 (オプション)
+  taskProgressHandle?: string // タスク進捗変更ハンドルの描画色 (オプション)
 }
 ```
 
@@ -988,6 +1019,29 @@ interface MinimapCollapseEventDetail {
 }
 ```
 
+### GanttChartOptionProgress
+
+```typescript
+interface GanttChartOptionProgress {
+  /** 進捗表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false) */
+  editable?: boolean
+  /** 進捗バーのデフォルト色 (CSSカラー文字列) */
+  color?: string
+  /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
+  showLabel?: boolean
+  /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
+  labelPosition?: 'inside' | 'right' | 'left' | 'center'
+  /** 進捗ラベルのカスタムフォーマット関数 */
+  labelFormatter?: (progress: number, task: GanttTask) => string
+  /** ドラッグ編集時の進捗率スナップ単位 (1, 5, 10 など。デフォルト: 1) */
+  snapStep?: number
+  /** 進捗インジケーターのスタイル ('full' | 'bottom' | 'top') (デフォルト: 'full') */
+  indicatorPosition?: 'full' | 'bottom' | 'top'
+}
+```
+
 ### MoguchartLocale
 
 ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
@@ -1008,6 +1062,7 @@ interface MoguchartLocale {
   }
   tooltip: {
     duration: (days: number) => string // 所要日数の表示
+    progress?: (percent: number) => string // 進捗率の表示 (例: 75 → "進捗: 75%") (オプション)
   }
   dragOverlay: {
     noTitle: string // タイトル未設定時のフォールバック
@@ -1433,3 +1488,121 @@ chart.addEventListener('minimap-collapse', (e) => {
   console.log(`Minimap collapsed: ${collapsed}`)
 })
 ```
+
+## 進捗管理（Progress Management）
+
+各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。
+
+- **進捗バー表示**: バー内に進捗率に応じたオーバーレイ（全面または下部/上部ライン）が描画されます。
+- **ドラッグ編集**: `option.progress.editable: true`（またはタスクごとの `progressResizable: true`）を設定すると、進捗バー端のハンドルをドラッグして進捗率を直感的に変更できます（スナップ刻み `snapStep` に対応）。
+- **進捗ラベル**: `option.progress.showLabel: true` で `50%` などの進捗ラベルを表示できます（位置: `inside` / `right` / `left` / `center`）。
+- **イベント連携**: 進捗ドラッグ変更完了時に `task-progress-change` イベントが発火します。
+- **ミニマップ反映**: ミニマップ上でもタスクの進捗が自動的に濃淡表示されます。
+
+### 使用例
+
+```javascript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  progress: {
+    enabled: true,
+    editable: true, // ドラッグによる進捗編集を有効化
+    showLabel: true, // 進捗ラベルを表示
+    labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
+    snapStep: 5, // 5% 刻みでスナップ
+    indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
+  },
+}
+
+// 進捗変更イベント
+chart.addEventListener('task-progress-change', (e) => {
+  const { task, progress, originalProgress, cancelled } = e.detail
+  console.log(`Task ${task.id} progress changed: ${originalProgress}% -> ${progress}%`)
+})
+
+// 進捗計算ユーティリティ
+const rowAvg = calculateRowProgress(row) // 行の単純平均進捗率
+const rowWeighted = calculateWeightedRowProgress(row) // 期間加重平均進捗率
+const projectProgress = calculateProjectProgress(rows) // プロジェクト全体の加重平均進捗率
+```
+
+## ユーティリティ関数 (Utility Functions)
+
+パッケージからエクスポートされている補助関数です。
+
+```typescript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+  computeCriticalPath,
+} from '@mogura/moguchart-core'
+```
+
+### clampProgress
+
+進捗率の数値を `0` 〜 `100` の範囲に正規化・丸め処理します。
+
+```typescript
+function clampProgress(value: number, precision?: number): number
+```
+
+- **`value`**: 入力値（`NaN` や非数値は `0` にフォールバック）
+- **`precision`**: 小数点以下の丸め桁数（デフォルト: `1`）
+- **戻り値**: `0` 〜 `100` の範囲にクランプされた数値
+
+### calculateRowProgress
+
+指定した行またはタスク配列に含まれるタスクの単純平均進捗率を計算します。進捗率が未指定（`undefined`）のタスクは除外して計算されます。
+
+```typescript
+function calculateRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
+```
+
+- **`rowOrTasks`**: 対象の `GanttRow` オブジェクトまたは `GanttTask[]` 配列
+- **戻り値**: 単純平均進捗率（`0` 〜 `100`）。有効な進捗を持つタスクが存在しない場合は `0`
+
+### calculateWeightedRowProgress
+
+指定した行またはタスク配列に含まれるタスクの期間（ミリ秒）に応じた加重平均進捗率を計算します。タスクの長さに応じて重み付けされた進捗率が得られます。
+
+```typescript
+function calculateWeightedRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
+```
+
+- **`rowOrTasks`**: 対象の `GanttRow` オブジェクトまたは `GanttTask[]` 配列
+- **戻り値**: 期間加重平均進捗率（`0` 〜 `100`）。有効な進捗を持つタスクが存在しない場合は `0`
+
+### calculateProjectProgress
+
+全行（プロジェクト全体）に含まれるすべてのタスクの期間加重平均進捗率を計算します。
+
+```typescript
+function calculateProjectProgress(rows: GanttRow[]): number
+```
+
+- **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
+- **戻り値**: プロジェクト全体の加重平均進捗率（`0` 〜 `100`）
+
+### computeCriticalPath
+
+タスク配列およびその依存関係からクリティカルパス（最も長い所要時間を持つ経路）を計算します。
+
+```typescript
+function computeCriticalPath(rows: GanttRow[]): Set<string>
+```
+
+- **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
+- **戻り値**: クリティカルパスを構成するタスクIDの `Set<string>`
+
+

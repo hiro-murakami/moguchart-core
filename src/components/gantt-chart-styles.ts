@@ -179,6 +179,8 @@ export function buildDynamicStyles(
       --minimap-text: ${colors.text};
       --minimap-viewport: ${colors.minimapViewport ?? 'rgba(59, 130, 246, 0.2)'};
       --minimap-viewport-border: ${colors.minimapViewportBorder ?? '#3b82f6'};
+      --moguchart-progress-color: ${colors.taskProgress ?? (theme === 'dark' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.18)')};
+      --moguchart-progress-handle: ${colors.taskProgressHandle ?? (theme === 'dark' ? '#60a5fa' : '#2563eb')};
     }
     .tooltip {
       background-color: ${colors.tooltipBg};

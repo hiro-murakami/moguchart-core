@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-30
+
+### Added
+
+- タスクの進捗状況（Progress）管理・追従機能を追加
+  - `GanttTask` に `progress`（0〜100 の進捗率）、`progressColor`（カスタム色）、`progressStyle`（カスタムCSSスタイル）、`progressResizable`（ドラッグ編集可否）プロパティを追加
+  - タスクバー内に進捗率に応じたインジケーター（`full`、`bottom`、`top` スタイル）を描画
+  - 進捗バー端のハンドルをドラッグして直感的に進捗率を変更できるインタラクティブ編集機能を追加（`snapStep` によるスナップ刻み設定、Esc キーによるドラッグキャンセル対応）
+  - 進捗変更ハンドルの視認性向上・UI改善（ホバー/ドラッグ時の拡大表示、ライン・ノブのスタイリング）
+  - 進捗ラベル表示機能（`showLabel`: boolean、`labelPosition`: `'inside'` | `'right'` | `'left'` | `'center'`、カスタムフォーマッタ `labelFormatter`）を追加
+  - 進捗変更完了時に発火する `task-progress-change` イベント（`TaskProgressChangeEventDetail` 型定義）を追加
+  - `GanttChartOptionProgress` 型定義および `GanttChartOption.progress` オプション（`enabled`, `editable`, `color`, `showLabel`, `labelPosition`, `labelFormatter`, `snapStep`, `indicatorPosition`）を追加
+  - テーマカラー（`ThemeColorPalette`）に `taskProgress`, `taskProgressHandle` を追加
+  - ロケール（`MoguchartLocale`）に `tooltip.progress` を追加し、ツールチップで進捗率が表示されるよう対応
+  - ミニマップ（`<gantt-minimap>`）のタスクバーに進捗率が自動的に反映・濃淡描画されるよう対応
+  - 進捗計算・正規化ユーティリティ関数を公開：`clampProgress`, `calculateRowProgress`（行・タスク配列の単純平均進捗率）, `calculateWeightedRowProgress`（期間加重平均進捗率）, `calculateProjectProgress`（プロジェクト全体の期間加重平均進捗率）
+  - デモ画面（`src/demo/main.ts`）に進捗表示・ドラッグ編集・進捗ラベル表示のトグルコントロールを追加
+  - 進捗管理機能の包括的な単体テスト（`src/__tests__/task-progress.test.ts`）を追加
+
 ## [0.11.0] - 2026-08-29
 
 ### Added

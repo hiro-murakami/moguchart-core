@@ -102,6 +102,9 @@ let weekTextAlign: 'left' | 'center' | 'right' = 'left'
 let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
 let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
 let showConnectors = true
+let enableProgress = true
+let editableProgress = true
+let showProgressLabel = true
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
@@ -243,6 +246,12 @@ const renderApp = () => {
     enableCrossRowMove,
     minimap: {
       enabled: showMinimap,
+    },
+    progress: {
+      enabled: enableProgress,
+      editable: editableProgress,
+      showLabel: showProgressLabel,
+      snapStep: 5,
     },
     snapDuration,
     showHiddenRows,
@@ -792,6 +801,21 @@ const renderApp = () => {
                 <span class="toggle-track"></span>
                 ${t.showConnectors}
               </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableProgress}" @change="${(e: Event) => { enableProgress = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableProgress}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${editableProgress}" @change="${(e: Event) => { editableProgress = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.editableProgress}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showProgressLabel}" @change="${(e: Event) => { showProgressLabel = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showProgressLabel}
+              </label>
             </div>
           </div>
 
@@ -926,6 +950,15 @@ const renderApp = () => {
             }}"
             @dependency-click="${(e: CustomEvent) => {
               console.log('Dependency clicked:', e.detail)
+            }}"
+            @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
+              const { task, progress } = e.detail
+              console.log('Task progress changed:', e.detail)
+              rows = rows.map((row) => ({
+                ...row,
+                tasks: row.tasks.map((t) => (t.id === task.id ? { ...t, progress } : t)),
+              }))
+              renderApp()
             }}"
           />
         </div>

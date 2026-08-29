@@ -50,6 +50,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 4),
         style: `background-color: ${colors.blue};`,
         labelStyle: 'font-weight: bold;',
+        progress: 100,
       },
       {
         id: 't1-2',
@@ -58,6 +59,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 12),
         style: `background-color: ${colors.purple};`,
         dependencies: ['t1-1'],
+        progress: 75,
       },
       {
         id: 't1-3',
@@ -66,6 +68,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 25),
         style: `background-color: ${colors.green};`,
         dependencies: ['t1-2'],
+        progress: 30,
       },
     ],
     markers: [
@@ -107,6 +110,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 2),
         end: d(start, 8),
         style: `background-color: ${colors.orange};`,
+        progress: 90,
       },
       {
         id: 't2-2',
@@ -115,6 +119,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 20),
         style: `background-color: ${colors.pink};`,
         dependencies: ['t2-1', 't1-2'], // Row1の設計が完了後に着手（行間依存）
+        progress: 45,
       },
       {
         id: 't2-3',
@@ -123,6 +128,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 28),
         style: `background-color: ${colors.red};`,
         dependencies: ['t2-2'],
+        progress: 0,
       },
     ],
     markers: [
@@ -149,6 +155,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 18),
         style: `background-color: ${colors.cyan};`,
         dependencies: ['t1-1'], // Row1企画完了後に着手
+        progress: 60,
       },
       {
         id: 't3-2',
@@ -157,6 +164,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 30),
         style: `background-color: ${colors.indigo};`,
         dependencies: ['t3-1', 't2-2'], // バックエンド + フロントエンド両方完了後（合流依存）
+        progress: 10,
       },
     ],
     markers: [

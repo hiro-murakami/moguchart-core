@@ -1,4 +1,4 @@
-import type { GanttTask, TaskWithLane, ThemeColorPalette } from './types'
+import type { GanttRow, GanttTask, TaskWithLane, ThemeColorPalette } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
 import { THEME_COLORS } from './theme'
@@ -217,3 +217,86 @@ export const formatDuration = (start: Date, end: Date, locale?: MoguchartLocale)
   }
   return result || loc.duration.zero
 }
+
+/**
+ * 進捗率を 0〜100 の範囲に正規化します。
+ * @param value 入力値
+ * @param precision 丸め桁数 (デフォルト: 1)
+ * @returns 0〜100 の数値
+ */
+export function clampProgress(value: number, precision = 1): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0
+  }
+  const factor = Math.pow(10, precision)
+  const rounded = Math.round(value * factor) / factor
+  return Math.min(100, Math.max(0, rounded))
+}
+
+/**
+ * 行内またはタスク配列の単純平均進捗率を計算します。
+ * 進捗率が未指定のタスクは除外して計算します。進捗のあるタスクが存在しない場合は 0 を返します。
+ * @param rowOrTasks 対象の行またはタスク配列
+ * @returns 平均進捗率 (0〜100)
+ */
+export function calculateRowProgress(rowOrTasks: GanttRow | GanttTask[]): number {
+  const tasks = Array.isArray(rowOrTasks) ? rowOrTasks : rowOrTasks.tasks || []
+  const tasksWithProgress = tasks.filter(
+    (t) => typeof t.progress === 'number' && !Number.isNaN(t.progress),
+  )
+  if (tasksWithProgress.length === 0) {
+    return 0
+  }
+  const total = tasksWithProgress.reduce((sum, t) => sum + clampProgress(t.progress!), 0)
+  return clampProgress(total / tasksWithProgress.length)
+}
+
+/**
+ * 行内またはタスク配列の期間（時間）に応じた加重平均進捗率を計算します。
+ * 進捗率が未指定のタスクは除外して計算します。
+ * @param rowOrTasks 対象の行またはタスク配列
+ * @returns 加重平均進捗率 (0〜100)
+ */
+export function calculateWeightedRowProgress(rowOrTasks: GanttRow | GanttTask[]): number {
+  const tasks = Array.isArray(rowOrTasks) ? rowOrTasks : rowOrTasks.tasks || []
+  const tasksWithProgress = tasks.filter(
+    (t) => typeof t.progress === 'number' && !Number.isNaN(t.progress),
+  )
+  if (tasksWithProgress.length === 0) {
+    return 0
+  }
+
+  let totalDuration = 0
+  let weightedProgressSum = 0
+
+  for (const task of tasksWithProgress) {
+    const duration = Math.max(task.end.getTime() - task.start.getTime(), 1)
+    totalDuration += duration
+    weightedProgressSum += clampProgress(task.progress!) * duration
+  }
+
+  if (totalDuration === 0) {
+    return 0
+  }
+
+  return clampProgress(weightedProgressSum / totalDuration)
+}
+
+/**
+ * 全行に含まれるタスクの期間加重平均進捗率を計算します。
+ * @param rows ガントチャートの全行
+ * @returns プロジェクト全体の加重平均進捗率 (0〜100)
+ */
+export function calculateProjectProgress(rows: GanttRow[]): number {
+  if (!rows || rows.length === 0) {
+    return 0
+  }
+  const allTasks: GanttTask[] = []
+  for (const row of rows) {
+    if (row.tasks && row.tasks.length > 0) {
+      allTasks.push(...row.tasks)
+    }
+  }
+  return calculateWeightedRowProgress(allTasks)
+}
+

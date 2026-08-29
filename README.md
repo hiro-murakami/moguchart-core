@@ -32,7 +32,15 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - ロケール対応（日本語・英語、カスタムロケールも可能）
 - 🏁 **マイルストーン**: チャート上にマイルストーン（縦線＋名前バッジ）を表示
 - 📍 **マーカー**: 行のタイムライン上に三角形アイコンとラベルで目印を表示
-- 🗺️ **ミニマップ（Overview Minimap）**: チャート全体の鳥瞰プレビュー表示、ドラッグによるスクロール同期・パン操作、クリックジャンプ、折りたたみ対応
+- 🗺️ **ミニマップ（Overview Minimap）**: チャート全体の鳥瞰プレビュー表示、ドラッグによるスクロール同期・パン操作、クリックジャンプ、ドラッグ移動・リサイズ、折りたたみ対応
+- 📊 **タスク進捗管理**:
+  - タスクバー上への進捗バー（オーバーレイ/下部・上部インジケーター）描画
+  - ハンドル操作による直感的な進捗率のドラッグ編集（スナップ対応）
+  - 進捗ラベル表示（配置カスタマイズ・カスタムフォーマット対応）
+  - 進捗変更イベント（`task-progress-change`）の発火
+  - 行・プロジェクト全体の進捗率計算ユーティリティ関数
+  - ミニマップへの進捗状況の自動反映
+- 📷 **エクスポート**: PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、スクロール位置保持）
 - ✨ **高度な連携**:
   - 外部からのドラッグ＆ドロップによるタスク作成
   - タスクの移動/コピーモード
@@ -407,6 +415,57 @@ const option = {
 }
 ```
 
+### タスク進捗管理
+
+各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。`editable: true` を設定すると、進捗ハンドルのドラッグによる直感的な進捗率変更が可能になります。
+
+```javascript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+const option = {
+  progress: {
+    enabled: true,
+    editable: true,       // ドラッグによる進捗編集を有効化
+    showLabel: true,      // 進捗ラベルを表示 (例: "50%")
+    labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
+    snapStep: 5,          // 5%刻みでスナップ
+    indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
+  },
+}
+
+// 進捗変更イベント
+chart.addEventListener('task-progress-change', (e) => {
+  const { task, progress, originalProgress, cancelled } = e.detail
+  console.log(`Task ${task.id}: ${originalProgress}% -> ${progress}%`)
+})
+
+// 行・プロジェクト全体の進捗率計算
+const rowAvg = calculateRowProgress(row)
+const projectProgress = calculateProjectProgress(rows)
+```
+
+### ミニマップ（Overview Minimap）
+
+チャート全体のタスク配置やマイルストーンを鳥瞰できるフローティング小窓型のミニマップを表示できます。
+
+```javascript
+const option = {
+  minimap: {
+    enabled: true,
+    width: 240,
+    preserveAspectRatio: true,
+    resizable: true,
+    position: { right: 16, bottom: 16 }, // 右下基準の初期位置 (px)
+    opacity: 0.85,
+  },
+}
+```
+
 ### ロケール
 
 ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。
@@ -442,6 +501,29 @@ document.addEventListener('mousemove', (e) => {
     console.log(`行: ${result.rowId}, 日付: ${result.date}`)
   }
 })
+```
+
+#### exportImage
+
+ガントチャート全体を PNG 画像または PDF 形式でエクスポートします。
+
+```javascript
+// PNG画像として自動ダウンロード
+await chart.exportImage('png', {
+  fileName: 'gantt-chart.png',
+  download: true,
+})
+
+// PDFとしてBlobを取得
+const pdfBlob = await chart.exportImage('pdf')
+```
+
+#### ズーム操作 (zoomTo / zoomToFit / resetZoom)
+
+```javascript
+chart.zoomTo(50)    // 1日あたり50pxにズーム
+chart.zoomToFit()   // 全タスクが表示領域に収まるよう自動調整
+chart.resetZoom()   // 初期設定のスケールにリセット
 ```
 
 ### キーボード操作

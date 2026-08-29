@@ -312,6 +312,15 @@ export class GanttChartElement extends LitElement {
           const duration = Math.round(
             (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
           )
+          const hasProgress = typeof this.tooltip.task.progress === 'number' && !Number.isNaN(this.tooltip.task.progress)
+          const progressRow = hasProgress
+            ? html`<div class="tooltip-row">
+                ${locale.tooltip.progress
+                  ? locale.tooltip.progress(Math.round(this.tooltip.task.progress!))
+                  : `進捗: ${Math.round(this.tooltip.task.progress!)}%`}
+              </div>`
+            : ''
+
           if (isMonthlyMode) {
             const endForDisplay = new Date(this.tooltip.task.end)
             endForDisplay.setMonth(endForDisplay.getMonth() - 1)
@@ -322,6 +331,7 @@ export class GanttChartElement extends LitElement {
                   ${locale.yearMonthFormat(this.tooltip.task.start)} - ${locale.yearMonthFormat(endForDisplay)}
                 </div>
                 <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+                ${progressRow}
               `,
               tooltipEl,
             )
@@ -333,6 +343,7 @@ export class GanttChartElement extends LitElement {
                   ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
                 </div>
                 <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+                ${progressRow}
               `,
               tooltipEl,
             )

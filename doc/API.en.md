@@ -150,6 +150,17 @@ interface GanttChartOption {
     position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
     opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
   }
+  /** Progress management configuration */
+  progress?: {
+    enabled?: boolean // Whether to enable progress display (default: true)
+    editable?: boolean // Whether progress can be adjusted by dragging (default: false)
+    color?: string // Default progress bar color (CSS color string)
+    showLabel?: boolean // Whether to show progress label text (e.g. '50%') (default: false)
+    labelPosition?: 'inside' | 'right' | 'left' | 'center' // Label position (default: 'inside')
+    labelFormatter?: (progress: number, task: GanttTask) => string // Custom label format function
+    snapStep?: number // Progress snap increment during drag (default: 1)
+    indicatorPosition?: 'full' | 'bottom' | 'top' // Progress indicator display style (default: 'full')
+  }
 }
 ```
 
@@ -166,6 +177,7 @@ Custom events dispatched by the component.
 | `bar-hover`              | `BarHoverEventDetail`             | Fired when a task bar is hovered over.                                               |
 | `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
+| `task-progress-change`   | `TaskProgressChangeEventDetail`   | Fired when progress drag editing is completed (or cancelled via Esc key).           |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
 | `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | Fired when the minimap is collapsed or expanded.                                     |
@@ -328,6 +340,10 @@ interface GanttTask {
   dependencies?: string[] // IDs of dependent tasks
   movable?: 'both' | 'x' | 'y' | 'none' // Movement permission ('both': both axes, 'x': horizontal only, 'y': vertical only, 'none': disabled)
   resizable?: boolean // Whether resizing is allowed (defaults to movable setting when unset)
+  progress?: number // Progress percentage (0 - 100)
+  progressColor?: string // Custom progress bar color (CSS color string)
+  progressStyle?: string // Custom progress bar CSS style string
+  progressResizable?: boolean // Whether progress drag editing is enabled for this task
 }
 ```
 
@@ -665,6 +681,19 @@ interface TaskUpdateEventDetail extends GanttTask {
 }
 ```
 
+### TaskProgressChangeEventDetail
+
+Fired with the `task-progress-change` event when a progress drag edit finishes (or is cancelled via Esc key).
+
+```typescript
+interface TaskProgressChangeEventDetail {
+  task: GanttTask // Target task data
+  progress: number // New progress percentage (0 - 100)
+  originalProgress?: number // Progress percentage before change
+  cancelled?: boolean // Whether the operation was cancelled (e.g. via Esc key)
+}
+```
+
 ### TaskDropEventDetail
 
 ```typescript
@@ -824,6 +853,8 @@ interface ThemeColorPalette {
   minimapViewport?: string // Minimap viewport background color (optional)
   minimapViewportBorder?: string // Minimap viewport border color (optional)
   minimapTask?: string // Minimap task bar color (optional)
+  taskProgress?: string // Task progress bar color (optional)
+  taskProgressHandle?: string // Task progress drag handle color (optional)
 }
 ```
 
@@ -987,6 +1018,29 @@ interface MinimapCollapseEventDetail {
 }
 ```
 
+### GanttChartOptionProgress
+
+```typescript
+interface GanttChartOptionProgress {
+  /** Whether to enable progress display (default: true) */
+  enabled?: boolean
+  /** Whether progress can be adjusted by dragging (default: false) */
+  editable?: boolean
+  /** Default progress bar color (CSS color string) */
+  color?: string
+  /** Whether to show progress label text (e.g. '50%') (default: false) */
+  showLabel?: boolean
+  /** Progress label position ('inside' | 'right' | 'left' | 'center') (default: 'inside') */
+  labelPosition?: 'inside' | 'right' | 'left' | 'center'
+  /** Custom progress label formatter function */
+  labelFormatter?: (progress: number, task: GanttTask) => string
+  /** Progress snap step during drag editing (default: 1) */
+  snapStep?: number
+  /** Progress indicator display style ('full' | 'bottom' | 'top') (default: 'full') */
+  indicatorPosition?: 'full' | 'bottom' | 'top'
+}
+```
+
 ### MoguchartLocale
 
 Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
@@ -1020,6 +1074,8 @@ interface MoguchartLocale {
   tooltip: {
     /** Duration display (e.g., 5 → "Duration: 5 days") */
     duration: (days: number) => string
+    /** Progress percentage display (e.g., 75 → "Progress: 75%") (optional) */
+    progress?: (percent: number) => string
   }
   /** Drag overlay strings */
   dragOverlay: {
@@ -1445,9 +1501,126 @@ chart.addEventListener('minimap-move', (e) => {
   console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
 })
 
-// Listen to collapse events
+// Handling collapse (minimize) event
 chart.addEventListener('minimap-collapse', (e) => {
   const { collapsed } = e.detail
   console.log(`Minimap collapsed: ${collapsed}`)
 })
 ```
+
+## Progress Management
+
+By setting the `progress` property (`0` - `100`) on each task, you can visually display progress on the task bar.
+
+- **Progress Bar**: Renders an overlay inside the task bar matching the progress percentage (`full`, `bottom`, or `top` indicator style).
+- **Drag Editing**: Setting `option.progress.editable: true` (or `progressResizable: true` on individual tasks) enables an interactive handle at the progress edge to drag-adjust progress with `snapStep` support.
+- **Progress Labels**: Setting `option.progress.showLabel: true` displays a progress text (e.g. `50%`) at the chosen position (`inside`, `right`, `left`, `center`).
+- **Events**: Dispatches `task-progress-change` on drag completion.
+- **Minimap Integration**: Minimap automatically reflects task progress.
+
+### Example
+
+```javascript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  progress: {
+    enabled: true,
+    editable: true,
+    showLabel: true,
+    labelPosition: 'inside',
+    snapStep: 5,
+    indicatorPosition: 'full',
+  },
+}
+
+// Progress change event listener
+chart.addEventListener('task-progress-change', (e) => {
+  const { task, progress, originalProgress, cancelled } = e.detail
+  console.log(`Task ${task.id} progress: ${originalProgress}% -> ${progress}%`)
+})
+
+// Progress calculation helper functions
+const rowAvg = calculateRowProgress(row)
+const rowWeighted = calculateWeightedRowProgress(row)
+const projectProgress = calculateProjectProgress(rows)
+```
+
+## Utility Functions
+
+Helper functions exported by the package.
+
+```typescript
+import {
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+  computeCriticalPath,
+} from '@mogura/moguchart-core'
+```
+
+### clampProgress
+
+Normalizes and rounds a progress value to the range `0` - `100`.
+
+```typescript
+function clampProgress(value: number, precision?: number): number
+```
+
+- **`value`**: Input value (falls back to `0` if `NaN` or not a number)
+- **`precision`**: Decimal rounding precision (default: `1`)
+- **Returns**: Number clamped between `0` and `100`
+
+### calculateRowProgress
+
+Calculates the simple average progress rate of tasks in a specified row or task array. Tasks without progress (`undefined`) are excluded from calculation.
+
+```typescript
+function calculateRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
+```
+
+- **`rowOrTasks`**: Target `GanttRow` object or `GanttTask[]` array
+- **Returns**: Average progress percentage (`0` - `100`). Returns `0` if no tasks with progress exist
+
+### calculateWeightedRowProgress
+
+Calculates the duration-weighted average progress rate of tasks in a specified row or task array based on duration in milliseconds.
+
+```typescript
+function calculateWeightedRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
+```
+
+- **`rowOrTasks`**: Target `GanttRow` object or `GanttTask[]` array
+- **Returns**: Duration-weighted average progress percentage (`0` - `100`). Returns `0` if no tasks with progress exist
+
+### calculateProjectProgress
+
+Calculates the duration-weighted average progress rate of all tasks across the entire project.
+
+```typescript
+function calculateProjectProgress(rows: GanttRow[]): number
+```
+
+- **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
+- **Returns**: Total project duration-weighted average progress percentage (`0` - `100`)
+
+### computeCriticalPath
+
+Computes the critical path (longest duration sequence of dependent tasks) from rows and dependencies.
+
+```typescript
+function computeCriticalPath(rows: GanttRow[]): Set<string>
+```
+
+- **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
+- **Returns**: `Set<string>` containing task IDs on the critical path
+

@@ -31,6 +31,8 @@ export interface MoguchartLocale {
   tooltip: {
     /** 所要日数の表示 (例: 5 → "所要日数: 5日" / "Duration: 5 days") */
     duration: (days: number) => string
+    /** 進捗率の表示 (例: 75 → "進捗: 75%" / "Progress: 75%") (オプション) */
+    progress?: (percent: number) => string
   }
   /** ドラッグオーバーレイの文字列 */
   dragOverlay: {
@@ -68,6 +70,7 @@ export const jaLocale: MoguchartLocale = {
   },
   tooltip: {
     duration: (days) => `所要日数: ${days}日`,
+    progress: (percent) => `進捗: ${percent}%`,
   },
   dragOverlay: {
     noTitle: 'タイトルなし',
@@ -103,6 +106,7 @@ export const enLocale: MoguchartLocale = {
   },
   tooltip: {
     duration: (days) => `Duration: ${days} day${days !== 1 ? 's' : ''}`,
+    progress: (percent) => `Progress: ${percent}%`,
   },
   dragOverlay: {
     noTitle: 'No Title',

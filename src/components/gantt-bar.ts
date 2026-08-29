@@ -1,8 +1,8 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption, DependencyEndpoint } from '../core/types'
+import { customElement, property, state } from 'lit/decorators.js'
+import type { GanttTask, GanttChartOption, DependencyEndpoint, TaskProgressChangeEventDetail } from '../core/types'
 import { getPatternStyle } from '../core/patterns'
-import { dateToX, xToDate } from '../core/utils'
+import { dateToX, xToDate, clampProgress } from '../core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
 
 @customElement('gantt-bar')
@@ -19,6 +19,8 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
   @property({ type: Boolean, reflect: true }) isExporting = false
   @property({ type: Boolean, reflect: true, attribute: 'critical-path' }) isCriticalPath = false
+  @state() private _dragProgress: number | null = null
+  @state() private _isDraggingProgress = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _wasDragging = false
@@ -153,6 +155,125 @@ export class GanttBarElement extends LitElement {
     :host([isexporting]) .bar,
     :host([isexporting]) .bar * {
       text-overflow: clip !important;
+    }
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      pointer-events: none;
+      background-color: var(--moguchart-progress-color, rgba(0, 0, 0, 0.18));
+      border-radius: inherit;
+      transition: width 0.05s ease;
+      z-index: 2;
+    }
+    .progress-bar.dragging {
+      transition: none;
+    }
+    .progress-bar.indicator-bottom {
+      top: auto;
+      bottom: 0;
+      height: 4px;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+    .progress-bar.indicator-top {
+      top: 0;
+      bottom: auto;
+      height: 4px;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    .handle-progress {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      margin-left: -7px;
+      cursor: ew-resize;
+      z-index: 12;
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      user-select: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .task-group:hover .handle-progress,
+    .handle-progress.dragging {
+      opacity: 1;
+    }
+    .handle-progress-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 6px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+    }
+    .handle-progress-knob {
+      position: relative;
+      width: 8px;
+      height: 10px;
+      margin-bottom: 1px;
+      background: var(--moguchart-progress-handle, #3b82f6);
+      border: 1.5px solid #ffffff;
+      border-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .handle-progress:hover .handle-progress-knob,
+    .handle-progress.dragging .handle-progress-knob {
+      transform: scale(1.3);
+      background: #2563eb;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+    }
+    .handle-progress:hover .handle-progress-line,
+    .handle-progress.dragging .handle-progress-line {
+      background: #ffffff;
+      box-shadow: 0 0 4px rgba(59, 130, 246, 0.8);
+    }
+    .progress-label {
+      position: absolute;
+      font-size: 11px;
+      font-weight: bold;
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+      z-index: 6;
+      line-height: 1;
+    }
+    .progress-label.pos-inside {
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .progress-label.pos-center {
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .progress-label.pos-right {
+      left: calc(100% + 6px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: inherit;
+    }
+    .progress-label.pos-left {
+      right: calc(100% + 6px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: inherit;
     }
     @keyframes pop-in {
       0% {
@@ -1007,6 +1128,75 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onProgressDragStart(e: PointerEvent) {
+    e.stopPropagation()
+    e.preventDefault()
+    const target = e.currentTarget as HTMLElement
+    if (!target) return
+
+    const isReadOnly = this.option?.readOnly
+    const isProgressFeatureEnabled = this.option?.progress?.enabled !== false
+    const editable =
+      isProgressFeatureEnabled &&
+      (this.task.progressResizable !== undefined
+        ? this.task.progressResizable
+        : !isReadOnly && (this.option?.progress?.editable ?? false))
+    if (!editable) return
+
+    const currentProgress = clampProgress(this.task.progress ?? 0)
+    const originalProgress = this.task.progress
+
+    this._isDraggingProgress = true
+    this._dragProgress = currentProgress
+
+    const barEl = this.shadowRoot?.querySelector('.bar') as HTMLElement
+    const barRect = barEl ? barEl.getBoundingClientRect() : null
+    const barWidth = barRect && barRect.width > 0 ? barRect.width : 1
+    const startClientX = e.clientX
+
+    const snapStep = Math.max(1, this.option?.progress?.snapStep ?? 1)
+
+    this.setupDragEvents(
+      target,
+      e.pointerId,
+      (moveEvent) => {
+        const deltaX = moveEvent.clientX - startClientX
+        const initialPx = (currentProgress / 100) * barWidth
+        const newPx = Math.max(0, Math.min(barWidth, initialPx + deltaX))
+        let newPercent = (newPx / barWidth) * 100
+
+        if (snapStep > 1) {
+          newPercent = Math.round(newPercent / snapStep) * snapStep
+        }
+        newPercent = clampProgress(newPercent)
+
+        this._dragProgress = newPercent
+        this.requestUpdate()
+      },
+      (isCancel) => {
+        const finalProgress = isCancel
+          ? (originalProgress ?? currentProgress)
+          : (this._dragProgress ?? currentProgress)
+        this._isDraggingProgress = false
+        this._dragProgress = null
+
+        this.dispatchEvent(
+          new CustomEvent<TaskProgressChangeEventDetail>('task-progress-change', {
+            detail: {
+              task: this.task,
+              progress: finalProgress,
+              originalProgress,
+              cancelled: isCancel,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+        this.requestUpdate()
+      },
+    )
+  }
+
   private onContextMenu(e: MouseEvent) {
     // MacなどでCtrl+ドラッグ（コピー操作）を行おうとした際にコンテキストメニューが出ないようにする
     if (e.ctrlKey) {
@@ -1053,6 +1243,31 @@ export class GanttBarElement extends LitElement {
       }
     }
 
+    const isProgressFeatureEnabled = this.option.progress?.enabled !== false
+    const isProgressEditable =
+      isProgressFeatureEnabled &&
+      (this.task.progressResizable !== undefined
+        ? this.task.progressResizable
+        : !isReadOnly && (this.option.progress?.editable ?? false))
+    const rawProgress = this._isDraggingProgress ? this._dragProgress : this.task.progress
+    const hasProgressValue = typeof rawProgress === 'number' && !Number.isNaN(rawProgress)
+    const hasProgress = isProgressFeatureEnabled && (hasProgressValue || isProgressEditable)
+    const progressVal = hasProgress ? clampProgress(rawProgress ?? 0) : null
+    const indicatorPosition = this.option.progress?.indicatorPosition ?? 'full'
+    const showProgressLabel = hasProgress && hasProgressValue && this.option.progress?.showLabel === true
+    const labelPosition = this.option.progress?.labelPosition ?? 'inside'
+    const progressLabelText =
+      showProgressLabel && progressVal !== null
+        ? this.option.progress?.labelFormatter
+          ? this.option.progress.labelFormatter(progressVal, this.task)
+          : `${Math.round(progressVal)}%`
+        : ''
+    const progressColorStyle = this.task.progressColor
+      ? `background-color: ${this.task.progressColor};`
+      : this.option.progress?.color
+        ? `background-color: ${this.option.progress.color};`
+        : ''
+
     return html`
       <div
         class="task-group"
@@ -1075,10 +1290,31 @@ export class GanttBarElement extends LitElement {
           )}; ${!canMove ? 'cursor: pointer;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
         >
+          ${hasProgress && progressVal !== null && (hasProgressValue || this._isDraggingProgress)
+            ? html`<div
+                class="progress-bar ${indicatorPosition !== 'full'
+                  ? `indicator-${indicatorPosition}`
+                  : ''} ${this._isDraggingProgress ? 'dragging' : ''}"
+                style="width: ${progressVal}%; ${progressColorStyle} ${this.task.progressStyle || ''}"
+              ></div>`
+            : ''}
           ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
         </div>
         ${!this.option.customRendering?.barContent && this.task.name
           ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
+          : ''}
+        ${showProgressLabel
+          ? html`<div class="progress-label pos-${labelPosition}">${progressLabelText}</div>`
+          : ''}
+        ${isProgressEditable && progressVal !== null
+          ? html`<div
+              class="handle-progress ${this._isDraggingProgress ? 'dragging' : ''}"
+              style="left: ${progressVal}%;"
+              @pointerdown="${this.onProgressDragStart}"
+            >
+              <div class="handle-progress-line"></div>
+              <div class="handle-progress-knob"></div>
+            </div>`
           : ''}
         ${canResize
           ? html`
