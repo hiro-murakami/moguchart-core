@@ -16,6 +16,7 @@ import type {
   RowHeaderContextMenuEventDetail,
   BarSelectionChangeEventDetail,
   DependencyLineStyle,
+  TaskProgressChangeEventDetail,
 } from '../core/types'
 import type { ThemeColorPalette } from '../core/types'
 import type { MoguchartLocale } from '../core/i18n'
@@ -105,6 +106,7 @@ let showConnectors = true
 let enableProgress = true
 let editableProgress = true
 let showProgressLabel = true
+let enableMarquee = true
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
@@ -252,6 +254,9 @@ const renderApp = () => {
       editable: editableProgress,
       showLabel: showProgressLabel,
       snapStep: 5,
+    },
+    selection: {
+      marquee: enableMarquee,
     },
     snapDuration,
     showHiddenRows,
@@ -815,6 +820,11 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${showProgressLabel}" @change="${(e: Event) => { showProgressLabel = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.showProgressLabel}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableMarquee}" @change="${(e: Event) => { enableMarquee = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableMarqueeSelection}
               </label>
             </div>
           </div>

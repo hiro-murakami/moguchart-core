@@ -15,7 +15,8 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
   - Handle-based duration resizing
   - Drag & drop row reordering
   - Column header width resizing
-  - Multi-task selection & batch drag (Ctrl/Cmd + click)
+  - Marquee range selection (rubberband drag selection) for batch task selection (with Shift/Ctrl/Cmd additive selection support)
+  - Multi-task selection & batch drag (Ctrl/Cmd + click, marquee selection)
   - Double-click and right-click event handling
 - 🎨 **Highly Customizable**:
   - Custom rendering for task bars, row headers, tooltips, and drag info
@@ -483,6 +484,26 @@ chart.addEventListener('task-progress-change', (e) => {
 // Progress calculation helpers
 const rowAvg = calculateRowProgress(row)
 const projectProgress = calculateProjectProgress(rows)
+```
+
+### Marquee Range Selection (Rubberband Selection)
+
+Drag on empty background areas of the chart to select multiple task bars enclosed or intersected by the rectangular box.
+Holding `Shift`, `Ctrl`, or `Cmd` while dragging preserves previously selected tasks and adds newly intersected tasks.
+
+```javascript
+const option = {
+  selection: {
+    marquee: true,          // Enable marquee selection (default: true)
+    borderColor: '#3b82f6', // Box border color (optional)
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Box fill color (optional)
+  },
+}
+
+// Bar selection change event
+chart.addEventListener('bar-selection-change', (e) => {
+  console.log('Selected task IDs:', e.detail.selectedIds)
+})
 ```
 
 ### Overview Minimap

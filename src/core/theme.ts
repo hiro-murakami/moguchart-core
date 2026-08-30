@@ -35,6 +35,8 @@ export const THEME_COLORS: ThemeColors = {
     minimapTask: '#3b82f6',
     taskProgress: 'rgba(0, 0, 0, 0.2)',
     taskProgressHandle: '#2563eb',
+    selectionMarqueeBorder: 'rgba(59, 130, 246, 0.85)',
+    selectionMarqueeBg: 'rgba(59, 130, 246, 0.12)',
   },
   dark: {
     bg: '#1e293b',
@@ -70,5 +72,7 @@ export const THEME_COLORS: ThemeColors = {
     minimapTask: '#60a5fa',
     taskProgress: 'rgba(255, 255, 255, 0.25)',
     taskProgressHandle: '#60a5fa',
+    selectionMarqueeBorder: 'rgba(96, 165, 250, 0.85)',
+    selectionMarqueeBg: 'rgba(96, 165, 250, 0.18)',
   },
 }

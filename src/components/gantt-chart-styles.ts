@@ -156,6 +156,14 @@ export const ganttChartStyles = css`
     pointer-events: none;
     z-index: 58;
   }
+  .marquee-selection-box {
+    position: absolute;
+    border: 1px dashed var(--marquee-border, #3b82f6);
+    background-color: var(--marquee-bg, rgba(59, 130, 246, 0.15));
+    pointer-events: none;
+    z-index: 550;
+    box-sizing: border-box;
+  }
 `
 
 /**
@@ -181,6 +189,8 @@ export function buildDynamicStyles(
       --minimap-viewport-border: ${colors.minimapViewportBorder ?? '#3b82f6'};
       --moguchart-progress-color: ${colors.taskProgress ?? (theme === 'dark' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.18)')};
       --moguchart-progress-handle: ${colors.taskProgressHandle ?? (theme === 'dark' ? '#60a5fa' : '#2563eb')};
+      --marquee-border: ${colors.selectionMarqueeBorder ?? (theme === 'dark' ? 'rgba(96, 165, 250, 0.85)' : 'rgba(59, 130, 246, 0.85)')};
+      --marquee-bg: ${colors.selectionMarqueeBg ?? (theme === 'dark' ? 'rgba(96, 165, 250, 0.18)' : 'rgba(59, 130, 246, 0.12)')};
     }
     .tooltip {
       background-color: ${colors.tooltipBg};

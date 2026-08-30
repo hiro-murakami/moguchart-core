@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ガントバーの矩形範囲選択（ラバーバンド選択 / Marquee Selection）機能を追加
+  - チャート背景（日付グリッド領域）をドラッグして、矩形で囲まれた複数のタスクバーを一括選択できる機能を追加
+  - ドラッグ中に交差するタスクがリアルタイムにハイライト選択される AABB（Axis-Aligned Bounding Box）交差判定を実装
+  - Shift / Ctrl / Cmd キーを押しながらのドラッグ操作による追加選択（複数選択の累積）に対応
+  - 修飾キーなしの通常ドラッグ時は以前の選択をリセットして範囲内タスクのみを選択
+  - ドラッグ中にチャート端に達した際のオートスクロール（自動スクロール）機能に対応
+  - 単なるクリック操作（移動量4px未満）との競合を防ぎ、背景クリックによる選択解除とスムーズに共存
+  - `GanttChartOptionSelection` 型定義および `GanttChartOption.selection` オプション（`marquee`, `borderColor`, `backgroundColor`）を追加
+  - テーマカラー（`ThemeColorPalette`）に `selectionMarqueeBorder`, `selectionMarqueeBg` を追加（Light / Dark テーマごとの最適色を定義）
+  - 選択完了時に `bar-selection-change` イベントを発火
+  - 矩形選択された複数タスクの一括ドラッグ移動、キーボード移動（Shift+矢印キー）、一括削除（Deleteキー）と完全に連携
+  - デモ画面（`src/demo/main.ts`）に矩形範囲選択のトグルコントロールを追加
+  - 矩形範囲選択機能の包括的な単体テスト（`src/__tests__/gantt-chart-marquee-selection.test.ts`）を追加
 - タスクの進捗状況（Progress）管理・追従機能を追加
   - `GanttTask` に `progress`（0〜100 の進捗率）、`progressColor`（カスタム色）、`progressStyle`（カスタムCSSスタイル）、`progressResizable`（ドラッグ編集可否）プロパティを追加
   - タスクバー内に進捗率に応じたインジケーター（`full`、`bottom`、`top` スタイル）を描画

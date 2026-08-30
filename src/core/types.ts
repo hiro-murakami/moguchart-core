@@ -433,6 +433,20 @@ export interface GanttChartOption {
   minimap?: GanttChartOptionMinimap
   /** 進捗管理機能の設定 */
   progress?: GanttChartOptionProgress
+  /** タスク選択に関する設定 */
+  selection?: GanttChartOptionSelection
+}
+
+/**
+ * タスク選択・矩形範囲選択に関するオプション
+ */
+export interface GanttChartOptionSelection {
+  /** 矩形範囲選択（ラバーバンド選択）を有効にするかどうか (デフォルト: true) */
+  marquee?: boolean
+  /** 矩形選択枠の色 (CSSカラー文字列)。未指定時はテーマ色 */
+  borderColor?: string
+  /** 矩形選択背景の色 (CSSカラー文字列)。未指定時はテーマ色 */
+  backgroundColor?: string
 }
 
 /**
@@ -772,6 +786,10 @@ export interface ThemeColorPalette {
   taskProgress?: string
   /** タスク進捗変更ハンドルの描画色 (オプション) */
   taskProgressHandle?: string
+  /** 矩形範囲選択枠の色 (オプション) */
+  selectionMarqueeBorder?: string
+  /** 矩形範囲選択背景の色 (オプション) */
+  selectionMarqueeBg?: string
 }
 
 /**

@@ -15,7 +15,8 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - ハンドル操作による期間リサイズ
   - ドラッグ＆ドロップによる行の並び替え
   - 列ヘッダーの幅リサイズ
-  - 複数タスクの選択＆一括ドラッグ（Ctrl/Cmd + クリック）
+  - 矩形範囲選択（ラバーバンドドラッグ選択）による複数タスク一括選択（Shift/Ctrl/Cmdキーでの追加選択対応）
+  - 複数タスクの選択＆一括ドラッグ（Ctrl/Cmd + クリック、矩形選択）
   - ダブルクリックや右クリックイベントのハンドリング
 - 🎨 **高度なカスタマイズ**:
   - タスクバー、行ヘッダー、ツールチップ、ドラッグ情報のコンテンツを自由にレンダリング可能
@@ -447,6 +448,26 @@ chart.addEventListener('task-progress-change', (e) => {
 // 行・プロジェクト全体の進捗率計算
 const rowAvg = calculateRowProgress(row)
 const projectProgress = calculateProjectProgress(rows)
+```
+
+### 矩形範囲選択（ラバーバンド選択）
+
+チャートの空白背景領域をマウスでドラッグすることで、矩形に重なる複数のタスクバーを一括選択できます。
+`Shift`、`Ctrl`、または `Cmd` キーを押しながらドラッグすると、既存の選択を保持したまま追加選択できます。
+
+```javascript
+const option = {
+  selection: {
+    marquee: true,          // 矩形範囲選択を有効化 (デフォルト: true)
+    borderColor: '#3b82f6', // 選択枠線の色 (オプション)
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // 選択背景色 (オプション)
+  },
+}
+
+// バー選択変更イベント
+chart.addEventListener('bar-selection-change', (e) => {
+  console.log('Selected task IDs:', e.detail.selectedIds)
+})
 ```
 
 ### ミニマップ（Overview Minimap）

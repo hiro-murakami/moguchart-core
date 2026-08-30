@@ -29,6 +29,7 @@ export interface DemoTexts {
   enableProgress: string
   editableProgress: string
   showProgressLabel: string
+  enableMarqueeSelection: string
   // セクションタイトル
   sectionCalendar: string
   sectionBehavior: string
@@ -124,6 +125,7 @@ export const jaTexts: DemoTexts = {
   enableProgress: '進捗表示',
   editableProgress: '進捗ドラッグ編集',
   showProgressLabel: '進捗ラベル表示',
+  enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
   sectionCalendar: 'カレンダー表示',
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
@@ -281,6 +283,7 @@ export const enTexts: DemoTexts = {
   enableProgress: 'Show Progress',
   editableProgress: 'Editable Progress',
   showProgressLabel: 'Show Progress Label',
+  enableMarqueeSelection: 'Marquee Selection',
   sectionCalendar: 'Calendar',
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',
