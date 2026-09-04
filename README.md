@@ -339,6 +339,17 @@ chart.addEventListener('row-reordered', (e) => {
 })
 ```
 
+### 行を跨いだタスク移動の制御 (enableCrossRowMove)
+
+デフォルトでは、タスクバーを上下にドラッグすることで別の行へ移動できます（`enableCrossRowMove: true`）。`false` に設定すると同一行内での日付移動のみに制限されます。
+
+```javascript
+const option = {
+  enableCrossRowMove: false, // 行間移動を無効化（横方向の移動のみに限定）
+  // ...
+}
+```
+
 ### 複数タスクの選択＆一括操作
 
 `Ctrl`（Mac: `Cmd`）キーを押しながらタスクバーをクリックして複数選択し、一括でドラッグ移動できます。
@@ -403,14 +414,16 @@ const option = {
 
 ### 依存関係線の設定
 
-`dependency` オプションで依存関係線の表示をカスタマイズできます。矢印の表示/非表示や大きさを制御できます。
+`dependency` オプションで依存関係線の表示をカスタマイズできます。矢印の表示/非表示や大きさ、接続コネクターの表示、最長チェーン（クリティカルパス）の自動検出ハイライトを制御できます。
 右→左方向の依存関係では自動的にS字カーブで描画され、接触箇所は常に水平に接続します。
 
 ```javascript
 const option = {
   dependency: {
-    showArrows: true,  // 矢印を表示するかどうか (デフォルト: true)
-    arrowSize: 12,     // 矢印の大きさ (px、デフォルト: 8)
+    showArrows: true, // 矢印を表示するかどうか (デフォルト: true)
+    arrowSize: 10, // 矢印の大きさ (px、デフォルト: 8)
+    showConnectors: true, // コネクター接続ポイント（丸印）を表示するかどうか (デフォルト: true)
+    showCriticalPath: true, // クリティカルパス（最長チェーン）を自動計算しハイライト表示
   },
   // ...
 }
@@ -541,10 +554,36 @@ const pdfBlob = await chart.exportImage('pdf')
 
 #### ズーム操作 (zoomTo / zoomToFit / resetZoom)
 
+`zoom` オプションを有効にすることで、Ctrl/Cmd + マウスホイールによるズームイン・ズームアウトが可能になります。また、メソッドによる動的なズーム制御にも対応しています。
+
 ```javascript
+const option = {
+  zoom: {
+    enabled: true, // ズーム機能を有効化 (デフォルト: false)
+    min: 5,        // 最小 pxPerDay (または pxPerMonth)
+    max: 150,      // 最大 pxPerDay (または pxPerMonth)
+    step: 1.2,     // 1回あたりのズーム倍率
+  },
+}
+
+// プログラムによるズーム操作
 chart.zoomTo(50)    // 1日あたり50pxにズーム
 chart.zoomToFit()   // 全タスクが表示領域に収まるよう自動調整
 chart.resetZoom()   // 初期設定のスケールにリセット
+
+// ズーム変更イベント
+chart.addEventListener('zoom-change', (e) => {
+  console.log('変更後のスケール:', e.detail.pxPerDay || e.detail.pxPerMonth)
+})
+```
+
+#### getRowPositions
+
+仮想コンテナ内の各行のY座標レイアウト情報（`top`, `height`, `bottom`）の配列を取得します。
+
+```javascript
+const positions = chart.getRowPositions()
+console.log('行レイアウト情報:', positions)
 ```
 
 ### キーボード操作

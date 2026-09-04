@@ -2,53 +2,60 @@
 
 [日本語](./README.md) | [Demo](https://moguchart-core.vercel.app/)
 
-A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works with Vue, React, Angular, Svelte, and any other framework.
+A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works seamlessly with Vue, React, Angular, Svelte, and any other modern web framework.
 
-- **Demo**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **Online Demo**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **npm Package**: [@mogura/moguchart-core](https://www.npmjs.com/package/@mogura/moguchart-core)
 
 ## Features
 
-- 🚀 **Framework-agnostic**: Built as Web Components (Custom Elements), works in any environment.
-- ⚡ **Virtual Scrolling**: Smooth performance even with large numbers of tasks and rows.
-- 🖱️ **Interactive**:
-  - Drag & drop task movement (including cross-row moves)
-  - Handle-based duration resizing
+- 🚀 **Framework-agnostic**: Built as standard Web Components (Custom Elements), easily integrated into any frontend framework.
+- ⚡ **Virtual Scrolling**: Smooth 60fps rendering even with extensive tasks and rows.
+- 🖱️ **Rich Interactive Controls**:
+  - Drag & drop task movement (with optional cross-row vertical movement)
+  - Handle-based task duration resizing
   - Drag & drop row reordering
   - Column header width resizing
-  - Marquee range selection (rubberband drag selection) for batch task selection (with Shift/Ctrl/Cmd additive selection support)
-  - Multi-task selection & batch drag (Ctrl/Cmd + click, marquee selection)
+  - Marquee selection (rubberband drag selection) for batch task selection (with Shift / Ctrl / Cmd additive selection support)
+  - Multi-task selection and synchronized batch dragging (Ctrl / Cmd + click, marquee selection)
+  - Safe drag cancellation and snapback when cursor exits chart boundaries
   - Double-click and right-click event handling
 - 🎨 **Highly Customizable**:
-  - Custom rendering for task bars, row headers, tooltips, and drag info
-  - Light/Dark/System theme switching + custom color themes
-  - Task bar fill patterns (13 types including stripes, dots, checkerboard, etc.)
-  - CSS styling
-- 🔗 **Dependency Visualization**: Curved lines with arrows showing task dependencies (S-curve support for reverse direction). Automatic critical path detection and highlighting
-- 📅 **Flexible Calendar**:
+  - Custom rendering for task bars, row headers, row header tooltips, tooltips, and drag info overlays
+  - Light / Dark / System theme switching + custom color palettes
+  - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
+  - Native CSS variable-driven styling
+- 🔗 **Dependency Visualization**:
+  - Smooth curved lines with directional arrows showing task dependencies
+  - Automatic S-curve calculation for reverse-direction dependencies
+  - Proximity connector toggle (`showConnectors`)
+  - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
+- 📅 **Flexible Calendar & Timeline**:
   - Day / Week / Month view switching
-  - Adjustable zoom level (pixels per day or per month) and display period
-  - Current time line with badge (auto-refresh support)
+  - Dynamic zoom levels (`pxPerDay` or `pxPerMonth`) with smooth mouse-wheel zoom support
+  - Current time indicator line with date badge (auto-refresh support)
   - Custom holiday detection logic
   - Configurable week start day
-  - Locale support (Japanese, English, and custom locales)
-- 🏁 **Milestones**: Display milestones (vertical line + name badge) on the chart
-- 📍 **Markers**: Show triangle icons with labels on row timelines
-- 🗺️ **Overview Minimap**: Bird's-eye preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move & resize, and collapsible floating window
+  - Built-in internationalization (Japanese, English, and custom locale extensibility)
+- 🏁 **Milestones**: Display key milestones with vertical markers and customizable badges.
+- 📍 **Markers**: Place labeled triangle marker indicators on individual row timelines.
+- 🗺️ **Overview Minimap**: Floating bird's-eye canvas preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move, edge drag-resizing, opacity slider, and collapsible window state.
 - 📊 **Task Progress Management**:
   - Task bar progress overlay (full, bottom, or top indicator styles)
-  - Interactive drag-adjust handle for quick progress modification (with snap support)
+  - Interactive drag-adjust handle for quick progress modification (with snap increments)
   - Configurable progress labels (custom positioning & formatters)
   - `task-progress-change` custom event
-  - Progress calculation utility functions (simple & weighted row/project averages)
+  - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
-- 📷 **Export**: Export full Gantt chart to PNG image or PDF format (with automatic download support and scroll preservation)
+- 📷 **High-Fidelity Export**: Export the full Gantt chart to PNG image or multi-page PDF documents (with scroll position preservation and auto-download support).
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
-  - Task move/copy mode
-  - Snap feature (grid snap by time unit, automatic monthly snap in month view)
-  - `hitTest` method for getting row/date from coordinates
+  - Task move / copy modes
+  - Snap feature (time unit grid snapping, automatic monthly boundary snap in month view)
+  - `hitTest` method for calculating row ID and datetime from screen coordinates
   - Programmatic task selection + auto-scroll (`selectTask`)
-- ⌨️ **Keyboard Operations**: Arrow key navigation & selection, Shift+Arrow task movement, Delete key deletion
+  - Row layout coordinates inspection (`getRowPositions`)
+- ⌨️ **Keyboard Navigation**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace deletion.
 
 ## Installation
 
@@ -56,22 +63,28 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works w
 pnpm add @mogura/moguchart-core
 # or
 npm install @mogura/moguchart-core
+# or
+yarn add @mogura/moguchart-core
 ```
 
 ## API Reference
 
-See [API.en.md](./doc/API.en.md) for a detailed API reference.
+For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.en.md)](./doc/API.en.md) or the [Japanese API Reference (API.md)](./doc/API.md).
 
 ## Usage with Vue.js
 
-Example using Vue.js (Vue 3).
-When using Web Components, you may need to configure your build tool (e.g., `vite.config.ts`) to recognize custom elements.
+Example using Vue 3 (Composition API / `<script setup>`).
+When using Web Components in Vue, configure `compilerOptions.isCustomElement` in `vite.config.ts` to recognize `gantt-chart`.
 
 ```html
 <script setup lang="ts">
   import { ref } from 'vue'
   import '@mogura/moguchart-core'
-  import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
+  import type {
+    GanttRow,
+    GanttChartOption,
+    TaskUpdateEventDetail,
+  } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -81,8 +94,9 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
         {
           id: 't-1',
           name: 'Task 1',
-          start: new Date('2024-01-01'),
-          end: new Date('2024-01-05'),
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-05'),
+          progress: 60,
           style: 'background-color: #60a5fa',
         },
       ],
@@ -90,7 +104,7 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
         {
           id: 'marker-1',
           name: 'Review Deadline',
-          date: new Date('2024-01-03'),
+          date: new Date('2025-01-03'),
           type: 'triangle-down',
           color: '#ef4444',
         },
@@ -100,15 +114,15 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
 
   const option = ref<GanttChartOption>({
     calendar: {
-      start: new Date('2024-01-01'),
-      end: new Date('2024-03-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-03-31'),
       pxPerDay: 30,
       showCurrentTime: true,
       milestones: [
         {
           id: 'ms-1',
           name: 'Release',
-          start: new Date('2024-02-01'),
+          start: new Date('2025-02-01'),
           color: '#8b5cf6',
         },
       ],
@@ -116,6 +130,18 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
     bar: { height: 28 },
     rowHeader: { width: 200 },
     theme: 'system',
+    enableCrossRowMove: true,
+    progress: {
+      enabled: true,
+      editable: true,
+      showLabel: true,
+    },
+    selection: {
+      marquee: true,
+    },
+    minimap: {
+      enabled: true,
+    },
   })
 
   const handleTaskUpdate = (e: Event) => {
@@ -125,23 +151,31 @@ When using Web Components, you may need to configure your build tool (e.g., `vit
 </script>
 
 <template>
-  <div style="height: 500px;">
-    <gantt-chart :rows="rows" :option="option" @task-update="handleTaskUpdate"></gantt-chart>
+  <div style="height: 600px;">
+    <gantt-chart
+      :rows="rows"
+      :option="option"
+      @task-update="handleTaskUpdate"
+    ></gantt-chart>
   </div>
 </template>
 ```
 
 ## Usage with React
 
-Example using React.
-Since Web Components require direct property and event handling, use `ref` for implementation.
+Example using React (TypeScript).
+Since Web Components interact via DOM properties and native event listeners, use a `ref` to bind complex objects and events.
 
 ```tsx
 import { useEffect, useRef, useState } from 'react'
 import '@mogura/moguchart-core'
-import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
+import type {
+  GanttRow,
+  GanttChartOption,
+  TaskUpdateEventDetail,
+} from '@mogura/moguchart-core'
 
-// Type definition for TypeScript
+// Type definition for JSX Custom Element
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -161,8 +195,9 @@ export default function App() {
         {
           id: 't-1',
           name: 'Task 1',
-          start: new Date('2024-01-01'),
-          end: new Date('2024-01-05'),
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-05'),
+          progress: 50,
           style: 'background-color: #60a5fa',
         },
       ],
@@ -170,7 +205,7 @@ export default function App() {
         {
           id: 'marker-1',
           name: 'Review Deadline',
-          date: new Date('2024-01-03'),
+          date: new Date('2025-01-03'),
           type: 'triangle-down',
           color: '#ef4444',
         },
@@ -180,15 +215,15 @@ export default function App() {
 
   const [option] = useState<GanttChartOption>({
     calendar: {
-      start: new Date('2024-01-01'),
-      end: new Date('2024-03-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-03-31'),
       pxPerDay: 30,
       showCurrentTime: true,
       milestones: [
         {
           id: 'ms-1',
           name: 'Release',
-          start: new Date('2024-02-01'),
+          start: new Date('2025-02-01'),
           color: '#8b5cf6',
         },
       ],
@@ -196,17 +231,28 @@ export default function App() {
     bar: { height: 28 },
     rowHeader: { width: 200 },
     theme: 'system',
+    enableCrossRowMove: true,
+    progress: {
+      enabled: true,
+      editable: true,
+    },
+    selection: {
+      marquee: true,
+    },
+    minimap: {
+      enabled: true,
+    },
   })
 
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
 
-    // Set properties
+    // Bind properties
     chart.rows = rows
     chart.option = option
 
-    // Set up event listeners
+    // Bind event listeners
     const handleTaskUpdate = (e: Event) => {
       const detail = (e as CustomEvent<TaskUpdateEventDetail>).detail
       console.log('Task updated:', detail)
@@ -220,7 +266,7 @@ export default function App() {
   }, [rows, option])
 
   return (
-    <div style={{ height: '500px' }}>
+    <div style={{ height: '600px' }}>
       <gantt-chart ref={chartRef}></gantt-chart>
     </div>
   )
@@ -231,7 +277,7 @@ export default function App() {
 
 ### Themes
 
-Three theme modes are supported: light, dark, and system. Individual colors can be overridden using `customTheme`.
+Three theme modes are supported: `light`, `dark`, and `system` (automatic OS preference). Individual color tokens can be overridden using `customTheme`.
 
 ```javascript
 const option = {
@@ -240,75 +286,15 @@ const option = {
     bg: '#1a1a2e',
     text: '#e0e0e0',
     currentTimeLine: '#ff6b6b',
+    criticalPath: '#ef4444',
   },
   // ...
-}
-```
-
-### Dependency Line Settings
-
-Customize the dependency line display with the `dependency` option. Control arrow visibility and size.
-Reverse-direction (right-to-left) dependencies are automatically rendered with S-curves, with horizontal connections at contact points.
-
-```javascript
-const option = {
-  dependency: {
-    showArrows: true, // Show arrows (default: true)
-    arrowSize: 12, // Arrow size in px (default: 8)
-  },
-  // ...
-}
-```
-
-### Internationalization (i18n)
-
-moguchart-core provides built-in locale support. Japanese is the default locale for backward compatibility. Switch to English or create custom locales.
-
-```javascript
-import { enLocale } from '@mogura/moguchart-core'
-
-const option = {
-  locale: enLocale,
-  // ...
-}
-```
-
-To create a custom locale, implement the `MoguchartLocale` interface:
-
-```typescript
-import type { MoguchartLocale } from '@mogura/moguchart-core'
-
-const frLocale: MoguchartLocale = {
-  monthFormat: 'MMM YYYY',
-  monthRowFormat: 'MMM',
-  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
-  timeUnitDateFormat: (d) => `${d.getDate()} ${['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'][d.getMonth()]} ${d.getFullYear()}`,
-  dateTimeFormat: (d) => {
-    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
-    const h = d.getHours()
-    const m = d.getMinutes()
-    if (h === 0 && m === 0) return date
-    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-  },
-  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
-  duration: {
-    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
-    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
-    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
-    zero: '0 minute',
-  },
-  tooltip: { duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}` },
-  dragOverlay: {
-    noTitle: 'Sans titre',
-    moveTo: (name) => `Déplacer vers: ${name}`,
-    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
-  },
 }
 ```
 
 ### Milestones
 
-Pass an array of milestones to `calendar.milestones` to display vertical lines and badges on the chart. Hover effects transition opacity on mouseover.
+Pass an array of milestone definitions to `calendar.milestones` to render vertical milestone lines with name badges across the chart. Hover effects provide smooth visual feedback.
 
 ```javascript
 option.calendar.milestones = [
@@ -330,16 +316,14 @@ option.calendar.milestones = [
 
 ### Markers
 
-Pass an array of markers to each row's `markers` property to display triangle icons with labels on the timeline.
+Add markers to any row's `markers` property to display triangle icons with text labels along the timeline.
 
 ```javascript
 const rows = [
   {
     id: 'row-1',
     name: 'Task A',
-    tasks: [
-      /* ... */
-    ],
+    tasks: [/* ... */],
     markers: [
       {
         id: 'marker-1',
@@ -347,6 +331,7 @@ const rows = [
         date: new Date('2025-04-10'),
         anchor: 'end',
         type: 'triangle-right',
+        fontSize: 'sm', // 'xs' | 'sm' | 'md' | 'lg' | 'xl'
         color: '#ef4444',
       },
     ],
@@ -356,7 +341,7 @@ const rows = [
 
 ### Task Bar Patterns
 
-Apply 13 types of fill patterns to task bars. Preset constants are also available.
+Apply any of the 13 built-in SVG patterns to task bars. Preset constants are exported for type safety.
 
 ```javascript
 import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
@@ -364,20 +349,21 @@ import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
 const task = {
   id: 't-1',
   name: 'WIP',
-  start: new Date('2024-01-01'),
-  end: new Date('2024-01-05'),
+  start: new Date('2025-01-01'),
+  end: new Date('2025-01-05'),
   style: 'background-color: #60a5fa',
-  pattern: PATTERN_DIAGONAL_STRIPE, // Use preset
-  // or specify directly:
+  pattern: PATTERN_DIAGONAL_STRIPE, // Using preset
+  // or specify custom pattern:
   // pattern: { type: 'checkerboard', color: '#ffffff80' }
 }
 ```
 
-Available patterns: `diagonal-stripe` `diagonal-stripe-thin` `diagonal-stripe-thick` `diagonal-stripe-reverse` `vertical-stripe` `horizontal-stripe` `checkerboard` `dots` `dots-dense` `triangle` `circle` `grid` `diagonal-grid`
+Available pattern types:
+`diagonal-stripe`, `diagonal-stripe-thin`, `diagonal-stripe-thick`, `diagonal-stripe-reverse`, `vertical-stripe`, `horizontal-stripe`, `checkerboard`, `dots`, `dots-dense`, `triangle`, `circle`, `grid`, `diagonal-grid`.
 
 ### Row Reordering
 
-Set `enableRowReordering: true` to enable drag & drop row reordering.
+Set `enableRowReordering: true` to allow users to reorder rows via drag & drop.
 
 ```javascript
 const option = {
@@ -390,15 +376,26 @@ chart.addEventListener('row-reordered', (e) => {
 })
 ```
 
+### Cross-Row Task Movement (`enableCrossRowMove`)
+
+By default, dragging a task bar permits moving it vertically across different rows (`enableCrossRowMove: true`). Set this option to `false` to restrict movement strictly to the horizontal timeline of its original row.
+
+```javascript
+const option = {
+  enableCrossRowMove: false, // Restrict task drag movement to the same row
+  // ...
+}
+```
+
 ### Multi-Task Selection & Batch Operations
 
-Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks, then drag them together.
+Hold `Ctrl` (macOS: `Cmd`) and click task bars, or use **Marquee Selection** to select multiple tasks. Once selected, dragging any selected task moves all of them collectively while preserving their relative dates.
 
 ```javascript
 chart.addEventListener('task-update', (e) => {
   const detail = e.detail
   if (!detail.isDragging && detail.selectedTaskIds?.length > 1) {
-    // Multi-selection drag drop: apply same dx to all selected tasks
+    // Drop event for multi-task selection
     for (const taskId of detail.selectedTaskIds) {
       applyDxToTask(taskId, detail.dx)
     }
@@ -408,11 +405,11 @@ chart.addEventListener('task-update', (e) => {
 
 ### Snap Feature
 
-Control the snap interval when dragging tasks with `snapDuration` (in minutes). When using monthly view mode (`pxPerMonth`), snapping is automatically enforced at monthly boundaries.
+Control the time-snapping interval during drag movement and resizing via `snapDuration` (in minutes). When using monthly view mode (`pxPerMonth`), snapping automatically aligns to month boundaries.
 
 ```javascript
 const option = {
-  snapDuration: 60, // Snap every hour (default: 1440 = 1 day)
+  snapDuration: 60, // Snap to 1-hour increments (default: 1440 = 1 day)
   // ...
 }
 ```
@@ -421,7 +418,7 @@ const option = {
 
 #### Week View Mode
 
-Set `calendar.showWeeks: true` for a two-row calendar header with week numbers. This mode is enabled automatically when `pxPerDay` is less than 20.
+Set `calendar.showWeeks: true` to display a two-tiered calendar header with week numbers. Automatically activates when `pxPerDay` is under 20.
 
 ```javascript
 const option = {
@@ -438,7 +435,7 @@ const option = {
 
 #### Monthly View Mode
 
-Set `calendar.pxPerMonth` to render each month at a fixed equal width. Snapping is automatically enforced at monthly boundaries.
+Set `calendar.pxPerMonth` to render months with equal pixel widths, suitable for long-term project planning.
 
 ```javascript
 const option = {
@@ -447,14 +444,37 @@ const option = {
     end: new Date('2027-12-31'),
     pxPerDay: 1,
     pxPerMonth: 120, // 120px per month
-    showMonthsRow: true, // Two-row header: top=year, bottom=month
+    showMonthsRow: true, // Two-row header: year on top, month below
   },
+}
+```
+
+### Dependency Line Settings
+
+Configure task dependency curves with the `dependency` option:
+
+- `showArrows`: Toggle directional arrow heads (default: `true`).
+- `arrowSize`: Arrow dimensions in pixels (default: `8`).
+- `showConnectors`: Control whether circular connection handles appear on hover (default: `true`). Set to `false` to prevent creating new dependencies.
+- `showCriticalPath`: Automatically detect the longest chain (critical path) and highlight connected tasks and lines in a distinct color (configurable via `theme.criticalPath`).
+
+Reverse dependencies (right-to-left) automatically render smooth S-curves with perpendicular contact alignment.
+
+```javascript
+const option = {
+  dependency: {
+    showArrows: true,
+    arrowSize: 10,
+    showConnectors: true,
+    showCriticalPath: true, // Highlight critical path tasks and links
+  },
+  // ...
 }
 ```
 
 ### Task Progress Management
 
-Visually display progress on task bars by specifying the `progress` property (`0` - `100`). Enable interactive drag editing of progress percentages with `editable: true`.
+Visualize and interactively edit progress on task bars by specifying `progress` (`0` to `100`). Set `editable: true` to enable dragging the progress adjustment handle on the task bar.
 
 ```javascript
 import {
@@ -467,40 +487,41 @@ import {
 const option = {
   progress: {
     enabled: true,
-    editable: true,       // Enable drag-adjusting progress
-    showLabel: true,      // Display progress label (e.g. "50%")
+    editable: true,          // Allow interactive handle dragging
+    showLabel: true,         // Display progress text (e.g. "50%")
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
-    snapStep: 5,          // Snap by 5% increments
+    snapStep: 5,             // Snap in 5% increments
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
   },
 }
 
-// Progress change event
+// Progress change event listener
 chart.addEventListener('task-progress-change', (e) => {
   const { task, progress, originalProgress, cancelled } = e.detail
   console.log(`Task ${task.id}: ${originalProgress}% -> ${progress}%`)
 })
 
-// Progress calculation helpers
-const rowAvg = calculateRowProgress(row)
-const projectProgress = calculateProjectProgress(rows)
+// Progress calculation helper functions
+const rowSimpleAvg = calculateRowProgress(row)
+const rowWeightedAvg = calculateWeightedRowProgress(row)
+const projectWeightedAvg = calculateProjectProgress(rows)
 ```
 
 ### Marquee Range Selection (Rubberband Selection)
 
-Drag on empty background areas of the chart to select multiple task bars enclosed or intersected by the rectangular box.
-Holding `Shift`, `Ctrl`, or `Cmd` while dragging preserves previously selected tasks and adds newly intersected tasks.
+Click and drag on empty calendar background space to select multiple task bars enclosed or intersected by the selection rectangle.
+Hold `Shift`, `Ctrl`, or `Cmd` while dragging to accumulate selections additively.
 
 ```javascript
 const option = {
   selection: {
     marquee: true,          // Enable marquee selection (default: true)
-    borderColor: '#3b82f6', // Box border color (optional)
-    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Box fill color (optional)
+    borderColor: '#3b82f6', // Selection border color
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Box fill color
   },
 }
 
-// Bar selection change event
+// Selection change event listener
 chart.addEventListener('bar-selection-change', (e) => {
   console.log('Selected task IDs:', e.detail.selectedIds)
 })
@@ -508,7 +529,8 @@ chart.addEventListener('bar-selection-change', (e) => {
 
 ### Overview Minimap
 
-Display a floating bird's-eye minimap window showing all tasks, milestones, and the current viewport.
+Display a floating bird's-eye preview window that renders the entire project's tasks, milestones, and current viewport finder.
+The minimap supports drag-panning, edge-resizing, opacity adjustment, and collapsing.
 
 ```javascript
 const option = {
@@ -517,8 +539,65 @@ const option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
-    position: { right: 16, bottom: 16 }, // Initial position relative to bottom-right (px)
+    collapsible: true,
+    collapsed: false,
     opacity: 0.85,
+    position: { right: 16, bottom: 16 }, // Anchor offset from bottom-right (px)
+  },
+}
+
+// Minimap interaction events
+chart.addEventListener('minimap-move', (e) => console.log('Position:', e.detail.position))
+chart.addEventListener('minimap-resize', (e) => console.log('Size:', e.detail.width, e.detail.height))
+chart.addEventListener('minimap-collapse', (e) => console.log('Collapsed:', e.detail.collapsed))
+```
+
+### Internationalization (i18n) & Locales
+
+moguchart-core comes with built-in Japanese (`jaLocale`, default) and English (`enLocale`) support. You can also define custom locales implementing the `MoguchartLocale` interface.
+
+```javascript
+import { enLocale } from '@mogura/moguchart-core'
+
+const option = {
+  locale: enLocale,
+  // ...
+}
+```
+
+Custom locale implementation example:
+
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart-core'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  timeUnitDateFormat: (d) =>
+    `${d.getDate()} ${['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'][d.getMonth()]} ${d.getFullYear()}`,
+  dateTimeFormat: (d) => {
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
+  duration: {
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
+  },
+  tooltip: {
+    duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}`,
+    progress: (p) => `Progression: ${p}%`,
+  },
+  dragOverlay: {
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
   },
 }
 ```
@@ -527,7 +606,7 @@ const option = {
 
 #### selectTask
 
-Selects the task with the specified ID and auto-scrolls if it's off-screen.
+Selects a task by ID and automatically scrolls the chart to bring it into view.
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -536,7 +615,7 @@ const found = chart.selectTask('task-1')
 
 #### hitTest
 
-Returns the corresponding row ID and date from client coordinates (pixel position on screen).
+Determines the row ID and calendar date corresponding to a given screen coordinate (e.g. from mouse events).
 
 ```javascript
 document.addEventListener('mousemove', (e) => {
@@ -549,7 +628,7 @@ document.addEventListener('mousemove', (e) => {
 
 #### exportImage
 
-Exports the entire Gantt chart as a PNG image or PDF document.
+Exports the entire Gantt chart to a PNG image or PDF document. Preserves the user's scroll offset during export.
 
 ```javascript
 // Automatically download as PNG image
@@ -558,37 +637,63 @@ await chart.exportImage('png', {
   download: true,
 })
 
-// Export as PDF Blob
+// Retrieve as PDF Blob
 const pdfBlob = await chart.exportImage('pdf')
 ```
 
-#### Zoom Operations (zoomTo / zoomToFit / resetZoom)
+#### Zoom Operations (`zoomTo`, `zoomToFit`, `resetZoom`)
+
+Enable zoom via `option.zoom` (wheel zoom with Ctrl / Cmd key) and control zoom level programmatically:
 
 ```javascript
-chart.zoomTo(50)    // Zoom to 50px per day
-chart.zoomToFit()   // Auto-adjust zoom level so all tasks fit in view
-chart.resetZoom()   // Reset zoom to initial option scale
+const option = {
+  zoom: {
+    enabled: true,
+    min: 5,
+    max: 150,
+    step: 1.2,
+  },
+}
+
+// Programmatic zoom control
+chart.zoomTo(50)   // Set zoom level to 50px per day (or month)
+chart.zoomToFit()  // Auto-fit all tasks into the visible container width
+chart.resetZoom()  // Reset to original configuration scale
+
+// Listen to zoom level changes
+chart.addEventListener('zoom-change', (e) => {
+  console.log('New zoom level:', e.detail.pxPerDay || e.detail.pxPerMonth)
+})
+```
+
+#### getRowPositions
+
+Returns layout metrics (`top`, `height`, `bottom`) for all rows within the virtual container.
+
+```javascript
+const rowPositions = chart.getRowPositions()
+console.log('Row positions:', rowPositions)
 ```
 
 ### Keyboard Operations
 
-When the Gantt chart has focus, you can navigate, select, move, and delete tasks using the keyboard.
+When the Gantt chart element is focused, keyboard shortcuts allow fast navigation, selection, movement, and deletion:
 
 | Key | Action |
 | :--- | :--- |
 | `←` `→` | Move focus between tasks |
 | `↑` `↓` | Move focus to another row |
 | `Enter` / `Space` | Select the focused task |
-| `Ctrl/Cmd + Enter` | Toggle selection (multi-select) |
-| `Shift + ←` `→` | Move selected tasks |
-| `Delete` / `Backspace` | Fire `task-delete` event |
-| `Escape` | Clear selection and focus |
+| `Ctrl/Cmd + Enter` | Toggle selection state (multi-select) |
+| `Shift + ←` `→` | Move selected tasks backward / forward |
+| `Delete` / `Backspace` | Trigger `task-delete` event |
+| `Escape` | Clear current selection and focus |
 
 ```javascript
 const option = {
   keyboard: {
-    enabled: true,    // Default: true
-    moveStep: 60,     // Move amount per Shift+Arrow key press (minutes)
+    enabled: true, // Default: true
+    moveStep: 60,  // Move distance per Shift+Arrow key press (minutes)
   },
   // ...
 }
@@ -596,4 +701,4 @@ const option = {
 
 ## License
 
-MIT
+[MIT License](LICENSE)
