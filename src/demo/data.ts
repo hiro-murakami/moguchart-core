@@ -435,6 +435,65 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
   })
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // WBS 階層ツリー & サマリータスク ショーケースエリア
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  rows.push({
+    id: 'wbs-root',
+    name: '📁 WBS: 新規プロダクト開発',
+    parentId: null,
+    tasks: [], // autoSummary により配下タスクから自動計算
+  })
+  rows.push({
+    id: 'wbs-phase1',
+    name: 'フェーズ1: 企画・要件定義',
+    parentId: 'wbs-root',
+    tasks: [
+      {
+        id: 't-wbs-1',
+        name: '市場調査 & ヒアリング',
+        start: d(start, 1),
+        end: d(start, 7),
+        style: `background-color: ${colors.blue};`,
+        progress: 100,
+      },
+      {
+        id: 't-wbs-2',
+        name: '要件定義書作成',
+        start: d(start, 8),
+        end: d(start, 15),
+        style: `background-color: ${colors.purple};`,
+        dependencies: ['t-wbs-1'],
+        progress: 80,
+      },
+    ],
+  })
+  rows.push({
+    id: 'wbs-phase2',
+    name: 'フェーズ2: UI/UX設計 & プロトタイプ',
+    parentId: 'wbs-root',
+    tasks: [
+      {
+        id: 't-wbs-3',
+        name: '画面設計・ワイヤーフレーム',
+        start: d(start, 16),
+        end: d(start, 24),
+        style: `background-color: ${colors.orange};`,
+        dependencies: ['t-wbs-2'],
+        progress: 40,
+      },
+      {
+        id: 't-wbs-4',
+        name: 'プロトタイプ検証',
+        start: d(start, 22),
+        end: d(start, 30),
+        style: `background-color: ${colors.pink};`,
+        dependencies: ['t-wbs-3'],
+        progress: 10,
+      },
+    ],
+  })
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // 通常データエリア (row 11-50): 大量データのパフォーマンス確認用
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const patternTypes: GanttTaskPattern['type'][] = [

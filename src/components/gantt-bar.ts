@@ -58,6 +58,18 @@ export class GanttBarElement extends LitElement {
       left: 0;
       background-color: ${unsafeCSS(DEFAULT_BAR_COLOR)};
     }
+    .bar.summary-bar {
+      cursor: default !important;
+      background-color: var(--moguchart-summary-bar-color, #334155);
+      clip-path: polygon(
+        0% 0%,
+        100% 0%,
+        100% 100%,
+        calc(100% - 6px) 55%,
+        6px 55%,
+        0% 100%
+      );
+    }
     :host([selected]) .bar {
       outline: 2px solid #3b82f6;
       outline-offset: 1px;
@@ -1230,11 +1242,12 @@ export class GanttBarElement extends LitElement {
 
     const y = this.lane * (barHeight + barMargin) + barMargin
     const isReadOnly = this.option.readOnly
+    const isSummary = this.task.type === 'summary'
     const movable = this.task.movable ?? 'both'
     const resizable = this.task.resizable
-    const canMove = !isReadOnly && movable !== 'none'
+    const canMove = !isReadOnly && movable !== 'none' && !isSummary
 
-    let canResize = !isReadOnly
+    let canResize = !isReadOnly && !isSummary
     if (canResize) {
       if (resizable !== undefined) {
         canResize = resizable
@@ -1246,6 +1259,7 @@ export class GanttBarElement extends LitElement {
     const isProgressFeatureEnabled = this.option.progress?.enabled !== false
     const isProgressEditable =
       isProgressFeatureEnabled &&
+      !isSummary &&
       (this.task.progressResizable !== undefined
         ? this.task.progressResizable
         : !isReadOnly && (this.option.progress?.editable ?? false))
@@ -1284,8 +1298,8 @@ export class GanttBarElement extends LitElement {
         @contextmenu="${this.onContextMenu}"
       >
         <div
-          class="bar"
-          style="border-radius: ${barCornerRadius}px; ${this.task.style || ''}; ${getPatternStyle(
+          class="bar ${isSummary ? 'summary-bar' : ''}"
+          style="border-radius: ${isSummary ? 0 : barCornerRadius}px; ${this.task.style || ''}; ${getPatternStyle(
             this.task.pattern,
           )}; ${!canMove ? 'cursor: pointer;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"

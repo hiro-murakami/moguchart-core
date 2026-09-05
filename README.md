@@ -48,6 +48,13 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - スナップ機能（時間単位でのグリッドスナップ）
   - 座標から行・日時を取得する `hitTest` メソッド
   - プログラムによるタスク選択＋自動スクロール (`selectTask`)
+- 🌳 **WBS（階層ツリー・展開/折りたたみ）**:
+  - `parentId` による無制限の親子階層構造
+  - インデント表示と開閉トグルボタン（▶/▼）
+  - 配下の子タスクから自動計算されるサマリータスクバー（ブラケット形状）
+  - 仮想スクロールやミニマップと完全に連動する折りたたみ
+  - 階層を壊さない安全なD&D並び替え（子タスクのブロック連動移動・循環参照防止）
+  - プログラムからの開閉操作（`toggleRowCollapse`, `collapseAll`, `expandAll`）
 - ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでの削除
 
 ## インストール
@@ -513,6 +520,67 @@ const option = {
 }
 ```
 
+### WBS（階層ツリー・展開/折りたたみ・サマリータスク）
+
+各行に `parentId` を指定するだけで、無制限の階層ツリー（大工程 ＞ 中工程 ＞ タスク）を構築できます。
+親行には自動的に開閉トグルボタン（▼/▶）が表示され、配下の子タスクから自動計算されたサマリータスクバー（ブラケット形状）が描画されます。
+
+```javascript
+const rows = [
+  {
+    id: 'project-1',
+    name: 'プロジェクト Alpha',
+    parentId: null,
+    tasks: [], // autoSummary: true により配下タスクから自動集計
+  },
+  {
+    id: 'task-1-1',
+    name: '要件定義',
+    parentId: 'project-1',
+    tasks: [
+      {
+        id: 't-1',
+        name: 'ヒアリング',
+        start: new Date('2025-04-01'),
+        end: new Date('2025-04-10'),
+        progress: 100,
+      },
+    ],
+  },
+  {
+    id: 'task-1-2',
+    name: '基本設計',
+    parentId: 'project-1',
+    tasks: [
+      {
+        id: 't-2',
+        name: '設計書作成',
+        start: new Date('2025-04-11'),
+        end: new Date('2025-04-25'),
+        dependencies: ['t-1'],
+        progress: 50,
+      },
+    ],
+  },
+]
+
+const option = {
+  tree: {
+    enabled: true,         // ツリー表示を有効化 (デフォルト: true)
+    indentWidth: 16,       // レベルあたりのインデント幅 (px)
+    showToggleIcon: true,  // 開閉トグルアイコン (デフォルト: true)
+    showWbsCode: true,     // "1", "1.1" 等のWBS番号を表示
+    autoSummary: true,     // 子タスクから期間・進捗率を自動集計
+  },
+}
+
+// 折りたたみ切り替えイベント
+chart.addEventListener('row-toggle-collapse', (e) => {
+  const { rowId, collapsed } = e.detail
+  console.log(`行 ${rowId} が ${collapsed ? '折りたたまれました' : '展開されました'}`)
+})
+```
+
 ### パブリックメソッド
 
 #### selectTask
@@ -575,6 +643,19 @@ chart.resetZoom()   // 初期設定のスケールにリセット
 chart.addEventListener('zoom-change', (e) => {
   console.log('変更後のスケール:', e.detail.pxPerDay || e.detail.pxPerMonth)
 })
+```
+
+#### WBS・折りたたみ操作 (toggleRowCollapse / collapseAll / expandAll)
+
+```javascript
+// 特定の行の折りたたみを切り替え
+chart.toggleRowCollapse('row-1')        // トグル
+chart.toggleRowCollapse('row-1', true)  // 折りたたみ
+chart.toggleRowCollapse('row-1', false) // 展開
+
+// 一括操作
+chart.collapseAll() // 子行を持つ親行をすべて折りたたみ
+chart.expandAll()   // すべての行を展開
 ```
 
 #### getRowPositions

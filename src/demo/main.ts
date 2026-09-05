@@ -14,6 +14,7 @@ import type {
   RowSelectionChangeEventDetail,
   RowHeaderClickEventDetail,
   RowHeaderContextMenuEventDetail,
+  RowToggleCollapseEventDetail,
   BarSelectionChangeEventDetail,
   DependencyLineStyle,
   TaskProgressChangeEventDetail,
@@ -257,6 +258,13 @@ const renderApp = () => {
     },
     selection: {
       marquee: enableMarquee,
+    },
+    tree: {
+      enabled: true,
+      indentWidth: 16,
+      showToggleIcon: true,
+      showWbsCode: true,
+      autoSummary: true,
     },
     snapDuration,
     showHiddenRows,
@@ -593,6 +601,32 @@ const renderApp = () => {
             >
               📄 PDF
             </button>
+            <button
+              class="export-btn"
+              style="background: #6366f1;"
+              title="親行を一括折りたたみ"
+              @click="${() => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  chart.collapseAll()
+                }
+              }}"
+            >
+              📁 折りたたみ
+            </button>
+            <button
+              class="export-btn"
+              style="background: #2563eb;"
+              title="すべての行を展開"
+              @click="${() => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  chart.expandAll()
+                }
+              }}"
+            >
+              📂 展開
+            </button>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -923,6 +957,10 @@ const renderApp = () => {
             @task-contextmenu="${handleTaskContextMenu}"
             @task-delete="${handleTaskDelete}"
             @row-header-resize="${handleRowHeaderResize}"
+            @row-toggle-collapse="${(e: CustomEvent<RowToggleCollapseEventDetail>) => {
+              const { rowId, collapsed } = e.detail
+              rows = rows.map((r) => (r.id === rowId ? { ...r, collapsed } : r))
+            }}"
             @row-selection-change="${(e: CustomEvent<RowSelectionChangeEventDetail>) => {
               selectedIds = e.detail.selectedIds
               renderApp()

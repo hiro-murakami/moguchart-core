@@ -26,6 +26,14 @@ export const ganttChartStyles = css`
     position: relative;
     overflow-anchor: none;
   }
+  .scroll-container.drag-active-valid,
+  .scroll-container.drag-active-valid * {
+    cursor: grabbing !important;
+  }
+  .scroll-container.drag-active-invalid,
+  .scroll-container.drag-active-invalid * {
+    cursor: not-allowed !important;
+  }
   .dependency-lines {
     position: absolute;
     top: 0;
