@@ -1,263 +1,265 @@
 # moguchart-core API Reference
 
-moguchart-core は、Lit で構築されたガントチャート Web Component です。
+[日本語](./API.ja.md)
 
-## コンポーネント
+moguchart-core is a Gantt chart Web Component built with Lit.
+
+## Component
 
 ```html
 <gantt-chart></gantt-chart>
 ```
 
-## プロパティ (Properties)
+## Properties
 
-コンポーネントに渡すことができるプロパティです。
+Properties that can be passed to the component.
 
-| プロパティ名           | 型                  | 説明                                                                                                                                                                 |
-| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rows`                 | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
-| `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
-| `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
-| `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                           |
-| `selectedTaskIds`      | `string[]`          | 選択状態にするタスクIDの配列。                                                                                                                                       |
-| `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
+| Property               | Type                | Description                                                                                                                                        |
+| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rows`                 | `GanttRow[]`        | Array of row data to display in the Gantt chart. Each row contains tasks.                                                                          |
+| `option`               | `GanttChartOption`  | Options object for configuring chart appearance and behavior.                                                                                      |
+| `theme`                | `'light' \| 'dark'` | (Attribute) Specifies the theme. Serves as the base for CSS variable styling. If `option.theme` is specified, it takes precedence.                 |
+| `selectedRowIds`       | `string[]`          | Array of row IDs to set as selected.                                                                                                               |
+| `selectedTaskIds`      | `string[]`          | Array of task IDs to set as selected.                                                                                                              |
+| `externalDraggingTask` | `GanttTask \| null` | When dragging a task from outside the component, pass the task information here. This displays a preview (ghost) of the dragged task on the chart. |
 
-## オプション設定 (GanttChartOption)
+## Options (GanttChartOption)
 
-`option` プロパティに渡すオブジェクトの構造です。
+Structure of the object passed to the `option` property.
 
 ```typescript
 interface GanttChartOption {
-  /** バー（タスク）のスタイル設定 */
+  /** Bar (task) style settings */
   bar?: {
-    height?: number // バーの高さ (px)
-    margin?: number // バーの上下マージン (px)
-    cornerRadius?: number // バーの角丸 (px)
+    height?: number // Bar height (px)
+    margin?: number // Bar top/bottom margin (px)
+    cornerRadius?: number // Bar corner radius (px)
   }
-  /** 行ヘッダーの設定 */
+  /** Row header settings */
   rowHeader?: {
-    width?: number // 行ヘッダーの幅 (px)
-    backgroundColor?: string // 行ヘッダーの背景色
-    resizable?: boolean // 幅のリサイズを有効にするか (デフォルト: true)
-    minWidth?: number // リサイズ可能な最小幅 (デフォルト: 50)
-    maxWidth?: number // リサイズ可能な最大幅 (デフォルト: 無制限)
+    width?: number // Row header width (px)
+    backgroundColor?: string // Row header background color
+    resizable?: boolean // Enable width resizing (default: true)
+    minWidth?: number // Minimum resizable width (default: 50)
+    maxWidth?: number // Maximum resizable width (default: unlimited)
   }
-  /** カレンダー（タイムライン）の設定 */
+  /** Calendar (timeline) settings */
   calendar: {
-    start: Date // 表示開始日
-    end: Date // 表示終了日
-    pxPerDay: number // 1日あたりの幅 (px)
-    pxPerMonth?: number // 1ヶ月あたりの幅 (px)。指定した場合、月単位の等幅表示になる
-    monthFormat?: string // 月の表示フォーマット (例: 'YYYY年M月')
-    showRowBackground?: boolean // 行の背景を表示するかどうか
-    isHoliday?: (date: Date) => boolean // 祝日判定ロジック
-    showTime?: boolean // 時間単位のグリッドを表示するかどうか
-    showMonths?: boolean // 年月を表示するかどうか
-    showDays?: boolean // 日付を表示するかどうか
-    showCurrentTime?: boolean // 現在時刻を示すラインを表示するか (デフォルト: false)
-    showCurrentTimeBadge?: boolean // 現在時刻バッジを表示するかどうか
-    currentTimeUpdateInterval?: number // 現在時刻ラインの更新間隔 (ミリ秒、デフォルト: 0 = 更新しない)
-    showWeeks?: boolean // 週番号ヘッダーを表示するかどうか
-    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // 週の始まりの曜日 (0=日曜〜6=土曜、デフォルト: 1=月曜)
-    weekFormat?: (weekNumber: number, startDate: Date) => string // 週番号の表示フォーマット関数
-    weekTextAlign?: 'left' | 'center' | 'right' // 週番号セルのテキスト配置 (デフォルト: 'center')
-    showMonthsRow?: boolean // 月単位表示（上段=年、下段=月）を有効にするかどうか
-    monthTextAlign?: 'left' | 'center' | 'right' // 月セルのテキスト配置 (デフォルト: 'center')
-    milestones?: GanttChartMilestone[] // マイルストーンの配列
-    showCursorLine?: boolean // マウスカーソル位置に追従する縦罫線を表示するか (デフォルト: false)
-    cursorLineColor?: string // カーソル縦罫線の色 (CSS color string。省略時は currentTimeLine と同色)
+    start: Date // Display start date
+    end: Date // Display end date
+    pxPerDay: number // Width per day (px)
+    pxPerMonth?: number // Width per month (px). When specified, each month is rendered at a fixed equal width.
+    monthFormat?: string // Month display format (e.g., 'MMM YYYY')
+    showRowBackground?: boolean // Whether to show row backgrounds
+    isHoliday?: (date: Date) => boolean // Custom holiday detection logic
+    showTime?: boolean // Whether to show time-unit grid
+    showMonths?: boolean // Whether to show year/month headers
+    showDays?: boolean // Whether to show date headers
+    showCurrentTime?: boolean // Whether to show the current time line (default: false)
+    showCurrentTimeBadge?: boolean // Whether to show the current time badge
+    currentTimeUpdateInterval?: number // Current time line update interval (ms, default: 0 = no update)
+    showWeeks?: boolean // Whether to show week number headers
+    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // First day of the week (0=Sun ~ 6=Sat, default: 1=Mon)
+    weekFormat?: (weekNumber: number, startDate: Date) => string // Custom week number format function
+    weekTextAlign?: 'left' | 'center' | 'right' // Week cell text alignment (default: 'center')
+    showMonthsRow?: boolean // Enable two-row month view (top=year, bottom=month)
+    monthTextAlign?: 'left' | 'center' | 'right' // Month cell text alignment (default: 'center')
+    milestones?: GanttChartMilestone[] // Array of milestones
+    showCursorLine?: boolean // Whether to show a vertical line that follows the mouse cursor (default: false)
+    cursorLineColor?: string // Color of the cursor tracking line (CSS color string; defaults to currentTimeLine color)
   }
-  /** 読み取り専用モードかどうか */
+  /** Whether the chart is read-only */
   readOnly?: boolean
-  /** ツールチップを表示するかどうか */
-  showTooltip?: boolean // (デフォルト: true)
-  /** ツールチップが表示されるまでの遅延時間 (ms) */
-  tooltipDelay?: number // (デフォルト: 500)
-  /** ドラッグ中に情報オーバーレイを表示するかどうか */
-  showDragInfoOverlay?: boolean // (デフォルト: true)
-  /** テーマ設定 ('light', 'dark', 'system') */
+  /** Whether to show tooltips */
+  showTooltip?: boolean // (default: true)
+  /** Delay before showing tooltips (ms) */
+  tooltipDelay?: number // (default: 500)
+  /** Whether to show the drag info overlay */
+  showDragInfoOverlay?: boolean // (default: true)
+  /** Theme setting ('light', 'dark', 'system') */
   theme?: 'light' | 'dark' | 'system'
-  /** カスタムテーマカラー（特定の色を上書きする場合に使用） */
+  /** Custom theme colors (for overriding specific colors) */
   customTheme?: Partial<ThemeColorPalette>
-  /** 行のドラッグ＆ドロップによる並び替えを有効にするか */
-  enableRowReordering?: boolean // (デフォルト: false)
-  /** タスクの行間移動を有効にするかどうか (デフォルト: true) */
-  enableCrossRowMove?: boolean // (デフォルト: true)
-  /** タスクドラッグ時のスナップ間隔（分単位）。例えば60を指定すると1時間単位でスナップします。 */
-  snapDuration?: number // (デフォルト: 1440 = 1日)
-  /** 非表示に設定された行（visible: false）を表示するかどうか */
-  showHiddenRows?: boolean // (デフォルト: false)
-  /** ロケール設定 (デフォルト: 日本語) */
+  /** Enable drag & drop row reordering */
+  enableRowReordering?: boolean // (default: false)
+  /** Whether to allow dragging tasks across different rows (default: true) */
+  enableCrossRowMove?: boolean // (default: true)
+  /** Snap interval for task dragging (in minutes). E.g., 60 snaps to 1-hour intervals. */
+  snapDuration?: number // (default: 1440 = 1 day)
+  /** Whether to show rows with visible: false */
+  showHiddenRows?: boolean // (default: false)
+  /** Locale settings for internationalization (default: Japanese) */
   locale?: MoguchartLocale
   customRendering?: {
-    /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** Function to render bar content. Can return a string or Lit TemplateResult. */
     barContent?: (task: GanttTask) => string | unknown
-    /** 行ヘッダーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** Function to render row header content. Can return a string or Lit TemplateResult. */
     rowHeaderContent?: (row: GanttRow) => string | unknown
-    /** ツールチップのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** Function to render tooltip content. Can return a string or Lit TemplateResult. */
     tooltip?: (task: GanttTask) => string | unknown
-    /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
-    /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
     cornerContent?: () => string | unknown
-    /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
     calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
-    /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
     calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
-    /** カレンダーの週セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    /** Function to render calendar week cells. Return an HTMLElement or HTML string. */
     calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
-    /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
     calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
-    /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
+    /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
     chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
-    /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれ、文字列・HTMLElement・TemplateResult を返すことができます。 */
+    /** Function to render row header tooltip content. Called on mouse hover. Can return a string, HTMLElement, or Lit TemplateResult. */
     rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
   }
-  /** 依存関係線の設定 */
+  /** Dependency line settings */
   dependency?: GanttChartOptionDependency
-  /** キーボード操作の設定 */
+  /** Keyboard operation settings */
   keyboard?: {
-    /** キーボード操作を有効にするか (デフォルト: true) */
+    /** Whether to enable keyboard operations (default: true) */
     enabled?: boolean
-    /** Shift+矢印キーでのタスク移動量（分）。省略時は snapDuration を使用 */
+    /** Task move amount per Shift+Arrow key press (in minutes). Uses snapDuration when omitted */
     moveStep?: number
   }
-  /** ズーム機能の設定 */
+  /** Zoom feature settings */
   zoom?: {
-    /** ズーム機能を有効にするか (デフォルト: false) */
+    /** Whether to enable zoom (default: false) */
     enabled?: boolean
-    /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth */
+    /** Minimum pxPerDay (default: 2). Acts as minimum pxPerMonth in monthly mode */
     min?: number
-    /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth */
+    /** Maximum pxPerDay (default: 200). Acts as maximum pxPerMonth in monthly mode */
     max?: number
-    /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
+    /** Zoom multiplier per wheel tick (default: 1.2) */
     step?: number
   }
-  /** ミニマップ（Overview Minimap）機能の設定 */
+  /** Overview Minimap configuration */
   minimap?: {
-    enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
-    width?: number // ミニマップの幅 (px、デフォルト: 200)
-    height?: number // ミニマップの高さ (px、デフォルト: 120)
-    maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
-    preserveAspectRatio?: boolean // ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
-    resizable?: boolean // ユーザーによるドラッグリサイズを許可するかどうか (デフォルト: true)
-    minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
-    maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
-    minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
-    collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
-    collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
-    showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
-    showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
-    position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
-    opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
+    enabled?: boolean // Whether to enable minimap (default: false)
+    width?: number // Width of the minimap in px (default: 200)
+    height?: number // Height of the minimap in px (default: 120)
+    maxHeight?: number // Maximum height when preserving aspect ratio in px (default: height or 120)
+    preserveAspectRatio?: boolean // Whether to preserve the chart content aspect ratio (default: true)
+    resizable?: boolean // Whether to allow drag resizing by user (default: true)
+    minWidth?: number // Minimum width during resize in px (default: 120)
+    maxWidth?: number // Maximum width during resize in px (default: 600)
+    minHeight?: number // Minimum height during resize in px (default: 60)
+    collapsible?: boolean // Whether to show collapse button (default: true)
+    collapsed?: boolean // Whether initially collapsed (default: false)
+    showMilestones?: boolean // Whether to display milestones on minimap (default: true)
+    showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
+    position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
+    opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
   }
-  /** 進捗管理機能の設定 */
+  /** Progress management configuration */
   progress?: {
-    enabled?: boolean // 進捗表示を有効にするかどうか (デフォルト: true)
-    editable?: boolean // 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false)
-    color?: string // 進捗バーのデフォルト色 (CSSカラー文字列)
-    showLabel?: boolean // 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false)
-    labelPosition?: 'inside' | 'right' | 'left' | 'center' // 進捗ラベルの表示位置 (デフォルト: 'inside')
-    labelFormatter?: (progress: number, task: GanttTask) => string // 進捗ラベルのカスタムフォーマット関数
-    snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
-    indicatorPosition?: 'full' | 'bottom' | 'top' // 進捗インジケーターのスタイル (デフォルト: 'full')
+    enabled?: boolean // Whether to enable progress display (default: true)
+    editable?: boolean // Whether progress can be adjusted by dragging (default: false)
+    color?: string // Default progress bar color (CSS color string)
+    showLabel?: boolean // Whether to show progress label text (e.g. '50%') (default: false)
+    labelPosition?: 'inside' | 'right' | 'left' | 'center' // Label position (default: 'inside')
+    labelFormatter?: (progress: number, task: GanttTask) => string // Custom label format function
+    snapStep?: number // Progress snap increment during drag (default: 1)
+    indicatorPosition?: 'full' | 'bottom' | 'top' // Progress indicator display style (default: 'full')
   }
 }
 ```
 
-## イベント (Events)
+## Events
 
-コンポーネントから発火されるカスタムイベントです。
+Custom events dispatched by the component.
 
-| イベント名               | 詳細 (e.detail)                   | 説明                                                                                         |
-| :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------- |
-| `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
-| `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
-| `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
-| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
-| `bar-hover`              | `BarHoverEventDetail`             | タスクバーにマウスがホバーしたときに発火します。                                             |
-| `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
-| `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
-| `task-progress-change`   | `TaskProgressChangeEventDetail`   | 進捗バーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。       |
-| `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
-| `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
-| `minimap-collapse`       | `MinimapCollapseEventDetail`      | ミニマップが最小化（折りたたみ）または展開されたときに発火します。                           |
-| `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
-| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
-| `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
-| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
-| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `task-dblclick`          | `TaskClickEventDetail`            | タスクバーをダブルクリックしたときに発火します。                                             |
-| `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
-| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
-| `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
-| `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
-| `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
-| `zoom-change`            | `ZoomChangeEventDetail`           | ズームレベルが変更されたときに発火します（Ctrl+ホイール、`zoomTo()`、`resetZoom()` 時）。   |
-| `marker-dblclick`        | `MarkerDblClickEventDetail`       | マーカーをダブルクリックしたときに発火します。                                               |
-| `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | マーカーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。   |
+| Event Name               | Detail (e.detail)                 | Description                                                                          |
+| :----------------------- | :-------------------------------- | :----------------------------------------------------------------------------------- |
+| `rows-change`            | `GanttRow[]`                      | Fired when row data changes due to reordering or task movement.                      |
+| `row-reordered`          | `RowReorderEventDetail`           | Fired when rows are reordered via drag & drop.                                       |
+| `row-selection-change`   | `RowSelectionChangeEventDetail`   | Fired when row selection changes via checkbox or header click.                       |
+| `bar-selection-change`   | `BarSelectionChangeEventDetail`   | Fired when task bar selection changes.                                               |
+| `bar-hover`              | `BarHoverEventDetail`             | Fired when a task bar is hovered over.                                               |
+| `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
+| `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
+| `task-progress-change`   | `TaskProgressChangeEventDetail`   | Fired when progress drag editing is completed (or cancelled via Esc key).           |
+| `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
+| `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
+| `minimap-collapse`       | `MinimapCollapseEventDetail`      | Fired when the minimap is collapsed or expanded.                                     |
+| `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
+| `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
+| `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
+| `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
+| `task-dblclick`          | `TaskClickEventDetail`            | Fired when a task bar is double-clicked.                                             |
+| `task-contextmenu`       | `TaskContextMenuEventDetail`      | Fired when a task bar is right-clicked. Use for implementing custom context menus.   |
+| `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
+| `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
+| `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
+| `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
+| `zoom-change`            | `ZoomChangeEventDetail`           | Fired when the zoom level changes (via Ctrl+wheel, `zoomTo()`, or `resetZoom()`).    |
+| `marker-dblclick`        | `MarkerDblClickEventDetail`       | Fired when a marker is double-clicked.                                               |
+| `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | Fired when a marker is right-clicked. Use for implementing custom context menus.     |
 
-## メソッド (Methods)
+## Methods
 
-コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
+Public methods that can be called on the component instance.
 
-| メソッド名          | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
-| :------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`        | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
-| `hitTest`           | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
-| `exportImage`       | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
-| `zoomTo`            | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
-| `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
-| `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
-| `getRowPositions`   | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
+| Method            | Signature                                                                                   | Description                                                                                                                                                                                     |
+| :---------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectTask`      | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `hitTest`         | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
+| `exportImage`     | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `zoomTo`          | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
+| `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
+| `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
+| `getRowPositions` | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
 
-### 使用例
+### Usage Examples
 
 #### selectTask
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
-// タスクを選択して表示位置までスクロール
+// Select a task and scroll to its position
 const success = chart.selectTask('task-1')
 
 if (!success) {
-  console.warn('指定したタスクが見つかりません')
+  console.warn('Specified task not found')
 }
 ```
 
-> **Note:** `selectTask` を呼び出すと、`bar-selection-change` イベントも発火されます。
+> **Note:** Calling `selectTask` also fires the `bar-selection-change` event.
 
 #### hitTest
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
-// マウス座標からガントチャート上の行と日付を取得
+// Get the row and date from mouse coordinates on the Gantt chart
 document.addEventListener('mousemove', (e) => {
   const result = chart.hitTest(e.clientX, e.clientY)
   if (result) {
-    console.log(`行: ${result.rowId}, 日付: ${result.date}`)
+    console.log(`Row: ${result.rowId}, Date: ${result.date}`)
   }
 })
 ```
 
-> **Note:** `hitTest` はスクロール位置やカレンダー設定を考慮して正確な日付を計算します。キーボードショートカットによるペースト操作など、マウス位置に基づく操作の実装に便利です。
+> **Note:** `hitTest` calculates the accurate date by considering scroll position and calendar settings. It's useful for implementing operations based on mouse position, such as paste via keyboard shortcuts.
 
 #### exportImage
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
-// PNG形式でデータURLを取得
+// Get PNG data URL
 const pngDataUrl = await chart.exportImage('png')
 
-// PDF形式でダウンロード
+// Download as PDF
 await chart.exportImage('pdf', {
-  filename: 'my-gantt', // 省略時: 'gantt-chart'
-  download: true, // trueでファイルダウンロード開始
+  filename: 'my-gantt', // Default: 'gantt-chart'
+  download: true, // Starts file download if true
 })
 
-// PNGをimgタグに埋め込む
+// Embed PNG in an img tag
 const img = document.createElement('img')
 img.src = await chart.exportImage('png')
 document.body.appendChild(img)
@@ -267,62 +269,62 @@ document.body.appendChild(img)
 
 ```typescript
 interface ExportImageOptions {
-  /** ダウンロード時のファイル名（拡張子なし）。省略時は 'gantt-chart' */
+  /** Filename for download (without extension). Default: 'gantt-chart' */
   filename?: string
-  /** trueの場合、自動的にファイルダウンロードを開始する。デフォルト: false */
+  /** If true, automatically starts file download. Default: false */
   download?: boolean
-  /** PNG出力時のスケール倍率（高解像度化）。デフォルト: 2 */
+  /** Scale factor for PNG export (higher resolution). Default: 2 */
   scale?: number
-  /** 画像を指定したピクセル数で縦に分割し、分割位置にカレンダー（ヘッダー）を挿入する。未指定時は分割しない */
+  /** Splits the image vertically at the specified pixel height and inserts a calendar (header) at each split position. Unspecified means no split. */
   splitHeight?: number
 }
 ```
 
-> **Note:** `exportImage` はスクロール位置によらずチャート全体（スクロール領域すべて）をエクスポートします。Shadow DOM のスタイルも自動的に収集されます。ただし、外部フォントや画像がクロスオリジンの場合は正しく描画されないことがあります。
+> **Note:** `exportImage` exports the entire chart (all scrollable area) regardless of current scroll position. Shadow DOM styles are automatically collected. However, external fonts or images might not render correctly if they are cross-origin.
 
 #### zoomTo / zoomToFit / resetZoom
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
-// ズームを有効にする（オプション設定が必要）
+// Enable zoom (requires option configuration)
 chart.option = {
   ...chart.option,
   zoom: { enabled: true, min: 5, max: 200, step: 1.2 }
 }
 
-// 指定した pxPerDay にズーム
+// Zoom to a specific pxPerDay
 chart.zoomTo(100)
 
-// 全タスクが画面に収まるようにズーム
+// Auto-fit all tasks into the viewport
 chart.zoomToFit()
 
-// 元のスケールに戻す
+// Reset to original scale
 chart.resetZoom()
 
-// ズーム変更イベントをリッスン
+// Listen for zoom change events
 chart.addEventListener('zoom-change', (e) => {
   console.log(`pxPerDay: ${e.detail.pxPerDay}`)
-  // 必要に応じて option.calendar.pxPerDay を追従更新
+  // Optionally sync option.calendar.pxPerDay
 })
 ```
 
-> **Note:** ズームは `Ctrl+マウスホイール`（Mac: `Cmd+ホイール`）でも操作できます。ズーム時はカーソル位置を基準にスクロール位置が自動補正されます。`option` を新しいオブジェクトで更新するとズームはリセットされます。
+> **Note:** Zoom can also be controlled via `Ctrl+mouse wheel` (Mac: `Cmd+wheel`). During zoom, the scroll position is automatically adjusted to keep the date under the cursor in place. Setting `option` to a new object resets the zoom.
 
-## 型定義 (Types)
+## Type Definitions
 
-イベント詳細などで使用される主要な型定義です。
+Key type definitions used in event details and other interfaces.
 
 ### GanttRow
 
 ```typescript
 interface GanttRow {
-  id: string // 行の一意なID
-  name: string // 行ヘッダーに表示するラベル
-  tasks: GanttTask[] // この行に含まれるタスクの配列
-  markers?: GanttMarker[] // この行に表示するマーカーの配列
-  selectedMarkerId?: string // 現在選択中（編集中）のマーカーID
-  visible?: boolean // 行を表示するかどうか (デフォルト: true)
+  id: string // Unique row ID
+  name: string // Label displayed in the row header
+  tasks: GanttTask[] // Array of tasks in this row
+  markers?: GanttMarker[] // Array of markers displayed in this row
+  selectedMarkerId?: string // Currently selected (editing) marker ID
+  visible?: boolean // Whether to show the row (default: true)
 }
 ```
 
@@ -330,20 +332,20 @@ interface GanttRow {
 
 ```typescript
 interface GanttTask {
-  id: string // タスクの一意なID
-  name?: string // タスクの表示名
-  start: Date // 開始日時
-  end: Date // 終了日時
-  style?: string // バーのカスタムスタイル (CSS文字列)
-  labelStyle?: string // バーのラベルのカスタムスタイル (CSS文字列)
-  pattern?: GanttTaskPattern // バーの塗りつぶしパターン
-  dependencies?: string[] // 依存関係にあるタスクのID配列
-  movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)
-  resizable?: boolean // リサイズ可否 (未指定時はmovable設定に準拠)
-  progress?: number // 進捗率 (0〜100 の数値)
-  progressColor?: string // 進捗バーのカスタム色 (CSSカラー文字列)
-  progressStyle?: string // 進捗バーのカスタムスタイル (CSS文字列)
-  progressResizable?: boolean // 進捗バーのドラッグ編集可否 (未指定時はoption.progress.editableに準拠)
+  id: string // Unique task ID
+  name?: string // Task display name
+  start: Date // Start date/time
+  end: Date // End date/time
+  style?: string // Custom bar style (CSS string)
+  labelStyle?: string // Custom bar label style (CSS string)
+  pattern?: GanttTaskPattern // Bar fill pattern
+  dependencies?: string[] // IDs of dependent tasks
+  movable?: 'both' | 'x' | 'y' | 'none' // Movement permission ('both': both axes, 'x': horizontal only, 'y': vertical only, 'none': disabled)
+  resizable?: boolean // Whether resizing is allowed (defaults to movable setting when unset)
+  progress?: number // Progress percentage (0 - 100)
+  progressColor?: string // Custom progress bar color (CSS color string)
+  progressStyle?: string // Custom progress bar CSS style string
+  progressResizable?: boolean // Whether progress drag editing is enabled for this task
 }
 ```
 
@@ -351,131 +353,131 @@ interface GanttTask {
 
 ```typescript
 interface GanttTaskPattern {
-  // パターンの種類
-  // 指定可能な値: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
+  // Pattern type
+  // Available values: 'diagonal-stripe' | 'diagonal-stripe-thin' | 'diagonal-stripe-thick' | 'diagonal-stripe-reverse' | 'vertical-stripe' | 'horizontal-stripe' | 'checkerboard' | 'dots' | 'dots-dense' | 'triangle' | 'circle' | 'grid' | 'diagonal-grid'
   type: BarPattern
-  color?: string // パターンの色
+  color?: string // Pattern color
 }
 ```
 
 ### GanttChartOptionCustomRendering
 
-`option.customRendering` に渡すオブジェクトの型定義です。
+Type definition for the object passed to `option.customRendering`.
 
 ```typescript
 interface GanttChartOptionCustomRendering {
-  /** バーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** Function to render bar content. Can return a string or Lit TemplateResult. */
   barContent?: (task: GanttTask) => string | unknown
-  /** 行ヘッダーのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** Function to render row header content. Can return a string or Lit TemplateResult. */
   rowHeaderContent?: (row: GanttRow) => string | unknown
-  /** ツールチップのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** Function to render tooltip content. Can return a string or Lit TemplateResult. */
   tooltip?: (task: GanttTask) => string | unknown
-  /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
-  /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
   cornerContent?: () => string | unknown
-  /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
-  /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
   calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
-  /** カレンダーの週セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  /** Function to render calendar week cells. Return an HTMLElement or HTML string. */
   calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
-  /** カレンダーの時間セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  /** Function to render calendar hour cells. Return an HTMLElement or HTML string. */
   calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
-  /** ガントチャート部の背景セルをレンダリングする関数。各日のセルごとに呼ばれ、HTML文字列またはTemplateResultを返します。 */
+  /** Function to render Gantt chart background cells. Called for each day cell per row. Return an HTML string or TemplateResult. */
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
-  /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれ、文字列・HTMLElement・TemplateResult を返すことができます。 */
+  /** Function to render row header tooltip content. Called on mouse hover. Can return a string, HTMLElement, or Lit TemplateResult. */
   rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
 }
 ```
 
 ### CalendarMonthCellContext
 
-カレンダー月セルのカスタムレンダリング時に渡されるコンテキストです。
+Context passed when custom rendering calendar month cells.
 
 ```typescript
 interface CalendarMonthCellContext {
-  year: number // 年
-  month: number // 月 (0-11)
-  width: number // セルの幅 (px)
-  defaultLabel: string // デフォルトのラベルテキスト
+  year: number // Year
+  month: number // Month (0-11)
+  width: number // Cell width (px)
+  defaultLabel: string // Default label text
 }
 ```
 
 ### CalendarDayCellContext
 
-カレンダー日セルのカスタムレンダリング時に渡されるコンテキストです。
+Context passed when custom rendering calendar day cells.
 
 ```typescript
 interface CalendarDayCellContext {
-  date: Date // 日付
-  width: number // セルの幅 (px)
-  isSaturday: boolean // 土曜日かどうか
-  isSunday: boolean // 日曜日かどうか
-  isHoliday: boolean // 祝日かどうか
-  defaultLabel: string // デフォルトのラベルテキスト
+  date: Date // Date
+  width: number // Cell width (px)
+  isSaturday: boolean // Whether it is Saturday
+  isSunday: boolean // Whether it is Sunday
+  isHoliday: boolean // Whether it is a holiday
+  defaultLabel: string // Default label text
 }
 ```
 
 ### CalendarWeekCellContext
 
-カレンダー週セルのカスタムレンダリング時に渡されるコンテキストです。
+Context passed when custom rendering calendar week cells.
 
 ```typescript
 interface CalendarWeekCellContext {
-  weekNumber: number // 週番号
-  startDate: Date // 週の開始日
-  width: number // セルの幅 (px)
-  defaultLabel: string // デフォルトのラベルテキスト
+  weekNumber: number // Week number
+  startDate: Date // Start date of the week
+  width: number // Cell width (px)
+  defaultLabel: string // Default label text
 }
 ```
 
 ### CalendarHourCellContext
 
-カレンダー時間セルのカスタムレンダリング時に渡されるコンテキストです。
+Context passed when custom rendering calendar hour cells.
 
 ```typescript
 interface CalendarHourCellContext {
-  hour: number // 時間 (0-23)
-  width: number // セルの幅 (px)
-  date: Date // 対応する日付
+  hour: number // Hour (0-23)
+  width: number // Cell width (px)
+  date: Date // Corresponding date
 }
 ```
 
 ### ChartBackgroundCellContext
 
-ガントチャート部の背景セルのカスタムレンダリング時に渡されるコンテキストです。各行の各日セルごとに呼び出されます。
+Context passed when custom rendering Gantt chart background cells. Called for each day cell in each row.
 
 ```typescript
 interface ChartBackgroundCellContext {
-  date: Date // 日付
-  width: number // セルの幅 (px)
-  height: number // セルの高さ (px)
-  rowId: string // 行のID
-  isSaturday: boolean // 土曜日かどうか
-  isSunday: boolean // 日曜日かどうか
-  isHoliday: boolean // 祝日かどうか
-  defaultColor: string // デフォルトの背景色
-  index: number // 列インデックス (0始まり)
+  date: Date // Date
+  width: number // Cell width (px)
+  height: number // Cell height (px)
+  rowId: string // Row ID
+  isSaturday: boolean // Whether it is Saturday
+  isSunday: boolean // Whether it is Sunday
+  isHoliday: boolean // Whether it is a holiday
+  defaultColor: string // Default background color
+  index: number // Column index (0-based)
 }
 ```
 
-#### cornerContent の使用例
+#### cornerContent Usage Example
 
 ```javascript
 const option = {
   customRendering: {
-    // 行ヘッダー左上のコーナーセルにカスタムボタンを配置する例
+    // Example: placing a custom button in the top-left corner cell of the row header
     cornerContent: () => {
       const btn = document.createElement('button')
-      btn.textContent = 'フィルター'
+      btn.textContent = 'Filter'
       btn.style.cssText = 'border: none; background: transparent; cursor: pointer; padding: 4px 8px;'
       btn.addEventListener('click', () => {
-        console.log('フィルターボタンがクリックされました')
+        console.log('Filter button clicked')
       })
       return btn
     },
-    // バーのカスタム表示
+    // Custom bar rendering
     barContent: (task) => {
       const div = document.createElement('div')
       div.style.padding = '2px 8px'
@@ -486,12 +488,12 @@ const option = {
 }
 ```
 
-#### カレンダーカスタムレンダリングの使用例
+#### Calendar Custom Rendering Usage Example
 
 ```javascript
 const option = {
   customRendering: {
-    // 月セルにアイコンを追加
+    // Add an icon to month cells
     calendarMonthContent: (ctx) => {
       const el = document.createElement('div')
       el.style.display = 'flex'
@@ -501,7 +503,7 @@ const option = {
       return el
     },
 
-    // 日セルで祝日・日曜を赤色にする
+    // Make holidays and Sundays red in day cells
     calendarDayContent: (ctx) => {
       const el = document.createElement('div')
       if (ctx.isSunday || ctx.isHoliday) {
@@ -512,12 +514,12 @@ const option = {
       return el
     },
 
-    // 週セルのフォーマット変更
+    // Custom week cell format
     calendarWeekContent: (ctx) => {
-      return `<strong>第${ctx.weekNumber}週</strong>`
+      return `<strong>Week ${ctx.weekNumber}</strong>`
     },
 
-    // 時間セルのフォーマット変更
+    // Custom hour cell format
     calendarHourContent: (ctx) => {
       return `${String(ctx.hour).padStart(2, '0')}:00`
     },
@@ -525,12 +527,12 @@ const option = {
 }
 ```
 
-#### chartBackground（チャート背景）の使用例
+#### chartBackground (Chart Background) Usage Example
 
 ```javascript
 const option = {
   customRendering: {
-    // 偶数日にストライプパターン、週末にアイコンを表示
+    // Show stripe pattern on even days, icons on weekends
     chartBackground: (ctx) => {
       const isEvenDay = ctx.date.getDate() % 2 === 0
       const stripeStyle = isEvenDay
@@ -549,20 +551,20 @@ const option = {
 }
 ```
 
-> **Note:** `chartBackground` はデフォルトの背景色（土日・祝日の色分け）の上にオーバーレイとしてレンダリングされます。デフォルト背景色は `defaultColor` プロパティで取得できます。`rowId` を使用して行ごとに異なる背景を表示することも可能です。
+> **Note:** `chartBackground` renders as an overlay on top of the default background colors (weekend/holiday color coding). The default background color can be accessed via the `defaultColor` property. You can also use `rowId` to display different backgrounds per row.
 
-> **Note:** カスタムレンダリング関数は `HTMLElement` または HTML文字列を返すことができます。HTMLElement の場合は直接DOMに追加され、文字列の場合は `innerHTML` として設定されます。カスタムレンダリングを設定した場合、デフォルトのテキストは非表示になります。
+> **Note:** Custom rendering functions can return an `HTMLElement` or an HTML string. HTMLElements are appended directly to the DOM, while strings are set as `innerHTML`. When a custom rendering function is set, the default text content is hidden.
 
-#### rowHeaderTooltip の使用例
+#### rowHeaderTooltip Usage Example
 
-行ヘッダーにマウスをホバーした際にツールチップを表示できます。`customRendering.rowHeaderTooltip` に関数を設定すると、遅延表示（`tooltipDelay` を共有）でツールチップが表示されます。
+Display a tooltip when hovering over a row header. Setting a function on `customRendering.rowHeaderTooltip` will show a tooltip with a delay (shares the `tooltipDelay` setting).
 
 ```javascript
 const option = {
   customRendering: {
-    // 文字列を返す場合
+    // Return a string
     rowHeaderTooltip: (row) => {
-      return `${row.name} (タスク数: ${row.tasks.length})`
+      return `${row.name} (Tasks: ${row.tasks.length})`
     },
   },
 }
@@ -571,7 +573,7 @@ const option = {
 ```javascript
 const option = {
   customRendering: {
-    // HTMLElement を返す場合（リッチなツールチップ）
+    // Return an HTMLElement (rich tooltip)
     rowHeaderTooltip: (row) => {
       const container = document.createElement('div')
       container.style.maxWidth = '300px'
@@ -584,7 +586,7 @@ const option = {
       const info = document.createElement('div')
       info.style.fontSize = '11px'
       info.style.marginTop = '4px'
-      info.textContent = `タスク数: ${row.tasks.length}`
+      info.textContent = `Tasks: ${row.tasks.length}`
       container.appendChild(info)
 
       return container
@@ -593,18 +595,18 @@ const option = {
 }
 ```
 
-> **Note:** `rowHeaderTooltip` が `null` または `undefined` を返した場合、ツールチップは表示されません。ツールチップの表示遅延は `option.tooltipDelay`（デフォルト: 500ms）を共有します。ツールチップは行ヘッダーの右側に表示され、画面端での自動位置補正が行われます。
+> **Note:** If `rowHeaderTooltip` returns `null` or `undefined`, no tooltip is displayed. The display delay shares `option.tooltipDelay` (default: 500ms). The tooltip appears to the right of the row header, with automatic repositioning at screen edges.
 
 ### GanttChartMilestone
 
 ```typescript
 interface GanttChartMilestone {
-  id: string // マイルストーンの一意なID
-  name: string // マイルストーンの表示名
-  start: Date // マイルストーンの日時
-  color: string // マイルストーンの色 (CSS color string)
-  width?: number // 線の幅 (px、デフォルト: 2)
-  style?: string // カスタムスタイル (CSS文字列)
+  id: string // Unique milestone ID
+  name: string // Milestone display name
+  start: Date // Milestone date/time
+  color: string // Milestone color (CSS color string)
+  width?: number // Line width (px, default: 2)
+  style?: string // Custom style (CSS string)
 }
 ```
 
@@ -620,13 +622,13 @@ type MarkerType = 'triangle-up' | 'triangle-down' | 'triangle-left' | 'triangle-
 type MarkerFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 ```
 
-| 値   | フォントサイズ |
-| :--- | :------------- |
-| `xs` | 8px (極小)     |
-| `sm` | 10px (小)      |
-| `md` | 12px (中)      |
-| `lg` | 14px (大)      |
-| `xl` | 18px (特大)    |
+| Value | Font Size       |
+| :---- | :-------------- |
+| `xs`  | 8px (extra small) |
+| `sm`  | 10px (small)    |
+| `md`  | 12px (medium)   |
+| `lg`  | 14px (large)    |
+| `xl`  | 18px (extra large) |
 
 ### AnchorType
 
@@ -638,14 +640,14 @@ type AnchorType = 'start' | 'end' | 'center'
 
 ```typescript
 interface GanttMarker {
-  id: string // マーカーの一意なID
-  name?: string // マーカーの表示名（アイコンの隣またはアイコン下部にテキスト表示）
-  date: Date // マーカーの日時
-  anchor?: AnchorType // アンカー位置 ('start': dateがマーカー左端, 'end': dateがマーカー右端, 'center': dateがマーカー中央＋ラベル下部表示, 未指定: 中央)
-  type: MarkerType // マーカーの形状
-  color?: string // マーカーの色 (CSS color string)
-  fontSize?: MarkerFontSize // マーカーのラベルのフォントサイズ (デフォルト: 'sm' = 10px)
-  style?: string // マーカーのカスタムスタイル (CSS文字列)
+  id: string // Unique marker ID
+  name?: string // Marker display name (text displayed next to or below the icon)
+  date: Date // Marker date/time
+  anchor?: AnchorType // Anchor position ('start': date is marker's left edge, 'end': date is marker's right edge, 'center': date is marker's center + label below, unset: center)
+  type: MarkerType // Marker shape
+  color?: string // Marker color (CSS color string)
+  fontSize?: MarkerFontSize // Marker label font size (default: 'sm' = 10px)
+  style?: string // Custom marker style (CSS string)
 }
 ```
 
@@ -653,11 +655,11 @@ interface GanttMarker {
 
 ```typescript
 interface RowReorderEventDetail {
-  sourceId: string // 移動元の行ID（単一選択時）
-  sourceIds?: string[] // 移動元の行ID配列（複数選択時）
-  targetId: string // ドロップ先の行ID
-  position?: 'top' | 'bottom' // ドロップ先に対する位置
-  rows: GanttRow[] // 並び替え後の新しい行データの配列
+  sourceId: string // Source row ID (single selection)
+  sourceIds?: string[] // Source row IDs (multi-selection)
+  targetId: string // Drop target row ID
+  position?: 'top' | 'bottom' // Position relative to the target
+  rows: GanttRow[] // New row data array after reordering
 }
 ```
 
@@ -665,32 +667,32 @@ interface RowReorderEventDetail {
 
 ```typescript
 interface TaskUpdateEventDetail extends GanttTask {
-  dx?: number // X方向の移動量 (px)
-  dy: number // Y方向の移動量 (px)
-  isDragging: boolean // ドラッグ操作中かどうか
-  targetRowId?: string // 移動先の行ID（行をまたぐ移動の場合）
-  x?: number // マウスのX座標（ドラッグ中のみ）
-  y?: number // マウスのY座標（ドラッグ中のみ）
-  barX?: number // タスクバーの中心X座標（ドラッグ中のみ）
-  barTop?: number // タスクバーの上端Y座標（ドラッグ中のみ）
-  barBottom?: number // タスクバーの下端Y座標（ドラッグ中のみ）
-  mode: GanttTaskMoveMode // 移動モード ('move' | 'copy')
-  selectedTaskIds?: string[] // 複数選択移動時の対象タスクID配列
-  isOutside?: boolean // ガントチャート外にカーソルがあるかどうか
-  isCancel?: boolean // ドラッグがキャンセルされたかどうか
+  dx?: number // Horizontal movement amount (px)
+  dy: number // Vertical movement amount (px)
+  isDragging: boolean // Whether currently dragging
+  targetRowId?: string // Target row ID (for cross-row moves)
+  x?: number // Mouse X coordinate (during drag only)
+  y?: number // Mouse Y coordinate (during drag only)
+  barX?: number // Task bar center X coordinate (during drag only)
+  barTop?: number // Task bar top edge Y coordinate (during drag only)
+  barBottom?: number // Task bar bottom edge Y coordinate (during drag only)
+  mode: GanttTaskMoveMode // Move mode ('move' | 'copy')
+  selectedTaskIds?: string[] // Target task IDs for multi-selection drag
+  isOutside?: boolean // Whether the cursor is outside the Gantt chart area
+  isCancel?: boolean // Whether the drag operation was canceled
 }
 ```
 
 ### TaskProgressChangeEventDetail
 
-進捗バーのドラッグ編集が完了した時（またはEscでキャンセルされた時）に `task-progress-change` イベントとして発火されます。
+Fired with the `task-progress-change` event when a progress drag edit finishes (or is cancelled via Esc key).
 
 ```typescript
 interface TaskProgressChangeEventDetail {
-  task: GanttTask // 対象のタスクデータ
-  progress: number // 新しい進捗率 (0〜100)
-  originalProgress?: number // 変更前の進捗率
-  cancelled?: boolean // Escキー等でキャンセルされたかどうか
+  task: GanttTask // Target task data
+  progress: number // New progress percentage (0 - 100)
+  originalProgress?: number // Progress percentage before change
+  cancelled?: boolean // Whether the operation was cancelled (e.g. via Esc key)
 }
 ```
 
@@ -698,9 +700,9 @@ interface TaskProgressChangeEventDetail {
 
 ```typescript
 interface TaskDropEventDetail {
-  task: GanttTask // ドロップされたタスクの元データ
-  dropDate: Date // ドロップされた位置に対応する日時
-  targetRowId: string // ドロップ先の行ID
+  task: GanttTask // Original data of the dropped task
+  dropDate: Date // Date corresponding to the drop position
+  targetRowId: string // Target row ID
 }
 ```
 
@@ -708,7 +710,7 @@ interface TaskDropEventDetail {
 
 ```typescript
 interface RowHeaderResizeEventDetail {
-  width: number // リサイズ後の新しい幅
+  width: number // New width after resizing
 }
 ```
 
@@ -716,8 +718,8 @@ interface RowHeaderResizeEventDetail {
 
 ```typescript
 interface TaskClickEventDetail {
-  task: GanttTask // クリックされたタスクデータ
-  event: MouseEvent // 元のクリックイベント
+  task: GanttTask // Clicked task data
+  event: MouseEvent // Original click event
 }
 ```
 
@@ -725,8 +727,8 @@ interface TaskClickEventDetail {
 
 ```typescript
 interface TaskContextMenuEventDetail {
-  task: GanttTask // 対象のタスクデータ
-  event: MouseEvent // 元のコンテキストメニューイベント（座標取得などに使用）
+  task: GanttTask // Target task data
+  event: MouseEvent // Original context menu event (use for coordinates, etc.)
 }
 ```
 
@@ -734,7 +736,7 @@ interface TaskContextMenuEventDetail {
 
 ```typescript
 interface RowSelectionChangeEventDetail {
-  selectedIds: string[] // 現在選択されている全ての行IDの配列
+  selectedIds: string[] // Array of all currently selected row IDs
 }
 ```
 
@@ -742,7 +744,7 @@ interface RowSelectionChangeEventDetail {
 
 ```typescript
 interface BarSelectionChangeEventDetail {
-  selectedIds: string[] // 現在選択されている全てのタスクIDの配列
+  selectedIds: string[] // Array of all currently selected task IDs
 }
 ```
 
@@ -750,20 +752,20 @@ interface BarSelectionChangeEventDetail {
 
 ```typescript
 interface BarHoverEventDetail {
-  task: GanttTask // 対象のタスクデータ
-  x: number // マウスのX座標
-  y: number // マウスのY座標（バー上辺）
-  barBottom: number // バー下辺のY座標
+  task: GanttTask // Target task data
+  x: number // Mouse X coordinate
+  y: number // Mouse Y coordinate (bar top edge)
+  barBottom: number // Bar bottom edge Y coordinate
 }
 ```
 
 ### RowClickedEventDetail
 
 ```typescript
-// row-clicked イベントの詳細（gantt-row から発火）
+// Detail for the row-clicked event (fired from gantt-row)
 interface RowClickedEventDetail {
-  rowId: string // クリックされた行ID
-  event: MouseEvent // 元のクリックイベント
+  rowId: string // Clicked row ID
+  event: MouseEvent // Original click event
 }
 ```
 
@@ -771,10 +773,10 @@ interface RowClickedEventDetail {
 
 ```typescript
 interface RowHeaderClickEventDetail {
-  rowId: string // クリックされた行ID
-  row: GanttRow // クリックされた行データ
-  event: MouseEvent // 元のクリックイベント
-  target: HTMLElement // クリックされたヘッダー要素
+  rowId: string // Clicked row ID
+  row: GanttRow // Clicked row data
+  event: MouseEvent // Original click event
+  target: HTMLElement // Clicked header element
 }
 ```
 
@@ -782,10 +784,10 @@ interface RowHeaderClickEventDetail {
 
 ```typescript
 interface RowHeaderDblClickEventDetail {
-  rowId: string // ダブルクリックされた行ID
-  row: GanttRow // ダブルクリックされた行データ
-  event: MouseEvent // 元のダブルクリックイベント
-  target: HTMLElement // ダブルクリックされたヘッダー要素
+  rowId: string // Double-clicked row ID
+  row: GanttRow // Double-clicked row data
+  event: MouseEvent // Original double-click event
+  target: HTMLElement // Double-clicked header element
 }
 ```
 
@@ -793,10 +795,10 @@ interface RowHeaderDblClickEventDetail {
 
 ```typescript
 interface RowHeaderContextMenuEventDetail {
-  rowId: string // 右クリックされた行ID
-  row: GanttRow // 右クリックされた行データ
-  event: MouseEvent // 元のコンテキストメニューイベント
-  target: HTMLElement // 右クリックされたヘッダー要素
+  rowId: string // Right-clicked row ID
+  row: GanttRow // Right-clicked row data
+  event: MouseEvent // Original context menu event
+  target: HTMLElement // Right-clicked header element
 }
 ```
 
@@ -804,57 +806,57 @@ interface RowHeaderContextMenuEventDetail {
 
 ```typescript
 interface ChartContextMenuEventDetail {
-  event: MouseEvent // 元のコンテキストメニューイベント
-  date: Date // クリックされた位置に対応する日時
-  rowId: string // クリックされた行ID
+  event: MouseEvent // Original context menu event
+  date: Date // Date corresponding to the clicked position
+  rowId: string // Clicked row ID
 }
 ```
 
 ### ThemeColorPalette
 
-テーマカラーをカスタマイズする際に使用するキー定義です。
+Key definitions used for customizing theme colors.
 
 ```typescript
 interface ThemeColorPalette {
-  bg: string // 背景色
-  text: string // テキスト色
-  border: string // ボーダー色
-  gridLine: string // グリッド線色
-  subGridLine: string // サブグリッド線色（スナップ単位など）
-  monthGridLine?: string // 月の区切りの縦罫線色 (オプション)
-  yearGridLine?: string // 年の区切りの縦罫線色 (オプション)
-  showTimeDateLine?: string // 時間単位モードの日付区切り縦罫線色 (オプション)。未指定時は monthGridLine → border にフォールバック
-  dragTarget: string // ドラッグ対象の背景色
-  tooltipBg: string // ツールチップの背景色
-  tooltipText: string // ツールチップのテキスト色
-  dragOverlayBg: string // ドラッグオーバーレイの背景色
-  dragOverlayText: string // ドラッグオーバーレイのテキスト色
-  dragOverlaySubText: string // ドラッグオーバーレイのサブテキスト色
-  dragOverlayDivider: string // ドラッグオーバーレイの区切り線色
-  dependencyLine: string // 依存関係線の色
-  calendarBg: string // カレンダー領域の背景色
-  saturday: string // 土曜日の背景色
-  sunday: string // 日曜日の背景色
-  holiday: string // 祝日の背景色
-  rowHeaderBg: string // 行ヘッダーの背景色
-  rowSelected: string // 選択された行の背景色
-  rowSelectedHeader: string // 選択された行のヘッダーの背景色
-  rowHiddenBg: string // 非表示設定されている行の背景色
-  currentTimeLine: string // 現在時刻線の色
-  currentTimeLineText: string // 現在時刻線のバッジテキスト色
-  monday?: string // 月曜日の背景色 (オプション)
-  tuesday?: string // 火曜日の背景色 (オプション)
-  wednesday?: string // 水曜日の背景色 (オプション)
-  thursday?: string // 木曜日の背景色 (オプション)
-  friday?: string // 金曜日の背景色 (オプション)
-  criticalPath?: string // クリティカルパスのハイライト色 (オプション)
-  minimapBg?: string // ミニマップの背景色 (オプション)
-  minimapBorder?: string // ミニマップの枠線色 (オプション)
-  minimapViewport?: string // ミニマップのビューポート枠背景色 (オプション)
-  minimapViewportBorder?: string // ミニマップのビューポート枠ボーダー色 (オプション)
-  minimapTask?: string // ミニマップのタスク描画色 (オプション)
-  taskProgress?: string // タスク進捗バーの描画色 (オプション)
-  taskProgressHandle?: string // タスク進捗変更ハンドルの描画色 (オプション)
+  bg: string // Background color
+  text: string // Text color
+  border: string // Border color
+  gridLine: string // Grid line color
+  subGridLine: string // Sub-grid line color (snap units, etc.)
+  monthGridLine?: string // Monthly vertical grid line color (optional)
+  yearGridLine?: string // Yearly vertical grid line color (optional)
+  showTimeDateLine?: string // Date separator line color in time-unit mode (optional). Falls back to monthGridLine → border when unset
+  dragTarget: string // Drag target background color
+  tooltipBg: string // Tooltip background color
+  tooltipText: string // Tooltip text color
+  dragOverlayBg: string // Drag overlay background color
+  dragOverlayText: string // Drag overlay text color
+  dragOverlaySubText: string // Drag overlay sub-text color
+  dragOverlayDivider: string // Drag overlay divider color
+  dependencyLine: string // Dependency line color
+  calendarBg: string // Calendar area background color
+  saturday: string // Saturday background color
+  sunday: string // Sunday background color
+  holiday: string // Holiday background color
+  rowHeaderBg: string // Row header background color
+  rowSelected: string // Selected row background color
+  rowSelectedHeader: string // Selected row header background color
+  rowHiddenBg: string // Hidden row background color
+  currentTimeLine: string // Current time line color
+  currentTimeLineText: string // Current time line badge text color
+  monday?: string // Monday background color (optional)
+  tuesday?: string // Tuesday background color (optional)
+  wednesday?: string // Wednesday background color (optional)
+  thursday?: string // Thursday background color (optional)
+  friday?: string // Friday background color (optional)
+  criticalPath?: string // Critical path highlight color (optional)
+  minimapBg?: string // Minimap background color (optional)
+  minimapBorder?: string // Minimap border color (optional)
+  minimapViewport?: string // Minimap viewport background color (optional)
+  minimapViewportBorder?: string // Minimap viewport border color (optional)
+  minimapTask?: string // Minimap task bar color (optional)
+  taskProgress?: string // Task progress bar color (optional)
+  taskProgressHandle?: string // Task progress drag handle color (optional)
 }
 ```
 
@@ -880,35 +882,35 @@ type DependencyEndpoint = 'start' | 'end'
 
 ```typescript
 interface GanttChartOptionDependency {
-  /** 矢印を表示するかどうか (デフォルト: true) */
+  /** Whether to show arrows (default: true) */
   showArrows?: boolean
-  /** 矢印の大きさ (px)。デフォルト: 8 */
+  /** Arrow size in px (default: 8) */
   arrowSize?: number
   /**
-   * 接続線のスタイル (デフォルト: 'orthogonal')
-   * - 'curve': ベジェ曲線
-   * - 'orthogonal': 直角折れ線（角が丸くなる）
+   * Connection line style (default: 'orthogonal')
+   * - 'curve': Bezier curve
+   * - 'orthogonal': Orthogonal segmented line with rounded corners
    */
   lineStyle?: DependencyLineStyle
-  /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
+  /** Corner radius in px for orthogonal style (default: 8) */
   cornerRadius?: number
-  /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
+  /** Whether to show connector points (circles) on task bars (default: true) */
   showConnectors?: boolean
-  /** クリティカルパスを表示するかどうか (デフォルト: false)。依存関係グラフの最長チェーンを自動計算し、該当するタスクバーと接続線をハイライト表示する */
+  /** Whether to show the critical path (default: false). Automatically calculates the longest chain in the dependency graph and highlights relevant task bars and lines */
   showCriticalPath?: boolean
 }
 ```
 
-> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。
+> **Note:** The default `lineStyle` is `'orthogonal'`. For reverse-direction (right-to-left) dependencies, it automatically calculates a U-turn bypass route. If `'curve'` is specified, it draws a Bezier curve as before.
 
 ### DependencyCreateEventDetail
 
 ```typescript
 interface DependencyCreateEventDetail {
-  sourceTaskId: string // 接続元のタスクID
-  sourceEndpoint: DependencyEndpoint // 接続元のエンドポイント（start=左端, end=右端）
-  targetTaskId: string // 接続先のタスクID
-  targetEndpoint: DependencyEndpoint // 接続先のエンドポイント（start=左端, end=右端）
+  sourceTaskId: string // Source task ID
+  sourceEndpoint: DependencyEndpoint // Source endpoint (start=left edge, end=right edge)
+  targetTaskId: string // Target task ID
+  targetEndpoint: DependencyEndpoint // Target endpoint (start=left edge, end=right edge)
 }
 ```
 
@@ -916,18 +918,17 @@ interface DependencyCreateEventDetail {
 
 ```typescript
 interface TaskDeleteEventDetail {
-  taskIds: string[] // 削除対象のタスクID配列
-  event: KeyboardEvent // 元のキーボードイベント
+  taskIds: string[] // Array of task IDs to be deleted
+  event: KeyboardEvent // Original keyboard event
 }
 ```
-
 
 ### ZoomChangeEventDetail
 
 ```typescript
 interface ZoomChangeEventDetail {
-  pxPerDay: number // ズーム後の pxPerDay
-  pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
+  pxPerDay: number // pxPerDay after zoom
+  pxPerMonth?: number // pxPerMonth after zoom (only in monthly mode)
 }
 ```
 
@@ -935,9 +936,9 @@ interface ZoomChangeEventDetail {
 
 ```typescript
 interface DependencyClickEventDetail {
-  sourceTaskId: string // 接続元（依存元）のタスクID
-  targetTaskId: string // 接続先（依存を持つ側）のタスクID
-  event: MouseEvent // 元のマウスイベント
+  sourceTaskId: string // Source (dependency) task ID
+  targetTaskId: string // Target (dependent) task ID
+  event: MouseEvent // Original mouse event
 }
 ```
 
@@ -945,9 +946,9 @@ interface DependencyClickEventDetail {
 
 ```typescript
 interface MarkerDblClickEventDetail {
-  marker: GanttMarker // 対象のマーカー
-  rowId: string // マーカーが属する行ID
-  event: MouseEvent // 元のマウスイベント
+  marker: GanttMarker // Target marker
+  rowId: string // Row ID the marker belongs to
+  event: MouseEvent // Original mouse event
 }
 ```
 
@@ -955,9 +956,9 @@ interface MarkerDblClickEventDetail {
 
 ```typescript
 interface MarkerContextMenuEventDetail {
-  marker: GanttMarker // 対象のマーカー
-  rowId: string // マーカーが属する行ID
-  event: MouseEvent // 元のマウスイベント
+  marker: GanttMarker // Target marker
+  rowId: string // Row ID the marker belongs to
+  event: MouseEvent // Original mouse event
 }
 ```
 
@@ -965,21 +966,21 @@ interface MarkerContextMenuEventDetail {
 
 ```typescript
 interface GanttChartOptionMinimap {
-  enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
-  width?: number // ミニマップの幅 (px、デフォルト: 200)
-  height?: number // ミニマップの高さ (px、デフォルト: 120)
-  maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
-  preserveAspectRatio?: boolean // ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
-  resizable?: boolean // ユーザーによるドラッグリサイズを許可するかどうか (デフォルト: true)
-  minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
-  maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
-  minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
-  collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
-  collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
-  showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
-  showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
-  position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
-  opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
+  enabled?: boolean // Whether to enable minimap (default: false)
+  width?: number // Width of the minimap in px (default: 200)
+  height?: number // Height of the minimap in px (default: 120)
+  maxHeight?: number // Maximum height when preserving aspect ratio in px (default: height or 120)
+  preserveAspectRatio?: boolean // Whether to preserve the chart content aspect ratio (default: true)
+  resizable?: boolean // Whether to allow drag resizing by user (default: true)
+  minWidth?: number // Minimum width during resize in px (default: 120)
+  maxWidth?: number // Maximum width during resize in px (default: 600)
+  minHeight?: number // Minimum height during resize in px (default: 60)
+  collapsible?: boolean // Whether to show collapse button (default: true)
+  collapsed?: boolean // Whether initially collapsed (default: false)
+  showMilestones?: boolean // Whether to display milestones on minimap (default: true)
+  showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
+  position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
+  opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
 }
 ```
 
@@ -987,8 +988,8 @@ interface GanttChartOptionMinimap {
 
 ```typescript
 interface MinimapPosition {
-  right: number // 親要素右端からの距離 (px)
-  bottom: number // 親要素下端からの距離 (px)
+  right: number // Distance from parent container right edge (px)
+  bottom: number // Distance from parent container bottom edge (px)
 }
 ```
 
@@ -996,9 +997,9 @@ interface MinimapPosition {
 
 ```typescript
 interface MinimapResizeEventDetail {
-  width: number // リサイズ後の幅 (px)
-  height: number // リサイズ後の高さ (px)
-  position?: MinimapPosition // リサイズに伴う位置の変更 (px)
+  width: number // New width after resize (px)
+  height: number // New height after resize (px)
+  position?: MinimapPosition // Position update resulting from resize (px)
 }
 ```
 
@@ -1006,8 +1007,8 @@ interface MinimapResizeEventDetail {
 
 ```typescript
 interface MinimapMoveEventDetail {
-  right: number // 親要素右端からの距離 (px)
-  bottom: number // 親要素下端からの距離 (px)
+  right: number // Distance from parent container right edge (px)
+  bottom: number // Distance from parent container bottom edge (px)
 }
 ```
 
@@ -1015,7 +1016,7 @@ interface MinimapMoveEventDetail {
 
 ```typescript
 interface MinimapCollapseEventDetail {
-  collapsed: boolean // 最小化されているかどうか
+  collapsed: boolean // Whether the minimap is collapsed
 }
 ```
 
@@ -1023,56 +1024,74 @@ interface MinimapCollapseEventDetail {
 
 ```typescript
 interface GanttChartOptionProgress {
-  /** 進捗表示を有効にするかどうか (デフォルト: true) */
+  /** Whether to enable progress display (default: true) */
   enabled?: boolean
-  /** 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false) */
+  /** Whether progress can be adjusted by dragging (default: false) */
   editable?: boolean
-  /** 進捗バーのデフォルト色 (CSSカラー文字列) */
+  /** Default progress bar color (CSS color string) */
   color?: string
-  /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
+  /** Whether to show progress label text (e.g. '50%') (default: false) */
   showLabel?: boolean
-  /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
+  /** Progress label position ('inside' | 'right' | 'left' | 'center') (default: 'inside') */
   labelPosition?: 'inside' | 'right' | 'left' | 'center'
-  /** 進捗ラベルのカスタムフォーマット関数 */
+  /** Custom progress label formatter function */
   labelFormatter?: (progress: number, task: GanttTask) => string
-  /** ドラッグ編集時の進捗率スナップ単位 (1, 5, 10 など。デフォルト: 1) */
+  /** Progress snap step during drag editing (default: 1) */
   snapStep?: number
-  /** 進捗インジケーターのスタイル ('full' | 'bottom' | 'top') (デフォルト: 'full') */
+  /** Progress indicator display style ('full' | 'bottom' | 'top') (default: 'full') */
   indicatorPosition?: 'full' | 'bottom' | 'top'
 }
 ```
 
 ### MoguchartLocale
 
-ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
+Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
 
 ```typescript
 interface MoguchartLocale {
-  monthFormat: string // デフォルトの月表示フォーマット (dayjs互換)
-  monthRowFormat: string // 月単位モードの月表示フォーマット (例: 'M月' / 'MMM')
-  dateFormat: (date: Date) => string // 日付のフォーマット関数
-  timeUnitDateFormat: (date: Date) => string // 時間単位モードの日付フォーマット関数
-  dateTimeFormat: (date: Date) => string // 日時のフォーマット関数
-  yearMonthFormat: (date: Date) => string // 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用)
+  /** Default month display format (dayjs-compatible format string) */
+  monthFormat: string
+  /** Month display format for monthly view mode (e.g., 'MMM') */
+  monthRowFormat: string
+  /** Date format function (e.g., "1/15/2024") */
+  dateFormat: (date: Date) => string
+  /** Date format function for time-unit mode (e.g., "Jan 15, 2024") */
+  timeUnitDateFormat: (date: Date) => string
+  /** Date-time format function (used when time is not 00:00) */
+  dateTimeFormat: (date: Date) => string
+  /** Year-month format function (used in tooltips and drag overlays for monthly view) */
+  yearMonthFormat: (date: Date) => string
+  /** Duration formatting */
   duration: {
-    days: (n: number) => string // 日数のフォーマット
-    hours: (n: number) => string // 時間のフォーマット
-    minutes: (n: number) => string // 分のフォーマット
-    zero: string // 期間がゼロの場合の表示
+    /** Days format (e.g., 3 → "3 days") */
+    days: (n: number) => string
+    /** Hours format (e.g., 2 → "2 hours") */
+    hours: (n: number) => string
+    /** Minutes format (e.g., 30 → "30 minutes") */
+    minutes: (n: number) => string
+    /** Display when duration is zero */
+    zero: string
   }
+  /** Default tooltip strings */
   tooltip: {
-    duration: (days: number) => string // 所要日数の表示
-    progress?: (percent: number) => string // 進捗率の表示 (例: 75 → "進捗: 75%") (オプション)
+    /** Duration display (e.g., 5 → "Duration: 5 days") */
+    duration: (days: number) => string
+    /** Progress percentage display (e.g., 75 → "Progress: 75%") (optional) */
+    progress?: (percent: number) => string
   }
+  /** Drag overlay strings */
   dragOverlay: {
-    noTitle: string // タイトル未設定時のフォールバック
-    moveTo: (name: string) => string // 移動先の表示
-    movingTasks: (count: number) => string // 複数タスク移動中の表示
+    /** Fallback when title is not set */
+    noTitle: string
+    /** Move target display (e.g., "Move to: Row1") */
+    moveTo: (name: string) => string
+    /** Multi-task move display (e.g., "Moving 3 tasks") */
+    movingTasks: (count: number) => string
   }
 }
 ```
 
-#### 使用例
+#### Usage Example
 
 ```javascript
 import { enLocale } from '@mogura/moguchart-core'
@@ -1083,48 +1102,51 @@ const option = {
 }
 ```
 
-カスタムロケールを作成する場合:
+To create a custom locale, implement the `MoguchartLocale` interface:
 
-```javascript
-const myLocale = {
-  monthFormat: 'YYYY/MM',
-  monthRowFormat: 'MM月',
-  dateFormat: (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`,
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart-core'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
   dateTimeFormat: (d) => {
-    const h = d.getHours(),
-      m = d.getMinutes()
-    const date = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-    return h === 0 && m === 0 ? date : `${date} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
   },
   yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
   duration: {
-    days: (n) => `${n}日`,
-    hours: (n) => `${n}時間`,
-    minutes: (n) => `${n}分`,
-    zero: '0分',
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
   },
-  tooltip: { duration: (days) => `所要: ${days}日` },
+  tooltip: { duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}` },
   dragOverlay: {
-    noTitle: 'タイトルなし',
-    moveTo: (name) => `→ ${name}`,
-    movingTasks: (count) => `${count}件移動中`,
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
   },
 }
 ```
 
-## 複数タスクの選択とドラッグ
+## Multi-Task Selection and Dragging
 
-`Ctrl`（Mac: `Cmd`）キーを押しながらタスクバーをクリックすることで、複数のタスクを選択できます。選択状態は `bar-selection-change` イベントで通知されます。
+Hold `Ctrl` (Mac: `Cmd`) and click task bars to select multiple tasks. Selection state is communicated via the `bar-selection-change` event.
 
-### 複数選択時のドラッグ動作
+### Drag Behavior with Multi-Selection
 
-複数のタスクバーが選択された状態で、いずれか1つのバーをドラッグすると、選択された全バーが連動して移動します。
+When multiple task bars are selected and one of them is dragged, all selected bars move together.
 
-- **水平方向のみ移動**: 複数選択時のドラッグは水平方向（日付方向）のみに制限されます。行間の移動（縦方向）はできません。
-- **ゴースト表示**: ドラッグ中、直接ドラッグしているバー以外の選択されたバーは半透明のゴーストとして表示され、同じ水平移動量で連動して動きます。
-- **`task-update` イベント**: ドロップ時に発火する `task-update` イベントの `selectedTaskIds` フィールドに、選択中の全タスクIDが含まれます。利用側はこのIDリストを参照して、全選択タスクに同じ `dx` を適用してください。
+- **Horizontal movement only**: Multi-selection drag is restricted to horizontal (date direction) movement only. Cross-row (vertical) movement is not available.
+- **Ghost display**: While dragging, selected bars other than the one being directly dragged are displayed as semi-transparent ghosts, moving in sync with the same horizontal movement.
+- **`task-update` event**: The `task-update` event fired on drop includes all selected task IDs in the `selectedTaskIds` field. The consumer should reference this ID list to apply the same `dx` to all selected tasks.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -1133,7 +1155,7 @@ chart.addEventListener('task-update', (e) => {
   const detail = e.detail
 
   if (!detail.isDragging && detail.selectedTaskIds?.length > 1) {
-    // 複数選択ドラッグのドロップ: 全選択タスクに同じdxを適用
+    // Multi-selection drag drop: apply same dx to all selected tasks
     for (const taskId of detail.selectedTaskIds) {
       applyDxToTask(taskId, detail.dx)
     }
@@ -1141,15 +1163,15 @@ chart.addEventListener('task-update', (e) => {
 })
 ```
 
-## マイルストーン
+## Milestones
 
-`calendar.milestones` にマイルストーンの配列を渡すことで、チャート上に縦線とバッジを表示できます。
+Pass an array of milestones to `calendar.milestones` to display vertical lines and badges on the chart.
 
-- 縦線はチャート本体に、名前バッジはカレンダーの年月行に表示されます。
-- 通常時は半透明（opacity: 0.5）で表示され、バッジまたは線にマウスオーバーすると不透明になります。
-- バッジと線のホバーエフェクトは連動します。
+- Vertical lines are displayed on the chart body, and name badges appear in the calendar's year/month row.
+- Normally displayed semi-transparent (opacity: 0.5), becoming opaque on mouseover of the badge or line.
+- Badge and line hover effects are synchronized.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -1162,14 +1184,14 @@ chart.option = {
     milestones: [
       {
         id: 'ms-1',
-        name: 'α版リリース',
+        name: 'Alpha Release',
         start: new Date('2025-04-08'),
         color: '#8b5cf6',
-        width: 4, // 太い線
+        width: 4, // Thick line
       },
       {
         id: 'ms-2',
-        name: '正式リリース',
+        name: 'Production Release',
         start: new Date('2025-05-01'),
         color: '#10b981',
       },
@@ -1178,32 +1200,32 @@ chart.option = {
 }
 ```
 
-## マーカー
+## Markers
 
-各行の `markers` にマーカーの配列を渡すことで、行のタイムライン上にアイコンとラベルを表示できます。
+Pass an array of markers to each row's `markers` property to display icons with labels on the row timeline.
 
-- マーカーは6種類の形状から選択できます: 三角形（上・下・左・右）、ひし形（`diamond`）、正方形（`square`）。
-- `anchor` でマーカーの基準位置を制御できます。
-  - `'start'`: dateがマーカー左端。ラベルはアイコンの右側に表示。
-  - `'end'`: dateがマーカー右端。ラベルはアイコンの左側に表示。
-  - `'center'`: dateがマーカー中央。ラベルはアイコンの下部に中央揃えで表示。マーカーの下端が行の垂直中心に配置されます。
-  - 未指定: dateがマーカー中央。ラベルはアイコンの右側に表示。
-- `name` を設定するとテキストラベルが表示されます。
+- Choose from 6 shapes: triangles (up, down, left, right), diamond, and square.
+- Control the marker's reference position with `anchor`.
+  - `'start'`: date is the marker's left edge. Label is displayed to the right of the icon.
+  - `'end'`: date is the marker's right edge. Label is displayed to the left of the icon.
+  - `'center'`: date is the marker's center. Label is displayed below the icon, centered. The bottom edge of the marker is aligned with the row's vertical center.
+  - Unset: date is the marker's center. Label is displayed to the right of the icon.
+- Setting `name` displays a text label.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const rows = [
   {
     id: 'row-1',
-    name: 'プロジェクトA',
+    name: 'Project A',
     tasks: [
       /* ... */
     ],
     markers: [
       {
         id: 'marker-1',
-        name: 'レビュー期限',
+        name: 'Review Deadline',
         date: new Date('2025-04-10'),
         anchor: 'end',
         type: 'triangle-right',
@@ -1211,7 +1233,7 @@ const rows = [
       },
       {
         id: 'marker-2',
-        name: 'リリース予定',
+        name: 'Scheduled Release',
         date: new Date('2025-04-20'),
         anchor: 'start',
         type: 'triangle-left',
@@ -1230,11 +1252,11 @@ const rows = [
 ]
 ```
 
-## 表示モード
+## View Modes
 
-### 週表示モード
+### Week View Mode
 
-`calendar.showWeeks: true` を設定すると、上段に年月、下段に週番号を表示する2段カレンダーになります。`pxPerDay` が20未満の場合は自動的に有効化されます。
+Set `calendar.showWeeks: true` to switch to a two-row calendar header showing year/month on top and week numbers on the bottom. This mode is enabled automatically when `pxPerDay` is less than 20.
 
 ```javascript
 const option = {
@@ -1243,38 +1265,37 @@ const option = {
     end: new Date('2025-12-31'),
     pxPerDay: 15,
     showWeeks: true,
-    weekStartDay: 1, // 月曜始まり (デフォルト)
-    weekFormat: (weekNum, startDate) => `W${weekNum}`, // カスタムフォーマット
+    weekStartDay: 1, // 1 = Monday (default)
+    weekFormat: (weekNum, startDate) => `W${weekNum}`, // Custom format
     weekTextAlign: 'center',
   },
 }
 ```
 
-### 月表示モード
+### Monthly View Mode
 
-`calendar.pxPerMonth` を設定すると、各月が等幅で表示される月単位ビューになります。`snapDuration` は自動的に月単位のスナップに切り替わります。
+Set `calendar.pxPerMonth` to render each month at a fixed equal width. When `pxPerMonth` is specified, snapping is automatically enforced at monthly boundaries regardless of `snapDuration`.
 
 ```javascript
 const option = {
   calendar: {
     start: new Date('2025-01-01'),
     end: new Date('2027-12-31'),
-    pxPerDay: 1, // pxPerMonth 利用時は参照されません
-    pxPerMonth: 120, // 1ヶ月あたり120px
-    showMonthsRow: true, // 上段=年、下段=月の2段ヘッダー
+    pxPerDay: 1, // Not referenced when pxPerMonth is set
+    pxPerMonth: 120, // 120px per month
+    showMonthsRow: true, // Two-row header: top=year, bottom=month
     monthTextAlign: 'left',
   },
-  snapDuration: 0, // 月単位スナップ (pxPerMonth 指定時は無視されスナップは月単位になる)
 }
 ```
 
-## カーソル追従縦罫線
+## Cursor Tracking Line
 
-`calendar.showCursorLine: true` を設定すると、ガントチャート上にマウスカーソルが入った際、そのX座標に追従する縦罫線がリアルタイムで表示されます。
+Set `calendar.showCursorLine: true` to display a vertical line that follows the mouse cursor's X position in real time while it is over the Gantt chart.
 
-- チャート上にマウスが乗っている間のみ表示され、チャート外に出ると非表示になります。
-- 行ヘッダー領域（行名が表示される左端の固定列）では非表示になります。
-- 線の色は `cursorLineColor` で指定できます。省略した場合は `customTheme.currentTimeLine` と同じ色が使われます。
+- The line is only shown while the mouse is over the chart area, and disappears when the cursor leaves.
+- The line is hidden over the row header area (the fixed left column showing row names).
+- The line color can be specified with `cursorLineColor`. When omitted, it uses the same color as `customTheme.currentTimeLine`.
 
 ```javascript
 const option = {
@@ -1283,23 +1304,23 @@ const option = {
     end: new Date('2025-12-31'),
     pxPerDay: 48,
     showCursorLine: true,
-    cursorLineColor: 'rgba(99, 179, 237, 0.7)', // 省略可
+    cursorLineColor: 'rgba(99, 179, 237, 0.7)', // optional
   },
 }
 ```
 
-## 依存関係のドラッグ＆ドロップ作成
+## Drag & Drop Dependency Creation
 
-タスクバーにマウスをホバーすると、バーの左右の端にコネクターポイント（青い丸）が表示されます。このコネクターポイントからドラッグを開始し、別のタスクバー（またはその端）にドロップすることで、タスク間の依存関係を作成できます。
+When you hover over a task bar, connector points (blue circles) will appear on the left and right edges. You can create a dependency between tasks by dragging from one of these connector points and dropping it onto another task bar (or its edge).
 
-- ドラッグ中はベジェ曲線のプレビュー線が表示されます
-- ターゲットタスクの近くに来ると、コネクターポイントに自動でスナップします
-- ターゲットタスクは青いアウトラインでハイライトされます
-- ドロップ成功時に `dependency-create` イベントが発火します
-- `readOnly` モードではコネクターポイントは表示されません
-- `dependency.showConnectors: false` を設定するとコネクターポイントを非表示にできます（既存の依存関係線は引き続き表示されます）
+- A Bezier curve preview line is displayed during the drag.
+- When you get close to a target task, it automatically snaps to the connector point.
+- The target task is highlighted with a blue outline.
+- The `dependency-create` event fires upon a successful drop.
+- Connector points are not displayed in `readOnly` mode.
+- Set `dependency.showConnectors: false` to hide connector points (existing dependency lines will still be displayed).
 
-### 使用例
+### Usage Example
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -1308,7 +1329,7 @@ chart.addEventListener('dependency-create', (e) => {
   const { sourceTaskId, targetTaskId, sourceEndpoint, targetEndpoint } = e.detail
   console.log(`${sourceTaskId} (${sourceEndpoint}) -> ${targetTaskId} (${targetEndpoint})`)
 
-  // rows のデータを更新して依存関係を追加
+  // Update the rows data to add the dependency
   rows = rows.map((row) => ({
     ...row,
     tasks: row.tasks.map((task) => {
@@ -1325,25 +1346,25 @@ chart.addEventListener('dependency-create', (e) => {
 })
 ```
 
-## 依存関係線のクリック
+## Dependency Line Click
 
-表示されている依存関係線（矢印付きベジェ曲線）をクリックすると `dependency-click` イベントが発火します。削除やその他の操作はイベントハンドラ側で実装してください。
+Clicking on a displayed dependency line (a Bezier curve with an arrow) fires the `dependency-click` event. Deletion or other operations should be implemented in the event handler.
 
-- 依存関係線にマウスをホバーすると、線が太くなり光彩効果でハイライトされます
-- クリックすると `dependency-click` イベントが発火します
-- `readOnly` モードではクリックできません
+- Hovering over a dependency line makes it thicker and highlights it with a glow effect.
+- Clicking fires the `dependency-click` event.
+- It cannot be clicked in `readOnly` mode.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
 
 chart.addEventListener('dependency-click', (e) => {
-  const { sourceTaskId, targetTaskId } = e.detail
+  const { sourceTaskId, targetTaskId, event } = e.detail
   console.log(`Dependency clicked: ${sourceTaskId} -> ${targetTaskId}`)
 
-  // 例: 確認ダイアログを表示してから削除
-  if (confirm('この依存関係を削除しますか？')) {
+  // Example: Show context menu at mouse coordinates or delete after confirmation
+  if (confirm('Delete this dependency?')) {
     rows = rows.map((row) => ({
       ...row,
       tasks: row.tasks.map((task) => {
@@ -1359,79 +1380,79 @@ chart.addEventListener('dependency-click', (e) => {
 })
 ```
 
-## クリティカルパスの表示
+## Critical Path Visualization
 
-`dependency.showCriticalPath: true` を設定すると、依存関係グラフの中で最長のタスクチェーン（クリティカルパス）を自動的に計算し、該当するタスクバーと接続線を赤色でハイライト表示します。
+Set `dependency.showCriticalPath: true` to automatically calculate the longest task chain (critical path) in the dependency graph and highlight the relevant task bars and connection lines in red.
 
-- 依存関係を持つタスクのみが計算対象です。独立タスク（依存関係に参加していないタスク）はクリティカルパスの計算から除外されます
-- 手動スケジュール（タスク間にギャップがある場合）にも対応しています
-- ハイライトの色は `customTheme.criticalPath` でカスタマイズできます
+- Only tasks that participate in dependencies are included in the calculation. Independent tasks (not connected to any dependency) are excluded.
+- Supports manual scheduling (tasks with gaps between them).
+- The highlight color can be customized with `customTheme.criticalPath`.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const option = {
   dependency: {
-    showCriticalPath: true, // クリティカルパスを表示
+    showCriticalPath: true, // Show critical path
     showArrows: true,
   },
   customTheme: {
-    criticalPath: 'rgba(220, 38, 38, 0.85)', // ハイライト色（省略可）
+    criticalPath: 'rgba(220, 38, 38, 0.85)', // Highlight color (optional)
   },
   // ...
 }
 ```
 
-### computeCriticalPath 関数
+### computeCriticalPath Function
 
-依存関係グラフからクリティカルパス上のタスクIDの集合（`Set<string>`）を直接計算するユーティリティ関数もエクスポートされています。
+A utility function that computes the set of task IDs (`Set<string>`) on the critical path directly from the dependency graph is also exported.
 
 ```typescript
 import { computeCriticalPath } from '@mogura/moguchart-core'
 
 const criticalTaskIds: Set<string> = computeCriticalPath(rows)
-console.log('クリティカルパス上のタスクID:', Array.from(criticalTaskIds))
+console.log('Critical path task IDs:', Array.from(criticalTaskIds))
 ```
 
-## キーボード操作
+## Keyboard Operations
 
-ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
+When the Gantt chart has focus, you can navigate, select, move, and delete tasks using the keyboard.
 
-### サポートされるキー操作
+### Supported Key Operations
 
-| キー | 動作 |
+| Key | Action |
 | :--- | :--- |
-| `←` `→` | フォーカスを同一行内のタスク間で移動（端を超えると次/前行に移動） |
-| `↑` `↓` | フォーカスを別の行のタスクに移動 |
-| `Enter` / `Space` | フォーカス中のタスクを選択 |
-| `Ctrl/Cmd + Enter` | フォーカス中のタスクの選択をトグル（複数選択） |
-| `Shift + ←` `→` | 選択中のタスクを左右に移動（`moveStep` 単位） |
-| `Delete` / `Backspace` | 選択中のタスクに対して `task-delete` イベントを発火 |
-| `Escape` | 選択とフォーカスをすべてクリア |
-| `Home` | 現在の行の最初のタスクにフォーカス |
-| `End` | 現在の行の最後のタスクにフォーカス |
+| `←` `→` | Move focus between tasks within the same row (wraps to next/previous row at edges) |
+| `↑` `↓` | Move focus to a task in another row |
+| `Enter` / `Space` | Select the focused task |
+| `Ctrl/Cmd + Enter` | Toggle selection of the focused task (multi-select) |
+| `Shift + ←` `→` | Move selected tasks left/right (by `moveStep` amount) |
+| `Delete` / `Backspace` | Fire `task-delete` event for selected tasks |
+| `Escape` | Clear all selection and focus |
+| `Home` | Focus the first task in the current row |
+| `End` | Focus the last task in the current row |
 
-### 設定
+### Configuration
 
 ```javascript
 const option = {
   keyboard: {
-    enabled: true,    // キーボード操作を有効にするか (デフォルト: true)
-    moveStep: 60,     // Shift+矢印キーでの移動量（分）。省略時は snapDuration を使用
+    enabled: true,    // Whether to enable keyboard operations (default: true)
+    moveStep: 60,     // Move amount per Shift+Arrow key press (minutes). Uses snapDuration when omitted
   },
   // ...
 }
 ```
 
-### task-delete イベントの使用例
+### task-delete Event Usage Example
 
 ```javascript
 chart.addEventListener('task-delete', (e) => {
   const { taskIds } = e.detail
-  console.log('削除対象:', taskIds)
+  console.log('Tasks to delete:', taskIds)
 
-  // 例: 確認ダイアログを表示してから削除
-  if (confirm(`${taskIds.length}件のタスクを削除しますか？`)) {
+  // Example: Show confirmation dialog before deleting
+  if (confirm(`Delete ${taskIds.length} task(s)?`)) {
     rows = rows.map((row) => ({
       ...row,
       tasks: row.tasks.filter((t) => !taskIds.includes(t.id)),
@@ -1441,19 +1462,19 @@ chart.addEventListener('task-delete', (e) => {
 })
 ```
 
-## ミニマップ（Overview Minimap）
+## Overview Minimap
 
-`minimap` オプションを設定することで、ガントチャート全体のタスク配置やマイルストーン、現在時刻線を鳥瞰できるフローティング小窓型のミニマップを表示できます。
+By setting the `minimap` option, you can display a floating overview window that provides a bird's-eye view of all tasks, milestones, and current time line across the entire Gantt chart.
 
-- **ビューポートナビゲーション**: ミニマップ内の半透明ファインダー枠をドラッグしてスクロール（パン）したり、クリックして目的の位置へジャンプ移動できます。
-- **ドラッグ移動**: ミニマップのタイトルバーをドラッグして、チャート内の任意の位置へ自由に移動できます。移動完了時に `minimap-move` イベントが発火します。
-- **ドラッグリサイズ**: ミニマップの四隅やエッジをドラッグして、サイズを自由に拡大・縮小できます。リサイズ完了時に `minimap-resize` イベントが発火します。
-- **自動アンカーと配置追従**: チャートの表示領域（親要素）サイズ変更やコンテンツ更新時、右下アンカー基準でミニマップの表示位置が自動追従・クランプされ、表示領域外へのはみ出しを防ぎます。
-- **不透明度（透過率）の調整**: `opacity` オプション（`0.1` 〜 `1.0`）でミニマップの不透明度を設定できます。ホバー時やドラッグ・リサイズ操作中は自動的に 1.0（不透明）になり視認性が保たれます。
-- **折りたたみ**: 最小化ボタンでコンパクトに折りたたむことができます。
-- **テーマ対応**: `customTheme` の `minimapBg` や `minimapViewport` などで色をカスタマイズできます。
+- **Viewport Navigation**: Drag the translucent finder frame inside the minimap to pan/scroll, or click anywhere on the minimap to jump directly to that position.
+- **Draggable Window**: Drag the minimap title bar to move and position it anywhere within the chart container. Fires the `minimap-move` event when moved.
+- **Drag Resizing**: Drag the corners or edges of the minimap to resize it freely while optionally preserving the aspect ratio. Fires the `minimap-resize` event when resized.
+- **Auto-Anchoring and Clamping**: Automatically follows container resizing or content updates using a bottom-right anchor and clamps within the parent container to prevent overflowing.
+- **Opacity (Transparency) Control**: Set opacity using the `opacity` option (`0.1` to `1.0`). Opacity automatically transitions to 1.0 (opaque) during hover, drag, or resize interactions for enhanced visibility.
+- **Collapsible**: Collapse or expand the minimap via the minimize button.
+- **Theme Support**: Customize colors using `customTheme` keys like `minimapBg`, `minimapViewport`, and more.
 
-### 使用例
+### Usage Example
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -1465,41 +1486,41 @@ chart.option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
-    position: { right: 16, bottom: 16 }, // 初期表示位置（親要素右下基準 px）
-    opacity: 0.85, // 不透明度 (0.1 〜 1.0)
+    position: { right: 16, bottom: 16 }, // Initial position relative to bottom-right (px)
+    opacity: 0.85, // Opacity (0.1 to 1.0)
   },
 }
 
-// リサイズイベントのハンドリング
+// Listen to resize events
 chart.addEventListener('minimap-resize', (e) => {
   const { width, height, position } = e.detail
   console.log(`Minimap resized: ${width}x${height}`, position)
 })
 
-// ドラッグ移動イベントのハンドリング
+// Listen to move events
 chart.addEventListener('minimap-move', (e) => {
   const { right, bottom } = e.detail
   console.log(`Minimap moved to: right=${right}, bottom=${bottom}`)
 })
 
-// 折りたたみ（最小化）イベントのハンドリング
+// Handling collapse (minimize) event
 chart.addEventListener('minimap-collapse', (e) => {
   const { collapsed } = e.detail
   console.log(`Minimap collapsed: ${collapsed}`)
 })
 ```
 
-## 進捗管理（Progress Management）
+## Progress Management
 
-各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。
+By setting the `progress` property (`0` - `100`) on each task, you can visually display progress on the task bar.
 
-- **進捗バー表示**: バー内に進捗率に応じたオーバーレイ（全面または下部/上部ライン）が描画されます。
-- **ドラッグ編集**: `option.progress.editable: true`（またはタスクごとの `progressResizable: true`）を設定すると、進捗バー端のハンドルをドラッグして進捗率を直感的に変更できます（スナップ刻み `snapStep` に対応）。
-- **進捗ラベル**: `option.progress.showLabel: true` で `50%` などの進捗ラベルを表示できます（位置: `inside` / `right` / `left` / `center`）。
-- **イベント連携**: 進捗ドラッグ変更完了時に `task-progress-change` イベントが発火します。
-- **ミニマップ反映**: ミニマップ上でもタスクの進捗が自動的に濃淡表示されます。
+- **Progress Bar**: Renders an overlay inside the task bar matching the progress percentage (`full`, `bottom`, or `top` indicator style).
+- **Drag Editing**: Setting `option.progress.editable: true` (or `progressResizable: true` on individual tasks) enables an interactive handle at the progress edge to drag-adjust progress with `snapStep` support.
+- **Progress Labels**: Setting `option.progress.showLabel: true` displays a progress text (e.g. `50%`) at the chosen position (`inside`, `right`, `left`, `center`).
+- **Events**: Dispatches `task-progress-change` on drag completion.
+- **Minimap Integration**: Minimap automatically reflects task progress.
 
-### 使用例
+### Example
 
 ```javascript
 import {
@@ -1515,29 +1536,29 @@ chart.option = {
   // ...
   progress: {
     enabled: true,
-    editable: true, // ドラッグによる進捗編集を有効化
-    showLabel: true, // 進捗ラベルを表示
-    labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
-    snapStep: 5, // 5% 刻みでスナップ
-    indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
+    editable: true,
+    showLabel: true,
+    labelPosition: 'inside',
+    snapStep: 5,
+    indicatorPosition: 'full',
   },
 }
 
-// 進捗変更イベント
+// Progress change event listener
 chart.addEventListener('task-progress-change', (e) => {
   const { task, progress, originalProgress, cancelled } = e.detail
-  console.log(`Task ${task.id} progress changed: ${originalProgress}% -> ${progress}%`)
+  console.log(`Task ${task.id} progress: ${originalProgress}% -> ${progress}%`)
 })
 
-// 進捗計算ユーティリティ
-const rowAvg = calculateRowProgress(row) // 行の単純平均進捗率
-const rowWeighted = calculateWeightedRowProgress(row) // 期間加重平均進捗率
-const projectProgress = calculateProjectProgress(rows) // プロジェクト全体の加重平均進捗率
+// Progress calculation helper functions
+const rowAvg = calculateRowProgress(row)
+const rowWeighted = calculateWeightedRowProgress(row)
+const projectProgress = calculateProjectProgress(rows)
 ```
 
-## ユーティリティ関数 (Utility Functions)
+## Utility Functions
 
-パッケージからエクスポートされている補助関数です。
+Helper functions exported by the package.
 
 ```typescript
 import {
@@ -1551,58 +1572,57 @@ import {
 
 ### clampProgress
 
-進捗率の数値を `0` 〜 `100` の範囲に正規化・丸め処理します。
+Normalizes and rounds a progress value to the range `0` - `100`.
 
 ```typescript
 function clampProgress(value: number, precision?: number): number
 ```
 
-- **`value`**: 入力値（`NaN` や非数値は `0` にフォールバック）
-- **`precision`**: 小数点以下の丸め桁数（デフォルト: `1`）
-- **戻り値**: `0` 〜 `100` の範囲にクランプされた数値
+- **`value`**: Input value (falls back to `0` if `NaN` or not a number)
+- **`precision`**: Decimal rounding precision (default: `1`)
+- **Returns**: Number clamped between `0` and `100`
 
 ### calculateRowProgress
 
-指定した行またはタスク配列に含まれるタスクの単純平均進捗率を計算します。進捗率が未指定（`undefined`）のタスクは除外して計算されます。
+Calculates the simple average progress rate of tasks in a specified row or task array. Tasks without progress (`undefined`) are excluded from calculation.
 
 ```typescript
 function calculateRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
 ```
 
-- **`rowOrTasks`**: 対象の `GanttRow` オブジェクトまたは `GanttTask[]` 配列
-- **戻り値**: 単純平均進捗率（`0` 〜 `100`）。有効な進捗を持つタスクが存在しない場合は `0`
+- **`rowOrTasks`**: Target `GanttRow` object or `GanttTask[]` array
+- **Returns**: Average progress percentage (`0` - `100`). Returns `0` if no tasks with progress exist
 
 ### calculateWeightedRowProgress
 
-指定した行またはタスク配列に含まれるタスクの期間（ミリ秒）に応じた加重平均進捗率を計算します。タスクの長さに応じて重み付けされた進捗率が得られます。
+Calculates the duration-weighted average progress rate of tasks in a specified row or task array based on duration in milliseconds.
 
 ```typescript
 function calculateWeightedRowProgress(rowOrTasks: GanttRow | GanttTask[]): number
 ```
 
-- **`rowOrTasks`**: 対象の `GanttRow` オブジェクトまたは `GanttTask[]` 配列
-- **戻り値**: 期間加重平均進捗率（`0` 〜 `100`）。有効な進捗を持つタスクが存在しない場合は `0`
+- **`rowOrTasks`**: Target `GanttRow` object or `GanttTask[]` array
+- **Returns**: Duration-weighted average progress percentage (`0` - `100`). Returns `0` if no tasks with progress exist
 
 ### calculateProjectProgress
 
-全行（プロジェクト全体）に含まれるすべてのタスクの期間加重平均進捗率を計算します。
+Calculates the duration-weighted average progress rate of all tasks across the entire project.
 
 ```typescript
 function calculateProjectProgress(rows: GanttRow[]): number
 ```
 
-- **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
-- **戻り値**: プロジェクト全体の加重平均進捗率（`0` 〜 `100`）
+- **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
+- **Returns**: Total project duration-weighted average progress percentage (`0` - `100`)
 
 ### computeCriticalPath
 
-タスク配列およびその依存関係からクリティカルパス（最も長い所要時間を持つ経路）を計算します。
+Computes the critical path (longest duration sequence of dependent tasks) from rows and dependencies.
 
 ```typescript
 function computeCriticalPath(rows: GanttRow[]): Set<string>
 ```
 
-- **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
-- **戻り値**: クリティカルパスを構成するタスクIDの `Set<string>`
-
+- **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
+- **Returns**: `Set<string>` containing task IDs on the critical path
 

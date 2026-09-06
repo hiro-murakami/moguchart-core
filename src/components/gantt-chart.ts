@@ -14,6 +14,7 @@ import type {
   RowHeaderResizeEventDetail,
   RowReorderEventDetail,
   RowSelectionChangeEventDetail,
+  RowToggleCollapseEventDetail,
   TaskDeleteEventDetail,
   TaskUpdateEventDetail,
   ZoomChangeEventDetail,
@@ -33,6 +34,14 @@ import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
 import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './gantt-chart-export'
 import { computeCriticalPath } from '../core/critical-path'
+import {
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
+} from '../core/wbs'
 
 
 @customElement('gantt-chart')
@@ -165,12 +174,54 @@ export class GanttChartElement extends LitElement {
   private _lastZoomPxPerDay: number | null = null
   private _lastZoomPxPerMonth: number | null = null
   private _scrollContainer: HTMLElement | null = null
+  private _collapsedRowIds = new Set<string>()
+  private _prevExternalCollapsed = new Map<string, boolean | undefined>()
+  private _draggingRowId: string | null = null
 
   private get displayRows() {
-    if (this.option.showHiddenRows) {
-      return this.rows
+    const treeEnabled = this.option?.tree?.enabled !== false
+    const baseRows = treeEnabled
+      ? computeVisibleTreeRows(this.rows, this.option?.showHiddenRows ?? false)
+      : (this.option?.showHiddenRows
+          ? this.rows
+          : this.rows.filter((row) => row.visible !== false))
+
+    const autoSummary = this.option?.tree?.autoSummary !== false
+    if (!treeEnabled || !autoSummary) {
+      return baseRows
     }
-    return this.rows.filter((row) => row.visible !== false)
+
+    // 子を持つ行を特定
+    const rowsWithChildren = new Set<string>()
+    for (const r of this.rows) {
+      if (r.parentId) rowsWithChildren.add(r.parentId)
+    }
+
+    return baseRows.map((row) => {
+      const isParent = rowsWithChildren.has(row.id)
+      const needsSummary = row.isSummary || isParent
+      if (needsSummary && isParent) {
+        const childIds = computeChildRowIds(this.rows, row.id, true)
+        const childRows = this.rows.filter((r) => childIds.includes(r.id))
+        const allChildTasks = childRows.flatMap((r) => r.tasks)
+        if (allChildTasks.length > 0) {
+          const summaryTask = computeSummaryTask(allChildTasks, {
+            id: `${row.id}-summary`,
+            name: row.name,
+          })
+          if (summaryTask) {
+            const normalTasks = (row.tasks || []).filter(
+              (t) => t.id !== summaryTask.id && t.type !== 'summary',
+            )
+            return {
+              ...row,
+              tasks: [summaryTask, ...normalTasks],
+            }
+          }
+        }
+      }
+      return row
+    })
   }
 
   /**
@@ -235,10 +286,12 @@ export class GanttChartElement extends LitElement {
     } else {
       this.theme = this.option.theme
     }
+    window.addEventListener('dragend', this._handleGlobalDragEnd)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
+    window.removeEventListener('dragend', this._handleGlobalDragEnd)
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
     this.stopMarqueeAutoScroll()
@@ -249,6 +302,14 @@ export class GanttChartElement extends LitElement {
     this.removeEventListener('keydown', this.handleKeyDown)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer = null
+  }
+
+  private _handleGlobalDragEnd = () => {
+    this._draggingRowId = null
+    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    if (container) {
+      container.classList.remove('drag-active-valid', 'drag-active-invalid')
+    }
   }
 
   private handleSystemThemeChange = (e: MediaQueryListEvent) => {
@@ -283,6 +344,43 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('zoomPxPerMonth')
     ) {
       this._layoutCache = null
+    }
+
+    if (changedProperties.has('rows')) {
+      const currentRowIds = new Set(this.rows.map((r) => r.id))
+      for (const id of this._collapsedRowIds) {
+        if (!currentRowIds.has(id)) {
+          this._collapsedRowIds.delete(id)
+          this._prevExternalCollapsed.delete(id)
+        }
+      }
+
+      let hasCollapsedChanges = false
+      const updatedRows = this.rows.map((row) => {
+        const prevExternal = this._prevExternalCollapsed.get(row.id)
+        const currentExternal = row.collapsed
+
+        if (currentExternal !== prevExternal) {
+          // 外部が明示的に変更した（初回、または外部から値が変わった場合）
+          this._prevExternalCollapsed.set(row.id, currentExternal)
+          if (currentExternal === true) {
+            this._collapsedRowIds.add(row.id)
+          } else if (currentExternal === false) {
+            this._collapsedRowIds.delete(row.id)
+          }
+        }
+
+        const isCollapsed = this._collapsedRowIds.has(row.id)
+        if (Boolean(row.collapsed) !== isCollapsed) {
+          hasCollapsedChanges = true
+          return { ...row, collapsed: isCollapsed }
+        }
+        return row
+      })
+
+      if (hasCollapsedChanges) {
+        this.rows = updatedRows
+      }
     }
 
     if (changedProperties.has('selectedRowIds')) {
@@ -783,7 +881,8 @@ export class GanttChartElement extends LitElement {
 
     const dragStartRowTop = rowLayouts[sourceRowIndexInDisplay].top
 
-    const { tasksWithLanes } = calculateTaskLanes(this.rows[sourceRowIndex].tasks)
+    const displayRow = this.displayRows[sourceRowIndexInDisplay]
+    const { tasksWithLanes } = calculateTaskLanes(displayRow.tasks)
     const taskWithLane = tasksWithLanes.find((t) => t.id === id)
     const lane = taskWithLane ? taskWithLane.lane : 0
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
@@ -1165,7 +1264,28 @@ export class GanttChartElement extends LitElement {
   }
 
   private async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom') {
-    const ids = Array.isArray(sourceIds) ? sourceIds : [sourceIds]
+    const initialIds = Array.isArray(sourceIds) ? sourceIds : [sourceIds]
+
+    // 循環参照・階層ルールガード: 移動対象自身または自身の子孫へのドロップ、親ブロック外移動は禁止
+    if (!canDropRow(this.rows, initialIds, targetId, position)) {
+      return
+    }
+
+    // ブロック連動: 親行が移動対象の場合、その配下の子孫行も一緒に移動対象に含める
+    const allMovingIdsSet = new Set<string>()
+    for (const id of initialIds) {
+      allMovingIdsSet.add(id)
+      const descendantIds = computeChildRowIds(this.rows, id, true)
+      for (const descId of descendantIds) {
+        allMovingIdsSet.add(descId)
+      }
+    }
+
+    // 元の配列の順序を保った移動対象IDリスト
+    const ids = this.rows
+      .filter((r) => allMovingIdsSet.has(r.id))
+      .map((r) => r.id)
+
     const rowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
     const positions = new Map<string, number>()
     rowElements.forEach((el) => {
@@ -1208,10 +1328,47 @@ export class GanttChartElement extends LitElement {
     let newTargetIndex = filteredRows.findIndex((r) => r.id === targetId)
 
     if (position === 'bottom') {
+      const targetRow = filteredRows[newTargetIndex]
+      const isTargetCollapsed = targetRow && (targetRow.collapsed || this._collapsedRowIds.has(targetId))
+      if (isTargetCollapsed) {
+        // 折りたたまれた親行の下にドロップした場合、配下の全子孫行の末尾の後ろに配置する
+        const descendantIds = new Set(computeChildRowIds(filteredRows, targetId, true))
+        if (descendantIds.size > 0) {
+          for (let i = newTargetIndex + 1; i < filteredRows.length; i++) {
+            if (descendantIds.has(filteredRows[i].id)) {
+              newTargetIndex = i
+            }
+          }
+        }
+      }
       newTargetIndex++
     }
 
-    filteredRows.splice(newTargetIndex, 0, ...movingRows)
+    const targetRowInOrig = this.rows.find((r) => r.id === targetId)
+    const firstParentId = movingRows[0]?.parentId ?? null
+
+    // 新しい親IDの決定:
+    // 1) ターゲットが自身の直接の親行（targetRow.id === firstParentId）の場合:
+    //    - bottom: 親配下の先頭に移動（親はそのまま firstParentId）
+    //    - top: 親行の前へ移動（親は targetRow.parentId）
+    // 2) ターゲットがそれ以外の行の場合:
+    //    - 常に targetRow.parentId が新しい親IDとなる
+    const newParentId =
+      firstParentId !== null && targetRowInOrig && targetRowInOrig.id === firstParentId && position === 'bottom'
+        ? firstParentId
+        : (targetRowInOrig?.parentId ?? null)
+
+    // 移動した直接の対象行（initialIds）の parentId を newParentId に更新
+    const updatedMovingRows = movingRows.map((row) => {
+      if (initialIds.includes(row.id)) {
+        if ((row.parentId ?? null) !== newParentId) {
+          return { ...row, parentId: newParentId }
+        }
+      }
+      return row
+    })
+
+    filteredRows.splice(newTargetIndex, 0, ...updatedMovingRows)
 
     this.rows = filteredRows
 
@@ -1265,15 +1422,16 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleContainerDragOver(e: DragEvent) {
-    e.preventDefault()
     // JSONデータが含まれているか、またはプロパティ経由でタスクが渡されている場合
     const isExternalTask = e.dataTransfer && e.dataTransfer.types.includes('application/json')
 
-    if (isExternalTask) {
-      e.dataTransfer!.dropEffect = 'copy'
+    if (!this.option.enableRowReordering && !isExternalTask) {
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'none'
+      }
+      return
     }
 
-    if (!this.option.enableRowReordering && !isExternalTask) return
     const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
     if (!container) return
 
@@ -1296,6 +1454,11 @@ export class GanttChartElement extends LitElement {
       const row = this.displayRows[foundIndex]
 
       if (isExternalTask) {
+        e.preventDefault()
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'copy'
+        }
+
         if (this.dragOverRowId !== row.id || this.dragOverPosition !== null) {
           this.dragOverRowId = row.id
           this.dragOverPosition = null
@@ -1337,6 +1500,41 @@ export class GanttChartElement extends LitElement {
         const layout = layouts[foundIndex]
         const relativeY = yInRows - layout.top
         const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
+
+        // 行ドラッグ中の場合、移動可否をチェックして不可ならドロップインジケータを表示せず禁止マークにする
+        let canDrop = true
+        const draggingId =
+          this._draggingRowId ||
+          (typeof window !== 'undefined' ? (window as any).__moguchart_dragging_row_id : null)
+
+        if (draggingId) {
+          const sourceIds =
+            this.selectedRows.has(draggingId) && this.selectedRows.size > 1
+              ? Array.from(this.selectedRows)
+              : [draggingId]
+          canDrop = canDropRow(this.rows, sourceIds, row.id, position)
+        }
+
+        if (!canDrop) {
+          if (this.dragOverRowId !== null || this.dragOverPosition !== null) {
+            this.dragOverRowId = null
+            this.dragOverPosition = null
+          }
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'none'
+          }
+          // 重要: canDrop が false のときは preventDefault() を絶対に呼ばない！
+          // preventDefault() を呼ばないことで、ブラウザはデフォルトの「ドロップ禁止」として
+          // OS ネイティブの禁止マーク（🚫 / not-allowed）を確実に表示する
+          return
+        }
+
+        // ドロップ可能な場合のみ preventDefault() を呼び出し、dropEffect = 'move' を設定
+        e.preventDefault()
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'move'
+        }
+
         if (this.dragOverRowId !== row.id || this.dragOverPosition !== position) {
           this.dragOverRowId = row.id
           this.dragOverPosition = position
@@ -1346,7 +1544,27 @@ export class GanttChartElement extends LitElement {
       this.dragOverRowId = null
       this.dragOverPosition = null
       this.dragPreview = null
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'none'
+      }
+      // 余白もドロップ不可のため preventDefault() は呼ばない
     }
+  }
+
+  private handleRowDragStart(e: CustomEvent<{ rowId: string }>) {
+    this._draggingRowId = e.detail.rowId
+    if (typeof window !== 'undefined') {
+      ;(window as any).__moguchart_dragging_row_id = e.detail.rowId
+    }
+  }
+
+  private handleRowDragEnd() {
+    this._draggingRowId = null
+    if (typeof window !== 'undefined') {
+      delete (window as any).__moguchart_dragging_row_id
+    }
+    this.dragOverRowId = null
+    this.dragOverPosition = null
   }
 
   private handleContainerDragLeave(e: DragEvent) {
@@ -1357,6 +1575,8 @@ export class GanttChartElement extends LitElement {
     this.dragOverRowId = null
     this.dragOverPosition = null
     this.dragPreview = null
+    // 注意: ドラッグ中にコンテナ内の別要素へマウスが移動した際、relatedTarget が null になる場合があるため、
+    // ここで this._draggingRowId をクリアしてはならない。クリアは handleRowDragEnd / handleContainerDrop で行う。
   }
 
   private handleContainerDrop(e: DragEvent) {
@@ -1368,26 +1588,38 @@ export class GanttChartElement extends LitElement {
       this.dragOverRowId = null
       this.dragOverPosition = null
       this.dragPreview = null
+      this._draggingRowId = null
+      if (typeof window !== 'undefined') {
+        delete (window as any).__moguchart_dragging_row_id
+      }
       return
     }
 
     if (!this.option.enableRowReordering) return
-    const sourceId = e.dataTransfer?.getData('text/plain')
+    const sourceId = e.dataTransfer?.getData('text/plain') || this._draggingRowId
     const targetId = this.dragOverRowId
     const position = this.dragOverPosition
 
     this.dragOverRowId = null
     this.dragOverPosition = null
     this.dragPreview = null
+    this._draggingRowId = null
+    if (typeof window !== 'undefined') {
+      delete (window as any).__moguchart_dragging_row_id
+    }
 
     if (sourceId && targetId && sourceId !== targetId && position) {
       // 複数行選択されており、かつドラッグ開始行が選択行に含まれている場合
-      if (this.selectedRows.has(sourceId) && this.selectedRows.size > 1) {
-        const sourceIds = Array.from(this.selectedRows)
-        this.reorderRows(sourceIds, targetId, position)
-      } else {
-        this.reorderRows(sourceId, targetId, position)
+      const sourceIds =
+        this.selectedRows.has(sourceId) && this.selectedRows.size > 1
+          ? Array.from(this.selectedRows)
+          : [sourceId]
+
+      if (!canDropRow(this.rows, sourceIds, targetId, position)) {
+        return
       }
+
+      this.reorderRows(sourceIds, targetId, position)
     }
   }
 
@@ -2610,6 +2842,112 @@ export class GanttChartElement extends LitElement {
     return true
   }
 
+  private handleRowToggleCollapse(e: CustomEvent<RowToggleCollapseEventDetail>) {
+    const { rowId, collapsed } = e.detail
+    this.toggleRowCollapse(rowId, collapsed)
+  }
+
+  /**
+   * 指定した行の折りたたみ状態を切り替えます。
+   *
+   * @param rowId 対象の行ID
+   * @param collapsed 設定する折りたたみ状態（省略時は現在の状態を反転）
+   * @returns 切り替えに成功した場合はtrue、行が見つからない場合はfalse
+   */
+  public toggleRowCollapse(rowId: string, collapsed?: boolean): boolean {
+    const targetRow = this.rows.find((r) => r.id === rowId)
+    if (!targetRow) return false
+
+    const newCollapsed = collapsed !== undefined ? collapsed : !this._collapsedRowIds.has(rowId)
+
+    if (newCollapsed) {
+      this._collapsedRowIds.add(rowId)
+    } else {
+      this._collapsedRowIds.delete(rowId)
+    }
+    this._prevExternalCollapsed.set(rowId, newCollapsed)
+
+    this.rows = this.rows.map((r) =>
+      r.id === rowId ? { ...r, collapsed: newCollapsed } : r,
+    )
+
+    this.dispatchEvent(
+      new CustomEvent<RowToggleCollapseEventDetail>('row-toggle-collapse', {
+        detail: {
+          rowId,
+          collapsed: newCollapsed,
+          row: this.rows.find((r) => r.id === rowId) ?? targetRow,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.dispatchEvent(
+      new CustomEvent<GanttRow[]>('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.requestUpdate()
+    return true
+  }
+
+  /**
+   * 子行を持つすべての親行を折りたたみます。
+   */
+  public collapseAll(): void {
+    const rowsWithChildren = new Set<string>()
+    for (const r of this.rows) {
+      if (r.parentId) rowsWithChildren.add(r.parentId)
+    }
+
+    for (const id of rowsWithChildren) {
+      this._collapsedRowIds.add(id)
+      this._prevExternalCollapsed.set(id, true)
+    }
+
+    this.rows = this.rows.map((r) =>
+      rowsWithChildren.has(r.id) ? { ...r, collapsed: true } : r,
+    )
+
+    this.dispatchEvent(
+      new CustomEvent<GanttRow[]>('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.requestUpdate()
+  }
+
+  /**
+   * すべての行を展開（折りたたみ解除）します。
+   */
+  public expandAll(): void {
+    for (const id of this._collapsedRowIds) {
+      this._prevExternalCollapsed.set(id, false)
+    }
+    this._collapsedRowIds.clear()
+
+    this.rows = this.rows.map((r) =>
+      r.collapsed ? { ...r, collapsed: false } : r,
+    )
+
+    this.dispatchEvent(
+      new CustomEvent<GanttRow[]>('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this.requestUpdate()
+  }
+
   /**
    * 指定タスクが表示範囲外の場合にスクロールして表示する
    */
@@ -2700,6 +3038,12 @@ export class GanttChartElement extends LitElement {
     }
 
     const visibleRows = this.displayRows.slice(startIndex, endIndex + 1)
+    const rowLevels = computeRowLevels(this.rows)
+    const rowWbsCodes = computeRowWbsCodes(this.rows)
+    const rowsWithChildren = new Set<string>()
+    for (const r of this.rows) {
+      if (r.parentId) rowsWithChildren.add(r.parentId)
+    }
     const paddingTop = this.isExporting ? 0 : (rowLayouts[startIndex] ? rowLayouts[startIndex].top : 0)
     const lastVisibleRowLayout = rowLayouts[endIndex]
     const renderedBottom = lastVisibleRowLayout ? lastVisibleRowLayout.top + lastVisibleRowLayout.height : 0
@@ -2996,6 +3340,9 @@ export class GanttChartElement extends LitElement {
               <gantt-row
                 .row="${row}"
                 .option="${currentOption}"
+                .level="${rowLevels.get(row.id) ?? 0}"
+                .hasChildren="${rowsWithChildren.has(row.id)}"
+                .wbsCode="${rowWbsCodes.get(row.id) ?? ''}"
                 .isSelected="${this.selectedRows.has(row.id)}"
                 .isDragTarget="${this.dragTargetRowIndex === originalIndex ||
               (this.dragOverRowId === row.id && this.dragOverPosition === null)}"
@@ -3014,6 +3361,9 @@ export class GanttChartElement extends LitElement {
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
+                @row-toggle-collapse="${this.handleRowToggleCollapse}"
+                @row-dragstart="${this.handleRowDragStart}"
+                @row-dragend="${this.handleRowDragEnd}"
                 @bar-click="${this.handleBarClick}"
                 @task-contextmenu="${this.handleBarContextMenu}"
               />

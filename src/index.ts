@@ -14,3 +14,11 @@ export {
   calculateProjectProgress,
 } from './core/utils'
 export { computeCriticalPath } from './core/critical-path'
+export {
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
+} from './core/wbs'

@@ -1,5 +1,5 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail } from '../core/types'
+import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail, RowToggleCollapseEventDetail } from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
@@ -11,6 +11,9 @@ import './gantt-row-background'
 export class GanttRowElement extends LitElement {
   @property({ type: Object }) row!: GanttRow
   @property({ type: Object }) option!: GanttChartOption
+  @property({ type: Number }) level = 0
+  @property({ type: Boolean }) hasChildren = false
+  @property({ type: String }) wbsCode = ''
   @property({ type: Boolean }) isDragTarget = false
   @property({ type: Object }) draggingTask: {
     id: string
@@ -222,6 +225,49 @@ export class GanttRowElement extends LitElement {
       left: 0;
       z-index: 100;
     }
+    .tree-indent-spacer {
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .tree-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-left: 6px;
+      margin-right: 2px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 9px;
+      line-height: 1;
+      color: inherit;
+      opacity: 0.7;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+    .tree-toggle-btn:hover {
+      opacity: 1;
+      background-color: rgba(128, 128, 128, 0.18);
+    }
+    .tree-toggle-spacer {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-left: 6px;
+      margin-right: 2px;
+      flex-shrink: 0;
+    }
+    .wbs-code-badge {
+      font-family: monospace;
+      font-size: 11px;
+      opacity: 0.65;
+      margin-right: 6px;
+      margin-left: 4px;
+      flex-shrink: 0;
+      user-select: none;
+    }
     .row-header-content {
       flex-grow: 1;
       padding: 6px 12px;
@@ -277,6 +323,18 @@ export class GanttRowElement extends LitElement {
   private handleDragStart(e: DragEvent) {
     // ドラッグ開始時にツールチップをクリア
     this.handleHeaderMouseLeave()
+
+    if (typeof window !== 'undefined') {
+      ;(window as any).__moguchart_dragging_row_id = this.row.id
+    }
+
+    this.dispatchEvent(
+      new CustomEvent<{ rowId: string }>('row-dragstart', {
+        detail: { rowId: this.row.id },
+        bubbles: true,
+        composed: true,
+      }),
+    )
 
     // If dragging an unselected row, trigger selection
     if (!this.isSelected) {
@@ -352,10 +410,6 @@ export class GanttRowElement extends LitElement {
           clone.style.borderBottom = index < displayRows.length - 1 ? `1px solid ${colors.border}` : 'none'
           clone.style.cursor = 'grabbing'
 
-          // Ensure the clone has the correct content (it should from cloneNode(true))
-          // But we might need to re-apply some specific styles if they rely on external classes not captured?
-          // getComputedStyle covers most.
-
           container.appendChild(clone)
         }
       })
@@ -373,12 +427,25 @@ export class GanttRowElement extends LitElement {
       }
 
       document.body.appendChild(container)
-      e.dataTransfer.setDragImage(container, 0, 0)
+      // オフセットを (20, 14) に設定し、マウスカーソル（矢印 / 禁止マーク🚫）がゴースト画像で隠れず常に見えるようにする
+      e.dataTransfer.setDragImage(container, 20, 14)
 
       setTimeout(() => {
         document.body.removeChild(container)
       }, 0)
     }
+  }
+
+  private handleDragEnd() {
+    if (typeof window !== 'undefined') {
+      delete (window as any).__moguchart_dragging_row_id
+    }
+    this.dispatchEvent(
+      new CustomEvent('row-dragend', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
   }
 
   private handleHeaderClick(e: MouseEvent) {
@@ -524,6 +591,22 @@ export class GanttRowElement extends LitElement {
     }
   }
 
+  private handleToggleCollapse(e: MouseEvent) {
+    e.stopPropagation()
+    const newCollapsed = !this.row.collapsed
+    this.dispatchEvent(
+      new CustomEvent<RowToggleCollapseEventDetail>('row-toggle-collapse', {
+        detail: {
+          rowId: this.row.id,
+          collapsed: newCollapsed,
+          row: this.row,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
@@ -533,7 +616,10 @@ export class GanttRowElement extends LitElement {
       changedProperties.has('row') ||
       changedProperties.has('option') ||
       changedProperties.has('isSelected') ||
-      changedProperties.has('theme')
+      changedProperties.has('theme') ||
+      changedProperties.has('level') ||
+      changedProperties.has('hasChildren') ||
+      changedProperties.has('wbsCode')
 
     if (!needsHeaderUpdate) return
 
@@ -549,6 +635,10 @@ export class GanttRowElement extends LitElement {
 
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
+    const treeEnabled = this.option.tree?.enabled !== false
+    const indentWidth = this.option.tree?.indentWidth ?? 16
+    const showToggleIcon = this.option.tree?.showToggleIcon !== false
+    const showWbsCode = this.option.tree?.showWbsCode === true
 
     let displayTasks = [...this.row.tasks]
     if (this.externalDragTask) {
@@ -769,6 +859,7 @@ export class GanttRowElement extends LitElement {
           style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
           draggable="${canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
+          @dragend="${canReorder ? this.handleDragEnd : undefined}"
           @click="${this.handleHeaderClick}"
           @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
@@ -776,6 +867,22 @@ export class GanttRowElement extends LitElement {
           @mouseleave="${this.handleHeaderMouseLeave}"
           @row-header-mouseleave="${this.handleHeaderMouseLeave}"
         >
+          ${treeEnabled && this.level > 0
+            ? html`<span class="tree-indent-spacer" style="width: ${this.level * indentWidth}px;"></span>`
+            : ''}
+          ${treeEnabled && this.hasChildren && showToggleIcon
+            ? html`<span
+                class="tree-toggle-btn"
+                title="${this.row.collapsed ? '展開' : '折りたたみ'}"
+                @click="${this.handleToggleCollapse}"
+                >${this.row.collapsed ? '▶' : '▼'}</span
+              >`
+            : treeEnabled && (this.level > 0 || this.hasChildren)
+              ? html`<span class="tree-toggle-spacer"></span>`
+              : ''}
+          ${treeEnabled && showWbsCode && this.wbsCode
+            ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+            : ''}
           <div
             class="row-header-content"
             style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"

@@ -37,7 +37,7 @@
     "dist",
     "LICENSE",
     "README.md",
-    "README.en.md"
+    "README.ja.md"
   ],
   "main": "./dist/moguchart-core.umd.js",
   "module": "./dist/moguchart-core.mjs",

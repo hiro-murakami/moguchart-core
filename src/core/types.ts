@@ -103,6 +103,8 @@ export interface GanttTask {
   progressStyle?: string
   /** 進捗バーのドラッグ編集可否 (指定がない場合はoption.progress.editableに準ずる) */
   progressResizable?: boolean
+  /** タスクの種別 ('task': 通常, 'summary': 親サマリー集計バー, 'milestone': マイルストーン) */
+  type?: 'task' | 'summary' | 'milestone'
 }
 
 /**
@@ -121,6 +123,14 @@ export interface GanttRow {
   selectedMarkerId?: string
   /** 行を表示するかどうか (デフォルト: true) */
   visible?: boolean
+  /** 親行のID (ルート階層の場合は null または undefined) */
+  parentId?: string | null
+  /** 折りたたみ状態 (trueの場合、配下の子孫行を非表示にする) */
+  collapsed?: boolean
+  /** サマリー行（グループ行）かどうか */
+  isSummary?: boolean
+  /** WBSコード (例: "1.2.1") */
+  wbsCode?: string
 }
 
 /**
@@ -435,6 +445,24 @@ export interface GanttChartOption {
   progress?: GanttChartOptionProgress
   /** タスク選択に関する設定 */
   selection?: GanttChartOptionSelection
+  /** WBS・階層ツリーに関する設定 */
+  tree?: GanttChartOptionTree
+}
+
+/**
+ * WBS・階層ツリーに関するオプション
+ */
+export interface GanttChartOptionTree {
+  /** ツリー表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 階層レベルあたりのインデント幅 (px、デフォルト: 16) */
+  indentWidth?: number
+  /** 折りたたみトグルアイコン（▶/▼）を表示するかどうか (デフォルト: true) */
+  showToggleIcon?: boolean
+  /** WBSコード（1, 1.1など）を行ヘッダーに自動表示するかどうか (デフォルト: false) */
+  showWbsCode?: boolean
+  /** 子タスクの変更時に親サマリータスクを自動計算するかどうか (デフォルト: true) */
+  autoSummary?: boolean
 }
 
 /**
@@ -702,6 +730,18 @@ export interface RowHeaderContextMenuEventDetail {
   event: MouseEvent
   /** 右クリックされたヘッダー要素 */
   target: HTMLElement
+}
+
+/**
+ * 行の折りたたみ/展開切り替えイベントの詳細
+ */
+export interface RowToggleCollapseEventDetail {
+  /** 対象の行ID */
+  rowId: string
+  /** 新しい折りたたみ状態 (true: 折りたたみ, false: 展開) */
+  collapsed: boolean
+  /** 対象の行データ */
+  row: GanttRow
 }
 
 /**

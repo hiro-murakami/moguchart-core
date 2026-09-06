@@ -90,6 +90,56 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     return { tasksWithLanes: [], laneCount: 1 }
   }
 
+  const summaryTasks = tasks.filter((t) => t.type === 'summary')
+  const normalTasks = tasks.filter((t) => t.type !== 'summary')
+
+  if (summaryTasks.length > 0) {
+    // サマリータスクは最上段（レーン0）に配置
+    const taskLaneMap = new Map<string, number>()
+    for (const st of summaryTasks) {
+      taskLaneMap.set(st.id, 0)
+    }
+
+    if (normalTasks.length === 0) {
+      return {
+        tasksWithLanes: tasks.map((task) => ({
+          ...task,
+          lane: taskLaneMap.get(task.id) ?? 0,
+        })),
+        laneCount: 1,
+      }
+    }
+
+    // 通常タスクはレーン1以降に配置（通常タスク同士の重なり計算）
+    const sortedNormalTasks = [...normalTasks].sort((a, b) => a.start.getTime() - b.start.getTime())
+    const lanes: Date[] = []
+
+    for (const task of sortedNormalTasks) {
+      let assignedLane = -1
+      for (let i = 0; i < lanes.length; i++) {
+        if (task.start >= lanes[i]) {
+          lanes[i] = task.end
+          assignedLane = i
+          break
+        }
+      }
+      if (assignedLane === -1) {
+        lanes.push(task.end)
+        assignedLane = lanes.length - 1
+      }
+      // サマリータスクがレーン0のため +1 オフセット
+      taskLaneMap.set(task.id, assignedLane + 1)
+    }
+
+    return {
+      tasksWithLanes: tasks.map((task) => ({
+        ...task,
+        lane: taskLaneMap.get(task.id) ?? 0,
+      })),
+      laneCount: 1 + (lanes.length || 1),
+    }
+  }
+
   // 開始日でタスクをソート
   const sortedTasks = [...tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
 

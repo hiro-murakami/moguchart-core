@@ -1,71 +1,87 @@
 # @mogura/moguchart-core
 
-[English](./README.en.md) | [Demo](https://moguchart-core.vercel.app/)
+[日本語](./README.ja.md) | [Demo](https://moguchart-core.vercel.app/)
 
-Vue, React, Angular, Svelte など、どのフレームワークでも動作する、軽量で高機能な Web Components 製ガントチャートコンポーネントです。Lit で構築されています。
+A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works seamlessly with Vue, React, Angular, Svelte, and any other modern web framework.
 
-- **デモ**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **Online Demo**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **npm Package**: [@mogura/moguchart-core](https://www.npmjs.com/package/@mogura/moguchart-core)
 
-## 特徴
+## Features
 
-- 🚀 **フレームワーク非依存**: Web Components (Custom Elements) として実装されており、あらゆる環境で動作します。
-- ⚡ **仮想スクロール**: 大量のタスクや行があってもスムーズに動作します。
-- 🖱️ **インタラクティブ**:
-  - ドラッグ＆ドロップによるタスク移動（行間移動対応）
-  - ハンドル操作による期間リサイズ
-  - ドラッグ＆ドロップによる行の並び替え
-  - 列ヘッダーの幅リサイズ
-  - 矩形範囲選択（ラバーバンドドラッグ選択）による複数タスク一括選択（Shift/Ctrl/Cmdキーでの追加選択対応）
-  - 複数タスクの選択＆一括ドラッグ（Ctrl/Cmd + クリック、矩形選択）
-  - ダブルクリックや右クリックイベントのハンドリング
-- 🎨 **高度なカスタマイズ**:
-  - タスクバー、行ヘッダー、ツールチップ、ドラッグ情報のコンテンツを自由にレンダリング可能
-  - ライト/ダーク/システムテーマの切り替え＋カスタムカラーテーマ
-  - タスクバーの塗りつぶしパターン（ストライプ、ドット、チェッカーボードなど13種類）
-  - CSSによるスタイリング
-- 🔗 **依存関係の表示**: タスク間の依存関係を矢印付き曲線で可視化（S字カーブ対応）。クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
-- 📅 **柔軟なカレンダー**:
-  - 日単位 / 週単位 / 月単位の表示切り替え
-  - ズームレベル（1日・1ヶ月あたりの幅）や表示期間の調整が可能
-  - 現在時刻ラインの表示（バッジ付き、自動更新対応）
-  - 祝日判定のカスタムロジック
-  - 週の始まり曜日の設定
-  - ロケール対応（日本語・英語、カスタムロケールも可能）
-- 🏁 **マイルストーン**: チャート上にマイルストーン（縦線＋名前バッジ）を表示
-- 📍 **マーカー**: 行のタイムライン上に三角形アイコンとラベルで目印を表示
-- 🗺️ **ミニマップ（Overview Minimap）**: チャート全体の鳥瞰プレビュー表示、ドラッグによるスクロール同期・パン操作、クリックジャンプ、ドラッグ移動・リサイズ、折りたたみ対応
-- 📊 **タスク進捗管理**:
-  - タスクバー上への進捗バー（オーバーレイ/下部・上部インジケーター）描画
-  - ハンドル操作による直感的な進捗率のドラッグ編集（スナップ対応）
-  - 進捗ラベル表示（配置カスタマイズ・カスタムフォーマット対応）
-  - 進捗変更イベント（`task-progress-change`）の発火
-  - 行・プロジェクト全体の進捗率計算ユーティリティ関数
-  - ミニマップへの進捗状況の自動反映
-- 📷 **エクスポート**: PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、スクロール位置保持）
-- ✨ **高度な連携**:
-  - 外部からのドラッグ＆ドロップによるタスク作成
-  - タスクの移動/コピーモード
-  - スナップ機能（時間単位でのグリッドスナップ）
-  - 座標から行・日時を取得する `hitTest` メソッド
-  - プログラムによるタスク選択＋自動スクロール (`selectTask`)
-- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでの削除
+- 🚀 **Framework-agnostic**: Built as standard Web Components (Custom Elements), easily integrated into any frontend framework.
+- ⚡ **Virtual Scrolling**: Smooth 60fps rendering even with extensive tasks and rows.
+- 🖱️ **Rich Interactive Controls**:
+  - Drag & drop task movement (with optional cross-row vertical movement)
+  - Handle-based task duration resizing
+  - Drag & drop row reordering
+  - Column header width resizing
+  - Marquee selection (rubberband drag selection) for batch task selection (with Shift / Ctrl / Cmd additive selection support)
+  - Multi-task selection and synchronized batch dragging (Ctrl / Cmd + click, marquee selection)
+  - Safe drag cancellation and snapback when cursor exits chart boundaries
+  - Double-click and right-click event handling
+- 🎨 **Highly Customizable**:
+  - Custom rendering for task bars, row headers, row header tooltips, tooltips, and drag info overlays
+  - Light / Dark / System theme switching + custom color palettes
+  - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
+  - Native CSS variable-driven styling
+- 🔗 **Dependency Visualization**:
+  - Smooth curved lines with directional arrows showing task dependencies
+  - Automatic S-curve calculation for reverse-direction dependencies
+  - Proximity connector toggle (`showConnectors`)
+  - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
+- 📅 **Flexible Calendar & Timeline**:
+  - Day / Week / Month view switching
+  - Dynamic zoom levels (`pxPerDay` or `pxPerMonth`) with smooth mouse-wheel zoom support
+  - Current time indicator line with date badge (auto-refresh support)
+  - Custom holiday detection logic
+  - Configurable week start day
+  - Built-in internationalization (Japanese, English, and custom locale extensibility)
+- 🏁 **Milestones**: Display key milestones with vertical markers and customizable badges.
+- 📍 **Markers**: Place labeled triangle marker indicators on individual row timelines.
+- 🗺️ **Overview Minimap**: Floating bird's-eye canvas preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move, edge drag-resizing, opacity slider, and collapsible window state.
+- 📊 **Task Progress Management**:
+  - Task bar progress overlay (full, bottom, or top indicator styles)
+  - Interactive drag-adjust handle for quick progress modification (with snap increments)
+  - Configurable progress labels (custom positioning & formatters)
+  - `task-progress-change` custom event
+  - Progress calculation utility functions (simple & duration-weighted row/project averages)
+  - Automatic progress visualization on the overview minimap
+- 📷 **High-Fidelity Export**: Export the full Gantt chart to PNG image or multi-page PDF documents (with scroll position preservation and auto-download support).
+- ✨ **Advanced Integration**:
+  - External drag & drop for task creation
+  - Task move / copy modes
+  - Snap feature (time unit grid snapping, automatic monthly boundary snap in month view)
+  - `hitTest` method for calculating row ID and datetime from screen coordinates
+  - Programmatic task selection + auto-scroll (`selectTask`)
+  - Row layout coordinates inspection (`getRowPositions`)
+- 🌳 **WBS (Hierarchical Tree & Collapsible Rows)**:
+  - Unlimited parent-child hierarchy via `parentId`
+  - Indented display with expand/collapse toggle buttons (▶/▼)
+  - Automatically calculated summary task bars (bracket style) from child tasks
+  - Collapsing seamlessly integrated with virtual scrolling and overview minimap
+  - Safe drag & drop reordering preserving hierarchy (prevents circular nesting, moves subtrees together)
+  - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
+- ⌨️ **Keyboard Navigation**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace deletion.
 
-## インストール
+## Installation
 
 ```bash
 pnpm add @mogura/moguchart-core
-# または
+# or
 npm install @mogura/moguchart-core
+# or
+yarn add @mogura/moguchart-core
 ```
 
-## APIリファレンス
+## API Reference
 
-詳細な API リファレンスは [API.md](./doc/API.md) を参照してください。
+For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.md)](./doc/API.md) or the [Japanese API Reference (API.ja.md)](./doc/API.ja.md).
 
-## Vue.js での使用例
+## Usage with Vue.js
 
-Vue.js (Vue 3) で使用する場合のサンプルです。
-Web Components を使用するため、`vite.config.ts` などでカスタム要素として認識させる設定が必要な場合があります。
+Example using Vue 3 (Composition API / `<script setup>`).
+When using Web Components in Vue, configure `compilerOptions.isCustomElement` in `vite.config.ts` to recognize `gantt-chart`.
 
 ```html
 <script setup lang="ts">
@@ -85,16 +101,17 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
         {
           id: 't-1',
           name: 'Task 1',
-          start: new Date('2024-01-01'),
-          end: new Date('2024-01-05'),
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-05'),
+          progress: 60,
           style: 'background-color: #60a5fa',
         },
       ],
       markers: [
         {
           id: 'marker-1',
-          name: 'レビュー期限',
-          date: new Date('2024-01-03'),
+          name: 'Review Deadline',
+          date: new Date('2025-01-03'),
           type: 'triangle-down',
           color: '#ef4444',
         },
@@ -104,15 +121,15 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 
   const option = ref<GanttChartOption>({
     calendar: {
-      start: new Date('2024-01-01'),
-      end: new Date('2024-03-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-03-31'),
       pxPerDay: 30,
       showCurrentTime: true,
       milestones: [
         {
           id: 'ms-1',
-          name: 'リリース',
-          start: new Date('2024-02-01'),
+          name: 'Release',
+          start: new Date('2025-02-01'),
           color: '#8b5cf6',
         },
       ],
@@ -120,6 +137,18 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
     bar: { height: 28 },
     rowHeader: { width: 200 },
     theme: 'system',
+    enableCrossRowMove: true,
+    progress: {
+      enabled: true,
+      editable: true,
+      showLabel: true,
+    },
+    selection: {
+      marquee: true,
+    },
+    minimap: {
+      enabled: true,
+    },
   })
 
   const handleTaskUpdate = (e: Event) => {
@@ -129,7 +158,7 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 </script>
 
 <template>
-  <div style="height: 500px;">
+  <div style="height: 600px;">
     <gantt-chart
       :rows="rows"
       :option="option"
@@ -139,10 +168,10 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 </template>
 ```
 
-## React での使用例
+## Usage with React
 
-React で使用する場合のサンプルです。
-Web Components のプロパティやイベントを扱うため、`ref` を使用して実装します。
+Example using React (TypeScript).
+Since Web Components interact via DOM properties and native event listeners, use a `ref` to bind complex objects and events.
 
 ```tsx
 import { useEffect, useRef, useState } from 'react'
@@ -153,7 +182,7 @@ import type {
   TaskUpdateEventDetail,
 } from '@mogura/moguchart-core'
 
-// TypeScript で使用する場合の型定義
+// Type definition for JSX Custom Element
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -173,16 +202,17 @@ export default function App() {
         {
           id: 't-1',
           name: 'Task 1',
-          start: new Date('2024-01-01'),
-          end: new Date('2024-01-05'),
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-05'),
+          progress: 50,
           style: 'background-color: #60a5fa',
         },
       ],
       markers: [
         {
           id: 'marker-1',
-          name: 'レビュー期限',
-          date: new Date('2024-01-03'),
+          name: 'Review Deadline',
+          date: new Date('2025-01-03'),
           type: 'triangle-down',
           color: '#ef4444',
         },
@@ -192,15 +222,15 @@ export default function App() {
 
   const [option] = useState<GanttChartOption>({
     calendar: {
-      start: new Date('2024-01-01'),
-      end: new Date('2024-03-31'),
+      start: new Date('2025-01-01'),
+      end: new Date('2025-03-31'),
       pxPerDay: 30,
       showCurrentTime: true,
       milestones: [
         {
           id: 'ms-1',
-          name: 'リリース',
-          start: new Date('2024-02-01'),
+          name: 'Release',
+          start: new Date('2025-02-01'),
           color: '#8b5cf6',
         },
       ],
@@ -208,17 +238,28 @@ export default function App() {
     bar: { height: 28 },
     rowHeader: { width: 200 },
     theme: 'system',
+    enableCrossRowMove: true,
+    progress: {
+      enabled: true,
+      editable: true,
+    },
+    selection: {
+      marquee: true,
+    },
+    minimap: {
+      enabled: true,
+    },
   })
 
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
 
-    // プロパティの設定
+    // Bind properties
     chart.rows = rows
     chart.option = option
 
-    // イベントリスナーの設定
+    // Bind event listeners
     const handleTaskUpdate = (e: Event) => {
       const detail = (e as CustomEvent<TaskUpdateEventDetail>).detail
       console.log('Task updated:', detail)
@@ -232,18 +273,18 @@ export default function App() {
   }, [rows, option])
 
   return (
-    <div style={{ height: '500px' }}>
+    <div style={{ height: '600px' }}>
       <gantt-chart ref={chartRef}></gantt-chart>
     </div>
   )
 }
 ```
 
-## 主要機能
+## Key Features
 
-### テーマ
+### Themes
 
-ライト/ダーク/システムの3つのテーマモードをサポートしています。`customTheme` で個別のカラーを上書きすることも可能です。
+Three theme modes are supported: `light`, `dark`, and `system` (automatic OS preference). Individual color tokens can be overridden using `customTheme`.
 
 ```javascript
 const option = {
@@ -252,50 +293,52 @@ const option = {
     bg: '#1a1a2e',
     text: '#e0e0e0',
     currentTimeLine: '#ff6b6b',
+    criticalPath: '#ef4444',
   },
   // ...
 }
 ```
 
-### マイルストーン
+### Milestones
 
-`calendar.milestones` にマイルストーンの配列を渡すことで、チャート上に縦線とバッジを表示できます。マウスオーバーで透明度が変化するホバーエフェクト付きです。
+Pass an array of milestone definitions to `calendar.milestones` to render vertical milestone lines with name badges across the chart. Hover effects provide smooth visual feedback.
 
 ```javascript
 option.calendar.milestones = [
   {
     id: 'ms-1',
-    name: 'α版リリース',
+    name: 'Alpha Release',
     start: new Date('2025-04-08'),
     color: '#8b5cf6',
     width: 4,
   },
   {
     id: 'ms-2',
-    name: '正式リリース',
+    name: 'Production Release',
     start: new Date('2025-05-01'),
     color: '#10b981',
   },
 ]
 ```
 
-### マーカー
+### Markers
 
-各行の `markers` プロパティにマーカーの配列を渡すことで、タイムライン上に三角形アイコンとラベルを表示できます。
+Add markers to any row's `markers` property to display triangle icons with text labels along the timeline.
 
 ```javascript
 const rows = [
   {
     id: 'row-1',
-    name: 'タスクA',
+    name: 'Task A',
     tasks: [/* ... */],
     markers: [
       {
         id: 'marker-1',
-        name: 'レビュー期限',
+        name: 'Review Deadline',
         date: new Date('2025-04-10'),
         anchor: 'end',
         type: 'triangle-right',
+        fontSize: 'sm', // 'xs' | 'sm' | 'md' | 'lg' | 'xl'
         color: '#ef4444',
       },
     ],
@@ -303,9 +346,9 @@ const rows = [
 ]
 ```
 
-### タスクバーのパターン
+### Task Bar Patterns
 
-タスクバーに13種類の塗りつぶしパターンを適用できます。プリセット定数も用意されています。
+Apply any of the 13 built-in SVG patterns to task bars. Preset constants are exported for type safety.
 
 ```javascript
 import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
@@ -313,20 +356,21 @@ import { PATTERN_DIAGONAL_STRIPE } from '@mogura/moguchart-core'
 const task = {
   id: 't-1',
   name: 'WIP',
-  start: new Date('2024-01-01'),
-  end: new Date('2024-01-05'),
+  start: new Date('2025-01-01'),
+  end: new Date('2025-01-05'),
   style: 'background-color: #60a5fa',
-  pattern: PATTERN_DIAGONAL_STRIPE,    // プリセット使用
-  // または直接指定:
+  pattern: PATTERN_DIAGONAL_STRIPE, // Using preset
+  // or specify custom pattern:
   // pattern: { type: 'checkerboard', color: '#ffffff80' }
 }
 ```
 
-利用可能なパターン: `diagonal-stripe` `diagonal-stripe-thin` `diagonal-stripe-thick` `diagonal-stripe-reverse` `vertical-stripe` `horizontal-stripe` `checkerboard` `dots` `dots-dense` `triangle` `circle` `grid` `diagonal-grid`
+Available pattern types:
+`diagonal-stripe`, `diagonal-stripe-thin`, `diagonal-stripe-thick`, `diagonal-stripe-reverse`, `vertical-stripe`, `horizontal-stripe`, `checkerboard`, `dots`, `dots-dense`, `triangle`, `circle`, `grid`, `diagonal-grid`.
 
-### 行の並び替え
+### Row Reordering
 
-`enableRowReordering: true` でドラッグ＆ドロップによる行の並び替えが有効になります。
+Set `enableRowReordering: true` to allow users to reorder rows via drag & drop.
 
 ```javascript
 const option = {
@@ -335,30 +379,30 @@ const option = {
 }
 
 chart.addEventListener('row-reordered', (e) => {
-  console.log('並び替え後の行データ:', e.detail.rows)
+  console.log('Reordered rows:', e.detail.rows)
 })
 ```
 
-### 行を跨いだタスク移動の制御 (enableCrossRowMove)
+### Cross-Row Task Movement (`enableCrossRowMove`)
 
-デフォルトでは、タスクバーを上下にドラッグすることで別の行へ移動できます（`enableCrossRowMove: true`）。`false` に設定すると同一行内での日付移動のみに制限されます。
+By default, dragging a task bar permits moving it vertically across different rows (`enableCrossRowMove: true`). Set this option to `false` to restrict movement strictly to the horizontal timeline of its original row.
 
 ```javascript
 const option = {
-  enableCrossRowMove: false, // 行間移動を無効化（横方向の移動のみに限定）
+  enableCrossRowMove: false, // Restrict task drag movement to the same row
   // ...
 }
 ```
 
-### 複数タスクの選択＆一括操作
+### Multi-Task Selection & Batch Operations
 
-`Ctrl`（Mac: `Cmd`）キーを押しながらタスクバーをクリックして複数選択し、一括でドラッグ移動できます。
+Hold `Ctrl` (macOS: `Cmd`) and click task bars, or use **Marquee Selection** to select multiple tasks. Once selected, dragging any selected task moves all of them collectively while preserving their relative dates.
 
 ```javascript
 chart.addEventListener('task-update', (e) => {
   const detail = e.detail
   if (!detail.isDragging && detail.selectedTaskIds?.length > 1) {
-    // 複数選択ドラッグのドロップ: 全選択タスクに同じdxを適用
+    // Drop event for multi-task selection
     for (const taskId of detail.selectedTaskIds) {
       applyDxToTask(taskId, detail.dx)
     }
@@ -366,22 +410,22 @@ chart.addEventListener('task-update', (e) => {
 })
 ```
 
-### スナップ機能
+### Snap Feature
 
-`snapDuration`（分単位）でタスクのドラッグ時のスナップ間隔を制御できます。月表示モード（`pxPerMonth` 指定時）では、スナップは自動的に月単位になります。
+Control the time-snapping interval during drag movement and resizing via `snapDuration` (in minutes). When using monthly view mode (`pxPerMonth`), snapping automatically aligns to month boundaries.
 
 ```javascript
 const option = {
-  snapDuration: 60,    // 1時間ごとにスナップ (デフォルト: 1440 = 1日)
+  snapDuration: 60, // Snap to 1-hour increments (default: 1440 = 1 day)
   // ...
 }
 ```
 
-### 表示モード
+### View Modes
 
-#### 週表示モード
+#### Week View Mode
 
-`calendar.showWeeks: true` で週番号表示の2段カレンダーになります。`pxPerDay` が20未満の場合は自動的に有効化されます。
+Set `calendar.showWeeks: true` to display a two-tiered calendar header with week numbers. Automatically activates when `pxPerDay` is under 20.
 
 ```javascript
 const option = {
@@ -390,15 +434,15 @@ const option = {
     end: new Date('2025-12-31'),
     pxPerDay: 15,
     showWeeks: true,
-    weekStartDay: 1,   // 1=月曜始まり (デフォルト)
+    weekStartDay: 1, // 1 = Monday (default)
     weekFormat: (weekNum) => `W${weekNum}`,
   },
 }
 ```
 
-#### 月表示モード
+#### Monthly View Mode
 
-`calendar.pxPerMonth` を設定すると、各月が等幅で表示される月単位ビューになります。
+Set `calendar.pxPerMonth` to render months with equal pixel widths, suitable for long-term project planning.
 
 ```javascript
 const option = {
@@ -406,32 +450,38 @@ const option = {
     start: new Date('2025-01-01'),
     end: new Date('2027-12-31'),
     pxPerDay: 1,
-    pxPerMonth: 120,    // 1ヶ月あたり120px
-    showMonthsRow: true, // 上段=年、下段=月の2段ヘッダー
+    pxPerMonth: 120, // 120px per month
+    showMonthsRow: true, // Two-row header: year on top, month below
   },
 }
 ```
 
-### 依存関係線の設定
+### Dependency Line Settings
 
-`dependency` オプションで依存関係線の表示をカスタマイズできます。矢印の表示/非表示や大きさ、接続コネクターの表示、最長チェーン（クリティカルパス）の自動検出ハイライトを制御できます。
-右→左方向の依存関係では自動的にS字カーブで描画され、接触箇所は常に水平に接続します。
+Configure task dependency curves with the `dependency` option:
+
+- `showArrows`: Toggle directional arrow heads (default: `true`).
+- `arrowSize`: Arrow dimensions in pixels (default: `8`).
+- `showConnectors`: Control whether circular connection handles appear on hover (default: `true`). Set to `false` to prevent creating new dependencies.
+- `showCriticalPath`: Automatically detect the longest chain (critical path) and highlight connected tasks and lines in a distinct color (configurable via `theme.criticalPath`).
+
+Reverse dependencies (right-to-left) automatically render smooth S-curves with perpendicular contact alignment.
 
 ```javascript
 const option = {
   dependency: {
-    showArrows: true, // 矢印を表示するかどうか (デフォルト: true)
-    arrowSize: 10, // 矢印の大きさ (px、デフォルト: 8)
-    showConnectors: true, // コネクター接続ポイント（丸印）を表示するかどうか (デフォルト: true)
-    showCriticalPath: true, // クリティカルパス（最長チェーン）を自動計算しハイライト表示
+    showArrows: true,
+    arrowSize: 10,
+    showConnectors: true,
+    showCriticalPath: true, // Highlight critical path tasks and links
   },
   // ...
 }
 ```
 
-### タスク進捗管理
+### Task Progress Management
 
-各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。`editable: true` を設定すると、進捗ハンドルのドラッグによる直感的な進捗率変更が可能になります。
+Visualize and interactively edit progress on task bars by specifying `progress` (`0` to `100`). Set `editable: true` to enable dragging the progress adjustment handle on the task bar.
 
 ```javascript
 import {
@@ -444,48 +494,50 @@ import {
 const option = {
   progress: {
     enabled: true,
-    editable: true,       // ドラッグによる進捗編集を有効化
-    showLabel: true,      // 進捗ラベルを表示 (例: "50%")
+    editable: true,          // Allow interactive handle dragging
+    showLabel: true,         // Display progress text (e.g. "50%")
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
-    snapStep: 5,          // 5%刻みでスナップ
+    snapStep: 5,             // Snap in 5% increments
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
   },
 }
 
-// 進捗変更イベント
+// Progress change event listener
 chart.addEventListener('task-progress-change', (e) => {
   const { task, progress, originalProgress, cancelled } = e.detail
   console.log(`Task ${task.id}: ${originalProgress}% -> ${progress}%`)
 })
 
-// 行・プロジェクト全体の進捗率計算
-const rowAvg = calculateRowProgress(row)
-const projectProgress = calculateProjectProgress(rows)
+// Progress calculation helper functions
+const rowSimpleAvg = calculateRowProgress(row)
+const rowWeightedAvg = calculateWeightedRowProgress(row)
+const projectWeightedAvg = calculateProjectProgress(rows)
 ```
 
-### 矩形範囲選択（ラバーバンド選択）
+### Marquee Range Selection (Rubberband Selection)
 
-チャートの空白背景領域をマウスでドラッグすることで、矩形に重なる複数のタスクバーを一括選択できます。
-`Shift`、`Ctrl`、または `Cmd` キーを押しながらドラッグすると、既存の選択を保持したまま追加選択できます。
+Click and drag on empty calendar background space to select multiple task bars enclosed or intersected by the selection rectangle.
+Hold `Shift`, `Ctrl`, or `Cmd` while dragging to accumulate selections additively.
 
 ```javascript
 const option = {
   selection: {
-    marquee: true,          // 矩形範囲選択を有効化 (デフォルト: true)
-    borderColor: '#3b82f6', // 選択枠線の色 (オプション)
-    backgroundColor: 'rgba(59, 130, 246, 0.15)', // 選択背景色 (オプション)
+    marquee: true,          // Enable marquee selection (default: true)
+    borderColor: '#3b82f6', // Selection border color
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Box fill color
   },
 }
 
-// バー選択変更イベント
+// Selection change event listener
 chart.addEventListener('bar-selection-change', (e) => {
   console.log('Selected task IDs:', e.detail.selectedIds)
 })
 ```
 
-### ミニマップ（Overview Minimap）
+### Overview Minimap
 
-チャート全体のタスク配置やマイルストーンを鳥瞰できるフローティング小窓型のミニマップを表示できます。
+Display a floating bird's-eye preview window that renders the entire project's tasks, milestones, and current viewport finder.
+The minimap supports drag-panning, edge-resizing, opacity adjustment, and collapsing.
 
 ```javascript
 const option = {
@@ -494,15 +546,22 @@ const option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
-    position: { right: 16, bottom: 16 }, // 右下基準の初期位置 (px)
+    collapsible: true,
+    collapsed: false,
     opacity: 0.85,
+    position: { right: 16, bottom: 16 }, // Anchor offset from bottom-right (px)
   },
 }
+
+// Minimap interaction events
+chart.addEventListener('minimap-move', (e) => console.log('Position:', e.detail.position))
+chart.addEventListener('minimap-resize', (e) => console.log('Size:', e.detail.width, e.detail.height))
+chart.addEventListener('minimap-collapse', (e) => console.log('Collapsed:', e.detail.collapsed))
 ```
 
-### ロケール
+### Internationalization (i18n) & Locales
 
-ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。
+moguchart-core comes with built-in Japanese (`jaLocale`, default) and English (`enLocale`) support. You can also define custom locales implementing the `MoguchartLocale` interface.
 
 ```javascript
 import { enLocale } from '@mogura/moguchart-core'
@@ -513,11 +572,109 @@ const option = {
 }
 ```
 
-### パブリックメソッド
+Custom locale implementation example:
+
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart-core'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  timeUnitDateFormat: (d) =>
+    `${d.getDate()} ${['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'][d.getMonth()]} ${d.getFullYear()}`,
+  dateTimeFormat: (d) => {
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
+  duration: {
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
+  },
+  tooltip: {
+    duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}`,
+    progress: (p) => `Progression: ${p}%`,
+  },
+  dragOverlay: {
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
+  },
+}
+```
+
+### WBS (Hierarchical Tree, Collapse / Expand & Summary Tasks)
+
+By specifying `parentId` on rows, you can build an unlimited hierarchical structure (e.g. Project > Phase > Task).
+Parent rows automatically display expand/collapse toggle buttons (▼/▶) and render summary task bars (bracket style) calculated from child tasks. If a parent row also contains its own tasks, both summary and normal tasks are rendered together (summary task on the top lane, normal tasks below).
+
+```javascript
+const rows = [
+  {
+    id: 'project-1',
+    name: 'Project Alpha',
+    parentId: null,
+    tasks: [], // autoSummary: true will aggregate from child tasks
+  },
+  {
+    id: 'task-1-1',
+    name: 'Requirements',
+    parentId: 'project-1',
+    tasks: [
+      {
+        id: 't-1',
+        name: 'Interviews',
+        start: new Date('2025-04-01'),
+        end: new Date('2025-04-10'),
+        progress: 100,
+      },
+    ],
+  },
+  {
+    id: 'task-1-2',
+    name: 'Architecture',
+    parentId: 'project-1',
+    tasks: [
+      {
+        id: 't-2',
+        name: 'Design Spec',
+        start: new Date('2025-04-11'),
+        end: new Date('2025-04-25'),
+        dependencies: ['t-1'],
+        progress: 50,
+      },
+    ],
+  },
+]
+
+const option = {
+  tree: {
+    enabled: true,         // Enable tree view (default: true)
+    indentWidth: 16,       // Indent width per level in px (default: 16)
+    showToggleIcon: true,  // Show expand/collapse toggle icon (default: true)
+    showWbsCode: true,     // Display WBS numbering like "1", "1.1"
+    autoSummary: true,     // Automatically calculate dates & progress from child tasks
+  },
+}
+
+// Row collapse/expand toggle event
+chart.addEventListener('row-toggle-collapse', (e) => {
+  const { rowId, collapsed } = e.detail
+  console.log(`Row ${rowId} was ${collapsed ? 'collapsed' : 'expanded'}`)
+})
+```
+
+### Public Methods
 
 #### selectTask
 
-指定したIDのタスクを選択状態にし、画面外の場合は自動スクロールします。
+Selects a task by ID and automatically scrolls the chart to bring it into view.
 
 ```javascript
 const chart = document.querySelector('gantt-chart')
@@ -526,90 +683,103 @@ const found = chart.selectTask('task-1')
 
 #### hitTest
 
-クライアント座標（画面上のピクセル位置）から、対応する行IDと日時を返します。
+Determines the row ID and calendar date corresponding to a given screen coordinate (e.g. from mouse events).
 
 ```javascript
 document.addEventListener('mousemove', (e) => {
   const result = chart.hitTest(e.clientX, e.clientY)
   if (result) {
-    console.log(`行: ${result.rowId}, 日付: ${result.date}`)
+    console.log(`Row: ${result.rowId}, Date: ${result.date}`)
   }
 })
 ```
 
 #### exportImage
 
-ガントチャート全体を PNG 画像または PDF 形式でエクスポートします。
+Exports the entire Gantt chart to a PNG image or PDF document. Preserves the user's scroll offset during export.
 
 ```javascript
-// PNG画像として自動ダウンロード
+// Automatically download as PNG image
 await chart.exportImage('png', {
   fileName: 'gantt-chart.png',
   download: true,
 })
 
-// PDFとしてBlobを取得
+// Retrieve as PDF Blob
 const pdfBlob = await chart.exportImage('pdf')
 ```
 
-#### ズーム操作 (zoomTo / zoomToFit / resetZoom)
+#### Zoom Operations (`zoomTo`, `zoomToFit`, `resetZoom`)
 
-`zoom` オプションを有効にすることで、Ctrl/Cmd + マウスホイールによるズームイン・ズームアウトが可能になります。また、メソッドによる動的なズーム制御にも対応しています。
+Enable zoom via `option.zoom` (wheel zoom with Ctrl / Cmd key) and control zoom level programmatically:
 
 ```javascript
 const option = {
   zoom: {
-    enabled: true, // ズーム機能を有効化 (デフォルト: false)
-    min: 5,        // 最小 pxPerDay (または pxPerMonth)
-    max: 150,      // 最大 pxPerDay (または pxPerMonth)
-    step: 1.2,     // 1回あたりのズーム倍率
+    enabled: true,
+    min: 5,
+    max: 150,
+    step: 1.2,
   },
 }
 
-// プログラムによるズーム操作
-chart.zoomTo(50)    // 1日あたり50pxにズーム
-chart.zoomToFit()   // 全タスクが表示領域に収まるよう自動調整
-chart.resetZoom()   // 初期設定のスケールにリセット
+// Programmatic zoom control
+chart.zoomTo(50)   // Set zoom level to 50px per day (or month)
+chart.zoomToFit()  // Auto-fit all tasks into the visible container width
+chart.resetZoom()  // Reset to original configuration scale
 
-// ズーム変更イベント
+// Listen to zoom level changes
 chart.addEventListener('zoom-change', (e) => {
-  console.log('変更後のスケール:', e.detail.pxPerDay || e.detail.pxPerMonth)
+  console.log('New zoom level:', e.detail.pxPerDay || e.detail.pxPerMonth)
 })
+```
+
+#### WBS & Collapse Operations (`toggleRowCollapse`, `collapseAll`, `expandAll`)
+
+```javascript
+// Toggle collapse state for a specific row
+chart.toggleRowCollapse('row-1')        // Toggle
+chart.toggleRowCollapse('row-1', true)  // Collapse
+chart.toggleRowCollapse('row-1', false) // Expand
+
+// Batch operations
+chart.collapseAll() // Collapse all parent rows with children
+chart.expandAll()   // Expand all rows
 ```
 
 #### getRowPositions
 
-仮想コンテナ内の各行のY座標レイアウト情報（`top`, `height`, `bottom`）の配列を取得します。
+Returns layout metrics (`top`, `height`, `bottom`) for all rows within the virtual container.
 
 ```javascript
-const positions = chart.getRowPositions()
-console.log('行レイアウト情報:', positions)
+const rowPositions = chart.getRowPositions()
+console.log('Row positions:', rowPositions)
 ```
 
-### キーボード操作
+### Keyboard Operations
 
-ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
+When the Gantt chart element is focused, keyboard shortcuts allow fast navigation, selection, movement, and deletion:
 
-| キー | 動作 |
+| Key | Action |
 | :--- | :--- |
-| `←` `→` | フォーカスをタスク間で移動 |
-| `↑` `↓` | フォーカスを別の行に移動 |
-| `Enter` / `Space` | フォーカス中のタスクを選択 |
-| `Ctrl/Cmd + Enter` | 選択をトグル（複数選択） |
-| `Shift + ←` `→` | 選択中のタスクを移動 |
-| `Delete` / `Backspace` | `task-delete` イベントを発火 |
-| `Escape` | 選択・フォーカスをクリア |
+| `←` `→` | Move focus between tasks |
+| `↑` `↓` | Move focus to another row |
+| `Enter` / `Space` | Select the focused task |
+| `Ctrl/Cmd + Enter` | Toggle selection state (multi-select) |
+| `Shift + ←` `→` | Move selected tasks backward / forward |
+| `Delete` / `Backspace` | Trigger `task-delete` event |
+| `Escape` | Clear current selection and focus |
 
 ```javascript
 const option = {
   keyboard: {
-    enabled: true,    // デフォルト: true
-    moveStep: 60,     // Shift+矢印キーでの移動量（分）
+    enabled: true, // Default: true
+    moveStep: 60,  // Move distance per Shift+Arrow key press (minutes)
   },
   // ...
 }
 ```
 
-## ライセンス
+## License
 
-MIT
+[MIT License](LICENSE)
