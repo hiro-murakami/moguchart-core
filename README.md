@@ -76,7 +76,7 @@ yarn add @mogura/moguchart-core
 
 ## API Reference
 
-For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.en.md)](./doc/API.en.md) or the [Japanese API Reference (API.md)](./doc/API.md).
+For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.md)](./doc/API.md) or the [Japanese API Reference (API.ja.md)](./doc/API.ja.md).
 
 ## Usage with Vue.js
 
