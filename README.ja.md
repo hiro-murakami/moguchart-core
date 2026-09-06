@@ -1,5 +1,7 @@
 # @mogura/moguchart-core
 
+![demo-light.png](https://raw.githubusercontent.com/hiro-murakami/qiita-content/main/images/moguchart-core-introduction/demo-light.png)
+
 [English](./README.md) | [Demo](https://moguchart-core.vercel.app/)
 
 Vue, React, Angular, Svelte など、どのフレームワークでも動作する、軽量で高機能な Web Components 製ガントチャートコンポーネントです。Lit で構築されています。
@@ -78,11 +80,7 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 <script setup lang="ts">
   import { ref } from 'vue'
   import '@mogura/moguchart-core'
-  import type {
-    GanttRow,
-    GanttChartOption,
-    TaskUpdateEventDetail,
-  } from '@mogura/moguchart-core'
+  import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -137,11 +135,7 @@ Web Components を使用するため、`vite.config.ts` などでカスタム要
 
 <template>
   <div style="height: 500px;">
-    <gantt-chart
-      :rows="rows"
-      :option="option"
-      @task-update="handleTaskUpdate"
-    ></gantt-chart>
+    <gantt-chart :rows="rows" :option="option" @task-update="handleTaskUpdate"></gantt-chart>
   </div>
 </template>
 ```
@@ -154,11 +148,7 @@ Web Components のプロパティやイベントを扱うため、`ref` を使�
 ```tsx
 import { useEffect, useRef, useState } from 'react'
 import '@mogura/moguchart-core'
-import type {
-  GanttRow,
-  GanttChartOption,
-  TaskUpdateEventDetail,
-} from '@mogura/moguchart-core'
+import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
 // TypeScript で使用する場合の型定義
 declare global {
@@ -323,7 +313,7 @@ const task = {
   start: new Date('2024-01-01'),
   end: new Date('2024-01-05'),
   style: 'background-color: #60a5fa',
-  pattern: PATTERN_DIAGONAL_STRIPE,    // プリセット使用
+  pattern: PATTERN_DIAGONAL_STRIPE, // プリセット使用
   // または直接指定:
   // pattern: { type: 'checkerboard', color: '#ffffff80' }
 }
@@ -379,7 +369,7 @@ chart.addEventListener('task-update', (e) => {
 
 ```javascript
 const option = {
-  snapDuration: 60,    // 1時間ごとにスナップ (デフォルト: 1440 = 1日)
+  snapDuration: 60, // 1時間ごとにスナップ (デフォルト: 1440 = 1日)
   // ...
 }
 ```
@@ -397,7 +387,7 @@ const option = {
     end: new Date('2025-12-31'),
     pxPerDay: 15,
     showWeeks: true,
-    weekStartDay: 1,   // 1=月曜始まり (デフォルト)
+    weekStartDay: 1, // 1=月曜始まり (デフォルト)
     weekFormat: (weekNum) => `W${weekNum}`,
   },
 }
@@ -413,7 +403,7 @@ const option = {
     start: new Date('2025-01-01'),
     end: new Date('2027-12-31'),
     pxPerDay: 1,
-    pxPerMonth: 120,    // 1ヶ月あたり120px
+    pxPerMonth: 120, // 1ヶ月あたり120px
     showMonthsRow: true, // 上段=年、下段=月の2段ヘッダー
   },
 }
@@ -451,10 +441,10 @@ import {
 const option = {
   progress: {
     enabled: true,
-    editable: true,       // ドラッグによる進捗編集を有効化
-    showLabel: true,      // 進捗ラベルを表示 (例: "50%")
+    editable: true, // ドラッグによる進捗編集を有効化
+    showLabel: true, // 進捗ラベルを表示 (例: "50%")
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
-    snapStep: 5,          // 5%刻みでスナップ
+    snapStep: 5, // 5%刻みでスナップ
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
   },
 }
@@ -478,7 +468,7 @@ const projectProgress = calculateProjectProgress(rows)
 ```javascript
 const option = {
   selection: {
-    marquee: true,          // 矩形範囲選択を有効化 (デフォルト: true)
+    marquee: true, // 矩形範囲選択を有効化 (デフォルト: true)
     borderColor: '#3b82f6', // 選択枠線の色 (オプション)
     backgroundColor: 'rgba(59, 130, 246, 0.15)', // 選択背景色 (オプション)
   },
@@ -566,11 +556,11 @@ const rows = [
 
 const option = {
   tree: {
-    enabled: true,         // ツリー表示を有効化 (デフォルト: true)
-    indentWidth: 16,       // レベルあたりのインデント幅 (px)
-    showToggleIcon: true,  // 開閉トグルアイコン (デフォルト: true)
-    showWbsCode: true,     // "1", "1.1" 等のWBS番号を表示
-    autoSummary: true,     // 子タスクから期間・進捗率を自動集計
+    enabled: true, // ツリー表示を有効化 (デフォルト: true)
+    indentWidth: 16, // レベルあたりのインデント幅 (px)
+    showToggleIcon: true, // 開閉トグルアイコン (デフォルト: true)
+    showWbsCode: true, // "1", "1.1" 等のWBS番号を表示
+    autoSummary: true, // 子タスクから期間・進捗率を自動集計
   },
 }
 
@@ -628,16 +618,16 @@ const pdfBlob = await chart.exportImage('pdf')
 const option = {
   zoom: {
     enabled: true, // ズーム機能を有効化 (デフォルト: false)
-    min: 5,        // 最小 pxPerDay (または pxPerMonth)
-    max: 150,      // 最大 pxPerDay (または pxPerMonth)
-    step: 1.2,     // 1回あたりのズーム倍率
+    min: 5, // 最小 pxPerDay (または pxPerMonth)
+    max: 150, // 最大 pxPerDay (または pxPerMonth)
+    step: 1.2, // 1回あたりのズーム倍率
   },
 }
 
 // プログラムによるズーム操作
-chart.zoomTo(50)    // 1日あたり50pxにズーム
-chart.zoomToFit()   // 全タスクが表示領域に収まるよう自動調整
-chart.resetZoom()   // 初期設定のスケールにリセット
+chart.zoomTo(50) // 1日あたり50pxにズーム
+chart.zoomToFit() // 全タスクが表示領域に収まるよう自動調整
+chart.resetZoom() // 初期設定のスケールにリセット
 
 // ズーム変更イベント
 chart.addEventListener('zoom-change', (e) => {
@@ -649,13 +639,13 @@ chart.addEventListener('zoom-change', (e) => {
 
 ```javascript
 // 特定の行の折りたたみを切り替え
-chart.toggleRowCollapse('row-1')        // トグル
-chart.toggleRowCollapse('row-1', true)  // 折りたたみ
+chart.toggleRowCollapse('row-1') // トグル
+chart.toggleRowCollapse('row-1', true) // 折りたたみ
 chart.toggleRowCollapse('row-1', false) // 展開
 
 // 一括操作
 chart.collapseAll() // 子行を持つ親行をすべて折りたたみ
-chart.expandAll()   // すべての行を展開
+chart.expandAll() // すべての行を展開
 ```
 
 #### getRowPositions
@@ -671,21 +661,21 @@ console.log('行レイアウト情報:', positions)
 
 ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
 
-| キー | 動作 |
-| :--- | :--- |
-| `←` `→` | フォーカスをタスク間で移動 |
-| `↑` `↓` | フォーカスを別の行に移動 |
-| `Enter` / `Space` | フォーカス中のタスクを選択 |
-| `Ctrl/Cmd + Enter` | 選択をトグル（複数選択） |
-| `Shift + ←` `→` | 選択中のタスクを移動 |
+| キー                   | 動作                         |
+| :--------------------- | :--------------------------- |
+| `←` `→`                | フォーカスをタスク間で移動   |
+| `↑` `↓`                | フォーカスを別の行に移動     |
+| `Enter` / `Space`      | フォーカス中のタスクを選択   |
+| `Ctrl/Cmd + Enter`     | 選択をトグル（複数選択）     |
+| `Shift + ←` `→`        | 選択中のタスクを移動         |
 | `Delete` / `Backspace` | `task-delete` イベントを発火 |
-| `Escape` | 選択・フォーカスをクリア |
+| `Escape`               | 選択・フォーカスをクリア     |
 
 ```javascript
 const option = {
   keyboard: {
-    enabled: true,    // デフォルト: true
-    moveStep: 60,     // Shift+矢印キーでの移動量（分）
+    enabled: true, // デフォルト: true
+    moveStep: 60, // Shift+矢印キーでの移動量（分）
   },
   // ...
 }

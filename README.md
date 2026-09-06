@@ -1,5 +1,7 @@
 # @mogura/moguchart-core
 
+![demo-light.png](https://raw.githubusercontent.com/hiro-murakami/qiita-content/main/images/moguchart-core-introduction/demo-light.png)
+
 [日本語](./README.ja.md) | [Demo](https://moguchart-core.vercel.app/)
 
 A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works seamlessly with Vue, React, Angular, Svelte, and any other modern web framework.
@@ -87,11 +89,7 @@ When using Web Components in Vue, configure `compilerOptions.isCustomElement` in
 <script setup lang="ts">
   import { ref } from 'vue'
   import '@mogura/moguchart-core'
-  import type {
-    GanttRow,
-    GanttChartOption,
-    TaskUpdateEventDetail,
-  } from '@mogura/moguchart-core'
+  import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
   const rows = ref<GanttRow[]>([
     {
@@ -159,11 +157,7 @@ When using Web Components in Vue, configure `compilerOptions.isCustomElement` in
 
 <template>
   <div style="height: 600px;">
-    <gantt-chart
-      :rows="rows"
-      :option="option"
-      @task-update="handleTaskUpdate"
-    ></gantt-chart>
+    <gantt-chart :rows="rows" :option="option" @task-update="handleTaskUpdate"></gantt-chart>
   </div>
 </template>
 ```
@@ -176,11 +170,7 @@ Since Web Components interact via DOM properties and native event listeners, use
 ```tsx
 import { useEffect, useRef, useState } from 'react'
 import '@mogura/moguchart-core'
-import type {
-  GanttRow,
-  GanttChartOption,
-  TaskUpdateEventDetail,
-} from '@mogura/moguchart-core'
+import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
 
 // Type definition for JSX Custom Element
 declare global {
@@ -494,10 +484,10 @@ import {
 const option = {
   progress: {
     enabled: true,
-    editable: true,          // Allow interactive handle dragging
-    showLabel: true,         // Display progress text (e.g. "50%")
+    editable: true, // Allow interactive handle dragging
+    showLabel: true, // Display progress text (e.g. "50%")
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
-    snapStep: 5,             // Snap in 5% increments
+    snapStep: 5, // Snap in 5% increments
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
   },
 }
@@ -522,7 +512,7 @@ Hold `Shift`, `Ctrl`, or `Cmd` while dragging to accumulate selections additivel
 ```javascript
 const option = {
   selection: {
-    marquee: true,          // Enable marquee selection (default: true)
+    marquee: true, // Enable marquee selection (default: true)
     borderColor: '#3b82f6', // Selection border color
     backgroundColor: 'rgba(59, 130, 246, 0.15)', // Box fill color
   },
@@ -655,11 +645,11 @@ const rows = [
 
 const option = {
   tree: {
-    enabled: true,         // Enable tree view (default: true)
-    indentWidth: 16,       // Indent width per level in px (default: 16)
-    showToggleIcon: true,  // Show expand/collapse toggle icon (default: true)
-    showWbsCode: true,     // Display WBS numbering like "1", "1.1"
-    autoSummary: true,     // Automatically calculate dates & progress from child tasks
+    enabled: true, // Enable tree view (default: true)
+    indentWidth: 16, // Indent width per level in px (default: 16)
+    showToggleIcon: true, // Show expand/collapse toggle icon (default: true)
+    showWbsCode: true, // Display WBS numbering like "1", "1.1"
+    autoSummary: true, // Automatically calculate dates & progress from child tasks
   },
 }
 
@@ -724,9 +714,9 @@ const option = {
 }
 
 // Programmatic zoom control
-chart.zoomTo(50)   // Set zoom level to 50px per day (or month)
-chart.zoomToFit()  // Auto-fit all tasks into the visible container width
-chart.resetZoom()  // Reset to original configuration scale
+chart.zoomTo(50) // Set zoom level to 50px per day (or month)
+chart.zoomToFit() // Auto-fit all tasks into the visible container width
+chart.resetZoom() // Reset to original configuration scale
 
 // Listen to zoom level changes
 chart.addEventListener('zoom-change', (e) => {
@@ -738,13 +728,13 @@ chart.addEventListener('zoom-change', (e) => {
 
 ```javascript
 // Toggle collapse state for a specific row
-chart.toggleRowCollapse('row-1')        // Toggle
-chart.toggleRowCollapse('row-1', true)  // Collapse
+chart.toggleRowCollapse('row-1') // Toggle
+chart.toggleRowCollapse('row-1', true) // Collapse
 chart.toggleRowCollapse('row-1', false) // Expand
 
 // Batch operations
 chart.collapseAll() // Collapse all parent rows with children
-chart.expandAll()   // Expand all rows
+chart.expandAll() // Expand all rows
 ```
 
 #### getRowPositions
@@ -760,21 +750,21 @@ console.log('Row positions:', rowPositions)
 
 When the Gantt chart element is focused, keyboard shortcuts allow fast navigation, selection, movement, and deletion:
 
-| Key | Action |
-| :--- | :--- |
-| `←` `→` | Move focus between tasks |
-| `↑` `↓` | Move focus to another row |
-| `Enter` / `Space` | Select the focused task |
-| `Ctrl/Cmd + Enter` | Toggle selection state (multi-select) |
-| `Shift + ←` `→` | Move selected tasks backward / forward |
-| `Delete` / `Backspace` | Trigger `task-delete` event |
-| `Escape` | Clear current selection and focus |
+| Key                    | Action                                 |
+| :--------------------- | :------------------------------------- |
+| `←` `→`                | Move focus between tasks               |
+| `↑` `↓`                | Move focus to another row              |
+| `Enter` / `Space`      | Select the focused task                |
+| `Ctrl/Cmd + Enter`     | Toggle selection state (multi-select)  |
+| `Shift + ←` `→`        | Move selected tasks backward / forward |
+| `Delete` / `Backspace` | Trigger `task-delete` event            |
+| `Escape`               | Clear current selection and focus      |
 
 ```javascript
 const option = {
   keyboard: {
     enabled: true, // Default: true
-    moveStep: 60,  // Move distance per Shift+Arrow key press (minutes)
+    moveStep: 60, // Move distance per Shift+Arrow key press (minutes)
   },
   // ...
 }
