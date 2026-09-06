@@ -459,7 +459,63 @@ describe('GanttChartElement WBS Integration', () => {
     ;(element as any).handleRowDragEnd()
     expect((element as any).dragOverRowId).toBeNull()
   })
+
+  describe('サマリータスクの色設定', () => {
+    it('option.tree.summaryColor でサマリータスクの既定色を設定できる', async () => {
+      element.option = {
+        ...element.option,
+        calendar: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-31'),
+          pxPerDay: 20,
+        },
+        tree: {
+          enabled: true,
+          autoSummary: true,
+          summaryColor: '#10b981',
+        },
+      }
+      await element.updateComplete
+
+      const displayRows = (element as any).displayRows
+      const p1Row = displayRows.find((r: GanttRow) => r.id === 'p1')
+      const summaryTask = p1Row?.tasks.find((t: any) => t.type === 'summary')
+
+      expect(summaryTask).toBeDefined()
+      expect(summaryTask?.style).toContain('background-color: #10b981;')
+    })
+
+    it('row.summaryColor が指定されている場合、option.tree.summaryColor より優先して行個別色が適用される', async () => {
+      element.option = {
+        ...element.option,
+        calendar: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-31'),
+          pxPerDay: 20,
+        },
+        tree: {
+          enabled: true,
+          autoSummary: true,
+          summaryColor: '#10b981',
+        },
+      }
+
+      // p1 行に個別色を設定
+      element.rows = element.rows.map((r) =>
+        r.id === 'p1' ? { ...r, summaryColor: '#f59e0b' } : r,
+      )
+      await element.updateComplete
+
+      const displayRows = (element as any).displayRows
+      const p1Row = displayRows.find((r: GanttRow) => r.id === 'p1')
+      const summaryTask = p1Row?.tasks.find((t: any) => t.type === 'summary')
+
+      expect(summaryTask).toBeDefined()
+      expect(summaryTask?.style).toContain('background-color: #f59e0b;')
+    })
+  })
 })
+
 
 
 

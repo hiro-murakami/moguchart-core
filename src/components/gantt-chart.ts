@@ -205,9 +205,11 @@ export class GanttChartElement extends LitElement {
         const childRows = this.rows.filter((r) => childIds.includes(r.id))
         const allChildTasks = childRows.flatMap((r) => r.tasks)
         if (allChildTasks.length > 0) {
+          const effectiveColor = row.summaryColor || this.option?.tree?.summaryColor
           const summaryTask = computeSummaryTask(allChildTasks, {
             id: `${row.id}-summary`,
             name: row.name,
+            style: effectiveColor ? `background-color: ${effectiveColor};` : undefined,
           })
           if (summaryTask) {
             const normalTasks = (row.tasks || []).filter(
@@ -3180,6 +3182,7 @@ export class GanttChartElement extends LitElement {
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}
         :host {
           --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
+          ${this.option?.tree?.summaryColor ? `--moguchart-summary-bar-color: ${this.option.tree.summaryColor};` : ''}
         }
       </style>
       ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; border-radius: 0 !important; border: none !important; }</style>` : ''}

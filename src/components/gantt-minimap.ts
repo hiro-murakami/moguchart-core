@@ -922,7 +922,11 @@ export class GanttMinimapElement extends LitElement {
         const miniW = Math.max(taskW * scaleX, 1.5)
         const miniH = Math.max(barHeight * scaleY, 1.5)
 
-        const taskColor = extractTaskColor(task.style, colors.minimapTask ?? '#3b82f6')
+        const defaultColor =
+          task.type === 'summary'
+            ? (this.option?.tree?.summaryColor ?? '#334155')
+            : (colors.minimapTask ?? '#3b82f6')
+        const taskColor = extractTaskColor(task.style, defaultColor)
         ctx.fillStyle = taskColor
 
         // タスク矩形描画

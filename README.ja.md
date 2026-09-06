@@ -561,6 +561,7 @@ const option = {
     showToggleIcon: true, // 開閉トグルアイコン (デフォルト: true)
     showWbsCode: true, // "1", "1.1" 等のWBS番号を表示
     autoSummary: true, // 子タスクから期間・進捗率を自動集計
+    summaryColor: '#334155', // サマリータスクバーの既定色 (行側の summaryColor で個別上書き可能)
   },
 }
 

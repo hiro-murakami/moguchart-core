@@ -650,6 +650,7 @@ const option = {
     showToggleIcon: true, // Show expand/collapse toggle icon (default: true)
     showWbsCode: true, // Display WBS numbering like "1", "1.1"
     autoSummary: true, // Automatically calculate dates & progress from child tasks
+    summaryColor: '#334155', // Default summary task bar color (can be overridden by row.summaryColor)
   },
 }
 

@@ -129,6 +129,8 @@ export interface GanttRow {
   collapsed?: boolean
   /** サマリー行（グループ行）かどうか */
   isSummary?: boolean
+  /** サマリータスクバーのカスタム色 (CSSカラー文字列)。指定がない場合はoption.tree.summaryColorまたは既定色 */
+  summaryColor?: string
   /** WBSコード (例: "1.2.1") */
   wbsCode?: string
 }
@@ -463,6 +465,8 @@ export interface GanttChartOptionTree {
   showWbsCode?: boolean
   /** 子タスクの変更時に親サマリータスクを自動計算するかどうか (デフォルト: true) */
   autoSummary?: boolean
+  /** サマリータスクバーの既定色 (CSSカラー文字列、デフォルト: '#334155') */
+  summaryColor?: string
 }
 
 /**
