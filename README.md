@@ -612,7 +612,7 @@ const frLocale: MoguchartLocale = {
 ### WBS (Hierarchical Tree, Collapse / Expand & Summary Tasks)
 
 By specifying `parentId` on rows, you can build an unlimited hierarchical structure (e.g. Project > Phase > Task).
-Parent rows automatically display expand/collapse toggle buttons (▼/▶) and render summary task bars (bracket style) calculated from child tasks.
+Parent rows automatically display expand/collapse toggle buttons (▼/▶) and render summary task bars (bracket style) calculated from child tasks. If a parent row also contains its own tasks, both summary and normal tasks are rendered together (summary task on the top lane, normal tasks below).
 
 ```javascript
 const rows = [

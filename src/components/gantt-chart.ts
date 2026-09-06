@@ -199,7 +199,7 @@ export class GanttChartElement extends LitElement {
 
     return baseRows.map((row) => {
       const isParent = rowsWithChildren.has(row.id)
-      const needsSummary = row.isSummary || (isParent && row.tasks.length === 0)
+      const needsSummary = row.isSummary || isParent
       if (needsSummary && isParent) {
         const childIds = computeChildRowIds(this.rows, row.id, true)
         const childRows = this.rows.filter((r) => childIds.includes(r.id))
@@ -210,9 +210,12 @@ export class GanttChartElement extends LitElement {
             name: row.name,
           })
           if (summaryTask) {
+            const normalTasks = (row.tasks || []).filter(
+              (t) => t.id !== summaryTask.id && t.type !== 'summary',
+            )
             return {
               ...row,
-              tasks: [summaryTask],
+              tasks: [summaryTask, ...normalTasks],
             }
           }
         }
@@ -878,7 +881,8 @@ export class GanttChartElement extends LitElement {
 
     const dragStartRowTop = rowLayouts[sourceRowIndexInDisplay].top
 
-    const { tasksWithLanes } = calculateTaskLanes(this.rows[sourceRowIndex].tasks)
+    const displayRow = this.displayRows[sourceRowIndexInDisplay]
+    const { tasksWithLanes } = calculateTaskLanes(displayRow.tasks)
     const taskWithLane = tasksWithLanes.find((t) => t.id === id)
     const lane = taskWithLane ? taskWithLane.lane : 0
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT

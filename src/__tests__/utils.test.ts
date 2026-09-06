@@ -88,6 +88,62 @@ describe('utils', () => {
       expect(result.tasksWithLanes.find((t) => t.id === '2')?.lane).toBe(1)
       expect(result.tasksWithLanes.find((t) => t.id === '3')?.lane).toBe(0)
     })
+
+    it('assigns summary task to lane 0 and normal tasks to lane 1 or higher', () => {
+      const summaryTask: GanttTask = {
+        id: 'p1-summary',
+        name: '親フェーズサマリー',
+        start: new Date('2024-01-05'),
+        end: new Date('2024-01-20'),
+        type: 'summary',
+      }
+      const normalTask1: GanttTask = {
+        id: 'n1',
+        name: '先行通常タスク',
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-08'),
+      }
+      const normalTask2: GanttTask = {
+        id: 'n2',
+        name: '後続通常タスク',
+        start: new Date('2024-01-10'),
+        end: new Date('2024-01-18'),
+      }
+      const result = calculateTaskLanes([normalTask1, summaryTask, normalTask2])
+      expect(result.laneCount).toBe(2)
+      // サマリータスクは最上段 (lane 0)
+      expect(result.tasksWithLanes.find((t) => t.id === 'p1-summary')?.lane).toBe(0)
+      // 通常タスク同士は重ならないため両方 lane 1
+      expect(result.tasksWithLanes.find((t) => t.id === 'n1')?.lane).toBe(1)
+      expect(result.tasksWithLanes.find((t) => t.id === 'n2')?.lane).toBe(1)
+    })
+
+    it('handles overlapping normal tasks alongside summary task', () => {
+      const summaryTask: GanttTask = {
+        id: 'p1-summary',
+        name: '親フェーズサマリー',
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-20'),
+        type: 'summary',
+      }
+      const normalTask1: GanttTask = {
+        id: 'n1',
+        name: '通常タスク1',
+        start: new Date('2024-01-05'),
+        end: new Date('2024-01-15'),
+      }
+      const normalTask2: GanttTask = {
+        id: 'n2',
+        name: '通常タスク2（重なり）',
+        start: new Date('2024-01-10'),
+        end: new Date('2024-01-18'),
+      }
+      const result = calculateTaskLanes([summaryTask, normalTask1, normalTask2])
+      expect(result.laneCount).toBe(3)
+      expect(result.tasksWithLanes.find((t) => t.id === 'p1-summary')?.lane).toBe(0)
+      expect(result.tasksWithLanes.find((t) => t.id === 'n1')?.lane).toBe(1)
+      expect(result.tasksWithLanes.find((t) => t.id === 'n2')?.lane).toBe(2)
+    })
   })
 
   describe('getThemeColors', () => {

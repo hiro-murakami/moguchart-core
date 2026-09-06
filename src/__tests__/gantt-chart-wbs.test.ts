@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { GanttChartElement } from '../components/gantt-chart'
-import type { GanttRow } from '../core/types'
+import type { GanttRow, GanttTask } from '../core/types'
+import { calculateTaskLanes } from '../core/utils'
 
 // Mock ResizeObserver
 ;(globalThis as any).ResizeObserver = class ResizeObserver {
@@ -157,6 +158,44 @@ describe('GanttChartElement WBS Integration', () => {
     expect(summaryTask.resizable).toBe(false)
     // 加重平均進捗: 100(4日) + 50(4日) = 75%
     expect(summaryTask.progress).toBe(75)
+  })
+
+  it('親行に通常タスクが存在する場合でも、サマリータスクと通常タスクの両方が親行に表示される', async () => {
+    // p1 に直接通常タスクを追加
+    element.rows = element.rows.map((r) => {
+      if (r.id === 'p1') {
+        return {
+          ...r,
+          tasks: [
+            {
+              id: 'p1-normal-task',
+              name: '親行の独自タスク',
+              start: new Date('2024-01-03'),
+              end: new Date('2024-01-07'),
+              progress: 20,
+            },
+          ],
+        }
+      }
+      return r
+    })
+    await element.updateComplete
+
+    const displayP1 = (element as any).displayRows.find((r: GanttRow) => r.id === 'p1')
+    expect(displayP1).toBeDefined()
+    // サマリータスクと親行の通常タスクの2つが存在すること
+    expect(displayP1.tasks.length).toBe(2)
+
+    const summaryTask = displayP1.tasks.find((t: GanttTask) => t.type === 'summary')
+    const normalTask = displayP1.tasks.find((t: GanttTask) => t.id === 'p1-normal-task')
+    expect(summaryTask).toBeDefined()
+    expect(normalTask).toBeDefined()
+
+    // レーン計算でもサマリータスクが最上段、通常タスクが下段になること
+    const { tasksWithLanes, laneCount } = calculateTaskLanes(displayP1.tasks)
+    expect(laneCount).toBe(2)
+    expect(tasksWithLanes.find((t) => t.id === summaryTask.id)?.lane).toBe(0)
+    expect(tasksWithLanes.find((t) => t.id === normalTask.id)?.lane).toBe(1)
   })
 
   it('親行を並び替えた際、配下の子行も一緒にブロック連動して移動する', async () => {
