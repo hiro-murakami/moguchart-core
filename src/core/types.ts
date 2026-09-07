@@ -493,6 +493,8 @@ export interface GanttChartOptionProgress {
   color?: string
   /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
   showLabel?: boolean
+  /** サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false) */
+  showSummaryLabel?: boolean
   /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
   labelPosition?: 'inside' | 'right' | 'left' | 'center'
   /** 進捗ラベルのカスタムフォーマット関数 */

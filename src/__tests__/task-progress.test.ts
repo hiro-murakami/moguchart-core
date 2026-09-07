@@ -228,6 +228,59 @@ describe('Task Progress Management', () => {
       expect(progressLabel.textContent).toBe('Done: 60%')
     })
 
+    it('does not render progress label for summary task by default', async () => {
+      bar.task = {
+        ...bar.task,
+        type: 'summary',
+      }
+      bar.option = {
+        ...defaultOption,
+        progress: {
+          ...defaultOption.progress,
+          showLabel: true,
+        },
+      }
+      await bar.updateComplete
+
+      const progressLabel = bar.shadowRoot?.querySelector('.progress-label')
+      expect(progressLabel).toBeNull()
+    })
+
+    it('renders progress label for summary task when showSummaryLabel is true', async () => {
+      bar.task = {
+        ...bar.task,
+        type: 'summary',
+      }
+      bar.option = {
+        ...defaultOption,
+        progress: {
+          ...defaultOption.progress,
+          showLabel: true,
+          showSummaryLabel: true,
+        },
+      }
+      await bar.updateComplete
+
+      const progressLabel = bar.shadowRoot?.querySelector('.progress-label') as HTMLElement
+      expect(progressLabel).not.toBeNull()
+      expect(progressLabel.textContent).toBe('60%')
+    })
+
+    it('does not render progress label element when labelFormatter returns empty string', async () => {
+      bar.option = {
+        ...defaultOption,
+        progress: {
+          ...defaultOption.progress,
+          showLabel: true,
+          labelFormatter: () => '',
+        },
+      }
+      await bar.updateComplete
+
+      const progressLabel = bar.shadowRoot?.querySelector('.progress-label')
+      expect(progressLabel).toBeNull()
+    })
+
     it('applies indicatorPosition bottom/top styles', async () => {
       bar.option = {
         ...defaultOption,

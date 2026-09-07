@@ -755,6 +755,7 @@ export class GanttChartElement extends LitElement {
         width: number
         height: number
         dependencies?: string[]
+        isSummary?: boolean
       }
     >()
 
@@ -774,6 +775,7 @@ export class GanttChartElement extends LitElement {
           width,
           height: barHeight,
           dependencies: task.dependencies,
+          isSummary: task.type === 'summary',
         })
       })
 
@@ -2650,6 +2652,7 @@ export class GanttChartElement extends LitElement {
 
     const { taskCoords } = this.calculateLayout()
     const coord = taskCoords.get(taskId)
+    if (coord?.isSummary) return
 
     const labelWidth = this.currentRowHeaderWidth
     let startX = e.detail.startX + labelWidth
@@ -2699,6 +2702,7 @@ export class GanttChartElement extends LitElement {
 
     for (const [taskId, coord] of taskCoords) {
       if (taskId === this.connectorDrag.sourceTaskId) continue
+      if (coord.isSummary) continue
 
       // バーの左端（start）と右端（end）それぞれの距離を計算
       const centerY = coord.y + coord.height / 2
@@ -2755,19 +2759,24 @@ export class GanttChartElement extends LitElement {
     }
 
     if (!cancelled && targetTaskId && targetEndpoint) {
-      // 依存関係作成イベントを発火
-      this.dispatchEvent(
-        new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
-          detail: {
-            sourceTaskId,
-            sourceEndpoint,
-            targetTaskId,
-            targetEndpoint,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      const { taskCoords } = this.calculateLayout()
+      const sourceCoord = taskCoords.get(sourceTaskId)
+      const targetCoord = taskCoords.get(targetTaskId)
+      if (!sourceCoord?.isSummary && !targetCoord?.isSummary) {
+        // 依存関係作成イベントを発火
+        this.dispatchEvent(
+          new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
+            detail: {
+              sourceTaskId,
+              sourceEndpoint,
+              targetTaskId,
+              targetEndpoint,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
     }
 
     this.connectorDrag = null

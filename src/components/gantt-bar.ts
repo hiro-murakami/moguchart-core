@@ -972,7 +972,7 @@ export class GanttBarElement extends LitElement {
 
   private onMouseMoveOnBar = (e: MouseEvent) => {
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
-    if (!taskGroup || this.option.readOnly) return
+    if (!taskGroup || this.option.readOnly || this.task?.type === 'summary') return
     if (this.option.dependency?.showConnectors === false) return
 
     const rect = taskGroup.getBoundingClientRect()
@@ -1071,6 +1071,7 @@ export class GanttBarElement extends LitElement {
   }
 
   private onConnectorDragStart(e: PointerEvent, endpoint: DependencyEndpoint) {
+    if (this.task?.type === 'summary') return
     e.stopPropagation()
     e.preventDefault()
     const target = e.target as HTMLElement
@@ -1268,7 +1269,11 @@ export class GanttBarElement extends LitElement {
     const hasProgress = isProgressFeatureEnabled && (hasProgressValue || isProgressEditable)
     const progressVal = hasProgress ? clampProgress(rawProgress ?? 0) : null
     const indicatorPosition = this.option.progress?.indicatorPosition ?? 'full'
-    const showProgressLabel = hasProgress && hasProgressValue && this.option.progress?.showLabel === true
+    const showProgressLabel =
+      (!isSummary || (this.option.progress?.showSummaryLabel ?? false)) &&
+      hasProgress &&
+      hasProgressValue &&
+      this.option.progress?.showLabel === true
     const labelPosition = this.option.progress?.labelPosition ?? 'inside'
     const progressLabelText =
       showProgressLabel && progressVal !== null
@@ -1317,7 +1322,7 @@ export class GanttBarElement extends LitElement {
         ${!this.option.customRendering?.barContent && this.task.name
           ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
           : ''}
-        ${showProgressLabel
+        ${showProgressLabel && progressLabelText
           ? html`<div class="progress-label pos-${labelPosition}">${progressLabelText}</div>`
           : ''}
         ${isProgressEditable && progressVal !== null
@@ -1336,7 +1341,7 @@ export class GanttBarElement extends LitElement {
               <div class="handle-right" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"></div>
             `
           : ''}
-        ${!isReadOnly && this.option.dependency?.showConnectors !== false
+        ${!isReadOnly && !isSummary && this.option.dependency?.showConnectors !== false
           ? html`
               <div
                 class="connector-left"
