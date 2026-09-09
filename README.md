@@ -61,6 +61,9 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Unlimited parent-child hierarchy via `parentId`
   - Indented display with expand/collapse toggle buttons (▶/▼)
   - Automatically calculated summary task bars (bracket style) from child tasks
+  - Configurable summary task bar colors (chart default `summaryColor` and row-level `summaryColor` overrides)
+  - Coexistence of summary task bars and normal tasks within parent rows (two-lane rendering)
+  - Configurable progress label display on summary task bars (`showSummaryLabel`)
   - Collapsing seamlessly integrated with virtual scrolling and overview minimap
   - Safe drag & drop reordering preserving hierarchy (prevents circular nesting, moves subtrees together)
   - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
@@ -486,6 +489,7 @@ const option = {
     enabled: true,
     editable: true, // Allow interactive handle dragging
     showLabel: true, // Display progress text (e.g. "50%")
+    showSummaryLabel: false, // Whether to show progress label on summary tasks (default: false)
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
     snapStep: 5, // Snap in 5% increments
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
@@ -745,6 +749,51 @@ Returns layout metrics (`top`, `height`, `bottom`) for all rows within the virtu
 ```javascript
 const rowPositions = chart.getRowPositions()
 console.log('Row positions:', rowPositions)
+```
+
+### Utility Functions
+
+`@mogura/moguchart-core` exports various helper utilities for hierarchical WBS calculations, critical path detection, and progress aggregations:
+
+```typescript
+import {
+  // WBS & Tree calculations
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
+  // Critical path computation
+  computeCriticalPath,
+  // Progress calculations
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+// 1. Calculate depth level for all rows
+const levels = computeRowLevels(rows) // Map<string, number> (rowId -> level: 0, 1, 2...)
+
+// 2. Generate WBS hierarchical numbering codes ("1", "1.1", "1.2", etc.)
+const wbsCodes = computeRowWbsCodes(rows) // Map<string, string> (rowId -> wbsCode)
+
+// 3. Get child / descendant row IDs for a row
+const allDescendants = computeChildRowIds('project-1', rows, true) // Recursively get all descendants
+const directChildren = computeChildRowIds('project-1', rows, false) // Direct children only
+
+// 4. Extract rows currently visible based on collapse states
+const visibleRows = computeVisibleTreeRows(rows)
+
+// 5. Aggregate child tasks into a summary task
+const summaryTask = computeSummaryTask(childTasks, 'project-1') // Min start, max end, weighted average progress
+
+// 6. Safe D&D check to prevent circular parent-child nesting
+const isDropAllowed = canDropRow('source-row-id', 'target-row-id', rows) // boolean
+
+// 7. Find longest task dependency chains (critical path)
+const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 ```
 
 ### Keyboard Operations

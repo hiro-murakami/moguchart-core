@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-09
+
+祝・正式リリース！🎉
+本バージョンをもって `@mogura/moguchart-core` はメジャーバージョン 1.0.0 に到達し、プロダクションレディな安定版 API として正式にリリースされました。
+本リリースでは、プロジェクト管理において極めて重要な **WBS（階層ツリー構造・行の開閉）** および **サマリータスク（親タスクの期間・進捗自動集計描画）** 機能を全面的にサポートしました。
+
+### Added
+
+- **WBS（階層ツリー構造・展開/折りたたみ）機能を追加**:
+  - `GanttRow` に `parentId` プロパティを追加し、無制限の親子階層（大工程 ＞ 中工程 ＞ 詳細タスクなど）のツリー構造に対応
+  - `GanttRow` に `collapsed` プロパティを追加し、行ごとの初期折りたたみ状態を指定可能に
+  - `GanttRow` に `isSummary` プロパティを追加し、親サマリー行としての明示的なフラグ管理に対応
+  - `GanttRow` に `wbsCode` プロパティを追加し、WBS番号（例: "1.2.1"）の保持・表示に対応
+  - 行ヘッダー（左側グリッド）における階層インデント表示（階層レベルに応じた自動インデント）
+  - 子階層を持つ親行の左側に開閉トグルアイコン（▶ / ▼）を表示し、クリックによる展開/折りたたみに対応
+  - 行の開閉状態が変更された際に発火する `row-toggle-collapse` イベント（`RowToggleCollapseEventDetail` 型定義）を追加
+  - 行の展開/折りたたみに伴うタスクバー描画、行グリッド、仮想スクロール、ミニマップの完全同期追従
+  - `GanttChartOptionTree` 型定義および `GanttChartOption.tree` オプションを追加：
+    - `enabled`: ツリー表示の有効/無効（デフォルト: `true`）
+    - `indentWidth`: 階層レベルあたりのインデント幅（px、デフォルト: `16`）
+    - `showToggleIcon`: 開閉トグルアイコンの表示/非表示（デフォルト: `true`）
+    - `showWbsCode`: 行ヘッダーへの WBS コード自動表示（デフォルト: `false`）
+    - `autoSummary`: 配下の子タスクからの期間・進捗率の自動集計有効化（デフォルト: `true`）
+    - `summaryColor`: サマリータスクバーの既定色（デフォルト: `'#334155'`）
+- **サマリータスク（Summary Task）自動計算＆描画機能を追加**:
+  - 子階層を持つ親行において、配下の全タスクの最小開始日・最大終了日・期間加重平均進捗率を自動集計して描画するサマリータスクバー（ブラケット/矢じり形状のサマリーバー）をサポート
+  - `GanttTask.type` に `'summary'` を追加
+  - `GanttRow` に `summaryColor` プロパティを追加し、行単位でのサマリータスクバー色の個別オーバーライドに対応
+  - 親行自身に通常タスクが登録されている場合でも、サマリータスクバーと通常タスクバーの共存・同時描画をサポート
+  - `GanttChartOptionProgress.showSummaryLabel` オプション（デフォルト: `false`）を追加し、サマリータスク上での進捗率ラベル表示を制御可能に
+  - ミニマップ（`<gantt-minimap>`）上でのサマリータスクバーのプレビュー描画および進捗率の濃淡描画に対応
+- **階層構造に対応した安全なドラッグ＆ドロップ並び替え（D&D Reorder）**:
+  - 親行をドラッグ移動した際、その配下の全子孫行がブロックとして一体となって追従移動
+  - 自身の子孫階層へのドロップを自動検知して防止する循環参照防止ロジック（`canDropRow`）を実装
+- **プログラムによる階層操作パブリックメソッドを追加**:
+  - `chart.toggleRowCollapse(rowId: string, collapsed?: boolean)`: 指定行の開閉をトグル（または明示的に開閉）
+  - `chart.collapseAll()`: 子行を持つすべての親行を一括折りたたみ
+  - `chart.expandAll()`: すべての行を一括展開
+- **WBS・階層計算ユーティリティ関数を公開**:
+  - `computeRowLevels`: 全行のツリー深度（レベル）を計算
+  - `computeRowWbsCodes`: WBS階層コード（1, 1.1, 1.2 等）の自動採番
+  - `computeChildRowIds`: 指定行の直下または全子孫の行ID一覧を取得
+  - `computeVisibleTreeRows`: 折りたたみ状態を考慮した表示対象行の抽出
+  - `computeSummaryTask`: 子タスク配列から期間・進捗率を集計したサマリータスク情報を算出
+  - `canDropRow`: 循環参照を防ぐ安全な行ドロップ可否判定
+- **包括的な単体テストスイートを追加**:
+  - `src/__tests__/gantt-chart-wbs.test.ts`, `src/__tests__/wbs.test.ts`, `src/__tests__/gantt-bar-connector.test.ts` を追加（計40件以上のテストを追加し、総テスト数207件すべてパス）
+
+### Changed
+
+- **サマリータスクの依存関係線（Connector）描画の抑止**:
+  - サマリータスクは子タスクの集計結果であるため、意図しない依存関係線の混乱や循環参照を防ぐ目的で、サマリータスクからの依存関係線（矢印）の描画を自動的に無効化
+- **ドキュメント・リポジトリ構成の刷新**:
+  - 国際化標準に合わせて `README.md` を英語版とし、日本語版を `README.ja.md` に移行
+  - API ドキュメントを言語別（`doc/API.ja.md`, `doc/API.md`）に集約・整備
+  - デモ画面（`src/demo/main.ts`, `src/demo/data.ts`）に WBS ツリーデータおよび折りたたみ・サマリータスク操作のコントロールを追加
+
 ## [0.12.0] - 2026-09-05
 
 ### Added
@@ -220,6 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[1.0.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.12.0...v1.0.0
 [0.12.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.9.1...v0.10.0

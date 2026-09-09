@@ -164,6 +164,8 @@ interface GanttChartOption {
     snapStep?: number // Progress snap increment during drag (default: 1)
     indicatorPosition?: 'full' | 'bottom' | 'top' // Progress indicator display style (default: 'full')
   }
+  /** WBS & hierarchical tree configuration */
+  tree?: GanttChartOptionTree
 }
 ```
 
@@ -174,6 +176,7 @@ Custom events dispatched by the component.
 | Event Name               | Detail (e.detail)                 | Description                                                                          |
 | :----------------------- | :-------------------------------- | :----------------------------------------------------------------------------------- |
 | `rows-change`            | `GanttRow[]`                      | Fired when row data changes due to reordering or task movement.                      |
+| `row-toggle-collapse`    | `RowToggleCollapseEventDetail`    | Fired when a row's collapse/expand state is toggled.                                 |
 | `row-reordered`          | `RowReorderEventDetail`           | Fired when rows are reordered via drag & drop.                                       |
 | `row-selection-change`   | `RowSelectionChangeEventDetail`   | Fired when row selection changes via checkbox or header click.                       |
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`   | Fired when task bar selection changes.                                               |
@@ -212,6 +215,9 @@ Public methods that can be called on the component instance.
 | `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
 | `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
 | `getRowPositions` | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
+| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => void`                                              | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided).                                                                                         |
+| `collapseAll`       | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
+| `expandAll`         | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
 
 ### Usage Examples
 
@@ -312,6 +318,29 @@ chart.addEventListener('zoom-change', (e) => {
 
 > **Note:** Zoom can also be controlled via `Ctrl+mouse wheel` (Mac: `Cmd+wheel`). During zoom, the scroll position is automatically adjusted to keep the date under the cursor in place. Setting `option` to a new object resets the zoom.
 
+#### toggleRowCollapse / collapseAll / expandAll
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Toggle collapse state for a specific row
+chart.toggleRowCollapse('row-1')
+
+// Explicitly collapse or expand
+chart.toggleRowCollapse('row-1', true) // Collapse
+chart.toggleRowCollapse('row-1', false) // Expand
+
+// Batch operations
+chart.collapseAll() // Collapse all parent rows with children
+chart.expandAll() // Expand all rows
+
+// Listen for collapse toggle events
+chart.addEventListener('row-toggle-collapse', (e) => {
+  const { rowId, collapsed, row } = e.detail
+  console.log(`Row ${row.name} (${rowId}) was ${collapsed ? 'collapsed' : 'expanded'}`)
+})
+```
+
 ## Type Definitions
 
 Key type definitions used in event details and other interfaces.
@@ -326,6 +355,11 @@ interface GanttRow {
   markers?: GanttMarker[] // Array of markers displayed in this row
   selectedMarkerId?: string // Currently selected (editing) marker ID
   visible?: boolean // Whether to show the row (default: true)
+  parentId?: string | null // Parent row ID (null or undefined for root-level rows)
+  collapsed?: boolean // Whether row is collapsed (hides all descendant rows when true)
+  isSummary?: boolean // Whether this is a summary (group) row
+  summaryColor?: string // Custom color for summary task bar (CSS color string). Falls back to option.tree.summaryColor or default
+  wbsCode?: string // WBS code (e.g., "1.2.1")
 }
 ```
 
@@ -337,6 +371,7 @@ interface GanttTask {
   name?: string // Task display name
   start: Date // Start date/time
   end: Date // End date/time
+  type?: 'task' | 'summary' | 'milestone' // Task kind ('task': normal, 'summary': parent aggregate bar, 'milestone': milestone)
   style?: string // Custom bar style (CSS string)
   labelStyle?: string // Custom bar label style (CSS string)
   pattern?: GanttTaskPattern // Bar fill pattern
@@ -661,6 +696,16 @@ interface RowReorderEventDetail {
   targetId: string // Drop target row ID
   position?: 'top' | 'bottom' // Position relative to the target
   rows: GanttRow[] // New row data array after reordering
+}
+```
+
+### RowToggleCollapseEventDetail
+
+```typescript
+interface RowToggleCollapseEventDetail {
+  rowId: string // Target row ID
+  collapsed: boolean // New collapse state (true: collapsed, false: expanded)
+  row: GanttRow // Target row data
 }
 ```
 
@@ -1043,6 +1088,25 @@ interface GanttChartOptionProgress {
   snapStep?: number
   /** Progress indicator display style ('full' | 'bottom' | 'top') (default: 'full') */
   indicatorPosition?: 'full' | 'bottom' | 'top'
+}
+```
+
+### GanttChartOptionTree
+
+```typescript
+interface GanttChartOptionTree {
+  /** Whether to enable tree view (default: true) */
+  enabled?: boolean
+  /** Indent width per hierarchy level in px (default: 16) */
+  indentWidth?: number
+  /** Whether to show collapse/expand toggle icon (▶/▼) (default: true) */
+  showToggleIcon?: boolean
+  /** Whether to automatically display WBS codes ("1", "1.1") in row headers (default: false) */
+  showWbsCode?: boolean
+  /** Whether to automatically calculate parent summary tasks from child tasks (default: true) */
+  autoSummary?: boolean
+  /** Default summary task bar color (CSS color string, default: '#334155') */
+  summaryColor?: string
 }
 ```
 
@@ -1559,17 +1623,37 @@ const rowWeighted = calculateWeightedRowProgress(row)
 const projectProgress = calculateProjectProgress(rows)
 ```
 
+## WBS & Hierarchical Tree Structure
+
+By specifying `parentId` on individual rows, you can seamlessly build an unlimited parent-child hierarchy (e.g. Project > Phase > Sub-task).
+
+- **Indentation & Toggle Icons**: Child rows are indented according to their depth level, and parent rows automatically render an interactive expand/collapse toggle button (▶/▼).
+- **Automated Summary Tasks**: When `option.tree.autoSummary: true` (default), parent rows automatically compute the earliest start date, latest end date, and duration-weighted average progress across all child tasks, rendering a distinct bracket-style summary bar.
+- **Coexistence with Normal Tasks**: If a parent row also contains its own direct tasks, both summary bars and normal tasks are rendered together (summary task on the top lane, normal tasks below).
+- **Custom Summary Colors**: Define a chart-wide summary bar color via `option.tree.summaryColor`, or customize colors per row via `row.summaryColor`.
+- **Connector Suppression**: Summary tasks aggregate child timelines and are automatically excluded from dependency connector line rendering to prevent confusion and circular dependency loops.
+- **Safe Drag & Drop Reordering**: Reordering a parent row moves its entire subtree of descendant rows together as an atomic block. Dropping onto a descendant is automatically prevented to eliminate circular parent-child references.
+
 ## Utility Functions
 
 Helper functions exported by the package.
 
 ```typescript
 import {
+  // Progress calculations
   clampProgress,
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // Critical path computation
   computeCriticalPath,
+  // WBS & Hierarchy calculations
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
 } from '@mogura/moguchart-core'
 ```
 
@@ -1628,4 +1712,76 @@ function computeCriticalPath(rows: GanttRow[]): Set<string>
 
 - **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
 - **Returns**: `Set<string>` containing task IDs on the critical path
+
+### computeRowLevels
+
+Calculates the tree depth level (0 for root, 1, 2, etc.) for all rows.
+
+```typescript
+function computeRowLevels(rows: GanttRow[]): Map<string, number>
+```
+
+- **`rows`**: Array of row data
+- **Returns**: `Map<string, number>` mapping row IDs to their depth levels
+
+### computeRowWbsCodes
+
+Generates WBS hierarchical numbering codes ("1", "1.1", "1.2.1", etc.) based on tree structure.
+
+```typescript
+function computeRowWbsCodes(rows: GanttRow[]): Map<string, string>
+```
+
+- **`rows`**: Array of row data
+- **Returns**: `Map<string, string>` mapping row IDs to their WBS code strings
+
+### computeChildRowIds
+
+Retrieves a list of child or descendant row IDs under a specified parent row.
+
+```typescript
+function computeChildRowIds(rowId: string, rows: GanttRow[], recursive?: boolean): string[]
+```
+
+- **`rowId`**: Target parent row ID
+- **`rows`**: Array of row data
+- **`recursive`**: Whether to collect all descendants recursively (default: `true`; when `false`, returns direct children only)
+- **Returns**: Array of matching row IDs
+
+### computeVisibleTreeRows
+
+Filters and returns only rows that should be visible given current row collapse states (`collapsed: true`).
+
+```typescript
+function computeVisibleTreeRows(rows: GanttRow[]): GanttRow[]
+```
+
+- **`rows`**: Complete array of row data
+- **Returns**: Array of visible rows excluding children of collapsed parents
+
+### computeSummaryTask
+
+Aggregates earliest start, latest end, and duration-weighted average progress from child tasks into a parent summary task.
+
+```typescript
+function computeSummaryTask(childTasks: GanttTask[], parentRowId: string): GanttTask | null
+```
+
+- **`childTasks`**: Array of child tasks to aggregate
+- **`parentRowId`**: Parent row ID
+- **Returns**: Generated summary task object (`type: 'summary'`), or `null` if no tasks exist
+
+### canDropRow
+
+Validates whether a dragged row can be safely dropped onto a target row without creating a circular hierarchy reference.
+
+```typescript
+function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boolean
+```
+
+- **`sourceId`**: ID of row being dragged
+- **`targetId`**: Candidate drop target row ID
+- **`rows`**: Complete array of row data
+- **Returns**: `true` if drop is permitted, `false` if circular reference would occur
+
 

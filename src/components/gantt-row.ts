@@ -482,6 +482,12 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleHeaderDblClick(e: MouseEvent) {
+    // 展開・折りたたみアイコン上のダブルクリックは無視する
+    const target = e.target as HTMLElement | null
+    if (target?.closest?.('.tree-toggle-btn')) {
+      return
+    }
+
     this.dispatchEvent(
       new CustomEvent('row-header-dblclick', {
         detail: {
@@ -605,6 +611,11 @@ export class GanttRowElement extends LitElement {
         composed: true,
       }),
     )
+  }
+
+  private handleToggleDblClick(e: MouseEvent) {
+    e.stopPropagation()
+    e.preventDefault()
   }
 
   protected updated(changedProperties: PropertyValues): void {
@@ -875,6 +886,7 @@ export class GanttRowElement extends LitElement {
                 class="tree-toggle-btn"
                 title="${this.row.collapsed ? '展開' : '折りたたみ'}"
                 @click="${this.handleToggleCollapse}"
+                @dblclick="${this.handleToggleDblClick}"
                 >${this.row.collapsed ? '▶' : '▼'}</span
               >`
             : treeEnabled && (this.level > 0 || this.hasChildren)

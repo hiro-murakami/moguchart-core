@@ -164,6 +164,8 @@ interface GanttChartOption {
     snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
     indicatorPosition?: 'full' | 'bottom' | 'top' // 進捗インジケーターのスタイル (デフォルト: 'full')
   }
+  /** WBS・階層ツリーに関する設定 */
+  tree?: GanttChartOptionTree
 }
 ```
 
@@ -174,6 +176,7 @@ interface GanttChartOption {
 | イベント名               | 詳細 (e.detail)                   | 説明                                                                                         |
 | :----------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------- |
 | `rows-change`            | `GanttRow[]`                      | 行の並び替えやタスクの移動などにより、行データが変更されたときに発火します。                 |
+| `row-toggle-collapse`    | `RowToggleCollapseEventDetail`    | 行の折りたたみ/展開が切り替えられたときに発火します。                                         |
 | `row-reordered`          | `RowReorderEventDetail`           | 行がドラッグ＆ドロップによって並び替えられたときに発火します。                               |
 | `row-selection-change`   | `RowSelectionChangeEventDetail`   | 行のチェックボックス（またはヘッダークリック）で行選択が変更されたときに発火します。         |
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
@@ -212,6 +215,9 @@ interface GanttChartOption {
 | `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
 | `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
 | `getRowPositions`   | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
+| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => void`                                              | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。                                                                               |
+| `collapseAll`       | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                             |
+| `expandAll`         | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                             |
 
 ### 使用例
 
@@ -312,6 +318,29 @@ chart.addEventListener('zoom-change', (e) => {
 
 > **Note:** ズームは `Ctrl+マウスホイール`（Mac: `Cmd+ホイール`）でも操作できます。ズーム時はカーソル位置を基準にスクロール位置が自動補正されます。`option` を新しいオブジェクトで更新するとズームはリセットされます。
 
+#### toggleRowCollapse / collapseAll / expandAll
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// 特定の行の開閉をトグル
+chart.toggleRowCollapse('row-1')
+
+// 明示的に折りたたみ、または展開
+chart.toggleRowCollapse('row-1', true) // 折りたたみ
+chart.toggleRowCollapse('row-1', false) // 展開
+
+// 一括操作
+chart.collapseAll() // 子行を持つ親行をすべて折りたたみ
+chart.expandAll() // すべての行を展開
+
+// 折りたたみ切り替えイベントをリッスン
+chart.addEventListener('row-toggle-collapse', (e) => {
+  const { rowId, collapsed, row } = e.detail
+  console.log(`行 ${row.name} (${rowId}) が ${collapsed ? '折りたたまれました' : '展開されました'}`)
+})
+```
+
 ## 型定義 (Types)
 
 イベント詳細などで使用される主要な型定義です。
@@ -326,6 +355,11 @@ interface GanttRow {
   markers?: GanttMarker[] // この行に表示するマーカーの配列
   selectedMarkerId?: string // 現在選択中（編集中）のマーカーID
   visible?: boolean // 行を表示するかどうか (デフォルト: true)
+  parentId?: string | null // 親行のID (ルート階層の場合は null または undefined)
+  collapsed?: boolean // 折りたたみ状態 (trueの場合、配下の子孫行を非表示にする)
+  isSummary?: boolean // サマリー行（グループ行）かどうか
+  summaryColor?: string // サマリータスクバーのカスタム色 (CSSカラー文字列)。指定がない場合はoption.tree.summaryColorまたは既定色
+  wbsCode?: string // WBSコード (例: "1.2.1")
 }
 ```
 
@@ -337,6 +371,7 @@ interface GanttTask {
   name?: string // タスクの表示名
   start: Date // 開始日時
   end: Date // 終了日時
+  type?: 'task' | 'summary' | 'milestone' // タスクの種別 ('task': 通常, 'summary': 親サマリー集計バー, 'milestone': マイルストーン)
   style?: string // バーのカスタムスタイル (CSS文字列)
   labelStyle?: string // バーのラベルのカスタムスタイル (CSS文字列)
   pattern?: GanttTaskPattern // バーの塗りつぶしパターン
@@ -661,6 +696,16 @@ interface RowReorderEventDetail {
   targetId: string // ドロップ先の行ID
   position?: 'top' | 'bottom' // ドロップ先に対する位置
   rows: GanttRow[] // 並び替え後の新しい行データの配列
+}
+```
+
+### RowToggleCollapseEventDetail
+
+```typescript
+interface RowToggleCollapseEventDetail {
+  rowId: string // 対象の行ID
+  collapsed: boolean // 新しい折りたたみ状態 (true: 折りたたみ, false: 展開)
+  row: GanttRow // 対象の行データ
 }
 ```
 
@@ -1044,6 +1089,25 @@ interface GanttChartOptionProgress {
   snapStep?: number
   /** 進捗インジケーターのスタイル ('full' | 'bottom' | 'top') (デフォルト: 'full') */
   indicatorPosition?: 'full' | 'bottom' | 'top'
+}
+```
+
+### GanttChartOptionTree
+
+```typescript
+interface GanttChartOptionTree {
+  /** ツリー表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 階層レベルあたりのインデント幅 (px、デフォルト: 16) */
+  indentWidth?: number
+  /** 折りたたみトグルアイコン（▶/▼）を表示するかどうか (デフォルト: true) */
+  showToggleIcon?: boolean
+  /** WBSコード（1, 1.1など）を行ヘッダーに自動表示するかどうか (デフォルト: false) */
+  showWbsCode?: boolean
+  /** 子タスクの変更時に親サマリータスクを自動計算するかどうか (デフォルト: true) */
+  autoSummary?: boolean
+  /** サマリータスクバーの既定色 (CSSカラー文字列、デフォルト: '#334155') */
+  summaryColor?: string
 }
 ```
 
@@ -1540,17 +1604,37 @@ const rowWeighted = calculateWeightedRowProgress(row) // 期間加重平均進�
 const projectProgress = calculateProjectProgress(rows) // プロジェクト全体の加重平均進捗率
 ```
 
+## WBS・階層ツリー構造 (WBS & Hierarchical Tree)
+
+`parentId` を各行に設定することで、無制限の親子階層（大工程 ＞ 中工程 ＞ 詳細タスク）を簡単に構築できます。
+
+- **インデント表示と開閉トグル**: 親行の左側には階層レベルに応じたインデントと開閉トグルアイコン（▶/▼）が自動描画されます。
+- **サマリータスク自動計算**: `option.tree.autoSummary: true`（デフォルト）の場合、配下の全子孫タスクから最小開始日・最大終了日・期間加重平均進捗率が自動集計され、親行にサマリータスクバー（ブラケット形状）が描画されます。
+- **通常タスクとの共存描画**: 親行自身に通常タスクが登録されている場合、上段にサマリータスク、下段に通常タスクが2段で並んで描画されます。
+- **サマリータスクの色設定**: `option.tree.summaryColor` で全体の既定色を指定でき、行側の `row.summaryColor` で個別上書きが可能です。
+- **依存関係線の自動抑止**: サマリータスクは子タスクの集計結果であるため、依存関係線（矢印）の描画対象外となり、誤った依存関係の混乱や循環参照を防ぎます。
+- **安全なドラッグ＆ドロップ並び替え**: 親行を移動すると子孫行もブロックとして一体となって追従移動し、自身の子孫へのドロップ（循環参照）は自動的に防止されます。
+
 ## ユーティリティ関数 (Utility Functions)
 
 パッケージからエクスポートされている補助関数です。
 
 ```typescript
 import {
+  // 進捗率計算
   clampProgress,
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // クリティカルパス計算
   computeCriticalPath,
+  // WBS・階層計算
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
 } from '@mogura/moguchart-core'
 ```
 
@@ -1609,5 +1693,77 @@ function computeCriticalPath(rows: GanttRow[]): Set<string>
 
 - **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
 - **戻り値**: クリティカルパスを構成するタスクIDの `Set<string>`
+
+### computeRowLevels
+
+全行の親子階層のツリー深さ（レベル: 0, 1, 2...）を計算します。
+
+```typescript
+function computeRowLevels(rows: GanttRow[]): Map<string, number>
+```
+
+- **`rows`**: 行データの配列
+- **戻り値**: 行IDをキー、階層深さ（ルート=0）を値とする `Map<string, number>`
+
+### computeRowWbsCodes
+
+親子階層構造に基づき、WBSコード（"1", "1.1", "1.2.1" など）を自動採番します。
+
+```typescript
+function computeRowWbsCodes(rows: GanttRow[]): Map<string, string>
+```
+
+- **`rows`**: 行データの配列
+- **戻り値**: 行IDをキー、WBSコード文字列を値とする `Map<string, string>`
+
+### computeChildRowIds
+
+指定した親行の配下にある子行IDのリストを取得します。
+
+```typescript
+function computeChildRowIds(rowId: string, rows: GanttRow[], recursive?: boolean): string[]
+```
+
+- **`rowId`**: 親行のID
+- **`rows`**: 行データの配列
+- **`recursive`**: 再帰的に全子孫行を取得するかどうか（デフォルト: `true`。`false` の場合は直下の子行のみ）
+- **戻り値**: 一致する子行IDの配列
+
+### computeVisibleTreeRows
+
+折りたたみ状態（`collapsed: true`）を考慮し、現在画面上に表示されるべき行のみを抽出します。
+
+```typescript
+function computeVisibleTreeRows(rows: GanttRow[]): GanttRow[]
+```
+
+- **`rows`**: 全行データ配列
+- **戻り値**: 折りたたまれた親行の配下を除いた、表示対象行の配列
+
+### computeSummaryTask
+
+指定した子タスク配列から、最小開始日・最大終了日・期間加重平均進捗率を算出し、親行用のサマリータスクオブジェクトを生成します。
+
+```typescript
+function computeSummaryTask(childTasks: GanttTask[], parentRowId: string): GanttTask | null
+```
+
+- **`childTasks`**: 集計対象の子タスク配列
+- **`parentRowId`**: 親行のID
+- **戻り値**: 生成されたサマリータスク（`type: 'summary'`）。子タスクが存在しない場合は `null`
+
+### canDropRow
+
+行のドラッグ＆ドロップ並び替え時に、移動元行が移動先行（または自身の子孫階層）へドロップ可能かどうか（循環参照にならないか）を判定します。
+
+```typescript
+function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boolean
+```
+
+- **`sourceId`**: ドラッグ中の行ID
+- **`targetId`**: ドロップ先候補の行ID
+- **`rows`**: 全行データ配列
+- **戻り値**: ドロップ可能な場合は `true`、循環参照となる場合は `false`
+
 
 

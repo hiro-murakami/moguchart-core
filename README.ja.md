@@ -7,6 +7,7 @@
 Vue, React, Angular, Svelte など、どのフレームワークでも動作する、軽量で高機能な Web Components 製ガントチャートコンポーネントです。Lit で構築されています。
 
 - **デモ**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **npm パッケージ**: [@mogura/moguchart-core](https://www.npmjs.com/package/@mogura/moguchart-core)
 
 ## 特徴
 
@@ -54,6 +55,9 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - `parentId` による無制限の親子階層構造
   - インデント表示と開閉トグルボタン（▶/▼）
   - 配下の子タスクから自動計算されるサマリータスクバー（ブラケット形状）
+  - サマリータスクバーの色設定（プロジェクト既定色および行単位の個別色指定）
+  - 親行におけるサマリータスクと通常タスクの共存・同時描画
+  - サマリータスクへの進捗率ラベル表示設定
   - 仮想スクロールやミニマップと完全に連動する折りたたみ
   - 階層を壊さない安全なD&D並び替え（子タスクのブロック連動移動・循環参照防止）
   - プログラムからの開閉操作（`toggleRowCollapse`, `collapseAll`, `expandAll`）
@@ -443,6 +447,7 @@ const option = {
     enabled: true,
     editable: true, // ドラッグによる進捗編集を有効化
     showLabel: true, // 進捗ラベルを表示 (例: "50%")
+    showSummaryLabel: false, // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false)
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
     snapStep: 5, // 5%刻みでスナップ
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
@@ -456,8 +461,9 @@ chart.addEventListener('task-progress-change', (e) => {
 })
 
 // 行・プロジェクト全体の進捗率計算
-const rowAvg = calculateRowProgress(row)
-const projectProgress = calculateProjectProgress(rows)
+const rowSimpleAvg = calculateRowProgress(row)
+const rowWeightedAvg = calculateWeightedRowProgress(row)
+const projectWeightedAvg = calculateProjectProgress(rows)
 ```
 
 ### 矩形範囲選択（ラバーバンド選択）
@@ -491,15 +497,22 @@ const option = {
     width: 240,
     preserveAspectRatio: true,
     resizable: true,
+    collapsible: true,
+    collapsed: false,
     position: { right: 16, bottom: 16 }, // 右下基準の初期位置 (px)
     opacity: 0.85,
   },
 }
+
+// ミニマップの操作イベント
+chart.addEventListener('minimap-move', (e) => console.log('位置変更:', e.detail.position))
+chart.addEventListener('minimap-resize', (e) => console.log('サイズ変更:', e.detail.width, e.detail.height))
+chart.addEventListener('minimap-collapse', (e) => console.log('折りたたみ変更:', e.detail.collapsed))
 ```
 
 ### ロケール
 
-ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。
+ツールチップやドラッグオーバーレイの表示文字列を変更できます。`jaLocale`（デフォルト）と `enLocale` が内蔵されています。`MoguchartLocale` インターフェースを実装することでカスタムロケールも作成可能です。
 
 ```javascript
 import { enLocale } from '@mogura/moguchart-core'
@@ -507,6 +520,43 @@ import { enLocale } from '@mogura/moguchart-core'
 const option = {
   locale: enLocale,
   // ...
+}
+```
+
+カスタムロケールの実装例（フランス語の場合）:
+
+```typescript
+import type { MoguchartLocale } from '@mogura/moguchart-core'
+
+const frLocale: MoguchartLocale = {
+  monthFormat: 'MMM YYYY',
+  monthRowFormat: 'MMM',
+  dateFormat: (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`,
+  timeUnitDateFormat: (d) =>
+    `${d.getDate()} ${['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'][d.getMonth()]} ${d.getFullYear()}`,
+  dateTimeFormat: (d) => {
+    const date = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    const h = d.getHours()
+    const m = d.getMinutes()
+    if (h === 0 && m === 0) return date
+    return `${date} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  },
+  yearMonthFormat: (d) => `${d.getFullYear()}/${d.getMonth() + 1}`,
+  duration: {
+    days: (n) => `${n} jour${n > 1 ? 's' : ''}`,
+    hours: (n) => `${n} heure${n > 1 ? 's' : ''}`,
+    minutes: (n) => `${n} minute${n > 1 ? 's' : ''}`,
+    zero: '0 minute',
+  },
+  tooltip: {
+    duration: (d) => `Durée: ${d} jour${d > 1 ? 's' : ''}`,
+    progress: (p) => `Progression: ${p}%`,
+  },
+  dragOverlay: {
+    noTitle: 'Sans titre',
+    moveTo: (name) => `Déplacer vers: ${name}`,
+    movingTasks: (c) => `Déplacement de ${c} tâche${c > 1 ? 's' : ''}`,
+  },
 }
 ```
 
@@ -656,6 +706,51 @@ chart.expandAll() // すべての行を展開
 ```javascript
 const positions = chart.getRowPositions()
 console.log('行レイアウト情報:', positions)
+```
+
+### ユーティリティ関数
+
+`@mogura/moguchart-core` では、ガントチャートの計算や状態管理に役立つ各種ユーティリティ関数をエクスポートしています。
+
+```typescript
+import {
+  // WBS・階層ツリー計算
+  computeRowLevels,
+  computeRowWbsCodes,
+  computeChildRowIds,
+  computeVisibleTreeRows,
+  computeSummaryTask,
+  canDropRow,
+  // クリティカルパス計算
+  computeCriticalPath,
+  // 進捗率計算
+  clampProgress,
+  calculateRowProgress,
+  calculateWeightedRowProgress,
+  calculateProjectProgress,
+} from '@mogura/moguchart-core'
+
+// 1. 各行のツリー階層レベル（深さ）の計算
+const levels = computeRowLevels(rows) // Map<string, number> (rowId -> level: 0, 1, 2...)
+
+// 2. WBSコード（"1", "1.1", "1.2" 等）の自動採番
+const wbsCodes = computeRowWbsCodes(rows) // Map<string, string> (rowId -> wbsCode)
+
+// 3. 指定行の子孫行IDの一覧取得
+const allDescendants = computeChildRowIds('project-1', rows, true) // 再帰的に全子孫を取得
+const directChildren = computeChildRowIds('project-1', rows, false) // 直下の子行のみ取得
+
+// 4. 折りたたみ状態を考慮した表示行配列の抽出
+const visibleRows = computeVisibleTreeRows(rows)
+
+// 5. 配下タスクからのサマリータスク算出
+const summaryTask = computeSummaryTask(childTasks, 'project-1') // 開始日・終了日・加重平均進捗率
+
+// 6. 循環参照を防ぐ安全なD&Dドロップ可否判定
+const isSafe = canDropRow('source-row-id', 'target-row-id', rows) // boolean
+
+// 7. クリティカルパス（最長依存関係チェーン）の計算
+const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 ```
 
 ### キーボード操作
