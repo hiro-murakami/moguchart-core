@@ -337,6 +337,11 @@ export class GanttChartElement extends LitElement {
       // 利用側が option を直接変更した場合、ズームオーバーライドをリセット
       this.zoomPxPerDay = null
       this.zoomPxPerMonth = null
+      if (this.option?.fontScale !== undefined) {
+        this.style.setProperty('--moguchart-font-scale', String(this.option.fontScale))
+      } else {
+        this.style.removeProperty('--moguchart-font-scale')
+      }
     }
     if (
       changedProperties.has('rows') ||
@@ -2960,6 +2965,43 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
+   * スクロール位置を左上（0, 0）にリセットします。
+   */
+  public resetScroll(): void {
+    const container = this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    if (container) {
+      container.scrollLeft = 0
+      container.scrollTop = 0
+    }
+    this.currentScrollLeft = 0
+    this.currentScrollTop = 0
+    this.virtualScrollTop = 0
+    this.requestUpdate()
+  }
+
+  /**
+   * 指定したスクロール位置に移動します。
+   */
+  public scrollToPosition(options: { left?: number; top?: number; behavior?: ScrollBehavior }): void {
+    const container = this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    if (container) {
+      container.scrollTo({
+        left: options.left,
+        top: options.top,
+        behavior: options.behavior ?? 'auto',
+      })
+      if (options.left !== undefined) {
+        this.currentScrollLeft = options.left
+      }
+      if (options.top !== undefined) {
+        this.currentScrollTop = options.top
+        this.virtualScrollTop = options.top
+      }
+      this.requestUpdate()
+    }
+  }
+
+  /**
    * 指定タスクが表示範囲外の場合にスクロールして表示する
    */
   private scrollToTask(taskId: string): void {
@@ -3192,6 +3234,7 @@ export class GanttChartElement extends LitElement {
         :host {
           --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
           ${this.option?.tree?.summaryColor ? `--moguchart-summary-bar-color: ${this.option.tree.summaryColor};` : ''}
+          ${this.option?.fontScale !== undefined ? `--moguchart-font-scale: ${this.option.fontScale};` : ''}
         }
       </style>
       ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; border-radius: 0 !important; border: none !important; }</style>` : ''}

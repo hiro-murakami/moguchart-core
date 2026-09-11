@@ -417,6 +417,8 @@ export interface GanttChartOption {
   snapDuration?: number
   /** 非表示に設定された行を表示するかどうか (デフォルト: false) */
   showHiddenRows?: boolean
+  /** チャート全体のフォントサイズ倍率 (デフォルト: 1) */
+  fontScale?: number
   /** カスタムレンダリング設定 */
   customRendering?: GanttChartOptionCustomRendering
   /** ロケール設定 (デフォルト: 日本語) */

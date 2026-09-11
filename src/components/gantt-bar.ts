@@ -152,7 +152,7 @@ export class GanttBarElement extends LitElement {
     }
     .bar-label {
       color: white;
-      font-size: 12px;
+      font-size: calc(12px * var(--moguchart-font-scale, 1));
       pointer-events: none;
       user-select: none;
       position: absolute;
@@ -253,7 +253,7 @@ export class GanttBarElement extends LitElement {
     }
     .progress-label {
       position: absolute;
-      font-size: 11px;
+      font-size: calc(11px * var(--moguchart-font-scale, 1));
       font-weight: bold;
       pointer-events: none;
       user-select: none;

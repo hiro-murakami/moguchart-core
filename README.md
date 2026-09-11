@@ -39,6 +39,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Custom holiday detection logic
   - Configurable week start day
   - Built-in internationalization (Japanese, English, and custom locale extensibility)
+- 🔤 **Font Scaling (`fontScale`)**: Scale all text font sizes throughout the Gantt chart uniformly via `fontScale` option or `--moguchart-font-scale` CSS variable, ideal for responsive zooming and high-density views.
 - 🏁 **Milestones**: Display key milestones with vertical markers and customizable badges.
 - 📍 **Markers**: Place labeled triangle marker indicators on individual row timelines.
 - 🗺️ **Overview Minimap**: Floating bird's-eye canvas preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move, edge drag-resizing, opacity slider, and collapsible window state.
@@ -448,6 +449,30 @@ const option = {
   },
 }
 ```
+
+### Font Scaling (`fontScale`)
+
+Use the `fontScale` option (or the CSS custom property `--moguchart-font-scale`) to scale all text font sizes throughout the Gantt chart uniformly.
+
+This is ideal for synchronizing font sizes when adjusting overall chart zoom or resolution, or for creating compact high-density views.
+
+```javascript
+const option = {
+  // Scale font sizes down to 80%
+  fontScale: 0.8,
+  // ...
+}
+```
+
+You can also control it via CSS custom properties:
+
+```css
+gantt-chart {
+  --moguchart-font-scale: 0.85;
+}
+```
+
+Font scaling is automatically applied to calendar headers (year/month, weeks, days, hours, badges), row headers, WBS code badges, tree toggle icons, task bar labels, progress labels, markers, tooltips, and drag info overlays.
 
 ### Dependency Line Settings
 

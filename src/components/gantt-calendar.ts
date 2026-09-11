@@ -182,7 +182,7 @@ export class GanttCalendarElement extends LitElement {
     .month-cell {
       box-sizing: border-box;
       padding: 4px 8px;
-      font-size: 12px;
+      font-size: calc(12px * var(--moguchart-font-scale, 1));
       font-weight: bold;
       white-space: nowrap;
       overflow: hidden;
@@ -193,7 +193,7 @@ export class GanttCalendarElement extends LitElement {
     .week-cell {
       box-sizing: border-box;
       padding: 4px 0;
-      font-size: 10px;
+      font-size: calc(10px * var(--moguchart-font-scale, 1));
       font-weight: bold;
       text-align: center;
       flex-shrink: 0;
@@ -205,7 +205,7 @@ export class GanttCalendarElement extends LitElement {
     }
     .day-cell {
       text-align: center;
-      font-size: 10px;
+      font-size: calc(10px * var(--moguchart-font-scale, 1));
       padding: 6px 0;
       flex-shrink: 0;
       box-sizing: border-box;
@@ -220,7 +220,7 @@ export class GanttCalendarElement extends LitElement {
     }
     .hour-cell {
       text-align: center;
-      font-size: 10px;
+      font-size: calc(10px * var(--moguchart-font-scale, 1));
       padding: 2px 0;
       flex-shrink: 0;
       box-sizing: border-box;
@@ -232,7 +232,7 @@ export class GanttCalendarElement extends LitElement {
       transform: translateX(-50%);
       padding: 2px 4px;
       border-radius: 4px;
-      font-size: 10px;
+      font-size: calc(10px * var(--moguchart-font-scale, 1));
       font-weight: bold;
       white-space: nowrap;
       z-index: 10;
@@ -244,7 +244,7 @@ export class GanttCalendarElement extends LitElement {
       transform: translateX(-50%);
       padding: 2px 4px;
       border-radius: 4px;
-      font-size: 10px;
+      font-size: calc(10px * var(--moguchart-font-scale, 1));
       font-weight: bold;
       white-space: nowrap;
       z-index: 9;
@@ -592,7 +592,7 @@ export class GanttCalendarElement extends LitElement {
                           ? 'none'
                           : `1px solid ${dateBorderColor}`}; ${backgroundColor
                           ? `background-color: ${backgroundColor};`
-                          : ''} font-size: 12px; font-weight: 700; justify-content: flex-start; padding-left: 4px;"
+                          : ''} font-size: calc(12px * var(--moguchart-font-scale, 1)); font-weight: 700; justify-content: flex-start; padding-left: 4px;"
                         data-calendar-day="${seg.date.toISOString()}"
                         data-calendar-day-width="${seg.widthPx}"
                         data-calendar-day-saturday="${seg.date.getDay() === 6}"

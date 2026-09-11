@@ -88,6 +88,8 @@ interface GanttChartOption {
   snapDuration?: number // (default: 1440 = 1 day)
   /** Whether to show rows with visible: false */
   showHiddenRows?: boolean // (default: false)
+  /** Font size scaling factor for the entire chart */
+  fontScale?: number // (default: 1)
   /** Locale settings for internationalization (default: Japanese) */
   locale?: MoguchartLocale
   customRendering?: {
@@ -164,6 +166,12 @@ interface GanttChartOption {
     snapStep?: number // Progress snap increment during drag (default: 1)
     indicatorPosition?: 'full' | 'bottom' | 'top' // Progress indicator display style (default: 'full')
   }
+  /** Task selection and marquee rubberband selection settings */
+  selection?: {
+    marquee?: boolean // Whether to enable rectangular marquee selection (default: true)
+    borderColor?: string // Marquee selection border color (CSS color string). Defaults to theme color
+    backgroundColor?: string // Marquee selection background color (CSS color string). Defaults to theme color
+  }
   /** WBS & hierarchical tree configuration */
   tree?: GanttChartOptionTree
 }
@@ -215,9 +223,11 @@ Public methods that can be called on the component instance.
 | `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
 | `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
 | `getRowPositions` | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
-| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => void`                                              | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided).                                                                                         |
+| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => boolean`                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
 | `collapseAll`       | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
 | `expandAll`         | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
+| `resetScroll`       | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
+| `scrollToPosition`  | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
 
 ### Usage Examples
 
@@ -339,6 +349,18 @@ chart.addEventListener('row-toggle-collapse', (e) => {
   const { rowId, collapsed, row } = e.detail
   console.log(`Row ${row.name} (${rowId}) was ${collapsed ? 'collapsed' : 'expanded'}`)
 })
+```
+
+#### resetScroll / scrollToPosition
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Reset scroll position to top-left (0, 0)
+chart.resetScroll()
+
+// Scroll to arbitrary position
+chart.scrollToPosition({ left: 300, top: 100, behavior: 'smooth' })
 ```
 
 ## Type Definitions
@@ -903,6 +925,8 @@ interface ThemeColorPalette {
   minimapTask?: string // Minimap task bar color (optional)
   taskProgress?: string // Task progress bar color (optional)
   taskProgressHandle?: string // Task progress drag handle color (optional)
+  selectionMarqueeBorder?: string // Marquee selection border color (optional)
+  selectionMarqueeBg?: string // Marquee selection background color (optional)
 }
 ```
 
@@ -1091,6 +1115,19 @@ interface GanttChartOptionProgress {
 }
 ```
 
+### GanttChartOptionSelection
+
+```typescript
+interface GanttChartOptionSelection {
+  /** Whether to enable rectangular marquee selection (rubberband selection) (default: true) */
+  marquee?: boolean
+  /** Marquee selection border color (CSS color string). Defaults to theme color */
+  borderColor?: string
+  /** Marquee selection background color (CSS color string). Defaults to theme color */
+  backgroundColor?: string
+}
+```
+
 ### GanttChartOptionTree
 
 ```typescript
@@ -1230,6 +1267,35 @@ chart.addEventListener('task-update', (e) => {
 })
 ```
 
+### Rectangular Marquee Selection (Rubberband Selection)
+
+Drag across the chart background (date grid area) to select multiple task bars at once within a bounding box.
+
+- **Real-Time Intersection Detection**: While dragging, all tasks intersecting the marquee rectangle are highlighted and selected in real time.
+- **Additive Selection with Modifier Keys**: Holding `Shift`, `Ctrl`, or `Cmd` while dragging retains existing selections and adds newly enclosed tasks. Dragging without modifier keys clears previous selections and selects only tasks in the new marquee.
+- **Autoscroll**: When the cursor reaches the edge of the chart while dragging, the viewport automatically scrolls.
+- **Background Click Distinction**: Minor mouse movements (< 4px) are treated as clicks (deselecting tasks), preventing conflict between clicking and marquee dragging.
+- **Batch Operations**: Selected tasks can be dragged collectively, moved via keyboard (`Shift+Arrow keys`), or deleted in batch (`Delete` / `Backspace` key).
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Marquee selection configuration (optional)
+chart.option = {
+  ...chart.option,
+  selection: {
+    marquee: true, // Enable/disable marquee selection (default: true)
+    borderColor: '#3b82f6', // Border color (defaults to theme selectionMarqueeBorder)
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Background color (defaults to theme selectionMarqueeBg)
+  },
+}
+
+// Listen for selection change events
+chart.addEventListener('bar-selection-change', (e) => {
+  console.log('Selected task IDs:', e.detail.selectedTaskIds)
+})
+```
+
 ## Milestones
 
 Pass an array of milestones to `calendar.milestones` to display vertical lines and badges on the chart.
@@ -1353,6 +1419,49 @@ const option = {
     showMonthsRow: true, // Two-row header: top=year, bottom=month
     monthTextAlign: 'left',
   },
+}
+```
+
+## Font Scale
+
+Use `option.fontScale` (or the CSS custom property `--moguchart-font-scale`) to scale all text font sizes throughout the entire Gantt chart uniformly.
+
+This is ideal for synchronizing font sizes when adjusting overall chart zoom or resolution, or for creating compact high-density views.
+
+### Affected Elements
+
+Font scaling is proportionally applied to the following text elements:
+
+- **Calendar Headers**: Year/month cells, week cells, day cells, hour cells
+- **Indicators**: Current time badges, holiday badges
+- **Row Headers**: Row labels, WBS code badges, tree toggle icons
+- **Task Bars**: Task bar labels, progress labels
+- **Overlays & Popups**: Tooltips, drag info overlays
+- **Markers**: Marker display name labels
+
+### Usage Example
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Scale font sizes down to 80%
+chart.option = {
+  ...chart.option,
+  fontScale: 0.8,
+}
+
+// Scale font sizes up to 120%
+chart.option = {
+  ...chart.option,
+  fontScale: 1.2,
+}
+```
+
+You can also set the `--moguchart-font-scale` CSS custom property on the parent container or the `<gantt-chart>` element directly:
+
+```css
+gantt-chart {
+  --moguchart-font-scale: 0.9;
 }
 ```
 

@@ -46,7 +46,7 @@ export const ganttChartStyles = css`
     transform: translate(-50%, -100%);
     padding: 4px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: calc(11px * var(--moguchart-font-scale, 1));
     white-space: nowrap;
     pointer-events: none;
     z-index: 2000;
@@ -86,7 +86,7 @@ export const ganttChartStyles = css`
     transform: translateX(-50%);
     padding: 10px 20px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: calc(14px * var(--moguchart-font-scale, 1));
     pointer-events: none;
     z-index: 2000;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -102,7 +102,7 @@ export const ganttChartStyles = css`
     opacity: 1;
   }
   .drag-info-sub {
-    font-size: 12px;
+    font-size: calc(12px * var(--moguchart-font-scale, 1));
   }
   .dependency-line {
     stroke-width: 2;

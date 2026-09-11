@@ -88,6 +88,8 @@ interface GanttChartOption {
   snapDuration?: number // (デフォルト: 1440 = 1日)
   /** 非表示に設定された行（visible: false）を表示するかどうか */
   showHiddenRows?: boolean // (デフォルト: false)
+  /** チャート全体のフォントサイズ倍率 */
+  fontScale?: number // (デフォルト: 1)
   /** ロケール設定 (デフォルト: 日本語) */
   locale?: MoguchartLocale
   customRendering?: {
@@ -164,6 +166,12 @@ interface GanttChartOption {
     snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
     indicatorPosition?: 'full' | 'bottom' | 'top' // 進捗インジケーターのスタイル (デフォルト: 'full')
   }
+  /** タスク選択・矩形範囲選択に関する設定 */
+  selection?: {
+    marquee?: boolean // 矩形範囲選択（ラバーバンド選択）を有効にするかどうか (デフォルト: true)
+    borderColor?: string // 矩形選択枠の色 (CSSカラー文字列)。未指定時はテーマ色
+    backgroundColor?: string // 矩形選択背景の色 (CSSカラー文字列)。未指定時はテーマ色
+  }
   /** WBS・階層ツリーに関する設定 */
   tree?: GanttChartOptionTree
 }
@@ -215,9 +223,11 @@ interface GanttChartOption {
 | `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
 | `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
 | `getRowPositions`   | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
-| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => void`                                              | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。                                                                               |
+| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => boolean`                                           | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。     |
 | `collapseAll`       | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                             |
 | `expandAll`         | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                             |
+| `resetScroll`       | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                             |
+| `scrollToPosition`  | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                    |
 
 ### 使用例
 
@@ -339,6 +349,18 @@ chart.addEventListener('row-toggle-collapse', (e) => {
   const { rowId, collapsed, row } = e.detail
   console.log(`行 ${row.name} (${rowId}) が ${collapsed ? '折りたたまれました' : '展開されました'}`)
 })
+```
+
+#### resetScroll / scrollToPosition
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// スクロール位置を左上 (0, 0) にリセット
+chart.resetScroll()
+
+// 任意の位置へスクロール
+chart.scrollToPosition({ left: 300, top: 100, behavior: 'smooth' })
 ```
 
 ## 型定義 (Types)
@@ -903,6 +925,8 @@ interface ThemeColorPalette {
   minimapTask?: string // ミニマップのタスク描画色 (オプション)
   taskProgress?: string // タスク進捗バーの描画色 (オプション)
   taskProgressHandle?: string // タスク進捗変更ハンドルの描画色 (オプション)
+  selectionMarqueeBorder?: string // 矩形範囲選択枠の色 (オプション)
+  selectionMarqueeBg?: string // 矩形範囲選択背景の色 (オプション)
 }
 ```
 
@@ -1092,6 +1116,19 @@ interface GanttChartOptionProgress {
 }
 ```
 
+### GanttChartOptionSelection
+
+```typescript
+interface GanttChartOptionSelection {
+  /** 矩形範囲選択（ラバーバンド選択）を有効にするかどうか (デフォルト: true) */
+  marquee?: boolean
+  /** 矩形選択枠の色 (CSSカラー文字列)。未指定時はテーマ色 */
+  borderColor?: string
+  /** 矩形選択背景の色 (CSSカラー文字列)。未指定時はテーマ色 */
+  backgroundColor?: string
+}
+```
+
 ### GanttChartOptionTree
 
 ```typescript
@@ -1207,6 +1244,35 @@ chart.addEventListener('task-update', (e) => {
       applyDxToTask(taskId, detail.dx)
     }
   }
+})
+```
+
+### 矩形範囲選択（ラバーバンド選択 / Marquee Selection）
+
+チャート背景（日付グリッド領域）をドラッグすることで、矩形枠で囲まれた複数のタスクバーを一括選択できます。
+
+- **リアルタイム交差判定**: ドラッグ中、選択枠と交差するすべてのタスクがリアルタイムにハイライト選択されます。
+- **修飾キーによる累積追加選択**: `Shift`、`Ctrl`、または `Cmd` キーを押しながらドラッグすると、既存の選択状態を保持したまま追加で選択できます。修飾キーなしでドラッグした場合は既存の選択がリセットされ、新しく囲んだ範囲のタスクのみが選択されます。
+- **オートスクロール**: ドラッグ中にチャート端にカーソルが達すると、自動的にスクロールが追従します。
+- **背景クリックとの共存**: 移動量が4px未満の微小なクリックは単なる選択解除として扱われ、矩形選択とクリック操作が競合しません。
+- **一括操作との連携**: 選択されたタスク群は、そのまま一括ドラッグ移動、キーボード移動（`Shift+矢印キー`）、一括削除（`Delete` / `Backspace` キー）が可能です。
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// 矩形選択のカスタマイズ（オプション）
+chart.option = {
+  ...chart.option,
+  selection: {
+    marquee: true, // 矩形選択の有効/無効 (デフォルト: true)
+    borderColor: '#3b82f6', // 枠線の色 (省略時はテーマの selectionMarqueeBorder)
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // 背景色 (省略時はテーマの selectionMarqueeBg)
+  },
+}
+
+// 選択変更イベントをリッスン
+chart.addEventListener('bar-selection-change', (e) => {
+  console.log('選択されたタスクID一覧:', e.detail.selectedTaskIds)
 })
 ```
 
@@ -1334,6 +1400,49 @@ const option = {
     monthTextAlign: 'left',
   },
   snapDuration: 0, // 月単位スナップ (pxPerMonth 指定時は無視されスナップは月単位になる)
+}
+```
+
+## フォントサイズ倍率 (Font Scale)
+
+`option.fontScale`（または CSS カスタムプロパティ `--moguchart-font-scale`）を設定することで、ガントチャート全体の文字サイズを一括で拡大・縮小できます。
+
+チャートの表示倍率（ズーム倍率や画面解像度）に合わせてフォントサイズを連動調整したい場合や、高密度・コンパクトな一覧表示を作成したい場合に最適です。
+
+### 影響を受ける要素
+
+フォント倍率はチャート内部の以下のテキスト要素に連動して適用されます：
+
+- **カレンダーヘッダー**: 年月セル、週番号セル、日セル、時間セル
+- **インジケーター**: 現在時刻バッジ、祝日バッジ
+- **行ヘッダー**: 行名ラベル、WBSコードバッジ、ツリー開閉トグルアイコン
+- **タスクバー**: バーラベル、進捗率ラベル
+- **オーバーレイ & ポップアップ**: ツールチップ、ドラッグ情報オーバーレイ
+- **マーカー**: マーカー表示名ラベル
+
+### 使用例
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// チャート全体のフォントサイズを80%に縮小
+chart.option = {
+  ...chart.option,
+  fontScale: 0.8,
+}
+
+// チャート全体のフォントサイズを120%に拡大
+chart.option = {
+  ...chart.option,
+  fontScale: 1.2,
+}
+```
+
+また、CSS カスタムプロパティ `--moguchart-font-scale` を親要素または `<gantt-chart>` 要素に直接設定してスタイルシート側から制御することも可能です：
+
+```css
+gantt-chart {
+  --moguchart-font-scale: 0.9;
 }
 ```
 

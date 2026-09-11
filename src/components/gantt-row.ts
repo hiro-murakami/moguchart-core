@@ -215,7 +215,7 @@ export class GanttRowElement extends LitElement {
       pointer-events: none;
     }
     .row-header {
-      font-size: 13px;
+      font-size: calc(13px * var(--moguchart-font-scale, 1));
       display: flex;
       align-items: center;
       gap: 0;
@@ -239,7 +239,7 @@ export class GanttRowElement extends LitElement {
       margin-right: 2px;
       cursor: pointer;
       user-select: none;
-      font-size: 9px;
+      font-size: calc(9px * var(--moguchart-font-scale, 1));
       line-height: 1;
       color: inherit;
       opacity: 0.7;
@@ -261,7 +261,7 @@ export class GanttRowElement extends LitElement {
     }
     .wbs-code-badge {
       font-family: monospace;
-      font-size: 11px;
+      font-size: calc(11px * var(--moguchart-font-scale, 1));
       opacity: 0.65;
       margin-right: 6px;
       margin-left: 4px;
@@ -1043,7 +1043,7 @@ export class GanttRowElement extends LitElement {
                 </svg>
                 ${marker.name
                   ? html`<span style="
-                      font-size: ${fontSize}px;
+                      font-size: calc(${fontSize}px * var(--moguchart-font-scale, 1));
                       color: ${markerColor};
                       line-height: 1;
                       ${isCenter ? 'padding: 1px 0 0 0;' : 'padding: 0 2px;'}

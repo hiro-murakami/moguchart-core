@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **スクロール位置制御メソッド (`resetScroll`, `scrollToPosition`) を追加**:
+  - `GanttChartElement.resetScroll()`: ガントチャートのスクロール位置（横スクロール・縦スクロール）を左上（0, 0）にリセットする公開メソッドを追加。内部状態（`currentScrollLeft`, `currentScrollTop`, `virtualScrollTop`）も同期して初期化
+  - `GanttChartElement.scrollToPosition(options)`: 任意のスクロール座標（`left`, `top`, `behavior`）へスクロール移動する公開メソッドを追加
+  - プロジェクト切り替え時や新規読み込み時に前回のスクロール位置が残る問題を解消し、先頭位置へ確実にリセット可能に
+
+- **チャート全体のフォントサイズ倍率スケーリング機能 (`fontScale`) を追加**:
+  - `GanttChartOption.fontScale` オプション（`number`、デフォルト: `1`）を追加し、ガントチャート全体のフォントサイズを一括で拡大・縮小可能に
+  - CSS カスタムプロパティ `--moguchart-font-scale` をホスト要素に動的に反映し、カレンダー（月・週・日・時・現在時刻バッジ・祝日バッジ）、行ヘッダー、WBSコードバッジ、ツリー開閉トグル、タスクバーラベル、進捗率ラベル、マーカーラベル、ツールチップ、ドラッグ情報オーバーレイのフォントサイズが `calc(.. * var(--moguchart-font-scale, 1))` で連動してスケーリングされるよう対応
+  - 親アプリケーション側でチャートの表示倍率（ズーム）を変更する際に、バー幅だけでなくフォントサイズや行ヘッダーの視認性を同期して最適化可能に
+
 - **WBS（階層ツリー構造・展開/折りたたみ）機能を追加**:
   - `GanttRow` に `parentId` プロパティを追加し、無制限の親子階層（大工程 ＞ 中工程 ＞ 詳細タスクなど）のツリー構造に対応
   - `GanttRow` に `collapsed` プロパティを追加し、行ごとの初期折りたたみ状態を指定可能に
@@ -61,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 国際化標準に合わせて `README.md` を英語版とし、日本語版を `README.ja.md` に移行
   - API ドキュメントを言語別（`doc/API.ja.md`, `doc/API.md`）に集約・整備
   - デモ画面（`src/demo/main.ts`, `src/demo/data.ts`）に WBS ツリーデータおよび折りたたみ・サマリータスク操作のコントロールを追加
+
+### Fixed
+
+- **行ヘッダーの開閉トグルアイコンでのダブルクリック誤動作を修正**:
+  - 親行の開閉トグルアイコン（▶ / ▼）をダブルクリックした際にイベント伝播を停止（`stopPropagation`）し、親行のダブルクリックイベント（行名インライン編集や行編集ダイアログ表示）が誤発火してしまう問題を解消
 
 ## [0.12.0] - 2026-09-05
 
