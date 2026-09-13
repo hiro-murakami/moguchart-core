@@ -802,6 +802,11 @@ const option = {
 }
 ```
 
+## 更新履歴
+
+変更履歴の詳細は [CHANGELOG.ja.md](CHANGELOG.ja.md)（[英語版: CHANGELOG.md](CHANGELOG.md)）をご覧ください。
+
 ## ライセンス
 
 MIT
+

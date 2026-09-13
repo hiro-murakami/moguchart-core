@@ -845,6 +845,10 @@ const option = {
 }
 ```
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) ([日本語版: CHANGELOG.ja.md](CHANGELOG.ja.md)) for release history and migration details.
+
 ## License
 
 [MIT License](LICENSE)
