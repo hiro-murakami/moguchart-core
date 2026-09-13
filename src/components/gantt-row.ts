@@ -510,8 +510,14 @@ export class GanttRowElement extends LitElement {
     const tooltipFn = this.option.customRendering?.rowHeaderTooltip
     if (!tooltipFn) return
 
+    // 展開・折りたたみアイコン上へのホバー時はツールチップを表示しない
+    const eventTarget = e.target as HTMLElement | null
+    if (eventTarget?.closest?.('.tree-toggle-btn')) {
+      return
+    }
+
     const delay = this.option.tooltipDelay ?? 500
-    const target = e.currentTarget as HTMLElement
+    const anchor = (e.currentTarget as HTMLElement) ?? (this.shadowRoot?.querySelector('.row-header') as HTMLElement)
 
     const show = () => {
       const content = tooltipFn(this.row)
@@ -548,7 +554,7 @@ export class GanttRowElement extends LitElement {
       this._rowHeaderTooltipEl = el
 
       // 位置計算: ヘッダーの右側に表示
-      const rect = target.getBoundingClientRect()
+      const rect = anchor.getBoundingClientRect()
       const elRect = el.getBoundingClientRect()
       const margin = 6
 
@@ -594,6 +600,20 @@ export class GanttRowElement extends LitElement {
     if (this._rowHeaderTooltipEl) {
       this._rowHeaderTooltipEl.remove()
       this._rowHeaderTooltipEl = null
+    }
+  }
+
+  private handleToggleMouseEnter() {
+    // 展開・折りたたみアイコン上では行ヘッダーツールチップを表示しない
+    this.handleHeaderMouseLeave()
+  }
+
+  private handleToggleMouseLeave(e: MouseEvent) {
+    // アイコンから離れて行ヘッダー内に留まっている場合はツールチップタイマーを再開
+    const relatedTarget = e.relatedTarget as HTMLElement | null
+    const header = this.shadowRoot?.querySelector('.row-header') as HTMLElement | null
+    if (header && relatedTarget && header.contains(relatedTarget)) {
+      this.handleHeaderMouseEnter(e)
     }
   }
 
@@ -884,9 +904,10 @@ export class GanttRowElement extends LitElement {
           ${treeEnabled && this.hasChildren && showToggleIcon
             ? html`<span
                 class="tree-toggle-btn"
-                title="${this.row.collapsed ? '展開' : '折りたたみ'}"
                 @click="${this.handleToggleCollapse}"
                 @dblclick="${this.handleToggleDblClick}"
+                @mouseenter="${this.handleToggleMouseEnter}"
+                @mouseleave="${this.handleToggleMouseLeave}"
                 >${this.row.collapsed ? '▶' : '▼'}</span
               >`
             : treeEnabled && (this.level > 0 || this.hasChildren)

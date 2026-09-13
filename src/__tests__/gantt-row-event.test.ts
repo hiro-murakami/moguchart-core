@@ -177,4 +177,110 @@ describe('GanttRowElement', () => {
     // row-header-dblclick は呼ばれないこと
     expect(dblClickSpy).not.toHaveBeenCalled()
   })
+
+  it('does NOT have title attribute on tree toggle button (no browser tooltip)', async () => {
+    const row: GanttRow = {
+      id: 'parent1',
+      name: 'Parent Row',
+      tasks: [],
+      collapsed: false,
+      children: [
+        {
+          id: 'child1',
+          name: 'Child Row',
+          tasks: [],
+        },
+      ],
+    }
+    const option: GanttChartOption = {
+      calendar: {
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-31'),
+        pxPerDay: 50,
+      },
+      tree: {
+        enabled: true,
+        showToggleIcon: true,
+      },
+    }
+
+    const el = document.createElement('gantt-row') as GanttRowElement
+    el.row = row
+    el.option = option
+    el.hasChildren = true
+    document.body.appendChild(el)
+
+    await el.updateComplete
+
+    const toggleBtn = el.shadowRoot?.querySelector('.tree-toggle-btn') as HTMLElement
+    expect(toggleBtn).toBeTruthy()
+    expect(toggleBtn.getAttribute('title')).toBeNull()
+  })
+
+  it('does NOT display rowHeaderTooltip when hovering over tree toggle icon', async () => {
+    vi.useFakeTimers()
+    try {
+      const tooltipSpy = vi.fn((r: GanttRow) => `Tooltip for ${r.name}`)
+      const row: GanttRow = {
+        id: 'parent1',
+        name: 'Parent Row',
+        tasks: [],
+        children: [
+          {
+            id: 'child1',
+            name: 'Child Row',
+            tasks: [],
+          },
+        ],
+      }
+      const option: GanttChartOption = {
+        calendar: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-31'),
+          pxPerDay: 50,
+        },
+        tree: {
+          enabled: true,
+          showToggleIcon: true,
+        },
+        tooltipDelay: 100,
+        customRendering: {
+          rowHeaderTooltip: tooltipSpy,
+        },
+      }
+
+      const el = document.createElement('gantt-row') as GanttRowElement
+      el.row = row
+      el.option = option
+      el.hasChildren = true
+      document.body.appendChild(el)
+
+      await el.updateComplete
+
+      const toggleBtn = el.shadowRoot?.querySelector('.tree-toggle-btn') as HTMLElement
+      expect(toggleBtn).toBeTruthy()
+
+      // tree-toggle-btn から直接 mouseenter された場合
+      const header = el.shadowRoot?.querySelector('.row-header') as HTMLElement
+      header.dispatchEvent(
+        new MouseEvent('mouseenter', {
+          bubbles: false,
+          target: toggleBtn,
+        }),
+      )
+      // イベントのtargetプロパティはdispatchEventで設定されるが、
+      // toggleBtnでmouseenterも発火
+      toggleBtn.dispatchEvent(
+        new MouseEvent('mouseenter', {
+          bubbles: false,
+        }),
+      )
+
+      vi.advanceTimersByTime(200)
+
+      expect(tooltipSpy).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
