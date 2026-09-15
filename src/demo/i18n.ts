@@ -30,6 +30,10 @@ export interface DemoTexts {
   editableProgress: string
   showProgressLabel: string
   enableMarqueeSelection: string
+  collapseAll: string
+  collapseAllTitle: string
+  expandAll: string
+  expandAllTitle: string
   // セクションタイトル
   sectionCalendar: string
   sectionBehavior: string
@@ -85,6 +89,14 @@ export interface DemoTexts {
   qaTest: string
   staging: string
   monitoring: string
+  // WBS ショーケース用テキスト
+  wbsRoot: string
+  wbsPhase1: string
+  wbsTask1: string
+  wbsTask2: string
+  wbsPhase2: string
+  wbsTask3: string
+  wbsTask4: string
   // コンテキストメニュー
   edit: string
   duplicate: string
@@ -126,6 +138,10 @@ export const jaTexts: DemoTexts = {
   editableProgress: '進捗ドラッグ編集',
   showProgressLabel: '進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
+  collapseAll: '折りたたみ',
+  collapseAllTitle: '親行を一括折りたたみ',
+  expandAll: '展開',
+  expandAllTitle: 'すべての行を展開',
   sectionCalendar: 'カレンダー表示',
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
@@ -244,6 +260,13 @@ export const jaTexts: DemoTexts = {
   qaTest: 'QAテスト',
   staging: 'ステージング',
   monitoring: '監視設定',
+  wbsRoot: '📁 WBS: 新規プロダクト開発',
+  wbsPhase1: 'フェーズ1: 企画・要件定義',
+  wbsTask1: '市場調査 & ヒアリング',
+  wbsTask2: '要件定義書作成',
+  wbsPhase2: 'フェーズ2: UI/UX設計 & プロトタイプ',
+  wbsTask3: '画面設計・ワイヤーフレーム',
+  wbsTask4: 'プロトタイプ検証',
   edit: '編集',
   duplicate: '複製',
   delete_: '削除',
@@ -284,6 +307,10 @@ export const enTexts: DemoTexts = {
   editableProgress: 'Editable Progress',
   showProgressLabel: 'Show Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
+  collapseAll: 'Collapse',
+  collapseAllTitle: 'Collapse all parent rows',
+  expandAll: 'Expand',
+  expandAllTitle: 'Expand all rows',
   sectionCalendar: 'Calendar',
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',
@@ -402,6 +429,13 @@ export const enTexts: DemoTexts = {
   qaTest: 'QA Test',
   staging: 'Staging',
   monitoring: 'Monitoring',
+  wbsRoot: '📁 WBS: New Product Development',
+  wbsPhase1: 'Phase 1: Planning & Requirements',
+  wbsTask1: 'Market Research & User Interviews',
+  wbsTask2: 'Requirements Specification',
+  wbsPhase2: 'Phase 2: UI/UX Design & Prototype',
+  wbsTask3: 'Wireframing & Screen Design',
+  wbsTask4: 'Prototype Usability Testing',
   edit: 'Edit',
   duplicate: 'Duplicate',
   delete_: 'Delete',

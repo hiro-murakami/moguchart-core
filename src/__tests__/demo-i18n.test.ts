@@ -24,3 +24,19 @@ describe('getInitialLang (demo i18n)', () => {
     expect(getInitialLang('?lang=')).toBe('ja')
   })
 })
+
+describe('DemoTexts (collapse/expand)', () => {
+  it('jaTexts と enTexts に折りたたみ・展開テキストが定義されている', async () => {
+    const { jaTexts, enTexts } = await import('../demo/i18n')
+    expect(jaTexts.collapseAll).toBe('折りたたみ')
+    expect(jaTexts.collapseAllTitle).toBe('親行を一括折りたたみ')
+    expect(jaTexts.expandAll).toBe('展開')
+    expect(jaTexts.expandAllTitle).toBe('すべての行を展開')
+
+    expect(enTexts.collapseAll).toBe('Collapse')
+    expect(enTexts.collapseAllTitle).toBe('Collapse all parent rows')
+    expect(enTexts.expandAll).toBe('Expand')
+    expect(enTexts.expandAllTitle).toBe('Expand all rows')
+  })
+})
+

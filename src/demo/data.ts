@@ -439,18 +439,18 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   rows.push({
     id: 'wbs-root',
-    name: '📁 WBS: 新規プロダクト開発',
+    name: t.wbsRoot,
     parentId: null,
     tasks: [], // autoSummary により配下タスクから自動計算
   })
   rows.push({
     id: 'wbs-phase1',
-    name: 'フェーズ1: 企画・要件定義',
+    name: t.wbsPhase1,
     parentId: 'wbs-root',
     tasks: [
       {
         id: 't-wbs-1',
-        name: '市場調査 & ヒアリング',
+        name: t.wbsTask1,
         start: d(start, 1),
         end: d(start, 7),
         style: `background-color: ${colors.blue};`,
@@ -458,7 +458,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
       },
       {
         id: 't-wbs-2',
-        name: '要件定義書作成',
+        name: t.wbsTask2,
         start: d(start, 8),
         end: d(start, 15),
         style: `background-color: ${colors.purple};`,
@@ -469,12 +469,12 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
   })
   rows.push({
     id: 'wbs-phase2',
-    name: 'フェーズ2: UI/UX設計 & プロトタイプ',
+    name: t.wbsPhase2,
     parentId: 'wbs-root',
     tasks: [
       {
         id: 't-wbs-3',
-        name: '画面設計・ワイヤーフレーム',
+        name: t.wbsTask3,
         start: d(start, 16),
         end: d(start, 24),
         style: `background-color: ${colors.orange};`,
@@ -483,7 +483,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
       },
       {
         id: 't-wbs-4',
-        name: 'プロトタイプ検証',
+        name: t.wbsTask4,
         start: d(start, 22),
         end: d(start, 30),
         style: `background-color: ${colors.pink};`,

@@ -618,7 +618,7 @@ const renderApp = () => {
             <button
               class="export-btn"
               style="background: #6366f1;"
-              title="親行を一括折りたたみ"
+              title="${t.collapseAllTitle}"
               @click="${() => {
                 const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
                 if (chart) {
@@ -626,12 +626,12 @@ const renderApp = () => {
                 }
               }}"
             >
-              📁 折りたたみ
+              📁 ${t.collapseAll}
             </button>
             <button
               class="export-btn"
               style="background: #2563eb;"
-              title="すべての行を展開"
+              title="${t.expandAllTitle}"
               @click="${() => {
                 const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
                 if (chart) {
@@ -639,7 +639,7 @@ const renderApp = () => {
                 }
               }}"
             >
-              📂 展開
+              📂 ${t.expandAll}
             </button>
           </div>
         </div>
