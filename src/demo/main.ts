@@ -24,7 +24,7 @@ import type { MoguchartLocale } from '../core/i18n'
 import { jaLocale, enLocale } from '../core/i18n'
 import dayjs from 'dayjs'
 import { getPatternStyle } from '../core/patterns'
-import { jaTexts, enTexts } from './i18n'
+import { jaTexts, enTexts, getInitialLang } from './i18n'
 import type { DemoTexts } from './i18n'
 import {
   generateDayModeData,
@@ -42,14 +42,19 @@ declare global {
   }
 }
 
-let currentLang: 'ja' | 'en' = 'ja'
-let currentLocale: MoguchartLocale = jaLocale
-let t: DemoTexts = jaTexts
+let currentLang: 'ja' | 'en' = getInitialLang()
+let currentLocale: MoguchartLocale = currentLang === 'ja' ? jaLocale : enLocale
+let t: DemoTexts = currentLang === 'ja' ? jaTexts : enTexts
 
-const setLang = (lang: 'ja' | 'en') => {
+const setLang = (lang: 'ja' | 'en', updateUrl = true) => {
   currentLang = lang
   currentLocale = lang === 'ja' ? jaLocale : enLocale
   t = lang === 'ja' ? jaTexts : enTexts
+  if (updateUrl && typeof window !== 'undefined') {
+    const url = new URL(window.location.href)
+    url.searchParams.set('lang', lang)
+    window.history.replaceState({}, '', url.toString())
+  }
   // データを言語変更時に再生成
   if (viewMode === 'day') {
     rows = generateDayModeData(t)
@@ -62,6 +67,15 @@ const setLang = (lang: 'ja' | 'en') => {
   }
   unassignedTasks = generateUnassignedTasks(t)
   renderApp()
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    const lang = getInitialLang()
+    if (lang !== currentLang) {
+      setLang(lang, false)
+    }
+  })
 }
 
 let rows: GanttRow[] = []

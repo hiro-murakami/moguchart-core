@@ -410,3 +410,16 @@ export const enTexts: DemoTexts = {
   duplicateAction: (name) => `Duplicate: ${name}`,
   moveTo: (name) => `Move to: ${name}`,
 }
+
+/**
+ * URLクエリパラメータまたは指定のサーチ文字列から初期言語を判定
+ */
+export const getInitialLang = (search?: string): 'ja' | 'en' => {
+  const query = search !== undefined ? search : (typeof window !== 'undefined' ? window.location.search : '')
+  const params = new URLSearchParams(query)
+  const langParam = params.get('lang')
+  if (langParam === 'en' || langParam === 'ja') {
+    return langParam
+  }
+  return 'ja'
+}

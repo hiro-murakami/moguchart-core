@@ -2,11 +2,11 @@
 
 ![demo-light.png](https://raw.githubusercontent.com/hiro-murakami/qiita-content/main/images/moguchart-core-introduction/demo-light.png)
 
-[日本語](./README.ja.md) | [Demo](https://moguchart-core.vercel.app/)
+[日本語](./README.ja.md) | [Demo](https://moguchart-core.vercel.app/?lang=en)
 
 A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works seamlessly with Vue, React, Angular, Svelte, and any other modern web framework.
 
-- **Online Demo**: [https://moguchart-core.vercel.app/](https://moguchart-core.vercel.app/)
+- **Online Demo**: [https://moguchart-core.vercel.app/?lang=en](https://moguchart-core.vercel.app/?lang=en)
 - **npm Package**: [@mogura/moguchart-core](https://www.npmjs.com/package/@mogura/moguchart-core)
 
 ## Features

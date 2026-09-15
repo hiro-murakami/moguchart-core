@@ -130,13 +130,6 @@ describe('GanttRowElement', () => {
       id: 'parent1',
       name: 'Parent Row',
       tasks: [],
-      children: [
-        {
-          id: 'child1',
-          name: 'Child Row',
-          tasks: [],
-        },
-      ],
     }
     const option: GanttChartOption = {
       calendar: {
@@ -184,13 +177,6 @@ describe('GanttRowElement', () => {
       name: 'Parent Row',
       tasks: [],
       collapsed: false,
-      children: [
-        {
-          id: 'child1',
-          name: 'Child Row',
-          tasks: [],
-        },
-      ],
     }
     const option: GanttChartOption = {
       calendar: {
@@ -225,13 +211,6 @@ describe('GanttRowElement', () => {
         id: 'parent1',
         name: 'Parent Row',
         tasks: [],
-        children: [
-          {
-            id: 'child1',
-            name: 'Child Row',
-            tasks: [],
-          },
-        ],
       }
       const option: GanttChartOption = {
         calendar: {
@@ -265,7 +244,6 @@ describe('GanttRowElement', () => {
       header.dispatchEvent(
         new MouseEvent('mouseenter', {
           bubbles: false,
-          target: toggleBtn,
         }),
       )
       // イベントのtargetプロパティはdispatchEventで設定されるが、
