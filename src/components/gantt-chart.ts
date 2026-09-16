@@ -695,8 +695,9 @@ export class GanttChartElement extends LitElement {
 
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
+      this.hoverTimer = undefined
     }
-    if (this.tooltip) {
+    if (this.tooltip?.visible) {
       this.tooltip = { ...this.tooltip, visible: false }
     }
   }
@@ -1053,7 +1054,7 @@ export class GanttChartElement extends LitElement {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
       this.hideDragOverlay()
     }
-    if (this.tooltip) {
+    if (this.tooltip?.visible) {
       this.tooltip = { ...this.tooltip, visible: false }
     }
 
@@ -1266,8 +1267,9 @@ export class GanttChartElement extends LitElement {
   private handleBarMouseLeave() {
     if (this.hoverTimer !== undefined) {
       window.clearTimeout(this.hoverTimer)
+      this.hoverTimer = undefined
     }
-    if (this.tooltip) {
+    if (this.tooltip?.visible) {
       this.tooltip = { ...this.tooltip, visible: false }
     }
   }
