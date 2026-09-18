@@ -185,6 +185,9 @@ export class GanttRowElement extends LitElement {
       box-sizing: border-box;
       background-color: transparent;
     }
+    :host([isexporting]) * {
+      box-shadow: none !important;
+    }
     .row-container {
       display: flex;
       height: 100%;

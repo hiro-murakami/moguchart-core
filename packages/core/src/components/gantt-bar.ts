@@ -36,6 +36,11 @@ export class GanttBarElement extends LitElement {
       height: 100%;
       pointer-events: none;
     }
+    :host([isexporting]) *,
+    :host([isexporting]) .bar,
+    :host([isexporting]) .task-group {
+      box-shadow: none !important;
+    }
     .task-group {
       position: absolute;
       box-sizing: border-box;
