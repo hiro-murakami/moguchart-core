@@ -24,9 +24,23 @@ As a result, heavy third-party dependencies (`html2canvas-pro` and `jspdf`, ~600
   - High-fidelity PNG and multi-page PDF export utility migrated into an independent workspace package
   - `exportPlugin(config?)`: Plugin factory to register with the Gantt chart instance and enable `chart.exportImage()`
   - `exportChart(chart, format, options)`: Standalone export function enabling on-demand, dynamic imports for code-splitting
+- **Official React Wrapper Package `@mogura/moguchart-react`**:
+  - Built on `@lit/react` (`createComponent`) to provide `<GanttChart />` as a fully type-safe React component
+  - All 25 custom events mapped to camelCase props (`onTaskUpdate`, `onTaskClick`, `onRowReordered`, etc.)
+  - Seamless `ref` support to access the underlying `GanttChartElement` instance and imperative methods (`exportImage`, etc.)
+  - Full re-export of all `@mogura/moguchart-core` types and utilities
+- **Official Vue 3 Wrapper Package `@mogura/moguchart-vue`**:
+  - Built with Vue 3 `defineComponent` supporting both Composition API (`<script setup>`) and Options API
+  - Automatic reactive synchronization of props (`rows`, `option`, `theme`, etc.)
+  - All 25 custom events forwarded to standard Vue emits (`@task-update`, `@task-click`, etc.)
+  - Public imperative methods exposed via Template Ref
+  - Global registration support via Vue Plugin (`app.use(MoguchartVue)`)
+  - Full re-export of all `@mogura/moguchart-core` types and utilities
 - **pnpm Workspaces Monorepo Setup**:
-  - `packages/core`: `@mogura/moguchart-core` (ultra-lightweight core)
-  - `packages/plugin-export`: `@mogura/moguchart-plugin-export` (export extension)
+  - `packages/core`: `@mogura/moguchart-core` (ultra-lightweight core Web Component)
+  - `packages/plugin-export`: `@mogura/moguchart-plugin-export` (PNG/PDF export plugin)
+  - `packages/react`: `@mogura/moguchart-react` (official React wrapper)
+  - `packages/vue`: `@mogura/moguchart-vue` (official Vue 3 wrapper)
 
 ### Changed
 

@@ -24,9 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PNG 画像および PDF への高解像度エクスポート（ヘッダー分割・スクロール位置保持対応）を独立パッケージへ移行
   - `exportPlugin(config?)`: ガントチャートインスタンスに登録して `chart.exportImage()` を有効化するプラグインファクトリ
   - `exportChart(chart, format, options)`: エクスポートボタン押下時など必要なタイミングでのみ遅延ロード（Dynamic Import）して直接呼び出せるスタンドアロン関数を提供
+- **公式 React ラッパーパッケージ `@mogura/moguchart-react` を新設**:
+  - Lit 公式の `@lit/react` (`createComponent`) を基盤に採用し、`<gantt-chart>` を型安全な React コンポーネント `<GanttChart />` として提供
+  - 全25種類のカスタムイベントをキャメルケースの props（`onTaskUpdate`, `onTaskClick`, `onRowReordered` 等）として型安全にサポート
+  - `ref` を通じた基底 `GanttChartElement` へのアクセスおよび命令的メソッド（`exportImage` 等）の呼び出しに対応
+  - コアの型定義・関数・定数をすべて re-export
+- **公式 Vue 3 ラッパーパッケージ `@mogura/moguchart-vue` を新設**:
+  - Vue 3 の `defineComponent` を使用した公式 `<GanttChart />` コンポーネントを提供
+  - Composition API（`<script setup>`）および Options API の双方に対応
+  - リアクティブな props（`rows`, `option`, `theme` 等）の自動同期
+  - 全25種類のカスタムイベントの Vue emits（`@task-update`, `@task-click` 等）バインディング
+  - Template Ref から呼び出せる命令的メソッドの公開（`expose`）
+  - Vue プラグイン（`app.use(MoguchartVue)`）としてのグローバル登録に対応
+  - コアの型定義・関数・定数をすべて re-export
 - **pnpm workspaces によるモノレポ構成への移行**:
-  - `packages/core`: `@mogura/moguchart-core`（超軽量コア）
-  - `packages/plugin-export`: `@mogura/moguchart-plugin-export`（エクスポート拡張）
+  - `packages/core`: `@mogura/moguchart-core`（超軽量コア Web Component）
+  - `packages/plugin-export`: `@mogura/moguchart-plugin-export`（PNG/PDF エクスポートプラグイン）
+  - `packages/react`: `@mogura/moguchart-react`（React 公式ラッパー）
+  - `packages/vue`: `@mogura/moguchart-vue`（Vue 3 公式ラッパー）
 
 ### Changed
 

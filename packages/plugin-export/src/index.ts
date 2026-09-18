@@ -51,6 +51,23 @@ export function exportPlugin(config?: ExportPluginConfig): GanttPlugin<ExportPlu
 }
 
 /**
+ * クラス形式の ExportPlugin
+ */
+export class ExportPlugin implements GanttPlugin<ExportPluginConfig> {
+  name = 'export'
+  version = '1.0.0'
+  config?: ExportPluginConfig
+
+  constructor(config?: ExportPluginConfig) {
+    this.config = config
+  }
+
+  install(chart: GanttChartElement, options?: ExportPluginConfig) {
+    return exportPlugin(this.config).install?.(chart, options)
+  }
+}
+
+/**
  * スタンドアロン実行関数
  */
 export async function exportChart(

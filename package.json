@@ -2,19 +2,23 @@
   "name": "moguchart-monorepo",
   "private": true,
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "packageManager": "pnpm@11.21.0",
   "scripts": {
     "dev": "pnpm --filter @mogura/moguchart-core dev",
-    "build": "pnpm build:core && pnpm build:export",
+    "build": "pnpm build:core && pnpm build:export && pnpm build:react && pnpm build:vue",
     "build:core": "pnpm --filter @mogura/moguchart-core build",
     "build:export": "pnpm --filter @mogura/moguchart-plugin-export build",
+    "build:react": "pnpm --filter @mogura/moguchart-react build",
+    "build:vue": "pnpm --filter @mogura/moguchart-vue build",
     "build:demo": "pnpm --filter @mogura/moguchart-core build:demo",
     "preview": "pnpm --filter @mogura/moguchart-core preview",
     "test": "pnpm -r run test",
     "test:run": "pnpm -r run test:run",
     "test:core": "pnpm --filter @mogura/moguchart-core test:run",
-    "test:export": "pnpm --filter @mogura/moguchart-plugin-export test:run"
+    "test:export": "pnpm --filter @mogura/moguchart-plugin-export test:run",
+    "test:react": "pnpm --filter @mogura/moguchart-react test:run",
+    "test:vue": "pnpm --filter @mogura/moguchart-vue test:run"
   },
   "devDependencies": {
     "prettier": "^3.7.4"

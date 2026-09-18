@@ -217,8 +217,9 @@ Public methods that can be called on the component instance.
 | Method            | Signature                                                                                   | Description                                                                                                                                                                                     |
 | :---------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selectTask`      | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `use`             | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                           |
 | `hitTest`         | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
-| `exportImage`     | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF. Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `exportImage`     | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
 | `zoomTo`          | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
 | `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
 | `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
@@ -262,10 +263,31 @@ document.addEventListener('mousemove', (e) => {
 
 > **Note:** `hitTest` calculates the accurate date by considering scroll position and calendar settings. It's useful for implementing operations based on mouse position, such as paste via keyboard shortcuts.
 
-#### exportImage
+#### use (Plugin Registration)
 
 ```javascript
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
 const chart = document.querySelector('gantt-chart')
+
+// Register the export plugin
+chart.use(new ExportPlugin())
+
+// Chaining is supported
+chart.use(new ExportPlugin()).use(anotherPlugin)
+```
+
+> **Note:** Plugins can also be registered declaratively via `option.plugins = [new ExportPlugin()]`.
+
+#### exportImage
+
+> **Note:** Calling `exportImage` requires installing and registering `@mogura/moguchart-plugin-export` (via `chart.use(new ExportPlugin())` or `option.plugins = [new ExportPlugin()]`).
+
+```javascript
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
+const chart = document.querySelector('gantt-chart')
+chart.use(new ExportPlugin())
 
 // Get PNG data URL
 const pngDataUrl = await chart.exportImage('png')

@@ -217,8 +217,9 @@ interface GanttChartOption {
 | メソッド名          | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
 | :------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selectTask`        | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `use`               | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                            |
 | `hitTest`           | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
-| `exportImage`       | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `exportImage`       | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
 | `zoomTo`            | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
 | `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
 | `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
@@ -262,10 +263,31 @@ document.addEventListener('mousemove', (e) => {
 
 > **Note:** `hitTest` はスクロール位置やカレンダー設定を考慮して正確な日付を計算します。キーボードショートカットによるペースト操作など、マウス位置に基づく操作の実装に便利です。
 
-#### exportImage
+#### use (プラグイン登録)
 
 ```javascript
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
 const chart = document.querySelector('gantt-chart')
+
+// エクスポートプラグインを登録
+chart.use(new ExportPlugin())
+
+// メソッドチェーンも可能
+chart.use(new ExportPlugin()).use(anotherPlugin)
+```
+
+> **Note:** プラグインは `option.plugins = [new ExportPlugin()]` としてオプション経由で宣言的に登録することも可能です。
+
+#### exportImage
+
+> **Note:** 本メソッドの利用には `@mogura/moguchart-plugin-export` の登録（`chart.use(new ExportPlugin())` または `option.plugins = [new ExportPlugin()]`）が必要です。
+
+```javascript
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
+const chart = document.querySelector('gantt-chart')
+chart.use(new ExportPlugin())
 
 // PNG形式でデータURLを取得
 const pngDataUrl = await chart.exportImage('png')

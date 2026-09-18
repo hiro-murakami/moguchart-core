@@ -71,208 +71,228 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
 - ⌨️ **Keyboard Navigation**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace deletion.
 
+## Packages (Ecosystem)
+
+Moguchart is structured as a modular monorepo, allowing you to choose the exact package tailored to your stack:
+
+| Package | Description |
+|---|---|
+| **[@mogura/moguchart-core](https://www.npmjs.com/package/@mogura/moguchart-core)** | Core Web Component (built with Lit). Lightweight and framework-agnostic. |
+| **[@mogura/moguchart-react](https://www.npmjs.com/package/@mogura/moguchart-react)** | **Official React wrapper**. Provides type-safe props, camelCase events, and ref support. |
+| **[@mogura/moguchart-vue](https://www.npmjs.com/package/@mogura/moguchart-vue)** | **Official Vue 3 wrapper**. Supports `<script setup>`, reactive props, and native emits. |
+| **[@mogura/moguchart-plugin-export](https://www.npmjs.com/package/@mogura/moguchart-plugin-export)** | **Official export plugin**. Provides high-resolution PNG and PDF export. |
+
+---
+
 ## Installation
 
+Install the package suited for your application:
+
 ```bash
+# Core (Web Components / Vanilla JS)
 pnpm add @mogura/moguchart-core
-# or
-npm install @mogura/moguchart-core
-# or
-yarn add @mogura/moguchart-core
+
+# For React applications
+pnpm add @mogura/moguchart-react @mogura/moguchart-core
+
+# For Vue 3 applications
+pnpm add @mogura/moguchart-vue @mogura/moguchart-core
 ```
 
 ## API Reference
 
 For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.md)](./doc/API.md) or the [Japanese API Reference (API.ja.md)](./doc/API.ja.md).
 
-## Usage with Vue.js
+---
 
-Example using Vue 3 (Composition API / `<script setup>`).
-When using Web Components in Vue, configure `compilerOptions.isCustomElement` in `vite.config.ts` to recognize `gantt-chart`.
+## Usage with React (Official Wrapper)
 
-```html
-<script setup lang="ts">
-  import { ref } from 'vue'
-  import '@mogura/moguchart-core'
-  import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
+Use [`@mogura/moguchart-react`](./packages/react/README.md) for first-class React support with full TypeScript typing, React synthetic events, and imperative `ref` calls:
 
-  const rows = ref<GanttRow[]>([
+```tsx
+import React, { useRef } from 'react'
+import {
+  GanttChart,
+  type GanttChartElement,
+  type GanttRow,
+  type GanttChartOption,
+  type TaskUpdateEventDetail,
+} from '@mogura/moguchart-react'
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
+export default function App() {
+  const chartRef = useRef<GanttChartElement>(null)
+
+  const rows: GanttRow[] = [
     {
       id: 'row-1',
-      name: 'Project A',
+      name: 'Development Phase',
       tasks: [
         {
-          id: 't-1',
-          name: 'Task 1',
-          start: new Date('2025-01-01'),
-          end: new Date('2025-01-05'),
-          progress: 60,
-          style: 'background-color: #60a5fa',
+          id: 'task-1',
+          name: 'Requirements',
+          start: new Date('2026-04-01'),
+          end: new Date('2026-04-10'),
+          progress: 100,
         },
-      ],
-      markers: [
         {
-          id: 'marker-1',
-          name: 'Review Deadline',
-          date: new Date('2025-01-03'),
-          type: 'triangle-down',
-          color: '#ef4444',
+          id: 'task-2',
+          name: 'Implementation',
+          start: new Date('2026-04-11'),
+          end: new Date('2026-04-25'),
+          progress: 50,
         },
       ],
     },
-  ])
+  ]
 
-  const option = ref<GanttChartOption>({
+  const option: GanttChartOption = {
     calendar: {
-      start: new Date('2025-01-01'),
-      end: new Date('2025-03-31'),
-      pxPerDay: 30,
-      showCurrentTime: true,
-      milestones: [
-        {
-          id: 'ms-1',
-          name: 'Release',
-          start: new Date('2025-02-01'),
-          color: '#8b5cf6',
-        },
-      ],
+      start: new Date('2026-04-01'),
+      end: new Date('2026-04-30'),
+      pxPerDay: 40,
     },
-    bar: { height: 28 },
-    rowHeader: { width: 200 },
-    theme: 'system',
-    enableCrossRowMove: true,
-    progress: {
-      enabled: true,
-      editable: true,
-      showLabel: true,
-    },
-    selection: {
-      marquee: true,
-    },
-    minimap: {
-      enabled: true,
-    },
-  })
-
-  const handleTaskUpdate = (e: Event) => {
-    const detail = (e as CustomEvent<TaskUpdateEventDetail>).detail
-    console.log('Task updated:', detail)
+    plugins: [new ExportPlugin()],
   }
+
+  const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
+    console.log('Task updated:', e.detail)
+  }
+
+  const handleExportPng = async () => {
+    await chartRef.current?.exportImage({ format: 'png', scale: 2 })
+  }
+
+  return (
+    <div style={{ height: '600px' }}>
+      <button onClick={handleExportPng}>Export PNG</button>
+      <GanttChart
+        ref={chartRef}
+        rows={rows}
+        option={option}
+        theme="light"
+        onTaskUpdate={handleTaskUpdate}
+        style={{ width: '100%', height: '100%' }}
+      />
+    </div>
+  )
+}
+```
+
+---
+
+## Usage with Vue 3 (Official Wrapper)
+
+Use [`@mogura/moguchart-vue`](./packages/vue/README.md) for seamless Vue 3 reactivity, Composition API (`<script setup>`), and native event listeners (`@task-update`):
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import {
+  GanttChart,
+  type GanttChartInstance,
+  type GanttRow,
+  type GanttChartOption,
+  type TaskUpdateEventDetail,
+} from '@mogura/moguchart-vue'
+import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+
+const chartRef = ref<GanttChartInstance | null>(null)
+
+const rows = ref<GanttRow[]>([
+  {
+    id: 'row-1',
+    name: 'Development Phase',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'Requirements',
+        start: new Date('2026-04-01'),
+        end: new Date('2026-04-10'),
+        progress: 100,
+      },
+    ],
+  },
+])
+
+const option: GanttChartOption = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+  },
+  plugins: [new ExportPlugin()],
+}
+
+const handleTaskUpdate = (detail: TaskUpdateEventDetail) => {
+  console.log('Task updated:', detail)
+}
+
+const handleExportPng = async () => {
+  await chartRef.value?.exportImage({ format: 'png', scale: 2 })
+}
 </script>
 
 <template>
   <div style="height: 600px;">
-    <gantt-chart :rows="rows" :option="option" @task-update="handleTaskUpdate"></gantt-chart>
+    <button @click="handleExportPng">Export PNG</button>
+    <GanttChart
+      ref="chartRef"
+      :rows="rows"
+      :option="option"
+      theme="light"
+      @task-update="handleTaskUpdate"
+      style="width: 100%; height: 100%;"
+    />
   </div>
 </template>
 ```
 
-## Usage with React
+---
 
-Example using React (TypeScript).
-Since Web Components interact via DOM properties and native event listeners, use a `ref` to bind complex objects and events.
+## Usage with Plain HTML / Vanilla JS (Web Components)
 
-```tsx
-import { useEffect, useRef, useState } from 'react'
-import '@mogura/moguchart-core'
-import type { GanttRow, GanttChartOption, TaskUpdateEventDetail } from '@mogura/moguchart-core'
+To use Moguchart directly in standard HTML without any framework:
 
-// Type definition for JSX Custom Element
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'gantt-chart': any
-    }
-  }
-}
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="module">
+    import '@mogura/moguchart-core'
 
-export default function App() {
-  const chartRef = useRef<any>(null)
-
-  const [rows] = useState<GanttRow[]>([
-    {
-      id: 'row-1',
-      name: 'Project A',
-      tasks: [
-        {
-          id: 't-1',
-          name: 'Task 1',
-          start: new Date('2025-01-01'),
-          end: new Date('2025-01-05'),
-          progress: 50,
-          style: 'background-color: #60a5fa',
-        },
-      ],
-      markers: [
-        {
-          id: 'marker-1',
-          name: 'Review Deadline',
-          date: new Date('2025-01-03'),
-          type: 'triangle-down',
-          color: '#ef4444',
-        },
-      ],
-    },
-  ])
-
-  const [option] = useState<GanttChartOption>({
-    calendar: {
-      start: new Date('2025-01-01'),
-      end: new Date('2025-03-31'),
-      pxPerDay: 30,
-      showCurrentTime: true,
-      milestones: [
-        {
-          id: 'ms-1',
-          name: 'Release',
-          start: new Date('2025-02-01'),
-          color: '#8b5cf6',
-        },
-      ],
-    },
-    bar: { height: 28 },
-    rowHeader: { width: 200 },
-    theme: 'system',
-    enableCrossRowMove: true,
-    progress: {
-      enabled: true,
-      editable: true,
-    },
-    selection: {
-      marquee: true,
-    },
-    minimap: {
-      enabled: true,
-    },
-  })
-
-  useEffect(() => {
-    const chart = chartRef.current
-    if (!chart) return
-
-    // Bind properties
-    chart.rows = rows
-    chart.option = option
-
-    // Bind event listeners
-    const handleTaskUpdate = (e: Event) => {
-      const detail = (e as CustomEvent<TaskUpdateEventDetail>).detail
-      console.log('Task updated:', detail)
+    const chart = document.querySelector('gantt-chart')
+    chart.rows = [
+      {
+        id: 'row-1',
+        name: 'Task Group 1',
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Task 1',
+            start: new Date('2026-04-01'),
+            end: new Date('2026-04-10'),
+          },
+        ],
+      },
+    ]
+    chart.option = {
+      calendar: {
+        start: new Date('2026-04-01'),
+        end: new Date('2026-04-30'),
+        pxPerDay: 40,
+      },
     }
 
-    chart.addEventListener('task-update', handleTaskUpdate)
-
-    return () => {
-      chart.removeEventListener('task-update', handleTaskUpdate)
-    }
-  }, [rows, option])
-
-  return (
-    <div style={{ height: '600px' }}>
-      <gantt-chart ref={chartRef}></gantt-chart>
-    </div>
-  )
-}
+    chart.addEventListener('task-update', (e) => {
+      console.log('Updated:', e.detail)
+    })
+  </script>
+</head>
+<body>
+  <gantt-chart style="width: 100%; height: 500px;"></gantt-chart>
+</body>
+</html>
 ```
 
 ## Key Features
