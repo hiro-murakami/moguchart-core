@@ -1,0 +1,63 @@
+{
+  "name": "@mogura/moguchart-plugin-export",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "PNG and PDF export plugin for @mogura/moguchart-core",
+  "license": "MIT",
+  "author": "Murakami Hiroyuki",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hiro-murakami/moguchart-core.git",
+    "directory": "packages/plugin-export"
+  },
+  "homepage": "https://github.com/hiro-murakami/moguchart-core",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "gantt",
+    "moguchart",
+    "export",
+    "pdf",
+    "png",
+    "html2canvas",
+    "jspdf"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "README.ja.md"
+  ],
+  "main": "./dist/moguchart-plugin-export.umd.js",
+  "module": "./dist/moguchart-plugin-export.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/moguchart-plugin-export.mjs",
+      "require": "./dist/moguchart-plugin-export.umd.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && pnpm exec tsc -p tsconfig.build.json",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "peerDependencies": {
+    "@mogura/moguchart-core": "workspace:*",
+    "lit": "^3.0.0"
+  },
+  "dependencies": {
+    "html2canvas-pro": "^2.0.2",
+    "jspdf": "^4.2.1"
+  },
+  "devDependencies": {
+    "@mogura/moguchart-core": "workspace:*",
+    "@types/node": "^24.12.0",
+    "jsdom": "^27.4.0",
+    "lit": "^3.3.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.16"
+  }
+}

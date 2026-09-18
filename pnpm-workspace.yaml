@@ -1,5 +1,9 @@
+packages:
+  - 'packages/*'
+
 allowBuilds:
   core-js: true
+  esbuild: true
 publicHoistPattern:
   - '*lit*'
 shamefullyHoist: true

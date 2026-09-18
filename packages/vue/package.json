@@ -1,0 +1,74 @@
+{
+  "name": "@mogura/moguchart-vue",
+  "type": "module",
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.21.0",
+  "description": "軽量でフレームワーク非依存のWeb Components製ガントチャートコンポーネント (Lit) の公式 Vue 3 ラッパー。Official Vue 3 wrapper for Moguchart.",
+  "license": "MIT",
+  "author": "Murakami Hiroyuki",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hiro-murakami/moguchart-core.git",
+    "directory": "packages/vue"
+  },
+  "homepage": "https://github.com/hiro-murakami/moguchart-core/tree/main/packages/vue",
+  "bugs": {
+    "url": "https://github.com/hiro-murakami/moguchart-core/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "gantt",
+    "gantt-chart",
+    "vue",
+    "vue3",
+    "vue-gantt",
+    "vue-gantt-chart",
+    "ガントチャート",
+    "工程表",
+    "スケジュール",
+    "web-components",
+    "lit",
+    "timeline",
+    "scheduler"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "README.ja.md"
+  ],
+  "main": "./dist/moguchart-vue.umd.js",
+  "module": "./dist/moguchart-vue.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/moguchart-vue.mjs",
+      "require": "./dist/moguchart-vue.umd.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && pnpm exec tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "peerDependencies": {
+    "@mogura/moguchart-core": "workspace:*",
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@mogura/moguchart-core": "workspace:*",
+    "@types/node": "^22.13.1",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^29.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^3.2.7",
+    "vue": "^3.5.0"
+  }
+}
