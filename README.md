@@ -50,7 +50,8 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - `task-progress-change` custom event
   - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
-- 📷 **High-Fidelity Export**: Export the full Gantt chart to PNG image or multi-page PDF documents (with scroll position preservation and auto-download support).
+- 🧩 **Plugin Architecture**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while allowing rich extensions like PNG/PDF exports.
+- 📷 **Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with scroll position preservation and auto-download support).
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move / copy modes
@@ -714,19 +715,40 @@ document.addEventListener('mousemove', (e) => {
 })
 ```
 
-#### exportImage
+#### Export Plugin (`@mogura/moguchart-plugin-export`)
 
-Exports the entire Gantt chart to a PNG image or PDF document. Preserves the user's scroll offset during export.
+Export the entire Gantt chart to a PNG image or PDF document. The export feature is packaged as a dedicated modular plugin (`@mogura/moguchart-plugin-export`) to keep the core bundle ultra-lightweight.
+
+```bash
+pnpm add @mogura/moguchart-plugin-export
+```
 
 ```javascript
+import '@mogura/moguchart-core'
+import { exportPlugin } from '@mogura/moguchart-plugin-export'
+
+// Register plugin to chart instance (chart.use or option.plugins)
+chart.use(exportPlugin())
+
 // Automatically download as PNG image
 await chart.exportImage('png', {
-  fileName: 'gantt-chart.png',
+  filename: 'gantt-chart',
   download: true,
+  scale: 2,
 })
 
-// Retrieve as PDF Blob
-const pdfBlob = await chart.exportImage('pdf')
+// Retrieve or download as PDF
+const pdfBlob = await chart.exportImage('pdf', {
+  filename: 'gantt-chart',
+  download: true,
+})
+```
+
+You can also dynamically load the plugin on-demand (e.g. only when clicking the export button):
+
+```javascript
+const { exportChart } = await import('@mogura/moguchart-plugin-export')
+await exportChart(chart, 'png', { download: true })
 ```
 
 #### Zoom Operations (`zoomTo`, `zoomToFit`, `resetZoom`)

@@ -1,5 +1,6 @@
 import { html, render } from 'lit'
 import { GanttChartElement } from '../components/gantt-chart'
+import { exportPlugin } from '@mogura/moguchart-plugin-export'
 import { isHoliday } from './holidays'
 import type {
   GanttChartOption,
@@ -373,6 +374,7 @@ const renderApp = () => {
     zoom: {
       enabled: true,
     },
+    plugins: [exportPlugin()],
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')

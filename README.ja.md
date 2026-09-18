@@ -44,9 +44,8 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 進捗ラベル表示（配置カスタマイズ・カスタムフォーマット対応）
   - 進捗変更イベント（`task-progress-change`）の発火
   - 行・プロジェクト全体の進捗率計算ユーティリティ関数
-  - ミニマップへの進捗状況の自動反映
-- 📷 **エクスポート**: PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、スクロール位置保持）
-- ✨ **高度な連携**:
+- 🧩 **プラグインアーキテクチャ**: コア本体を超軽量（数十KB）に保ちつつ、画像・PDFエクスポート等の機能をプラグインとして柔軟に拡張可能
+- 📷 **エクスポート（プラグイン）**: `@mogura/moguchart-plugin-export` による PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、スクロール位置保持）
   - 外部からのドラッグ＆ドロップによるタスク作成
   - タスクの移動/コピーモード
   - スナップ機能（時間単位でのグリッドスナップ）
@@ -671,19 +670,40 @@ document.addEventListener('mousemove', (e) => {
 })
 ```
 
-#### exportImage
+#### エクスポートプラグイン (`@mogura/moguchart-plugin-export`)
 
-ガントチャート全体を PNG 画像または PDF 形式でエクスポートします。
+ガントチャート全体を PNG 画像または PDF 形式でエクスポートします。エクスポート機能はプラグイン（`@mogura/moguchart-plugin-export`）として提供されており、必要な場合のみ導入することでコア本体を超軽量に保てます。
+
+```bash
+pnpm add @mogura/moguchart-plugin-export
+```
 
 ```javascript
+import '@mogura/moguchart-core'
+import { exportPlugin } from '@mogura/moguchart-plugin-export'
+
+// チャートにプラグインを登録（chart.use または option.plugins）
+chart.use(exportPlugin())
+
 // PNG画像として自動ダウンロード
 await chart.exportImage('png', {
-  fileName: 'gantt-chart.png',
+  filename: 'gantt-chart',
   download: true,
+  scale: 2,
 })
 
 // PDFとしてBlobを取得
-const pdfBlob = await chart.exportImage('pdf')
+const pdfBlob = await chart.exportImage('pdf', {
+  filename: 'gantt-chart',
+  download: true,
+})
+```
+
+または、エクスポートボタン押下時など必要なタイミングでのみ遅延ロード（Dynamic Import）してスタンドアロン関数を実行することも可能です：
+
+```javascript
+const { exportChart } = await import('@mogura/moguchart-plugin-export')
+await exportChart(chart, 'png', { download: true })
 ```
 
 #### ズーム操作 (zoomTo / zoomToFit / resetZoom)

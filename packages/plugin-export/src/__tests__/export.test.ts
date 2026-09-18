@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { GanttChartElement } from '../components/gantt-chart'
-import '../components/gantt-chart'
+import { GanttChartElement } from '@mogura/moguchart-core'
+import { exportPlugin, exportChart } from '../index'
 
 // Window.matchMediaのモック
 const matchMediaMock = vi.fn()
@@ -28,7 +28,7 @@ vi.mock('html2canvas-pro', () => {
   }
 })
 
-describe('GanttChartElement Export', () => {
+describe('@mogura/moguchart-plugin-export', () => {
   let element: GanttChartElement
 
   beforeEach(async () => {
@@ -72,14 +72,16 @@ describe('GanttChartElement Export', () => {
     vi.clearAllMocks()
   })
 
-  it('exportImage runs exportGanttWithHtml2Canvas and returns image data url', async () => {
+  it('exportPlugin registers exportImage method on GanttChartElement', async () => {
+    element.use(exportPlugin())
     const result = await element.exportImage('png', { download: false })
     expect(result).toBeDefined()
     expect(typeof result).toBe('string')
     expect((result as string).startsWith('data:image/png')).toBe(true)
   })
 
-  it('exportImage preserves and restores scrollLeft and scrollTop', async () => {
+  it('exportPlugin preserves and restores scrollLeft and scrollTop', async () => {
+    element.use(exportPlugin())
     const scrollContainer = element.shadowRoot?.querySelector('.scroll-container') as HTMLElement
     if (scrollContainer) {
       scrollContainer.scrollLeft = 120
@@ -94,12 +96,10 @@ describe('GanttChartElement Export', () => {
     }
   })
 
-  it('getRowPositions returns array of row positions', () => {
-    const positions = element.getRowPositions()
-    expect(Array.isArray(positions)).toBe(true)
-    expect(positions.length).toBe(1)
-    expect(positions[0]).toHaveProperty('top')
-    expect(positions[0]).toHaveProperty('height')
-    expect(positions[0]).toHaveProperty('bottom')
+  it('exportChart standalone function exports chart successfully', async () => {
+    const result = await exportChart(element, 'png', { download: false })
+    expect(result).toBeDefined()
+    expect(typeof result).toBe('string')
+    expect((result as string).startsWith('data:image/png')).toBe(true)
   })
 })

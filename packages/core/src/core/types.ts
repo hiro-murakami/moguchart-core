@@ -1,4 +1,5 @@
 import type { MoguchartLocale } from './i18n'
+import type { GanttPlugin } from './plugin'
 
 /**
  * ガントチャートのバーに適用できるパターンの種類
@@ -451,6 +452,8 @@ export interface GanttChartOption {
   selection?: GanttChartOptionSelection
   /** WBS・階層ツリーに関する設定 */
   tree?: GanttChartOptionTree
+  /** 拡張プラグインの配列 */
+  plugins?: GanttPlugin[]
 }
 
 /**
@@ -941,3 +944,18 @@ export interface TaskProgressChangeEventDetail {
   /** キャンセルされたかどうか */
   cancelled?: boolean
 }
+
+/**
+ * 画像・PDFエクスポートのオプション
+ */
+export interface ExportImageOptions {
+  /** ダウンロード時のファイル名（拡張子なし）。省略時は 'gantt-chart' */
+  filename?: string
+  /** true の場合、自動的にファイルダウンロードを開始する。デフォルト: false */
+  download?: boolean
+  /** PNG 出力時のスケール倍率（高解像度化）。デフォルト: 2 */
+  scale?: number
+  /** 画像を指定したピクセル数で縦に分割し、分割位置にカレンダー（ヘッダー）を挿入する。未指定時は分割しない */
+  splitHeight?: number
+}
+

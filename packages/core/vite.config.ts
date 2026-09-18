@@ -5,6 +5,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
+      '@mogura/moguchart-core': path.resolve(import.meta.dirname, './src/index.ts'),
+      '@mogura/moguchart-plugin-export': path.resolve(import.meta.dirname, '../plugin-export/src/index.ts'),
     },
   },
   // Vercel環境（process.env.VERCEL）または BUILD_MODE が 'demo' の場合はアプリとしてビルド
@@ -31,8 +33,6 @@ export default defineConfig({
             /^lit\//,
             'lodash-es',
             'dayjs',
-            'html2canvas-pro',
-            'jspdf',
           ],
           output: {
             globals: {
@@ -42,8 +42,6 @@ export default defineConfig({
               'lit/directives/unsafe-html.js': 'Lit',
               'lodash-es': '_',
               dayjs: 'dayjs',
-              'html2canvas-pro': 'html2canvas',
-              jspdf: 'jsPDF',
             },
           },
         },

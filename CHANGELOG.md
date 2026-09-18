@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Read this in [日本語 (Japanese)](./CHANGELOG.ja.md).
 
+## [1.1.0] - 2026-09-18
+
+This release introduces a modular **Plugin Architecture** that significantly elevates the extensibility of Moguchart, extracting the PNG and PDF export features into a dedicated package: `@mogura/moguchart-plugin-export`.
+As a result, heavy third-party dependencies (`html2canvas-pro` and `jspdf`, ~600KB unminified) have been completely removed from the core library (`@mogura/moguchart-core`), making the core bundle ultra-lightweight (**~44KB gzipped**).
+
+### Added
+
+- **Unified Plugin Architecture (`GanttPlugin` API)**:
+  - Added `GanttPlugin` interface and `PluginManager`
+  - `GanttChartElement.use(plugin, config?)`: Public method to dynamically register and initialize plugins
+  - `GanttChartOption.plugins`: Option property allowing declarative registration of an array of plugins
+  - Plugin lifecycle hooks (`install`, `destroy`, `beforeTaskUpdate`, `afterTaskUpdate`, `afterRender`)
+  - Clear, user-friendly error guidance when calling plugin-dependent methods (such as `chart.exportImage`) without the plugin installed
+- **Dedicated Plugin Package `@mogura/moguchart-plugin-export`**:
+  - High-fidelity PNG and multi-page PDF export utility migrated into an independent workspace package
+  - `exportPlugin(config?)`: Plugin factory to register with the Gantt chart instance and enable `chart.exportImage()`
+  - `exportChart(chart, format, options)`: Standalone export function enabling on-demand, dynamic imports for code-splitting
+- **pnpm Workspaces Monorepo Setup**:
+  - `packages/core`: `@mogura/moguchart-core` (ultra-lightweight core)
+  - `packages/plugin-export`: `@mogura/moguchart-plugin-export` (export extension)
+
+### Changed
+
+- **Removed `html2canvas-pro` and `jspdf` from `@mogura/moguchart-core` dependencies**:
+  - Over 600KB of export dependencies are no longer imposed on users who only need the Gantt chart display and scheduling capabilities.
+- **Updated Demo Application**:
+  - Registered `@mogura/moguchart-plugin-export` in the demo page (`main.ts`) so that PNG and PDF export buttons continue to work seamlessly.
+
 ## [1.0.0] - 2026-09-13
 
 Official Major Release! 🎉

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > 英語版は [CHANGELOG.md](./CHANGELOG.md) をご覧ください。
 
+## [1.1.0] - 2026-09-18
+
+本バージョンでは、ライブラリの拡張性を飛躍的に高める **プラグインアーキテクチャ** を導入し、PNG / PDF エクスポート機能を独立パッケージ `@mogura/moguchart-plugin-export` としてプラグイン化・切り出しました。
+これにより、コアライブラリ（`@mogura/moguchart-core`）から重量級ライブラリ（`html2canvas-pro`, `jspdf`、計約600KB）が完全に排除され、**コア本体の超軽量化（gzip約44KB）** を達成しました。
+
+### Added
+
+- **統一プラグインアーキテクチャ（`GanttPlugin` API）の導入**:
+  - `GanttPlugin` 型定義および `PluginManager` を追加
+  - `GanttChartElement.use(plugin, config?)`: プラグインを動的に登録・初期化するメソッドを追加
+  - `GanttChartOption.plugins`: オプション経由で宣言的にプラグイン配列を渡して自動登録する機能を追加
+  - プラグインのライフサイクルフック（`install`, `destroy`, `beforeTaskUpdate`, `afterTaskUpdate`, `afterRender`）をサポート
+  - 未登録状態でプラグイン依存メソッド（`chart.exportImage` 等）が呼ばれた際、導入案内と登録方法を親切に伝えるエラーハンドリングを実装
+- **独立プラグインパッケージ `@mogura/moguchart-plugin-export` を新設**:
+  - PNG 画像および PDF への高解像度エクスポート（ヘッダー分割・スクロール位置保持対応）を独立パッケージへ移行
+  - `exportPlugin(config?)`: ガントチャートインスタンスに登録して `chart.exportImage()` を有効化するプラグインファクトリ
+  - `exportChart(chart, format, options)`: エクスポートボタン押下時など必要なタイミングでのみ遅延ロード（Dynamic Import）して直接呼び出せるスタンドアロン関数を提供
+- **pnpm workspaces によるモノレポ構成への移行**:
+  - `packages/core`: `@mogura/moguchart-core`（超軽量コア）
+  - `packages/plugin-export`: `@mogura/moguchart-plugin-export`（エクスポート拡張）
+
+### Changed
+
+- **`@mogura/moguchart-core` の dependencies から `html2canvas-pro` および `jspdf` を削除**:
+  - エクスポート機能を使わないユーザーにも同梱されていた約600KB超の重量級コードがコアから完全に分離され、初期読み込み・バンドルサイズが大幅に改善されました。
+- **デモ画面のエクスポート機能連携**:
+  - デモ画面（`main.ts`）で `@mogura/moguchart-plugin-export` を登録し、PNG / PDF エクスポートボタンが継続してシームレスに動作するよう対応
+
 ## [1.0.0] - 2026-09-13
 
 祝・正式リリース！🎉

@@ -1,85 +1,22 @@
 {
-  "name": "@mogura/moguchart-core",
+  "name": "moguchart-monorepo",
+  "private": true,
   "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@11.21.0",
-  "description": "軽量でフレームワーク非依存のWeb Components製ガントチャートコンポーネント (Lit)。A lightweight, framework-agnostic Gantt chart Web Component for Vue, React, Angular, and Svelte.",
-  "license": "MIT",
-  "author": "Murakami Hiroyuki",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hiro-murakami/moguchart-core.git"
-  },
-  "homepage": "https://github.com/hiro-murakami/moguchart-core",
-  "bugs": {
-    "url": "https://github.com/hiro-murakami/moguchart-core/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "keywords": [
-    "gantt",
-    "gantt-chart",
-    "ガントチャート",
-    "ガント",
-    "工程表",
-    "スケジュール",
-    "web-components",
-    "lit",
-    "vue-gantt",
-    "react-gantt",
-    "project-management",
-    "timeline",
-    "scheduler"
-  ],
-  "sideEffects": true,
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md",
-    "README.ja.md",
-    "CHANGELOG.md",
-    "CHANGELOG.ja.md"
-  ],
-  "main": "./dist/moguchart-core.umd.js",
-  "module": "./dist/moguchart-core.mjs",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/moguchart-core.mjs",
-      "require": "./dist/moguchart-core.umd.js"
-    }
-  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && pnpm exec tsc -p tsconfig.build.json",
-    "build:demo": "BUILD_MODE=demo vite build && pnpm exec tsc",
-    "preview": "vite preview",
-    "prepublishOnly": "pnpm run build",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage",
-    "refresh:packages": "rm -rf node_modules pnpm-lock.yaml && pnpm i"
+    "dev": "pnpm --filter @mogura/moguchart-core dev",
+    "build": "pnpm build:core && pnpm build:export",
+    "build:core": "pnpm --filter @mogura/moguchart-core build",
+    "build:export": "pnpm --filter @mogura/moguchart-plugin-export build",
+    "build:demo": "pnpm --filter @mogura/moguchart-core build:demo",
+    "preview": "pnpm --filter @mogura/moguchart-core preview",
+    "test": "pnpm -r run test",
+    "test:run": "pnpm -r run test:run",
+    "test:core": "pnpm --filter @mogura/moguchart-core test:run",
+    "test:export": "pnpm --filter @mogura/moguchart-plugin-export test:run"
   },
   "devDependencies": {
-    "@types/lodash-es": "^4.17.12",
-    "@types/node": "^24.12.0",
-    "jsdom": "^27.4.0",
-    "lit": "^3.3.2",
-    "prettier": "^3.7.4",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.0",
-    "vitest": "^4.0.16"
-  },
-  "peerDependencies": {
-    "lit": "^3.0.0"
-  },
-  "dependencies": {
-    "dayjs": "^1.11.19",
-    "html2canvas-pro": "^2.0.2",
-    "jspdf": "^4.2.1",
-    "lodash-es": "^4.17.21"
+    "prettier": "^3.7.4"
   }
 }

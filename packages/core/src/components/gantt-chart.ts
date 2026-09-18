@@ -32,7 +32,8 @@ import type { MinimapScrollEventDetail } from './gantt-minimap'
 import type { GanttRowElement } from './gantt-row'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
-import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './gantt-chart-export'
+import { PluginManager, type GanttPlugin } from '../core/plugin'
+import type { ExportImageOptions } from '../core/types'
 import { computeCriticalPath } from '../core/critical-path'
 import {
   computeRowLevels,
@@ -135,6 +136,7 @@ export class GanttChartElement extends LitElement {
     targetEndpoint: DependencyEndpoint | null
   } | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
+  private _pluginManager = new PluginManager(this)
   @state() private isExporting = false
   @state() private focusedTaskId: string | null = null
   @state() private focusedRowId: string | null = null
@@ -289,10 +291,17 @@ export class GanttChartElement extends LitElement {
       this.theme = this.option.theme
     }
     window.addEventListener('dragend', this._handleGlobalDragEnd)
+    // オプションに定義されたプラグインの自動登録
+    if (this.option?.plugins) {
+      for (const plugin of this.option.plugins) {
+        this.use(plugin)
+      }
+    }
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
+    this._pluginManager.destroy()
     window.removeEventListener('dragend', this._handleGlobalDragEnd)
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
@@ -420,6 +429,12 @@ export class GanttChartElement extends LitElement {
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
 
+    if (changedProperties.has('option') && this.option?.plugins) {
+      for (const plugin of this.option.plugins) {
+        this.use(plugin)
+      }
+    }
+
     if (this.tooltip) {
       const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
       if (tooltipEl) {
@@ -507,6 +522,8 @@ export class GanttChartElement extends LitElement {
         }
       }
     }
+
+    this._pluginManager.executeAfterRender()
   }
 
   /**
@@ -2073,29 +2090,40 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
-   * html2canvas を使用してガントチャートを画像としてエクスポートする。
-   * (Shadow DOMネイティブ対応版 html2canvas-pro を使用)
-   *
-   * @param options エクスポートオプション。
+   * プラグインを登録してインストールする。
+   * @param plugin 登録するプラグイン
+   * @param config プラグインの設定オプション（任意）
    */
-  public async exportImage(format: 'png' | 'pdf' = 'png', options: ExportImageOptions = {}): Promise<string | Blob> {
-    const scrollContainer = this._scrollContainer || (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
-    const prevScrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0
-    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0
+  public use<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig): this {
+    this._pluginManager.use(plugin, config)
+    return this
+  }
 
-    this.isExporting = true
-    await this.updateComplete
-    await new Promise(r => requestAnimationFrame(r))
-    try {
-      return await exportGanttWithHtml2Canvas(this, format, options)
-    } finally {
-      this.isExporting = false
-      await this.updateComplete
-      if (scrollContainer) {
-        scrollContainer.scrollLeft = prevScrollLeft
-        scrollContainer.scrollTop = prevScrollTop
-      }
-    }
+  /**
+   * 内部のプラグインマネージャーを取得する。
+   */
+  public get pluginManager(): PluginManager {
+    return this._pluginManager
+  }
+
+  /**
+   * ガントチャートを画像またはPDFとしてエクスポートする。
+   * ※ エクスポート機能を使用するには、`@mogura/moguchart-plugin-export` プラグインの登録が必要です。
+   * 例:
+   *   import { exportPlugin } from '@mogura/moguchart-plugin-export'
+   *   chart.use(exportPlugin())
+   *
+   * @param format 'png' または 'pdf'
+   * @param options エクスポートオプション
+   */
+  public async exportImage(
+    _format: 'png' | 'pdf' = 'png',
+    _options: ExportImageOptions = {}
+  ): Promise<string | Blob> {
+    throw new Error(
+      '[Moguchart] chart.exportImage() requires "@mogura/moguchart-plugin-export". ' +
+        'Please install "@mogura/moguchart-plugin-export" and register it: chart.use(exportPlugin())',
+    )
   }
 
   // --- ズーム操作 ---
