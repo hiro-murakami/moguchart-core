@@ -6,7 +6,6 @@ import {
   onBeforeUnmount,
   h,
   type PropType,
-  type ComponentPublicInstance,
 } from 'vue'
 import {
   GanttChartElement,
@@ -210,6 +209,20 @@ export const GanttChart = defineComponent({
       get element(): GanttChartElement | null {
         return elRef.value
       },
+      get updateComplete(): Promise<boolean> | undefined {
+        return elRef.value?.updateComplete
+      },
+      get shadowRoot(): ShadowRoot | null | undefined {
+        return elRef.value?.shadowRoot
+      },
+      get externalDraggingTask(): GanttTask | null {
+        return elRef.value?.externalDraggingTask ?? null
+      },
+      set externalDraggingTask(val: GanttTask | null) {
+        if (elRef.value) {
+          elRef.value.externalDraggingTask = val
+        }
+      },
       use: (...args: Parameters<GanttChartElement['use']>) => elRef.value?.use(...args),
       exportImage: (...args: Parameters<GanttChartElement['exportImage']>) => elRef.value?.exportImage(...args),
       zoomTo: (...args: Parameters<GanttChartElement['zoomTo']>) => elRef.value?.zoomTo(...args),
@@ -232,10 +245,16 @@ export const GanttChart = defineComponent({
 })
 
 export type GanttChartComponent = typeof GanttChart
-export type GanttChartInstance = ComponentPublicInstance<
-  InstanceType<typeof GanttChart>
-> & {
-  element: GanttChartElement | null
+
+export interface GanttChartPublicApi {
+  /** 基底の Web Component (GanttChartElement) への参照 */
+  readonly element: GanttChartElement | null
+  /** Lit コンポーネントのレンダリング完了 Promise */
+  readonly updateComplete: Promise<boolean> | undefined
+  /** Shadow DOM ルートへの参照 */
+  readonly shadowRoot: ShadowRoot | null | undefined
+  /** 外部ドラッグ中のタスク */
+  externalDraggingTask: GanttTask | null
   use: GanttChartElement['use']
   exportImage: GanttChartElement['exportImage']
   zoomTo: GanttChartElement['zoomTo']
@@ -249,4 +268,9 @@ export type GanttChartInstance = ComponentPublicInstance<
   expandAll: GanttChartElement['expandAll']
   hitTest: GanttChartElement['hitTest']
   getRowPositions: GanttChartElement['getRowPositions']
+  /** コンポーネントのルートDOM要素 */
+  $el?: HTMLElement
 }
+
+export type GanttChartInstance = GanttChartPublicApi
+
