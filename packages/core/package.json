@@ -60,8 +60,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage",
-    "refresh:packages": "rm -rf node_modules pnpm-lock.yaml && pnpm i"
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@mogura/moguchart-plugin-export": "workspace:*",

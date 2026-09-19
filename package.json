@@ -18,7 +18,8 @@
     "test:core": "pnpm --filter @mogura/moguchart-core test:run",
     "test:export": "pnpm --filter @mogura/moguchart-plugin-export test:run",
     "test:react": "pnpm --filter @mogura/moguchart-react test:run",
-    "test:vue": "pnpm --filter @mogura/moguchart-vue test:run"
+    "test:vue": "pnpm --filter @mogura/moguchart-vue test:run",
+    "refresh:packages": "rm -rf node_modules pnpm-lock.yaml packages/*/node_modules && pnpm i"
   },
   "devDependencies": {
     "prettier": "^3.7.4"
