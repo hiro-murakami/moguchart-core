@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > 英語版は [CHANGELOG.md](./CHANGELOG.md) をご覧ください。
 
-## [1.1.0] - 2026-09-18
+## [1.1.0] - 2026-09-19
 
 本バージョンでは、ライブラリの拡張性を飛躍的に高める **プラグインアーキテクチャ** を導入し、PNG / PDF エクスポート機能を独立パッケージ `@mogura/moguchart-plugin-export` としてプラグイン化・切り出しました。
 これにより、コアライブラリ（`@mogura/moguchart-core`）から重量級ライブラリ（`html2canvas-pro`, `jspdf`、計約600KB）が完全に排除され、**コア本体の超軽量化（gzip約44KB）** を達成しました。

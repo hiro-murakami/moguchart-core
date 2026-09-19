@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Read this in [日本語 (Japanese)](./CHANGELOG.ja.md).
 
-## [1.1.0] - 2026-09-18
+## [1.1.0] - 2026-09-19
 
 This release introduces a modular **Plugin Architecture** that significantly elevates the extensibility of Moguchart, extracting the PNG and PDF export features into a dedicated package: `@mogura/moguchart-plugin-export`.
 As a result, heavy third-party dependencies (`html2canvas-pro` and `jspdf`, ~600KB unminified) have been completely removed from the core library (`@mogura/moguchart-core`), making the core bundle ultra-lightweight (**~44KB gzipped**).
