@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > 英語版は [CHANGELOG.md](./CHANGELOG.md) をご覧ください。
 
+## [1.1.1] - 2026-09-19
+
+### Fixed
+
+- **パッケージドキュメント同梱の修正**:
+  - `@mogura/moguchart-core` パッケージ配布物（npmパッケージ）に `README.md`、`README.ja.md`、`LICENSE`、`CHANGELOG.md`、`CHANGELOG.ja.md` を直接同梱し、npm および GitHub 上でドキュメントが正しく表示されるよう修正
+  - 各ラッパー・プラグインパッケージ（`@mogura/moguchart-plugin-export`, `@mogura/moguchart-react`, `@mogura/moguchart-vue`）に `LICENSE` ファイルを同梱
+  - `packages/core/package.json` に `repository.directory` 設定を追加し、npm から GitHub へのリンク解決を適正化
+  - ルートのビルドパイプラインにドキュメント自動同期（`sync:docs`）スクリプトを導入
+
 ## [1.1.0] - 2026-09-19
 
 本バージョンでは、ライブラリの拡張性を飛躍的に高める **プラグインアーキテクチャ** を導入し、PNG / PDF エクスポート機能を独立パッケージ `@mogura/moguchart-plugin-export` としてプラグイン化・切り出しました。

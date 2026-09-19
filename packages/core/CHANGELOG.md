@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Read this in [日本語 (Japanese)](./CHANGELOG.ja.md).
 
+## [1.1.1] - 2026-09-19
+
+### Fixed
+
+- **Package Documentation Bundle**:
+  - Bundled `README.md`, `README.ja.md`, `LICENSE`, `CHANGELOG.md`, and `CHANGELOG.ja.md` directly into the `@mogura/moguchart-core` package distribution so that documentation is correctly rendered on npm and GitHub.
+  - Added `LICENSE` files to all wrapper and plugin packages (`@mogura/moguchart-plugin-export`, `@mogura/moguchart-react`, `@mogura/moguchart-vue`).
+  - Added repository `directory` configuration to `packages/core/package.json` for proper npm GitHub link resolution.
+  - Added automated `sync:docs` script into the root build pipeline to keep all package documentation synchronized.
+
 ## [1.1.0] - 2026-09-19
 
 This release introduces a modular **Plugin Architecture** that significantly elevates the extensibility of Moguchart, extracting the PNG and PDF export features into a dedicated package: `@mogura/moguchart-plugin-export`.
