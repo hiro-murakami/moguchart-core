@@ -1,6 +1,5 @@
 import { html, render } from 'lit'
 import { GanttChartElement } from '../components/gantt-chart'
-import { exportPlugin } from '@mogura/moguchart-plugin-export'
 import { isHoliday } from './holidays'
 import type {
   GanttChartOption,
@@ -123,8 +122,38 @@ let enableProgress = true
 let editableProgress = true
 let showProgressLabel = true
 let enableMarquee = true
+let isExporting = false
+let exportingFormat: 'png' | 'pdf' | null = null
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
+
+const handleExport = async (format: 'png' | 'pdf') => {
+  if (isExporting) return
+  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+  if (!chart) return
+
+  isExporting = true
+  exportingFormat = format
+  renderApp()
+
+  try {
+    if (!chart.pluginManager.hasPlugin('export')) {
+      const { exportPlugin } = await import('@mogura/moguchart-plugin-export')
+      chart.use(exportPlugin())
+    }
+    await chart.exportImage(format, {
+      download: true,
+      filename: 'gantt-html2canvas',
+      splitHeight: 1000,
+    })
+  } catch (err) {
+    console.error('[Demo] Export failed:', err)
+  } finally {
+    isExporting = false
+    exportingFormat = null
+    renderApp()
+  }
+}
 
 const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   viewMode = mode
@@ -374,7 +403,6 @@ const renderApp = () => {
     zoom: {
       enabled: true,
     },
-    plugins: [exportPlugin()],
   }
 
   const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -586,6 +614,7 @@ const renderApp = () => {
         transition: opacity 0.15s, box-shadow 0.15s;
       }
       .export-btn:hover { opacity: 0.9; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+      .export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
     <div style="padding: 24px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; ${appStyles}">
       <!-- ヘッダー -->
@@ -596,26 +625,18 @@ const renderApp = () => {
             <button
               class="export-btn"
               style="background: ${c.exportAmber};"
-              @click="${async () => {
-                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
-                if (chart) {
-                  await chart.exportImage('png', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
-                }
-              }}"
+              ?disabled="${isExporting}"
+              @click="${() => handleExport('png')}"
             >
-              📸 PNG
+              ${isExporting && exportingFormat === 'png' ? '⏳ PNG...' : '📸 PNG'}
             </button>
             <button
               class="export-btn"
               style="background: ${c.exportRed};"
-              @click="${async () => {
-                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
-                if (chart) {
-                  await chart.exportImage('pdf', { download: true, filename: 'gantt-html2canvas', splitHeight: 1000 })
-                }
-              }}"
+              ?disabled="${isExporting}"
+              @click="${() => handleExport('pdf')}"
             >
-              📄 PDF
+              ${isExporting && exportingFormat === 'pdf' ? '⏳ PDF...' : '📄 PDF'}
             </button>
             <button
               class="export-btn"
