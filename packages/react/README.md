@@ -4,6 +4,8 @@ Official React wrapper component for [`@mogura/moguchart-core`](https://github.c
 
 Built on top of Lit's official `@lit/react`, it combines the high performance and framework independence of Web Components with a type-safe, idiomatic React developer experience.
 
+[日本語版ドキュメントはこちら (Japanese documentation)](./README.ja.md)
+
 ---
 
 ## Features
