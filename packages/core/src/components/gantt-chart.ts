@@ -19,8 +19,12 @@ import type {
   RowToggleCollapseEventDetail,
   TaskDeleteEventDetail,
   TaskUpdateEventDetail,
+  TaskProgressChangeEventDetail,
   ZoomChangeEventDetail,
+  CommandEventDetail,
+  HistoryChangeEventDetail,
 } from '../core/types'
+import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
 import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '../core/utils'
 import { LitElement, html, render, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
@@ -141,6 +145,17 @@ export class GanttChartElement extends LitElement {
   } | null = null
   private _systemThemeMediaQuery: MediaQueryList | null = null
   private _pluginManager = new PluginManager(this)
+  private _historyManager = new HistoryManager({
+    onChange: (state) => {
+      this.dispatchEvent(
+        new CustomEvent<HistoryChangeEventDetail>('history-change', {
+          detail: state,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    },
+  })
   @state() private isExporting = false
   @state() private focusedTaskId: string | null = null
   @state() private focusedRowId: string | null = null
@@ -288,6 +303,7 @@ export class GanttChartElement extends LitElement {
     this.setAttribute('role', 'grid')
     this.setAttribute('aria-label', 'Gantt Chart')
     this.addEventListener('keydown', this.handleKeyDown)
+    this.addEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
       this.theme = this._systemThemeMediaQuery?.matches ? 'dark' : 'light'
@@ -300,6 +316,15 @@ export class GanttChartElement extends LitElement {
       for (const plugin of this.option.plugins) {
         this.use(plugin)
       }
+    }
+    // オプションに定義された履歴設定の反映
+    if (this.option?.history) {
+      this._historyManager.updateOptions({
+        enabled: this.option.history.enabled,
+        maxDepth: this.option.history.maxDepth,
+        onUndo: this.option.history.onUndo,
+        onRedo: this.option.history.onRedo,
+      })
     }
   }
 
@@ -315,6 +340,7 @@ export class GanttChartElement extends LitElement {
     window.removeEventListener('pointercancel', this.handleMarqueePointerUp)
     this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
     this.removeEventListener('keydown', this.handleKeyDown)
+    this.removeEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer = null
   }
@@ -354,6 +380,14 @@ export class GanttChartElement extends LitElement {
         this.style.setProperty('--moguchart-font-scale', String(this.option.fontScale))
       } else {
         this.style.removeProperty('--moguchart-font-scale')
+      }
+      if (this.option?.history) {
+        this._historyManager.updateOptions({
+          enabled: this.option.history.enabled,
+          maxDepth: this.option.history.maxDepth,
+          onUndo: this.option.history.onUndo,
+          onRedo: this.option.history.onRedo,
+        })
       }
     }
     if (
@@ -1091,6 +1125,8 @@ export class GanttChartElement extends LitElement {
       targetRowIndexInRows = this.rows.findIndex((r) => r.id === targetRow.id)
     }
 
+    const previousRows = this.rows
+
     // 複数バー移動のドロップ処理
     if (droppedMulti && dx !== undefined) {
       const pxPerDay = this.effectivePxPerDay
@@ -1139,14 +1175,10 @@ export class GanttChartElement extends LitElement {
         newRows[targetRowIndexInRows] = targetRow
 
         requestAnimationFrame(() => {
-          this.rows = newRows
-          this.dispatchEvent(
-            new CustomEvent('rows-change', {
-              detail: this.rows,
-              bubbles: true,
-              composed: true,
-            }),
-          )
+          this.applyRowsChangeWithCommand(previousRows, newRows, {
+            type: 'task-move',
+            description: '複数タスクの移動',
+          })
         })
       } else {
         // 同じ行内での水平移動のみ
@@ -1189,14 +1221,10 @@ export class GanttChartElement extends LitElement {
 
         // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
         requestAnimationFrame(() => {
-          this.rows = newRows
-          this.dispatchEvent(
-            new CustomEvent('rows-change', {
-              detail: this.rows,
-              bubbles: true,
-              composed: true,
-            }),
-          )
+          this.applyRowsChangeWithCommand(previousRows, newRows, {
+            type: 'task-move',
+            description: '複数タスクの移動',
+          })
         })
       }
       return
@@ -1223,14 +1251,10 @@ export class GanttChartElement extends LitElement {
         newRows[targetRowIndexInRows] = targetRow
 
         requestAnimationFrame(() => {
-          this.rows = newRows
-          this.dispatchEvent(
-            new CustomEvent('rows-change', {
-              detail: this.rows,
-              bubbles: true,
-              composed: true,
-            }),
-          )
+          this.applyRowsChangeWithCommand(previousRows, newRows, {
+            type: 'custom',
+            description: 'タスクの複製',
+          })
         })
       }
     } else {
@@ -1254,17 +1278,34 @@ export class GanttChartElement extends LitElement {
         }
       }
 
+      const isResize = dx === undefined
       requestAnimationFrame(() => {
-        this.rows = newRows
-        this.dispatchEvent(
-          new CustomEvent('rows-change', {
-            detail: this.rows,
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        this.applyRowsChangeWithCommand(previousRows, newRows, {
+          type: isResize ? 'task-resize' : 'task-move',
+          description: isResize ? 'タスク期間の変更' : 'タスクの移動',
+        })
       })
     }
+  }
+
+  private handleTaskProgressChange = (e: CustomEvent<TaskProgressChangeEventDetail>) => {
+    if (this.option.readOnly || e.detail.cancelled) return
+    const { task, progress, originalProgress } = e.detail
+    if (originalProgress === undefined || originalProgress === progress) return
+
+    const previousRows = this.rows
+    const newRows = this.rows.map((row) => {
+      const taskIndex = row.tasks.findIndex((t) => t.id === task.id)
+      if (taskIndex === -1) return row
+      const updatedTasks = [...row.tasks]
+      updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], progress }
+      return { ...row, tasks: updatedTasks }
+    })
+
+    this.applyRowsChangeWithCommand(previousRows, newRows, {
+      type: 'task-progress',
+      description: `進捗率の変更 (${progress}%)`,
+    })
   }
 
   private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {
@@ -1296,6 +1337,7 @@ export class GanttChartElement extends LitElement {
   }
 
   private async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom') {
+    const previousRows = this.rows
     const initialIds = Array.isArray(sourceIds) ? sourceIds : [sourceIds]
 
     // 循環参照・階層ルールガード: 移動対象自身または自身の子孫へのドロップ、親ブロック外移動は禁止
@@ -1402,7 +1444,10 @@ export class GanttChartElement extends LitElement {
 
     filteredRows.splice(newTargetIndex, 0, ...updatedMovingRows)
 
-    this.rows = filteredRows
+    this.applyRowsChangeWithCommand(previousRows, filteredRows, {
+      type: 'row-reorder',
+      description: '行の並び替え',
+    })
 
     await this.updateComplete
 
@@ -1439,14 +1484,6 @@ export class GanttChartElement extends LitElement {
           position,
           rows: this.rows,
         },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    this.dispatchEvent(
-      new CustomEvent('rows-change', {
-        detail: this.rows,
         bubbles: true,
         composed: true,
       }),
@@ -2108,6 +2145,116 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
+   * 履歴マネージャーのインスタンスを取得する
+   */
+  public get historyManager(): HistoryManager {
+    return this._historyManager
+  }
+
+  /**
+   * Undo可能かどうか
+   */
+  public get canUndo(): boolean {
+    return this._historyManager.canUndo
+  }
+
+  /**
+   * Redo可能かどうか
+   */
+  public get canRedo(): boolean {
+    return this._historyManager.canRedo
+  }
+
+  /**
+   * 直前の操作を元に戻す (Undo)
+   */
+  public async undo(): Promise<boolean> {
+    return this._historyManager.undo()
+  }
+
+  /**
+   * 直前にUndoした操作をやり直す (Redo)
+   */
+  public async redo(): Promise<boolean> {
+    return this._historyManager.redo()
+  }
+
+  /**
+   * 操作履歴をすべてクリアする
+   */
+  public clearHistory(): void {
+    this._historyManager.clear()
+  }
+
+  /**
+   * 外部または内部からコマンドを履歴に登録して command イベントを発行する
+   */
+  public recordCommand(command: GanttCommand): void {
+    if (this.option?.history?.enabled === false) return
+    this._historyManager.execute(command)
+    this.dispatchEvent(
+      new CustomEvent<CommandEventDetail>('command', {
+        detail: { command },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * rowsの更新と同時にUndo/Redoコマンドを生成・登録する内部共通ヘルパー
+   */
+  private applyRowsChangeWithCommand(
+    previousRows: GanttRow[],
+    nextRows: GanttRow[],
+    commandInfo: {
+      type: GanttCommandType
+      description: string
+    },
+  ): void {
+    this.rows = nextRows
+    this.dispatchEvent(
+      new CustomEvent('rows-change', {
+        detail: this.rows,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    const command: GanttCommand = {
+      id: `cmd-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: commandInfo.type,
+      description: commandInfo.description,
+      timestamp: Date.now(),
+      before: previousRows,
+      after: nextRows,
+      undo: () => {
+        this.clearDependencySelection()
+        this.rows = previousRows
+        this.dispatchEvent(
+          new CustomEvent('rows-change', {
+            detail: this.rows,
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+      redo: () => {
+        this.clearDependencySelection()
+        this.rows = nextRows
+        this.dispatchEvent(
+          new CustomEvent('rows-change', {
+            detail: this.rows,
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      },
+    }
+    this.recordCommand(command)
+  }
+
+  /**
    * 内部のプラグインマネージャーを取得する。
    */
   public get pluginManager(): PluginManager {
@@ -2350,6 +2497,36 @@ export class GanttChartElement extends LitElement {
   public triggerDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event) {
     if (this.option.readOnly || this.option.dependency?.deletable === false) return
 
+    let sourceTask: GanttTask | undefined
+    let targetTask: GanttTask | undefined
+    for (const row of this.rows) {
+      for (const t of row.tasks) {
+        if (t.id === sourceTaskId) sourceTask = t
+        if (t.id === targetTaskId) targetTask = t
+      }
+    }
+
+    if (targetTask && targetTask.dependencies?.includes(sourceTaskId)) {
+      const previousRows = this.rows
+      const newRows = previousRows.map((row) => ({
+        ...row,
+        tasks: row.tasks.map((t) => {
+          if (t.id === targetTaskId && t.dependencies) {
+            return {
+              ...t,
+              dependencies: t.dependencies.filter((id) => id !== sourceTaskId),
+            }
+          }
+          return t
+        }),
+      }))
+
+      this.applyRowsChangeWithCommand(previousRows, newRows, {
+        type: 'dependency-delete',
+        description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を削除`,
+      })
+    }
+
     this.dispatchEvent(
       new CustomEvent<DependencyDeleteEventDetail>('dependency-delete', {
         detail: {
@@ -2415,6 +2592,30 @@ export class GanttChartElement extends LitElement {
     const composedPath = e.composedPath()
     const target = composedPath[0] as HTMLElement
     if (target !== this && target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+
+    // Undo / Redo キーボードショートカット
+    if (this.option?.history?.keyboard !== false && this.option?.history?.enabled !== false) {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          if (!this.option.readOnly) {
+            this.redo()
+          }
+        } else {
+          if (!this.option.readOnly) {
+            this.undo()
+          }
+        }
+        e.preventDefault()
+        return
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'y') {
+        if (!this.option.readOnly) {
+          this.redo()
+        }
+        e.preventDefault()
+        return
+      }
+    }
 
     switch (e.key) {
       case 'ArrowRight':
@@ -2889,11 +3090,42 @@ export class GanttChartElement extends LitElement {
       this._setConnectorDropTarget(targetTaskId, false)
     }
 
-    if (!cancelled && targetTaskId && targetEndpoint) {
+    if (!cancelled && targetTaskId && targetEndpoint && sourceTaskId !== targetTaskId) {
       const { taskCoords } = this.calculateLayout()
       const sourceCoord = taskCoords.get(sourceTaskId)
       const targetCoord = taskCoords.get(targetTaskId)
       if (!sourceCoord?.isSummary && !targetCoord?.isSummary) {
+        let sourceTask: GanttTask | undefined
+        let targetTask: GanttTask | undefined
+        for (const row of this.rows) {
+          for (const t of row.tasks) {
+            if (t.id === sourceTaskId) sourceTask = t
+            if (t.id === targetTaskId) targetTask = t
+          }
+        }
+
+        const currentDeps = targetTask?.dependencies ?? []
+        if (targetTask && !currentDeps.includes(sourceTaskId)) {
+          const previousRows = this.rows
+          const newRows = previousRows.map((row) => ({
+            ...row,
+            tasks: row.tasks.map((t) => {
+              if (t.id === targetTaskId) {
+                return {
+                  ...t,
+                  dependencies: [...(t.dependencies ?? []), sourceTaskId],
+                }
+              }
+              return t
+            }),
+          }))
+
+          this.applyRowsChangeWithCommand(previousRows, newRows, {
+            type: 'dependency-create',
+            description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を追加`,
+          })
+        }
+
         // 依存関係作成イベントを発火
         this.dispatchEvent(
           new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
@@ -3601,6 +3833,7 @@ export class GanttChartElement extends LitElement {
                 .isExporting="${this.isExporting}"
                 .criticalPathTaskIds="${showCriticalPath ? [...criticalPathTaskIds] : []}"
                 @task-update="${this.handleTaskUpdate}"
+                @task-progress-change="${this.handleTaskProgressChange}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
                 @row-toggle-collapse="${this.handleRowToggleCollapse}"

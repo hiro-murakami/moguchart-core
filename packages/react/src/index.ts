@@ -28,6 +28,8 @@ import {
   type TaskDeleteEventDetail,
   type ZoomChangeEventDetail,
   type TaskProgressChangeEventDetail,
+  type CommandEventDetail,
+  type HistoryChangeEventDetail,
 } from '@mogura/moguchart-core'
 
 /**
@@ -66,6 +68,8 @@ export const GanttChart = createComponent({
     onTaskDelete: 'task-delete' as EventName<CustomEvent<TaskDeleteEventDetail>>,
     onZoomChange: 'zoom-change' as EventName<CustomEvent<ZoomChangeEventDetail>>,
     onTaskProgressChange: 'task-progress-change' as EventName<CustomEvent<TaskProgressChangeEventDetail>>,
+    onCommand: 'command' as EventName<CustomEvent<CommandEventDetail>>,
+    onHistoryChange: 'history-change' as EventName<CustomEvent<HistoryChangeEventDetail>>,
   },
 })
 

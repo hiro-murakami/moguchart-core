@@ -1,5 +1,6 @@
 import type { MoguchartLocale } from './i18n'
 import type { GanttPlugin } from './plugin'
+import type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager } from './history'
 
 /**
  * ガントチャートのバーに適用できるパターンの種類
@@ -460,6 +461,24 @@ export interface GanttChartOption {
   tree?: GanttChartOptionTree
   /** 拡張プラグインの配列 */
   plugins?: GanttPlugin[]
+  /** 操作履歴・Undo/Redoの設定 */
+  history?: GanttChartOptionHistory
+}
+
+/**
+ * 操作履歴・Undo/Redoに関するオプション
+ */
+export interface GanttChartOptionHistory {
+  /** 履歴管理を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 保持する最大履歴数 (デフォルト: 50) */
+  maxDepth?: number
+  /** キーボードショートカット (Cmd+Z, Ctrl+Z, Cmd+Shift+Z, Ctrl+Y) を有効にするかどうか (デフォルト: true) */
+  keyboard?: boolean
+  /** Undo実行直前のフック。falseを返すとUndoをキャンセルできる */
+  onUndo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
+  /** Redo実行直前のフック。falseを返すとRedoをキャンセルできる */
+  onRedo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
 }
 
 /**
@@ -987,4 +1006,19 @@ export interface ExportImageOptions {
   /** 画像を指定したピクセル数で縦に分割し、分割位置にカレンダー（ヘッダー）を挿入する。未指定時は分割しない */
   splitHeight?: number
 }
+
+/**
+ * コマンド（編集操作）発生イベントの詳細データ
+ */
+export interface CommandEventDetail {
+  /** 実行されたコマンド */
+  command: GanttCommand
+}
+
+/**
+ * 履歴状態変更イベントの詳細データ
+ */
+export interface HistoryChangeEventDetail extends HistoryState {}
+
+export type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager }
 

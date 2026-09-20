@@ -8,6 +8,7 @@ export * from './core/types'
 export * from './core/patterns'
 export * from './core/i18n'
 export * from './core/plugin'
+export * from './core/history'
 export {
   clampProgress,
   calculateRowProgress,

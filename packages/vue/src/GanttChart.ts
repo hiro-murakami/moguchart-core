@@ -38,6 +38,9 @@ import {
   type TaskDeleteEventDetail,
   type ZoomChangeEventDetail,
   type TaskProgressChangeEventDetail,
+  type CommandEventDetail,
+  type HistoryChangeEventDetail,
+  type IHistoryManager,
 } from '@mogura/moguchart-core'
 
 export const ganttChartProps = {
@@ -106,6 +109,8 @@ export const ganttChartEmits = {
   'task-delete': (_detail: TaskDeleteEventDetail, _e: CustomEvent<TaskDeleteEventDetail>) => true,
   'zoom-change': (_detail: ZoomChangeEventDetail, _e: CustomEvent<ZoomChangeEventDetail>) => true,
   'task-progress-change': (_detail: TaskProgressChangeEventDetail, _e: CustomEvent<TaskProgressChangeEventDetail>) => true,
+  'command': (_detail: CommandEventDetail, _e: CustomEvent<CommandEventDetail>) => true,
+  'history-change': (_detail: HistoryChangeEventDetail, _e: CustomEvent<HistoryChangeEventDetail>) => true,
 }
 
 /**
@@ -242,6 +247,19 @@ export const GanttChart = defineComponent({
           elRef.value.externalDraggingTask = val
         }
       },
+      get historyManager(): IHistoryManager | undefined {
+        return elRef.value?.historyManager
+      },
+      get canUndo(): boolean {
+        return elRef.value?.canUndo ?? false
+      },
+      get canRedo(): boolean {
+        return elRef.value?.canRedo ?? false
+      },
+      undo: (...args: Parameters<GanttChartElement['undo']>) => elRef.value?.undo(...args),
+      redo: (...args: Parameters<GanttChartElement['redo']>) => elRef.value?.redo(...args),
+      clearHistory: (...args: Parameters<GanttChartElement['clearHistory']>) => elRef.value?.clearHistory(...args),
+      recordCommand: (...args: Parameters<GanttChartElement['recordCommand']>) => elRef.value?.recordCommand(...args),
       use: (...args: Parameters<GanttChartElement['use']>) => elRef.value?.use(...args),
       exportImage: (...args: Parameters<GanttChartElement['exportImage']>) => elRef.value?.exportImage(...args),
       zoomTo: (...args: Parameters<GanttChartElement['zoomTo']>) => elRef.value?.zoomTo(...args),
@@ -255,6 +273,7 @@ export const GanttChart = defineComponent({
       expandAll: (...args: Parameters<GanttChartElement['expandAll']>) => elRef.value?.expandAll(...args),
       hitTest: (...args: Parameters<GanttChartElement['hitTest']>) => elRef.value?.hitTest(...args),
       getRowPositions: (...args: Parameters<GanttChartElement['getRowPositions']>) => elRef.value?.getRowPositions(...args),
+      triggerDependencyDelete: (...args: Parameters<GanttChartElement['triggerDependencyDelete']>) => elRef.value?.triggerDependencyDelete(...args),
     }
 
     expose(publicMethods)
@@ -274,6 +293,13 @@ export interface GanttChartPublicApi {
   readonly shadowRoot: ShadowRoot | null | undefined
   /** 外部ドラッグ中のタスク */
   externalDraggingTask: GanttTask | null
+  readonly historyManager: IHistoryManager | undefined
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  undo: GanttChartElement['undo']
+  redo: GanttChartElement['redo']
+  clearHistory: GanttChartElement['clearHistory']
+  recordCommand: GanttChartElement['recordCommand']
   use: GanttChartElement['use']
   exportImage: GanttChartElement['exportImage']
   zoomTo: GanttChartElement['zoomTo']
@@ -287,6 +313,7 @@ export interface GanttChartPublicApi {
   expandAll: GanttChartElement['expandAll']
   hitTest: GanttChartElement['hitTest']
   getRowPositions: GanttChartElement['getRowPositions']
+  triggerDependencyDelete: GanttChartElement['triggerDependencyDelete']
   /** コンポーネントのルートDOM要素 */
   $el?: HTMLElement
 }
