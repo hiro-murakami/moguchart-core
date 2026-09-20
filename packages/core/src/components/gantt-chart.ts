@@ -5,8 +5,10 @@ import type {
   BarSelectionChangeEventDetail,
   DependencyClickEventDetail,
   DependencyCreateEventDetail,
+  DependencyDeleteEventDetail,
   DependencyEndpoint,
   DependencyLineStyle,
+  DependencySelectEventDetail,
   GanttChartOption,
   GanttRow,
   GanttTask,
@@ -56,6 +58,8 @@ export class GanttChartElement extends LitElement {
   selectedRowIds: string[] = []
   @property({ type: Array })
   selectedTaskIds: string[] = []
+  @property({ attribute: false })
+  selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
@@ -1723,6 +1727,10 @@ export class GanttChartElement extends LitElement {
     const { rowId, event } = e.detail
     const { shiftKey, ctrlKey, metaKey } = event
 
+    if (this.selectedDependency) {
+      this.clearDependencySelection()
+    }
+
     const newSelectedRows = new Set(this.selectedRows)
 
     if (shiftKey && this.lastClickedRowId) {
@@ -1787,7 +1795,7 @@ export class GanttChartElement extends LitElement {
     // タスクバー、各種ハンドル、コネクタ、マーカー、マイルストーン、ヘッダーリサイザー上での操作は除外
     if (
       target.closest(
-        '.bar, .task-group, .handle-left, .handle-right, .handle-progress, .connector-left, .connector-right, .marker-wrapper, .milestone-line, .header-resizer, .dependency-hit-area',
+        '.bar, .task-group, .handle-left, .handle-right, .handle-progress, .connector-left, .connector-right, .marker-wrapper, .milestone-line, .header-resizer, .dependency-hit-area, .dependency-delete-btn',
       )
     ) {
       return
@@ -2295,8 +2303,76 @@ export class GanttChartElement extends LitElement {
     }
   }
 
+  /**
+   * 依存関係線の選択状態を解除する
+   */
+  public clearDependencySelection() {
+    if (!this.selectedDependency) return
+    this.selectedDependency = null
+    this.dispatchEvent(
+      new CustomEvent<DependencySelectEventDetail>('dependency-select', {
+        detail: {
+          selected: null,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 依存関係線を選択状態にする
+   */
+  public selectDependency(sourceTaskId: string, targetTaskId: string) {
+    if (
+      this.selectedDependency &&
+      this.selectedDependency.sourceTaskId === sourceTaskId &&
+      this.selectedDependency.targetTaskId === targetTaskId
+    ) {
+      return
+    }
+
+    this.selectedDependency = { sourceTaskId, targetTaskId }
+    this.dispatchEvent(
+      new CustomEvent<DependencySelectEventDetail>('dependency-select', {
+        detail: {
+          selected: { sourceTaskId, targetTaskId },
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 依存関係の削除リクエストイベントを発火する
+   */
+  public triggerDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event) {
+    if (this.option.readOnly || this.option.dependency?.deletable === false) return
+
+    this.dispatchEvent(
+      new CustomEvent<DependencyDeleteEventDetail>('dependency-delete', {
+        detail: {
+          sourceTaskId,
+          targetTaskId,
+          originalEvent,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    if (
+      this.selectedDependency &&
+      this.selectedDependency.sourceTaskId === sourceTaskId &&
+      this.selectedDependency.targetTaskId === targetTaskId
+    ) {
+      this.clearDependencySelection()
+    }
+  }
+
   private clearSelection() {
-    if (this.selectedRows.size === 0 && this.selectedTasks.size === 0) return
+    if (this.selectedRows.size === 0 && this.selectedTasks.size === 0 && !this.selectedDependency) return
 
     if (this.selectedRows.size > 0) {
       this.selectedRows = new Set()
@@ -2322,6 +2398,10 @@ export class GanttChartElement extends LitElement {
           composed: true,
         }),
       )
+    }
+
+    if (this.selectedDependency) {
+      this.clearDependencySelection()
     }
   }
 
@@ -2385,17 +2465,28 @@ export class GanttChartElement extends LitElement {
 
       case 'Delete':
       case 'Backspace':
-        if (!this.option.readOnly && this.selectedTasks.size > 0) {
-          this.dispatchEvent(
-            new CustomEvent<TaskDeleteEventDetail>('task-delete', {
-              detail: {
-                taskIds: [...this.selectedTasks],
-                event: e,
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
+        if (!this.option.readOnly) {
+          if (this.selectedDependency && this.option.dependency?.deletable !== false) {
+            this.triggerDependencyDelete(
+              this.selectedDependency.sourceTaskId,
+              this.selectedDependency.targetTaskId,
+              e,
+            )
+            e.preventDefault()
+            break
+          }
+          if (this.selectedTasks.size > 0) {
+            this.dispatchEvent(
+              new CustomEvent<TaskDeleteEventDetail>('task-delete', {
+                detail: {
+                  taskIds: [...this.selectedTasks],
+                  event: e,
+                },
+                bubbles: true,
+                composed: true,
+              }),
+            )
+          }
         }
         e.preventDefault()
         break
@@ -2630,6 +2721,10 @@ export class GanttChartElement extends LitElement {
       this.hideDragOverlay()
     }
 
+    if (this.selectedDependency) {
+      this.clearDependencySelection()
+    }
+
     let newSelectedTasks: Set<string>
 
     if (isMultiSelect) {
@@ -2682,6 +2777,7 @@ export class GanttChartElement extends LitElement {
   // --- コネクタードラッグ管理 ---
 
   private handleConnectorDragStart(e: CustomEvent) {
+    if (this.option.readOnly || this.option.dependency?.creatable === false) return
     const { taskId, endpoint, clientX, clientY } = e.detail
     e.stopPropagation()
 
@@ -2842,6 +2938,32 @@ export class GanttChartElement extends LitElement {
    * @param sourceTaskId 依存元のタスクのID（矢印の根元）
    */
   private handleDependencyLineClick(event: MouseEvent, targetTaskId: string, sourceTaskId: string) {
+    // 他の選択（タスクや行）を解除
+    if (this.selectedRows.size > 0 || this.selectedTasks.size > 0) {
+      if (this.selectedRows.size > 0) {
+        this.selectedRows = new Set()
+        this.dispatchEvent(
+          new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
+            detail: { selectedIds: [] },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+      if (this.selectedTasks.size > 0) {
+        this.selectedTasks = new Set()
+        this.dispatchEvent(
+          new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
+            detail: { selectedIds: [] },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
+
+    this.selectDependency(sourceTaskId, targetTaskId)
+
     this.dispatchEvent(
       new CustomEvent<DependencyClickEventDetail>('dependency-click', {
         detail: {
@@ -3205,8 +3327,24 @@ export class GanttChartElement extends LitElement {
               ? `M ${adjustedEndX} ${endY} L ${endX} ${endY}`
               : ''
 
+            // 削除ボタンの表示位置（パスの中央付近）
+            let btnX = (startX + adjustedEndX) / 2
+            let btnY = (startY + endY) / 2
+            if (isSameRow && isForward) {
+              btnY = startY
+            } else if (!isForward) {
+              const midY = (startY + endY) / 2
+              btnY = Math.abs(startY - endY) < barHeight ? midY + barHeight + barMargin : midY
+            }
+
+            const isSelected =
+              this.selectedDependency?.sourceTaskId === depId &&
+              this.selectedDependency?.targetTaskId === taskId
+            const canDelete = !isReadOnly && this.option.dependency?.deletable !== false
+            const showDeleteBtn = canDelete && this.option.dependency?.showDeleteButton !== false
+
             lines.push(
-              svg`<g class="dependency-group">
+              svg`<g class="dependency-group ${isSelected ? 'selected' : ''}">
                 ${!isReadOnly
                   ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
                     e.stopPropagation()
@@ -3216,6 +3354,25 @@ export class GanttChartElement extends LitElement {
                 <path class="dependency-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${pathD}" />
                 ${showArrows
                   ? svg`<path class="dependency-line dependency-arrow-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
+                  : ''}
+                ${showDeleteBtn
+                  ? svg`<g
+                      class="dependency-delete-btn"
+                      transform="translate(${btnX}, ${btnY})"
+                      @pointerdown="${(e: PointerEvent) => {
+                        e.stopPropagation()
+                      }}"
+                      @click="${(e: MouseEvent) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        this.triggerDependencyDelete(depId, taskId, e)
+                      }}"
+                    >
+                      <circle class="dependency-delete-btn-hit-area" r="14" cx="0" cy="0" />
+                      <circle class="dependency-delete-btn-circle" r="8" cx="0" cy="0" />
+                      <line class="dependency-delete-btn-icon" x1="-3" y1="-3" x2="3" y2="3" />
+                      <line class="dependency-delete-btn-icon" x1="3" y1="-3" x2="-3" y2="3" />
+                    </g>`
                   : ''}
               </g>`,
             )

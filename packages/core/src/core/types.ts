@@ -386,6 +386,12 @@ export interface GanttChartOptionDependency {
   showConnectors?: boolean
   /** クリティカルパスを表示するかどうか (デフォルト: false) */
   showCriticalPath?: boolean
+  /** 接続線の作成を許可するか (デフォルト: true) */
+  creatable?: boolean
+  /** 接続線の削除操作を許可するか (デフォルト: true) */
+  deletable?: boolean
+  /** 線上に削除用「×」ボタンを表示するか (デフォルト: true) */
+  showDeleteButton?: boolean
 }
 
 /**
@@ -885,6 +891,29 @@ export interface DependencyClickEventDetail {
   targetTaskId: string
   /** 元のマウスイベント */
   event: MouseEvent
+}
+
+/**
+ * 依存関係線削除イベントの詳細データ
+ */
+export interface DependencyDeleteEventDetail {
+  /** 接続元のタスクID */
+  sourceTaskId: string
+  /** 接続先のタスクID */
+  targetTaskId: string
+  /** 元のイベント（Deleteキー時は KeyboardEvent、×ボタンクリック時は MouseEvent など） */
+  originalEvent?: Event
+}
+
+/**
+ * 依存関係線選択変更イベントの詳細データ
+ */
+export interface DependencySelectEventDetail {
+  /** 選択された依存関係。選択解除時は null */
+  selected: {
+    sourceTaskId: string
+    targetTaskId: string
+  } | null
 }
 
 /**

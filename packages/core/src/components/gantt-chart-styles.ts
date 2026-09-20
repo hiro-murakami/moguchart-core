@@ -132,6 +132,43 @@ export const ganttChartStyles = css`
   .dependency-line.critical-path {
     stroke-width: 3;
   }
+  .dependency-group.selected .dependency-line {
+    stroke-width: 3.5;
+    stroke: var(--marquee-border, #3b82f6);
+    filter: drop-shadow(0 0 4px var(--marquee-border, #3b82f6));
+  }
+  .dependency-delete-btn {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+  }
+  .dependency-group:hover .dependency-delete-btn,
+  .dependency-group.selected .dependency-delete-btn {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .dependency-delete-btn * {
+    pointer-events: all;
+  }
+  .dependency-delete-btn-hit-area {
+    fill: transparent;
+    cursor: pointer;
+  }
+  .dependency-delete-btn-circle {
+    fill: #ef4444;
+    transition: fill 0.15s ease, filter 0.15s ease;
+  }
+  .dependency-delete-btn:hover .dependency-delete-btn-circle {
+    fill: #dc2626;
+    filter: drop-shadow(0 0 3px rgba(220, 38, 38, 0.8));
+  }
+  .dependency-delete-btn-icon {
+    stroke: #ffffff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    pointer-events: none;
+  }
   .current-time-line {
     position: absolute;
     width: 2px;

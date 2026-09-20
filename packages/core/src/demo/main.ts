@@ -17,6 +17,8 @@ import type {
   RowToggleCollapseEventDetail,
   BarSelectionChangeEventDetail,
   DependencyLineStyle,
+  DependencyDeleteEventDetail,
+  DependencySelectEventDetail,
   TaskProgressChangeEventDetail,
 } from '../core/types'
 import type { ThemeColorPalette } from '../core/types'
@@ -1035,6 +1037,27 @@ const renderApp = () => {
             }}"
             @dependency-click="${(e: CustomEvent) => {
               console.log('Dependency clicked:', e.detail)
+            }}"
+            @dependency-select="${(e: CustomEvent<DependencySelectEventDetail>) => {
+              console.log('Dependency selected:', e.detail)
+            }}"
+            @dependency-delete="${(e: CustomEvent<DependencyDeleteEventDetail>) => {
+              const { sourceTaskId, targetTaskId } = e.detail
+              console.log('Dependency deleted:', e.detail)
+              // targetTaskId の dependencies から sourceTaskId を削除
+              rows = rows.map((row) => ({
+                ...row,
+                tasks: row.tasks.map((task) => {
+                  if (task.id === targetTaskId && task.dependencies) {
+                    return {
+                      ...task,
+                      dependencies: task.dependencies.filter((id) => id !== sourceTaskId),
+                    }
+                  }
+                  return task
+                }),
+              }))
+              renderApp()
             }}"
             @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
               const { task, progress } = e.detail

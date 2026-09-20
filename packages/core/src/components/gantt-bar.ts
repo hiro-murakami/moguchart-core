@@ -978,7 +978,7 @@ export class GanttBarElement extends LitElement {
   private onMouseMoveOnBar = (e: MouseEvent) => {
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     if (!taskGroup || this.option.readOnly || this.task?.type === 'summary') return
-    if (this.option.dependency?.showConnectors === false) return
+    if (this.option.dependency?.showConnectors === false || this.option.dependency?.creatable === false) return
 
     const rect = taskGroup.getBoundingClientRect()
     const localX = e.clientX - rect.left
@@ -1076,7 +1076,7 @@ export class GanttBarElement extends LitElement {
   }
 
   private onConnectorDragStart(e: PointerEvent, endpoint: DependencyEndpoint) {
-    if (this.task?.type === 'summary') return
+    if (this.task?.type === 'summary' || this.option.readOnly || this.option.dependency?.creatable === false) return
     e.stopPropagation()
     e.preventDefault()
     const target = e.target as HTMLElement
@@ -1346,7 +1346,7 @@ export class GanttBarElement extends LitElement {
               <div class="handle-right" @pointerdown="${(e: PointerEvent) => this.onResizeStart(e, 'right')}"></div>
             `
           : ''}
-        ${!isReadOnly && !isSummary && this.option.dependency?.showConnectors !== false
+        ${!isReadOnly && !isSummary && this.option.dependency?.showConnectors !== false && this.option.dependency?.creatable !== false
           ? html`
               <div
                 class="connector-left"

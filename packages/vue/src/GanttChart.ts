@@ -31,6 +31,8 @@ import {
   type RowToggleCollapseEventDetail,
   type DependencyCreateEventDetail,
   type DependencyClickEventDetail,
+  type DependencyDeleteEventDetail,
+  type DependencySelectEventDetail,
   type MarkerDblClickEventDetail,
   type MarkerContextMenuEventDetail,
   type TaskDeleteEventDetail,
@@ -64,6 +66,11 @@ export const ganttChartProps = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  /** 選択状態の依存関係 */
+  selectedDependency: {
+    type: Object as PropType<{ sourceTaskId: string; targetTaskId: string } | null>,
+    default: null,
+  },
   /** 外部からドラッグ中のタスク */
   externalDraggingTask: {
     type: Object as PropType<GanttTask | null>,
@@ -92,6 +99,8 @@ export const ganttChartEmits = {
   'row-toggle-collapse': (_detail: RowToggleCollapseEventDetail, _e: CustomEvent<RowToggleCollapseEventDetail>) => true,
   'dependency-create': (_detail: DependencyCreateEventDetail, _e: CustomEvent<DependencyCreateEventDetail>) => true,
   'dependency-click': (_detail: DependencyClickEventDetail, _e: CustomEvent<DependencyClickEventDetail>) => true,
+  'dependency-delete': (_detail: DependencyDeleteEventDetail, _e: CustomEvent<DependencyDeleteEventDetail>) => true,
+  'dependency-select': (_detail: DependencySelectEventDetail, _e: CustomEvent<DependencySelectEventDetail>) => true,
   'marker-dblclick': (_detail: MarkerDblClickEventDetail, _e: CustomEvent<MarkerDblClickEventDetail>) => true,
   'marker-contextmenu': (_detail: MarkerContextMenuEventDetail, _e: CustomEvent<MarkerContextMenuEventDetail>) => true,
   'task-delete': (_detail: TaskDeleteEventDetail, _e: CustomEvent<TaskDeleteEventDetail>) => true,
@@ -120,6 +129,7 @@ export const GanttChart = defineComponent({
       el.theme = props.theme
       el.selectedRowIds = props.selectedRowIds
       el.selectedTaskIds = props.selectedTaskIds
+      el.selectedDependency = props.selectedDependency
       if (props.externalDraggingTask !== undefined) {
         el.externalDraggingTask = props.externalDraggingTask
       }
@@ -193,6 +203,15 @@ export const GanttChart = defineComponent({
         }
       },
       { deep: false }
+    )
+
+    watch(
+      () => props.selectedDependency,
+      (newDep) => {
+        if (elRef.value) {
+          elRef.value.selectedDependency = newDep ?? null
+        }
+      }
     )
 
     watch(
