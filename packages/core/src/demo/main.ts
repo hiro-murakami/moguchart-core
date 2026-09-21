@@ -20,6 +20,7 @@ import type {
   DependencyDeleteEventDetail,
   DependencySelectEventDetail,
   TaskProgressChangeEventDetail,
+  HistoryChangeEventDetail,
 } from '../core/types'
 import type { ThemeColorPalette } from '../core/types'
 import type { MoguchartLocale } from '../core/i18n'
@@ -47,6 +48,8 @@ declare global {
 let currentLang: 'ja' | 'en' = getInitialLang()
 let currentLocale: MoguchartLocale = currentLang === 'ja' ? jaLocale : enLocale
 let t: DemoTexts = currentLang === 'ja' ? jaTexts : enTexts
+let canUndo = false
+let canRedo = false
 
 const setLang = (lang: 'ja' | 'en', updateUrl = true) => {
   currentLang = lang
@@ -666,6 +669,35 @@ const renderApp = () => {
             >
               📂 ${t.expandAll}
             </button>
+            <span style="width: 1px; height: 18px; background: ${c.cardBorder}; margin: 0 4px;"></span>
+            <button
+              class="export-btn"
+              style="background: #475569;"
+              ?disabled="${!canUndo}"
+              title="元に戻す (Cmd+Z / Ctrl+Z)"
+              @click="${() => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  chart.undo()
+                }
+              }}"
+            >
+              ↩️ Undo
+            </button>
+            <button
+              class="export-btn"
+              style="background: #475569;"
+              ?disabled="${!canRedo}"
+              title="やり直す (Cmd+Shift+Z / Ctrl+Y)"
+              @click="${() => {
+                const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                if (chart) {
+                  chart.redo()
+                }
+              }}"
+            >
+              ↪️ Redo
+            </button>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -988,8 +1020,14 @@ const renderApp = () => {
             .option="${option}"
             .selectedRowIds="${selectedIds}"
             theme="${theme}"
+            @history-change="${(e: CustomEvent<HistoryChangeEventDetail>) => {
+              canUndo = e.detail.canUndo
+              canRedo = e.detail.canRedo
+              renderApp()
+            }}"
             @rows-change="${(e: CustomEvent) => {
               rows = e.detail
+              renderApp()
             }}"
             @task-update="${handleTaskUpdate}"
             @task-dblclick="${handleTaskDblClick}"
@@ -1060,13 +1098,7 @@ const renderApp = () => {
               renderApp()
             }}"
             @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
-              const { task, progress } = e.detail
               console.log('Task progress changed:', e.detail)
-              rows = rows.map((row) => ({
-                ...row,
-                tasks: row.tasks.map((t) => (t.id === task.id ? { ...t, progress } : t)),
-              }))
-              renderApp()
             }}"
           />
         </div>

@@ -303,6 +303,7 @@ export class GanttChartElement extends LitElement {
     this.setAttribute('role', 'grid')
     this.setAttribute('aria-label', 'Gantt Chart')
     this.addEventListener('keydown', this.handleKeyDown)
+    this.addEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.addEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
@@ -340,9 +341,18 @@ export class GanttChartElement extends LitElement {
     window.removeEventListener('pointercancel', this.handleMarqueePointerUp)
     this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
     this.removeEventListener('keydown', this.handleKeyDown)
+    this.removeEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.removeEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer = null
+  }
+
+  private _handlePointerDownFocus = (e: PointerEvent) => {
+    const target = e.composedPath()[0] as HTMLElement
+    if (target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+    if (document.activeElement !== this) {
+      this.focus()
+    }
   }
 
   private _handleGlobalDragEnd = () => {
@@ -1291,16 +1301,21 @@ export class GanttChartElement extends LitElement {
   private handleTaskProgressChange = (e: CustomEvent<TaskProgressChangeEventDetail>) => {
     if (this.option.readOnly || e.detail.cancelled) return
     const { task, progress, originalProgress } = e.detail
-    if (originalProgress === undefined || originalProgress === progress) return
+    const origProgress = originalProgress ?? 0
+    if (origProgress === progress) return
 
+    let taskFound = false
     const previousRows = this.rows
     const newRows = this.rows.map((row) => {
       const taskIndex = row.tasks.findIndex((t) => t.id === task.id)
       if (taskIndex === -1) return row
+      taskFound = true
       const updatedTasks = [...row.tasks]
       updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], progress }
       return { ...row, tasks: updatedTasks }
     })
+
+    if (!taskFound) return
 
     this.applyRowsChangeWithCommand(previousRows, newRows, {
       type: 'task-progress',
@@ -2212,6 +2227,9 @@ export class GanttChartElement extends LitElement {
       description: string
     },
   ): void {
+    if (document.activeElement !== this) {
+      this.focus()
+    }
     this.rows = nextRows
     this.dispatchEvent(
       new CustomEvent('rows-change', {
@@ -3833,7 +3851,6 @@ export class GanttChartElement extends LitElement {
                 .isExporting="${this.isExporting}"
                 .criticalPathTaskIds="${showCriticalPath ? [...criticalPathTaskIds] : []}"
                 @task-update="${this.handleTaskUpdate}"
-                @task-progress-change="${this.handleTaskProgressChange}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
                 @row-toggle-collapse="${this.handleRowToggleCollapse}"

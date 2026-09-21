@@ -160,6 +160,72 @@ describe('GanttChart History (Undo/Redo)', () => {
     expect(chart.rows[0].tasks[0].progress).toBe(80)
   })
 
+  it('進捗率が未設定（undefined）のタスクでも進捗率変更後に Undo で未設定に戻り、Redo で復元されること', async () => {
+    // progressが未設定のタスク
+    delete chart.rows[0].tasks[0].progress
+    expect(chart.rows[0].tasks[0].progress).toBeUndefined()
+
+    const progressEvent = new CustomEvent('task-progress-change', {
+      detail: {
+        task: chart.rows[0].tasks[0],
+        progress: 50,
+        originalProgress: undefined,
+        cancelled: false,
+      },
+      bubbles: true,
+      composed: true,
+    })
+    chart.dispatchEvent(progressEvent)
+    await chart.updateComplete
+
+    expect(chart.rows[0].tasks[0].progress).toBe(50)
+    expect(chart.canUndo).toBe(true)
+
+    // Undo で undefined に戻る
+    await chart.undo()
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].progress).toBeUndefined()
+    expect(chart.canRedo).toBe(true)
+
+    // Redo で 50 に戻る
+    await chart.redo()
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].progress).toBe(50)
+  })
+
+  it('gantt-row / 子要素から task-progress-change がバブリングした際にコマンドが二重登録されず、1回の Undo で元に戻ること', async () => {
+    chart.clearHistory()
+    const rowEl = chart.shadowRoot?.querySelector('gantt-row')
+    expect(rowEl).not.toBeNull()
+
+    const initialProgress = chart.rows[0].tasks[0].progress ?? 0
+    const newProgress = 75
+
+    const progressEvent = new CustomEvent('task-progress-change', {
+      detail: {
+        task: chart.rows[0].tasks[0],
+        progress: newProgress,
+        originalProgress: initialProgress,
+        cancelled: false,
+      },
+      bubbles: true,
+      composed: true,
+    })
+    rowEl!.dispatchEvent(progressEvent)
+    await chart.updateComplete
+
+    expect(chart.rows[0].tasks[0].progress).toBe(newProgress)
+    // 履歴マネージャーの undoCount は 1 であること（二重登録されていないこと）
+    expect(chart.historyManager.state.undoCount).toBe(1)
+
+    // 1回の Undo で元の進捗率に戻ること
+    await chart.undo()
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].progress).toBe(initialProgress)
+    expect(chart.historyManager.state.undoCount).toBe(0)
+    expect(chart.canRedo).toBe(true)
+  })
+
   it('タスク移動後に Undo で元の開始・終了日時に戻ること', async () => {
     const originalStart = new Date(chart.rows[0].tasks[0].start)
     const originalEnd = new Date(chart.rows[0].tasks[0].end)
@@ -226,6 +292,69 @@ describe('GanttChart History (Undo/Redo)', () => {
     await chart.updateComplete
 
     expect(chart.rows.map((r) => r.id)).toEqual(['row2', 'row1'])
+  })
+
+  it('子要素でstopPropagationされる操作（進捗ハンドルドラッグ等）でもフォーカスが当たりCmd+ZでUndoできること', async () => {
+    // 初期状態ではchartにフォーカスがない状態をシミュレート
+    document.body.focus()
+    expect(document.activeElement).not.toBe(chart)
+
+    // stopPropagationする子要素でのpointerdownをシミュレート
+    const fakeChild = document.createElement('div')
+    chart.appendChild(fakeChild)
+    fakeChild.addEventListener('pointerdown', (e) => {
+      e.stopPropagation()
+    })
+
+    const pointerDownEvent = new PointerEvent('pointerdown', {
+      bubbles: true,
+      composed: true,
+    })
+    fakeChild.dispatchEvent(pointerDownEvent)
+
+    // キャプチャフェーズによりチャートにフォーカスが当たること
+    expect(document.activeElement).toBe(chart)
+
+    // 進捗変更を実行
+    const progressEvent = new CustomEvent('task-progress-change', {
+      detail: {
+        task: chart.rows[0].tasks[0],
+        progress: 90,
+        originalProgress: 20,
+        cancelled: false,
+      },
+      bubbles: true,
+      composed: true,
+    })
+    chart.dispatchEvent(progressEvent)
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].progress).toBe(90)
+
+    // チャートにフォーカスがある状態でCmd+Zを押下
+    const undoEvent = new KeyboardEvent('keydown', {
+      key: 'z',
+      metaKey: true,
+      bubbles: true,
+      composed: true,
+    })
+    chart.dispatchEvent(undoEvent)
+    await chart.updateComplete
+
+    // 元の進捗率に戻ること
+    expect(chart.rows[0].tasks[0].progress).toBe(20)
+
+    // Cmd+Shift+Z
+    const redoEvent = new KeyboardEvent('keydown', {
+      key: 'z',
+      metaKey: true,
+      shiftKey: true,
+      bubbles: true,
+      composed: true,
+    })
+    chart.dispatchEvent(redoEvent)
+    await chart.updateComplete
+
+    expect(chart.rows[0].tasks[0].progress).toBe(90)
   })
 
   it('recordCommand を使って外部コマンドを登録し、Undo/Redo できること', async () => {
