@@ -9,11 +9,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Comprehensive Zoom Controls & Scaling Options**:
+  - Introduced flexible zoom controls supporting percentage (50% to 200%) and scale factors (0.5 to 2.0) in addition to calendar preset modes (day/week/month/year).
+  - Supported Chrome-compatible zoom level steps (50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200%).
+  - Added public methods:
+    - `zoomToPercent(percent: number)`: Zoom to a specific percentage.
+    - `zoomToScale(scale: number)`: Zoom to a specific scale factor (e.g. `1.0` = 100%).
+    - `zoomIn(step?: number)`: Zoom in by one step or custom delta.
+    - `zoomOut(step?: number)`: Zoom out by one step or custom delta.
+    - `getZoomPercent(): number`: Retrieve current zoom percentage.
+    - `getZoomScale(): number`: Retrieve current zoom scale.
+    - `resetZoom()`: Reset zoom back to 100% standard magnification.
+  - Granular scaling sync options via `scaleElements`:
+    - Individually enable/disable scaling synchronization for calendar column width (`calendar`), row header width (`rowHeader`), task bar height (`barHeight`), and font size (`fontScale`, `--moguchart-font-scale`).
+  - Keyboard shortcuts:
+    - `Ctrl/Cmd + +`: Zoom in
+    - `Ctrl/Cmd + -`: Zoom out
+    - `Ctrl/Cmd + 0`: Reset zoom to 100%
+  - Mouse wheel zoom:
+    - `Ctrl/Cmd + Wheel`: Seamless zoom in and out.
+  - Expanded `zoom-change` event detail payload (`pxPerDay`, `pxPerMonth`, `zoomScale`, `zoomPercent`).
+  - Added interactive zoom slider and preset controls to the demo page.
+
+- **Operation History Management & Undo / Redo**:
+  - Implemented command pattern-based operation history manager (`HistoryManager`).
+  - Automatically records commands for undo/redo across core operations:
+    - Task drag move, cross-row move, and resize
+    - Task progress handle adjustment
+    - Task deletion (Delete/Backspace)
+    - Row drag-and-drop reordering
+    - Dependency connection creation and deletion
+  - Public API:
+    - `undo(): Promise<boolean>`: Revert previous action.
+    - `redo(): Promise<boolean>`: Re-execute undone action.
+    - `canUndo`: Whether undo is available (getter).
+    - `canRedo`: Whether redo is available (getter).
+    - `clearHistory(): void`: Clear all undo/redo history.
+    - `recordCommand(command: GanttCommand): void`: Record an arbitrary command externally.
+  - Keyboard shortcuts:
+    - `Ctrl+Z` / `Cmd+Z`: Undo
+    - `Ctrl+Y` / `Cmd+Shift+Z` / `Cmd+Y`: Redo
+  - Configuration options via `option.history`:
+    - `enabled`: Enable or disable history tracking (default: `true`).
+    - `maxDepth`: Maximum history stack size (default: `50`).
+    - `keyboard`: Enable keyboard shortcuts (default: `true`).
+    - `onUndo` / `onRedo`: Intercept hooks before undo/redo execution with cancellation support.
+  - Events:
+    - `command`: Emitted when a command is executed.
+    - `history-change`: Emitted when undo/redo availability or stack length changes.
+  - Full support in official React and Vue packages via props, emits, and template ref methods.
+  - Added Undo/Redo toolbar buttons and keyboard shortcut hints to the demo page.
+
+- **Interactive Dependency Line Operations (Selection & Deletion)**:
+  - Added click selection for dependency connection lines with dedicated highlight styling (thicker stroke and shadow).
+  - Added delete button ("×") on selected dependency lines for quick one-click deletion.
+  - Keyboard deletion: Pressing `Delete` or `Backspace` while a dependency line is selected deletes it.
+  - Added public method `triggerDependencyDelete(sourceTaskId, targetTaskId)`.
+  - Added property `selectedDependency: { sourceTaskId: string; targetTaskId: string } | null`.
+  - Configuration options via `option.dependency`:
+    - `creatable`: Enable/disable creating dependencies via drag-and-drop (default: `true`).
+    - `deletable`: Enable/disable deleting dependencies (default: `true`).
+    - `showDeleteButton`: Show delete "×" button on selected line (default: `true`).
+  - Events:
+    - `dependency-select`: Emitted when a dependency line is selected or deselected.
+    - `dependency-delete`: Emitted when a dependency line is deleted.
+  - Supported in official React and Vue packages via props and event bindings.
+
 - **Summary Task Progress Rate Display & Visual Improvements**:
   - Automatically display progress percentage labels (e.g. `72%`) on summary tasks when `showLabel: true` is enabled (changed default of `showSummaryLabel` to `true`).
   - Added dedicated styling for summary task progress bars using CSS custom property `--moguchart-summary-progress-color` (default: `rgba(255, 255, 255, 0.28)`), providing clear visual contrast on dark summary bars.
   - Added `option.progress.summaryColor` to allow customizing the progress bar color specifically for summary tasks.
   - Optimized progress label vertical alignment to perfectly match the summary task bracket shape.
+
+- **Export Plugin Zoom Normalization (`@mogura/moguchart-plugin-export`)**:
+  - Added `normalizeZoom` option (default: `true`). When exporting while zoomed, the chart temporarily normalizes to 100% standard magnification for optimal capture quality and automatically restores previous zoom after completion.
 
 ## [1.1.1] - 2026-09-19
 

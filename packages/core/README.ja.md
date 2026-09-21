@@ -13,6 +13,8 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
 
 - 🚀 **フレームワーク非依存**: Web Components (Custom Elements) として実装されており、あらゆる環境で動作します。
 - ⚡ **仮想スクロール**: 大量のタスクや行があってもスムーズに動作します。
+- ↩️ **操作履歴管理 (Undo / Redo)**: コマンドパターンによる直感的な履歴管理。タスクの移動・リサイズ・進捗変更・削除、行の並び替え、依存関係の作成・削除など主要な編集操作の取り消し・やり直しを完全サポート（`Ctrl+Z` / `Ctrl+Y` 対応）。
+- 🔍 **包括的なズーム制御**: パーセンテージ（50%〜200%）やスケール倍率（0.5〜2.0）に基づく柔軟な拡大縮小。カレンダー列幅・行ヘッダー幅・タスクバー高さ・フォントサイズ（`--moguchart-font-scale`）の一括連動スケーリング。ショートカットキー（`Ctrl/Cmd + + / - / 0`）やホイール操作に対応。
 - 🖱️ **インタラクティブ**:
   - ドラッグ＆ドロップによるタスク移動（行間移動対応）
   - ハンドル操作による期間リサイズ
@@ -26,7 +28,11 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - ライト/ダーク/システムテーマの切り替え＋カスタムカラーテーマ
   - タスクバーの塗りつぶしパターン（ストライプ、ドット、チェッカーボードなど13種類）
   - CSSによるスタイリング
-- 🔗 **依存関係の表示**: タスク間の依存関係を矢印付き曲線で可視化（S字カーブ対応）。クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
+- 🔗 **依存関係の対話的操作**:
+  - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で可視化
+  - 依存関係線のクリック選択とハイライト表示
+  - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
+  - クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
 - 📅 **柔軟なカレンダー**:
   - 日単位 / 週単位 / 月単位の表示切り替え
   - ズームレベル（1日・1ヶ月あたりの幅）や表示期間の調整が可能
@@ -42,10 +48,11 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - タスクバー上への進捗バー（オーバーレイ/下部・上部インジケーター）描画
   - ハンドル操作による直感的な進捗率のドラッグ編集（スナップ対応）
   - 進捗ラベル表示（配置カスタマイズ・カスタムフォーマット対応）
+  - サマリータスク（親集計バー）への進捗ラベル自動表示および専用カスタム色（`summaryColor`）対応
   - 進捗変更イベント（`task-progress-change`）の発火
   - 行・プロジェクト全体の進捗率計算ユーティリティ関数
 - 🧩 **プラグインアーキテクチャ**: コア本体を超軽量（数十KB）に保ちつつ、画像・PDFエクスポート等の機能をプラグインとして柔軟に拡張可能
-- 📷 **エクスポート（プラグイン）**: `@mogura/moguchart-plugin-export` による PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、スクロール位置保持）
+- 📷 **エクスポート（プラグイン）**: `@mogura/moguchart-plugin-export` による PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、エクスポート時のズーム正規化 `normalizeZoom`、スクロール位置保持）
   - 外部からのドラッグ＆ドロップによるタスク作成
   - タスクの移動/コピーモード
   - スナップ機能（時間単位でのグリッドスナップ）
@@ -57,11 +64,10 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 配下の子タスクから自動計算されるサマリータスクバー（ブラケット形状）
   - サマリータスクバーの色設定（プロジェクト既定色および行単位の個別色指定）
   - 親行におけるサマリータスクと通常タスクの共存・同時描画
-  - サマリータスクへの進捗率ラベル表示設定
   - 仮想スクロールやミニマップと完全に連動する折りたたみ
   - 階層を壊さない安全なD&D並び替え（子タスクのブロック連動移動・循環参照防止）
   - プログラムからの開閉操作（`toggleRowCollapse`, `collapseAll`, `expandAll`）
-- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでの削除
+- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
 
@@ -486,24 +492,38 @@ gantt-chart {
 
 ### 依存関係線の設定
 
-`dependency` オプションで依存関係線の表示をカスタマイズできます。矢印の表示/非表示や大きさ、接続コネクターの表示、最長チェーン（クリティカルパス）の自動検出ハイライトを制御できます。
-右→左方向の依存関係では自動的にS字カーブで描画され、接触箇所は常に水平に接続します。
+`dependency` オプションで依存関係線の表示や操作をカスタマイズできます。
+矢印の表示/非表示や大きさ、接続コネクター、最長チェーン（クリティカルパス）の自動検出ハイライトを制御できます。
+線のクリックによる選択（ハイライト表示）、選択時の削除「×」ボタン、`Delete` / `Backspace` キーによる直感的な削除に対応しています。
 
 ```javascript
 const option = {
   dependency: {
+    lineStyle: 'orthogonal', // 接続線の形状 ('orthogonal': 角丸直角折れ線, 'curve': ベジェ曲線)
+    cornerRadius: 8, // 直角折れ線時の角丸半径 (px)
     showArrows: true, // 矢印を表示するかどうか (デフォルト: true)
     arrowSize: 10, // 矢印の大きさ (px、デフォルト: 8)
     showConnectors: true, // コネクター接続ポイント（丸印）を表示するかどうか (デフォルト: true)
     showCriticalPath: true, // クリティカルパス（最長チェーン）を自動計算しハイライト表示
+    creatable: true, // コネクタからのドラッグによる依存関係作成を許可 (デフォルト: true)
+    deletable: true, // 依存関係の削除を許可 (デフォルト: true)
+    showDeleteButton: true, // 選択時の削除「×」ボタンを表示 (デフォルト: true)
   },
   // ...
 }
+
+// 依存関係の選択・削除イベント
+chart.addEventListener('dependency-select', (e) => {
+  console.log('選択された依存関係:', e.detail.selected)
+})
+chart.addEventListener('dependency-delete', (e) => {
+  console.log('削除された依存関係:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+})
 ```
 
 ### タスク進捗管理
 
-各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。`editable: true` を設定すると、進捗ハンドルのドラッグによる直感的な進捗率変更が可能になります。
+各タスクの `progress` プロパティ（`0` 〜 `100`）を設定することで、タスクバー上に進捗状況を視覚的に表示できます。`editable: true` を設定すると、進捗ハンドルのドラッグによる直感的な進捗率変更が可能になります。また、`showLabel: true` の場合、サマリータスクにも自動的に進捗ラベルが表示されます。
 
 ```javascript
 import {
@@ -517,8 +537,10 @@ const option = {
   progress: {
     enabled: true,
     editable: true, // ドラッグによる進捗編集を有効化
+    color: '#3b82f6', // 通常タスクの進捗バー色
+    summaryColor: 'rgba(255, 255, 255, 0.35)', // サマリータスク専用の進捗バー色
     showLabel: true, // 進捗ラベルを表示 (例: "50%")
-    showSummaryLabel: false, // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false)
+    showSummaryLabel: true, // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: true)
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
     snapStep: 5, // 5%刻みでスナップ
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
@@ -753,29 +775,78 @@ const { exportChart } = await import('@mogura/moguchart-plugin-export')
 await exportChart(chart, 'png', { download: true })
 ```
 
-#### ズーム操作 (zoomTo / zoomToFit / resetZoom)
+#### ズーム操作 (zoomToPercent / zoomToScale / zoomIn / zoomOut / resetZoom)
 
-`zoom` オプションを有効にすることで、Ctrl/Cmd + マウスホイールによるズームイン・ズームアウトが可能になります。また、メソッドによる動的なズーム制御にも対応しています。
+`zoom` オプションを有効にすることで、Ctrl/Cmd + マウスホイール、ショートカットキー（`Ctrl/Cmd + + / - / 0`）、またはパブリックメソッドによる柔軟なズーム（50%〜200%）が可能になります。カレンダー列幅・行ヘッダー幅・バー高さ・フォントサイズ（`scaleElements`）が一括連動します。
 
 ```javascript
 const option = {
   zoom: {
     enabled: true, // ズーム機能を有効化 (デフォルト: false)
-    min: 5, // 最小 pxPerDay (または pxPerMonth)
-    max: 150, // 最大 pxPerDay (または pxPerMonth)
-    step: 1.2, // 1回あたりのズーム倍率
+    minPercent: 50, // 最小倍率 (50%)
+    maxPercent: 200, // 最大倍率 (200%)
+    initialPercent: 100, // 初期倍率 (100%)
+    shortcuts: true, // キーボードショートカット有効化
+    scaleElements: {
+      calendar: true,
+      rowHeader: true,
+      barHeight: true,
+      fontScale: true,
+    },
   },
 }
 
 // プログラムによるズーム操作
-chart.zoomTo(50) // 1日あたり50pxにズーム
+chart.zoomIn() // 1段階拡大 (Chrome準拠レベル)
+chart.zoomOut() // 1段階縮小
+chart.zoomToPercent(125) // 125% にズーム
+chart.zoomToScale(1.5) // 1.5倍 にズーム
 chart.zoomToFit() // 全タスクが表示領域に収まるよう自動調整
-chart.resetZoom() // 初期設定のスケールにリセット
+chart.resetZoom() // 100%（標準スケール）にリセット
 
 // ズーム変更イベント
 chart.addEventListener('zoom-change', (e) => {
-  console.log('変更後のスケール:', e.detail.pxPerDay || e.detail.pxPerMonth)
+  console.log('ズーム変更:', e.detail.zoomPercent + '%', 'scale:', e.detail.zoomScale)
 })
+```
+
+#### 操作履歴・Undo / Redo (undo / redo / clearHistory)
+
+ユーザーによる各種操作（タスク移動・リサイズ・進捗変更・削除、行並び替え、依存関係作成/削除）を自動記録し、プログラムまたはキーボード（`Ctrl+Z` / `Ctrl+Y`）から取り消し・やり直しが可能です。
+
+```javascript
+const option = {
+  history: {
+    enabled: true, // 履歴管理を有効化 (デフォルト: true)
+    maxDepth: 50, // 保持する最大履歴数
+    keyboard: true, // ショートカットを有効化
+  },
+}
+
+// Undo / Redo の実行
+if (chart.canUndo) {
+  await chart.undo()
+}
+if (chart.canRedo) {
+  await chart.redo()
+}
+
+// 履歴クリア
+chart.clearHistory()
+
+// 履歴状態の変更検知
+chart.addEventListener('history-change', (e) => {
+  undoBtn.disabled = !e.detail.canUndo
+  redoBtn.disabled = !e.detail.canRedo
+})
+```
+
+#### 依存関係の削除 (triggerDependencyDelete)
+
+プログラムから特定の依存関係線を削除できます。
+
+```javascript
+chart.triggerDependencyDelete('task-1', 'task-2')
 ```
 
 #### WBS・折りたたみ操作 (toggleRowCollapse / collapseAll / expandAll)
@@ -847,7 +918,7 @@ const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 
 ### キーボード操作
 
-ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除が可能です。
+ガントチャートにフォーカスがある状態で、キーボードによるタスクのナビゲーション・選択・移動・削除・Undo/Redo・ズームが可能です。
 
 | キー                   | 動作                         |
 | :--------------------- | :--------------------------- |
@@ -856,7 +927,13 @@ const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 | `Enter` / `Space`      | フォーカス中のタスクを選択   |
 | `Ctrl/Cmd + Enter`     | 選択をトグル（複数選択）     |
 | `Shift + ←` `→`        | 選択中のタスクを移動         |
-| `Delete` / `Backspace` | `task-delete` イベントを発火 |
+| `Delete` / `Backspace` | 選択中のタスクまたは依存関係線を削除 |
+| `Ctrl+Z` / `Cmd+Z`     | 直前の操作を取り消す (Undo)  |
+| `Ctrl+Y` / `Cmd+Shift+Z` | 直前の操作をやり直す (Redo)  |
+| `Ctrl/Cmd + +`         | ズームイン（拡大）           |
+| `Ctrl/Cmd + -`         | ズームアウト（縮小）         |
+| `Ctrl/Cmd + 0`         | ズーム倍率を100%にリセット   |
+| `Ctrl/Cmd + ホイール`  | ズームイン / ズームアウト    |
 | `Escape`               | 選択・フォーカスをクリア     |
 
 ```javascript
@@ -864,6 +941,12 @@ const option = {
   keyboard: {
     enabled: true, // デフォルト: true
     moveStep: 60, // Shift+矢印キーでの移動量（分）
+  },
+  history: {
+    keyboard: true, // Undo/Redo ショートカット (デフォルト: true)
+  },
+  zoom: {
+    shortcuts: true, // ズームショートカット (デフォルト: true)
   },
   // ...
 }

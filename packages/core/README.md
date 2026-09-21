@@ -13,6 +13,8 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
 
 - 🚀 **Framework-agnostic**: Built as standard Web Components (Custom Elements), easily integrated into any frontend framework.
 - ⚡ **Virtual Scrolling**: Smooth 60fps rendering even with extensive tasks and rows.
+- ↩️ **Operation History (Undo / Redo)**: Command pattern-based history manager. Complete undo/redo support for task movement, duration resizing, progress adjustments, deletion, row reordering, and dependency editing (`Ctrl+Z` / `Ctrl+Y`).
+- 🔍 **Comprehensive Zoom Controls**: Smooth magnification adjustments based on percentage (50% to 200%) and scale factors (0.5 to 2.0). Coordinated synchronization across calendar width, row header width, bar height, and font scale (`--moguchart-font-scale`). Keyboard shortcuts (`Ctrl/Cmd + + / - / 0`) and mouse wheel zoom.
 - 🖱️ **Rich Interactive Controls**:
   - Drag & drop task movement (with optional cross-row vertical movement)
   - Handle-based task duration resizing
@@ -27,9 +29,10 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Light / Dark / System theme switching + custom color palettes
   - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
   - Native CSS variable-driven styling
-- 🔗 **Dependency Visualization**:
-  - Smooth curved lines with directional arrows showing task dependencies
-  - Automatic S-curve calculation for reverse-direction dependencies
+- 🔗 **Interactive Dependencies**:
+  - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves
+  - Click-to-select dependency lines with dedicated highlight styling
+  - One-click deletion via on-line "×" button or `Delete` / `Backspace` key
   - Proximity connector toggle (`showConnectors`)
   - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
 - 📅 **Flexible Calendar & Timeline**:
@@ -47,11 +50,12 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Task bar progress overlay (full, bottom, or top indicator styles)
   - Interactive drag-adjust handle for quick progress modification (with snap increments)
   - Configurable progress labels (custom positioning & formatters)
+  - Automatic progress label display for summary tasks and customizable summary progress bar color (`summaryColor`)
   - `task-progress-change` custom event
   - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
 - 🧩 **Plugin Architecture**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while allowing rich extensions like PNG/PDF exports.
-- 📷 **Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with scroll position preservation and auto-download support).
+- 📷 **Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with automatic zoom normalization `normalizeZoom`, scroll position preservation, and auto-download support).
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move / copy modes
@@ -69,7 +73,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Collapsing seamlessly integrated with virtual scrolling and overview minimap
   - Safe drag & drop reordering preserving hierarchy (prevents circular nesting, moves subtrees together)
   - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
-- ⌨️ **Keyboard Navigation**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace deletion.
+- ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
 
@@ -497,30 +501,47 @@ Font scaling is automatically applied to calendar headers (year/month, weeks, da
 
 ### Dependency Line Settings
 
-Configure task dependency curves with the `dependency` option:
+Configure task dependency curves and interactive operations with the `dependency` option:
 
+- `lineStyle`: `'orthogonal'` (rounded segmented lines, default) or `'curve'` (Bezier curves).
 - `showArrows`: Toggle directional arrow heads (default: `true`).
 - `arrowSize`: Arrow dimensions in pixels (default: `8`).
-- `showConnectors`: Control whether circular connection handles appear on hover (default: `true`). Set to `false` to prevent creating new dependencies.
-- `showCriticalPath`: Automatically detect the longest chain (critical path) and highlight connected tasks and lines in a distinct color (configurable via `theme.criticalPath`).
+- `showConnectors`: Control whether circular connection handles appear on hover (default: `true`).
+- `showCriticalPath`: Automatically detect the longest chain (critical path) and highlight connected tasks and lines.
+- `creatable`: Allow creating links via connector drag (default: `true`).
+- `deletable`: Allow deleting links via keyboard or button (default: `true`).
+- `showDeleteButton`: Display "×" delete button on selected link (default: `true`).
 
-Reverse dependencies (right-to-left) automatically render smooth S-curves with perpendicular contact alignment.
+Lines can be clicked to select (highlighted with distinct stroke & shadow), and deleted by clicking the "×" button or pressing `Delete` / `Backspace`.
 
 ```javascript
 const option = {
   dependency: {
+    lineStyle: 'orthogonal',
+    cornerRadius: 8,
     showArrows: true,
     arrowSize: 10,
     showConnectors: true,
-    showCriticalPath: true, // Highlight critical path tasks and links
+    showCriticalPath: true,
+    creatable: true,
+    deletable: true,
+    showDeleteButton: true,
   },
   // ...
 }
+
+// Dependency selection and deletion events
+chart.addEventListener('dependency-select', (e) => {
+  console.log('Selected dependency:', e.detail.selected)
+})
+chart.addEventListener('dependency-delete', (e) => {
+  console.log('Deleted dependency:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+})
 ```
 
 ### Task Progress Management
 
-Visualize and interactively edit progress on task bars by specifying `progress` (`0` to `100`). Set `editable: true` to enable dragging the progress adjustment handle on the task bar.
+Visualize and interactively edit progress on task bars by specifying `progress` (`0` to `100`). Set `editable: true` to enable dragging the progress adjustment handle on the task bar. When `showLabel: true` is enabled, summary tasks also display their aggregated progress labels automatically.
 
 ```javascript
 import {
@@ -534,8 +555,10 @@ const option = {
   progress: {
     enabled: true,
     editable: true, // Allow interactive handle dragging
+    color: '#3b82f6', // Progress bar color for normal tasks
+    summaryColor: 'rgba(255, 255, 255, 0.35)', // Progress bar color for summary tasks
     showLabel: true, // Display progress text (e.g. "50%")
-    showSummaryLabel: false, // Whether to show progress label on summary tasks (default: false)
+    showSummaryLabel: true, // Show progress label on summary tasks (default: true)
     labelPosition: 'inside', // 'inside' | 'right' | 'left' | 'center'
     snapStep: 5, // Snap in 5% increments
     indicatorPosition: 'full', // 'full' | 'bottom' | 'top'
@@ -771,29 +794,76 @@ const { exportChart } = await import('@mogura/moguchart-plugin-export')
 await exportChart(chart, 'png', { download: true })
 ```
 
-#### Zoom Operations (`zoomTo`, `zoomToFit`, `resetZoom`)
+#### Zoom Operations (`zoomIn`, `zoomOut`, `zoomToPercent`, `zoomToScale`, `zoomToFit`, `resetZoom`)
 
-Enable zoom via `option.zoom` (wheel zoom with Ctrl / Cmd key) and control zoom level programmatically:
+Enable zoom via `option.zoom` (wheel zoom with Ctrl / Cmd key, keyboard shortcuts `Ctrl/Cmd + + / - / 0`) and control zoom level programmatically:
 
 ```javascript
 const option = {
   zoom: {
     enabled: true,
-    min: 5,
-    max: 150,
-    step: 1.2,
+    minPercent: 25, // Minimum zoom percentage (default: 25)
+    maxPercent: 500, // Maximum zoom percentage (default: 500)
+    shortcuts: true, // Enable Ctrl/Cmd + +/-/0 shortcuts (default: true)
+    scaleElements: {
+      taskBarHeight: true, // Scale task bar height along with zoom (default: false)
+      rowHeight: true, // Scale row height along with zoom (default: false)
+      fontSize: false, // Scale font size (default: false)
+    },
   },
 }
 
 // Programmatic zoom control
-chart.zoomTo(50) // Set zoom level to 50px per day (or month)
+chart.zoomIn() // Zoom in by one step (Chrome-compliant preset)
+chart.zoomOut() // Zoom out by one step
+chart.zoomToPercent(125) // Zoom to 125%
+chart.zoomToScale(1.5) // Zoom to 1.5x
 chart.zoomToFit() // Auto-fit all tasks into the visible container width
-chart.resetZoom() // Reset to original configuration scale
+chart.resetZoom() // Reset to 100% (default scale)
 
 // Listen to zoom level changes
 chart.addEventListener('zoom-change', (e) => {
-  console.log('New zoom level:', e.detail.pxPerDay || e.detail.pxPerMonth)
+  console.log('Zoom changed:', e.detail.zoomPercent + '%', 'scale:', e.detail.zoomScale)
 })
+```
+
+#### Operation History / Undo & Redo (`undo`, `redo`, `clearHistory`)
+
+User actions (task moving, resizing, progress editing, deleting, row reordering, dependency creation and deletion) are automatically recorded. You can undo and redo them programmatically or via keyboard shortcuts (`Ctrl+Z` / `Ctrl+Y` / `Cmd+Shift+Z`).
+
+```javascript
+const option = {
+  history: {
+    enabled: true, // Enable history tracking (default: true)
+    maxDepth: 50, // Maximum history steps to retain (default: 50)
+    keyboard: true, // Enable undo/redo keyboard shortcuts (default: true)
+  },
+}
+
+// Perform Undo / Redo
+if (chart.canUndo) {
+  await chart.undo()
+}
+if (chart.canRedo) {
+  await chart.redo()
+}
+
+// Clear history
+chart.clearHistory()
+
+// Listen to history state changes
+chart.addEventListener('history-change', (e) => {
+  undoBtn.disabled = !e.detail.canUndo
+  redoBtn.disabled = !e.detail.canRedo
+})
+```
+
+#### Dependency Deletion (`triggerDependencyDelete`)
+
+Programmatically remove a dependency connection between two tasks:
+
+```javascript
+chart.triggerDependencyDelete('task-1', 'task-2')
 ```
 
 #### WBS & Collapse Operations (`toggleRowCollapse`, `collapseAll`, `expandAll`)
@@ -842,40 +912,40 @@ import {
 
 // 1. Calculate depth level for all rows
 const levels = computeRowLevels(rows) // Map<string, number> (rowId -> level: 0, 1, 2...)
-
 // 2. Generate WBS hierarchical numbering codes ("1", "1.1", "1.2", etc.)
 const wbsCodes = computeRowWbsCodes(rows) // Map<string, string> (rowId -> wbsCode)
-
 // 3. Get child / descendant row IDs for a row
 const allDescendants = computeChildRowIds('project-1', rows, true) // Recursively get all descendants
 const directChildren = computeChildRowIds('project-1', rows, false) // Direct children only
-
 // 4. Extract rows currently visible based on collapse states
 const visibleRows = computeVisibleTreeRows(rows)
-
 // 5. Aggregate child tasks into a summary task
 const summaryTask = computeSummaryTask(childTasks, 'project-1') // Min start, max end, weighted average progress
-
 // 6. Safe D&D check to prevent circular parent-child nesting
 const isDropAllowed = canDropRow('source-row-id', 'target-row-id', rows) // boolean
-
 // 7. Find longest task dependency chains (critical path)
 const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 ```
 
 ### Keyboard Operations
 
-When the Gantt chart element is focused, keyboard shortcuts allow fast navigation, selection, movement, and deletion:
+When the Gantt chart element is focused, keyboard shortcuts allow fast navigation, task manipulation, undo/redo, and zooming:
 
-| Key                    | Action                                 |
-| :--------------------- | :------------------------------------- |
-| `←` `→`                | Move focus between tasks               |
-| `↑` `↓`                | Move focus to another row              |
-| `Enter` / `Space`      | Select the focused task                |
-| `Ctrl/Cmd + Enter`     | Toggle selection state (multi-select)  |
-| `Shift + ←` `→`        | Move selected tasks backward / forward |
-| `Delete` / `Backspace` | Trigger `task-delete` event            |
-| `Escape`               | Clear current selection and focus      |
+| Key                    | Action                                      |
+| :--------------------- | :------------------------------------------ |
+| `←` `→`                | Move focus between tasks                    |
+| `↑` `↓`                | Move focus to another row                   |
+| `Enter` / `Space`      | Select the focused task                     |
+| `Ctrl/Cmd + Enter`     | Toggle selection state (multi-select)       |
+| `Shift + ←` `→`        | Move selected tasks backward / forward      |
+| `Delete` / `Backspace` | Delete selected task or selected dependency |
+| `Ctrl+Z` / `Cmd+Z`     | Undo last operation                        |
+| `Ctrl+Y` / `Cmd+Shift+Z` | Redo last undone operation                |
+| `Ctrl/Cmd + +`         | Zoom in                                     |
+| `Ctrl/Cmd + -`         | Zoom out                                    |
+| `Ctrl/Cmd + 0`         | Reset zoom to 100%                          |
+| `Ctrl/Cmd + Wheel`     | Zoom in / Zoom out                          |
+| `Escape`               | Clear current selection and focus           |
 
 ```javascript
 const option = {
@@ -883,7 +953,12 @@ const option = {
     enabled: true, // Default: true
     moveStep: 60, // Move distance per Shift+Arrow key press (minutes)
   },
-  // ...
+  history: {
+    keyboard: true, // Enable Undo/Redo shortcuts (default: true)
+  },
+  zoom: {
+    shortcuts: true, // Enable Zoom shortcuts (default: true)
+  },
 }
 ```
 

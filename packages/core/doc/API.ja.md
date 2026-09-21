@@ -14,14 +14,18 @@ moguchart-core は、Lit で構築されたガントチャート Web Component �
 
 コンポーネントに渡すことができるプロパティです。
 
-| プロパティ名           | 型                  | 説明                                                                                                                                                                 |
-| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rows`                 | `GanttRow[]`        | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
-| `option`               | `GanttChartOption`  | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
-| `theme`                | `'light' \| 'dark'` | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
-| `selectedRowIds`       | `string[]`          | 選択状態にする行IDの配列。                                                                                                                                           |
-| `selectedTaskIds`      | `string[]`          | 選択状態にするタスクIDの配列。                                                                                                                                       |
-| `externalDraggingTask` | `GanttTask \| null` | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
+| プロパティ名           | 型                                                        | 説明                                                                                                                                                                 |
+| :--------------------- | :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rows`                 | `GanttRow[]`                                              | ガントチャートに表示する行データの配列。各行にはタスクが含まれます。                                                                                                 |
+| `option`               | `GanttChartOption`                                        | チャートの表示や動作を設定するオプションオブジェクト。                                                                                                               |
+| `theme`                | `'light' \| 'dark'`                                       | (属性) テーマを指定します。CSS変数によるスタイリングのベースとなります。`option.theme` が指定されている場合はそちらが優先されます。                                  |
+| `selectedRowIds`       | `string[]`                                                | 選択状態にする行IDの配列。                                                                                                                                           |
+| `selectedTaskIds`      | `string[]`                                                | 選択状態にするタスクIDの配列。                                                                                                                                       |
+| `selectedDependency`   | `{ sourceTaskId: string; targetTaskId: string } \| null`  | 選択状態にする依存関係線の情報。選択解除時は `null`。                                                                                                                |
+| `externalDraggingTask` | `GanttTask \| null`                                       | コンポーネントの外部からタスクをドラッグしている場合に、そのタスク情報を渡します。これにより、チャート上にドラッグ中のタスクのプレビュー（ゴースト）を表示できます。 |
+| `canUndo`              | `boolean`                                                 | (読み取り専用) 直前の操作を取り消し (Undo) 可能かどうかを返します。                                                                                                   |
+| `canRedo`              | `boolean`                                                 | (読み取り専用) 直前に取り消した操作をやり直し (Redo) 可能かどうかを返します。                                                                                       |
+| `historyManager`       | `IHistoryManager \| undefined`                            | (読み取り専用) 内部の履歴マネージャーインスタンスへのアクセスを提供します。                                                                                          |
 
 ## オプション設定 (GanttChartOption)
 
@@ -126,55 +130,19 @@ interface GanttChartOption {
     moveStep?: number
   }
   /** ズーム機能の設定 */
-  zoom?: {
-    /** ズーム機能を有効にするか (デフォルト: false) */
-    enabled?: boolean
-    /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth */
-    min?: number
-    /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth */
-    max?: number
-    /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
-    step?: number
-  }
+  zoom?: GanttChartOptionZoom
   /** ミニマップ（Overview Minimap）機能の設定 */
-  minimap?: {
-    enabled?: boolean // ミニマップを表示するかどうか (デフォルト: false)
-    width?: number // ミニマップの幅 (px、デフォルト: 200)
-    height?: number // ミニマップの高さ (px、デフォルト: 120)
-    maxHeight?: number // 縦横比維持時の最大高さ (px、デフォルト: height または 120)
-    preserveAspectRatio?: boolean // ガントチャートコンテンツの縦横比（アスペクト比）に合わせて描画するかどうか (デフォルト: true)
-    resizable?: boolean // ユーザーによるドラッグリサイズを許可するかどうか (デフォルト: true)
-    minWidth?: number // リサイズ時の最小幅 (px、デフォルト: 120)
-    maxWidth?: number // リサイズ時の最大幅 (px、デフォルト: 600)
-    minHeight?: number // リサイズ時の最小高さ (px、デフォルト: 60)
-    collapsible?: boolean // 折りたたみ（最小化）ボタンを表示するかどうか (デフォルト: true)
-    collapsed?: boolean // 初期状態で折りたたまれているかどうか (デフォルト: false)
-    showMilestones?: boolean // マイルストーンを表示するかどうか (デフォルト: true)
-    showCurrentTime?: boolean // 現在時刻線を表示するかどうか (デフォルト: true)
-    position?: MinimapPosition // ミニマップの初期位置（親要素に対する右下基準の座標 px）
-    opacity?: number // ミニマップの不透明度 (0.1 〜 1.0、デフォルト: 1.0)
-  }
+  minimap?: GanttChartOptionMinimap
   /** 進捗管理機能の設定 */
-  progress?: {
-    enabled?: boolean // 進捗表示を有効にするかどうか (デフォルト: true)
-    editable?: boolean // 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false)
-    color?: string // 進捗バーのデフォルト色 (CSSカラー文字列)
-    summaryColor?: string // サマリータスクの進捗バーのカスタム色 (CSSカラー文字列)
-    showLabel?: boolean // 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false)
-    showSummaryLabel?: boolean // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: true - showLabel有効時に連動)
-    labelPosition?: 'inside' | 'right' | 'left' | 'center' // 進捗ラベルの表示位置 (デフォルト: 'inside')
-    labelFormatter?: (progress: number, task: GanttTask) => string // 進捗ラベルのカスタムフォーマット関数
-    snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
-    indicatorPosition?: 'full' | 'bottom' | 'top' // 進捗インジケーターのスタイル (デフォルト: 'full')
-  }
+  progress?: GanttChartOptionProgress
   /** タスク選択・矩形範囲選択に関する設定 */
-  selection?: {
-    marquee?: boolean // 矩形範囲選択（ラバーバンド選択）を有効にするかどうか (デフォルト: true)
-    borderColor?: string // 矩形選択枠の色 (CSSカラー文字列)。未指定時はテーマ色
-    backgroundColor?: string // 矩形選択背景の色 (CSSカラー文字列)。未指定時はテーマ色
-  }
+  selection?: GanttChartOptionSelection
   /** WBS・階層ツリーに関する設定 */
   tree?: GanttChartOptionTree
+  /** 操作履歴・Undo/Redoの設定 */
+  history?: GanttChartOptionHistory
+  /** 拡張プラグインの配列 */
+  plugins?: GanttPlugin[]
 }
 ```
 
@@ -206,8 +174,12 @@ interface GanttChartOption {
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 | `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
 | `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
+| `dependency-select`      | `DependencySelectEventDetail`     | 依存関係線が選択または選択解除されたときに発火します。                                       |
+| `dependency-delete`      | `DependencyDeleteEventDetail`     | 依存関係線が削除されたときに発火します（Deleteキー、×ボタン、メソッド等）。                  |
 | `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
-| `zoom-change`            | `ZoomChangeEventDetail`           | ズームレベルが変更されたときに発火します（Ctrl+ホイール、`zoomTo()`、`resetZoom()` 時）。   |
+| `zoom-change`            | `ZoomChangeEventDetail`           | ズーム倍率が変更されたときに発火します（ショートカット、ホイール、メソッド呼び出し時）。     |
+| `command`                | `CommandEventDetail`              | 編集操作（コマンド）が実行され、履歴スタックに記録されたときに発火します。                   |
+| `history-change`         | `HistoryChangeEventDetail`        | Undo / Redo の可否や履歴スタックの状態が変化したときに発火します。                           |
 | `marker-dblclick`        | `MarkerDblClickEventDetail`       | マーカーをダブルクリックしたときに発火します。                                               |
 | `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | マーカーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。   |
 
@@ -215,21 +187,32 @@ interface GanttChartOption {
 
 コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
 
-| メソッド名          | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
-| :------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`        | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
-| `use`               | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                            |
-| `hitTest`           | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
-| `exportImage`       | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
-| `zoomTo`            | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します。zoom.min/max の範囲でクランプされます。                                                                                          |
-| `zoomToFit`         | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
-| `resetZoom`         | `() => void`                                                                                | ズームをリセットし、`option.calendar.pxPerDay`（または `pxPerMonth`）で設定された元のスケールに戻します。                                                                                                 |
-| `getRowPositions`   | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
-| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => boolean`                                           | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。     |
-| `collapseAll`       | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                             |
-| `expandAll`         | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                             |
-| `resetScroll`       | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                             |
-| `scrollToPosition`  | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                    |
+| メソッド名                 | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
+| :------------------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `undo`                     | `() => Promise<boolean>`                                                                    | 直前の操作を取り消し (Undo) ます。成功した場合は `true` を返します。                                                                                                                                        |
+| `redo`                     | `() => Promise<boolean>`                                                                    | 直前に Undo した操作をやり直し (Redo) ます。成功した場合は `true` を返します。                                                                                                                              |
+| `clearHistory`             | `() => void`                                                                                | 操作履歴スタックをすべて消去します。                                                                                                                                                                        |
+| `recordCommand`            | `(command: GanttCommand) => void`                                                           | 外部からカスタムコマンドを履歴スタックに記録して `command` イベントを発行します。                                                                                                                           |
+| `zoomToPercent`            | `(percent: number) => void`                                                                 | 指定したパーセンテージ（例: `100` = 100%、`minPercent`〜`maxPercent`）にズーム倍率を設定します。カレンダー幅・行ヘッダー幅・バー高さ・フォントサイズが一括連動します。                                    |
+| `zoomToScale`              | `(scale: number) => void`                                                                   | 指定した倍率（例: `1.0` = 100%、`0.75` = 75%）にズームを設定します。                                                                                                                                      |
+| `zoomIn`                   | `(step?: number) => void`                                                                   | ズームレベルを1段階拡大（または指定ステップ拡大）します。                                                                                                                                                   |
+| `zoomOut`                  | `(step?: number) => void`                                                                   | ズームレベルを1段階縮小（または指定ステップ縮小）します。                                                                                                                                                   |
+| `getZoomPercent`           | `() => number`                                                                              | 現在のズームパーセンテージ（50〜200など）を取得します。                                                                                                                                                     |
+| `getZoomScale`             | `() => number`                                                                              | 現在の実効ズーム倍率（`1.0` = 100%）を取得します。                                                                                                                                                          |
+| `zoomTo`                   | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します（後方互換用）。                                                                                                                    |
+| `zoomToFit`                | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
+| `resetZoom`                | `() => void`                                                                                | ズームを100%（標準倍率）にリセットします。                                                                                                                                                                  |
+| `triggerDependencyDelete`  | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | 指定した接続元・接続先タスク間の依存関係線を削除し、`dependency-delete` イベントおよび履歴コマンドを記録します。                                                                                            |
+| `selectTask`               | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
+| `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
+| `exportImage`              | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `getRowPositions`          | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
+| `toggleRowCollapse`        | `(rowId: string, collapsed?: boolean) => boolean`                                           | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。                                       |
+| `collapseAll`              | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                                                             |
+| `expandAll`                | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                                                             |
+| `resetScroll`              | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
+| `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
 
 ### 使用例
 
@@ -522,6 +505,168 @@ interface CalendarHourCellContext {
   hour: number // 時間 (0-23)
   width: number // セルの幅 (px)
   date: Date // 対応する日付
+}
+```
+
+### GanttChartOptionDependency
+
+```typescript
+interface GanttChartOptionDependency {
+  /** 依存関係の線のスタイル。
+   * - 'curve': ベジェ曲線
+   * - 'orthogonal': 直角折れ線（角が丸くなる）
+   */
+  lineStyle?: DependencyLineStyle
+  /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
+  cornerRadius?: number
+  /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
+  showConnectors?: boolean
+  /** クリティカルパスを表示するかどうか (デフォルト: false)。依存関係グラフの最長チェーンを自動計算し、該当するタスクバーと接続線をハイライト表示する */
+  showCriticalPath?: boolean
+  /** 接続線の作成を許可するか (デフォルト: true) */
+  creatable?: boolean
+  /** 接続線の削除操作を許可するか (デフォルト: true) */
+  deletable?: boolean
+  /** 線上に削除用「×」ボタンを表示するか (デフォルト: true) */
+  showDeleteButton?: boolean
+}
+```
+
+> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。
+
+### DependencyCreateEventDetail
+
+```typescript
+interface DependencyCreateEventDetail {
+  sourceTaskId: string // 接続元のタスクID
+  sourceEndpoint: DependencyEndpoint // 接続元のエンドポイント（start=左端, end=右端）
+  targetTaskId: string // 接続先のタスクID
+  targetEndpoint: DependencyEndpoint // 接続先のエンドポイント（start=左端, end=右端）
+}
+```
+
+### DependencyClickEventDetail
+
+```typescript
+interface DependencyClickEventDetail {
+  sourceTaskId: string // 接続元（依存元）のタスクID
+  targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  event: MouseEvent // 元のマウスイベント
+}
+```
+
+### DependencySelectEventDetail
+
+```typescript
+interface DependencySelectEventDetail {
+  /** 選択された依存関係。選択解除時は null */
+  selected: {
+    sourceTaskId: string
+    targetTaskId: string
+  } | null
+}
+```
+
+### DependencyDeleteEventDetail
+
+```typescript
+interface DependencyDeleteEventDetail {
+  sourceTaskId: string // 接続元（依存元）のタスクID
+  targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  originalEvent?: Event // 元のイベント（Deleteキー時は KeyboardEvent、×ボタンクリック時は MouseEvent など）
+}
+```
+
+### TaskDeleteEventDetail
+
+```typescript
+interface TaskDeleteEventDetail {
+  taskIds: string[] // 削除対象のタスクID配列
+  event: KeyboardEvent // 元のキーボードイベント
+}
+```
+
+### ZoomChangeEventDetail
+
+```typescript
+interface ZoomChangeEventDetail {
+  pxPerDay: number // ズーム後の pxPerDay
+  pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
+  zoomScale: number // ズーム倍率 (1.0 = 100%)
+  zoomPercent: number // ズームパーセンテージ (50〜200)
+}
+```
+
+### GanttChartOptionZoom
+
+```typescript
+interface GanttChartOptionZoom {
+  /** ズーム機能を有効にするか (デフォルト: false) */
+  enabled?: boolean
+  /** 最小パーセンテージ (デフォルト: 50) */
+  minPercent?: number
+  /** 最大パーセンテージ (デフォルト: 200) */
+  maxPercent?: number
+  /** 初期パーセンテージ (デフォルト: 100) */
+  initialPercent?: number
+  /** ズームレベル一覧 (例: [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]) */
+  levels?: readonly number[] | number[]
+  /** ホイール1回あたりのズーム倍率 (デフォルト: 1.1) */
+  step?: number
+  /** ズーム時に連動してスケーリングする要素の指定 (デフォルト: すべて true) */
+  scaleElements?: {
+    /** カレンダー列幅 (pxPerDay / pxPerMonth) (デフォルト: true) */
+    calendar?: boolean
+    /** 行ヘッダー幅 (デフォルト: true) */
+    rowHeader?: boolean
+    /** バーの高さ (デフォルト: true) */
+    barHeight?: boolean
+    /** フォントサイズ (デフォルト: true) */
+    fontScale?: boolean
+  }
+  /** キーボードショートカット (Ctrl+0 / Cmd+0 でリセット等) を有効にするか (デフォルト: true) */
+  shortcuts?: boolean
+  /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth (後方互換用) */
+  min?: number
+  /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth (後方互換用) */
+  max?: number
+}
+```
+
+### GanttChartOptionHistory
+
+```typescript
+interface GanttChartOptionHistory {
+  /** 履歴管理を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** 保持する最大履歴数 (デフォルト: 50) */
+  maxDepth?: number
+  /** キーボードショートカット (Cmd+Z, Ctrl+Z, Cmd+Shift+Z, Ctrl+Y) を有効にするかどうか (デフォルト: true) */
+  keyboard?: boolean
+  /** Undo実行直前のフック。falseを返すとUndoをキャンセルできる */
+  onUndo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
+  /** Redo実行直前のフック。falseを返すとRedoをキャンセルできる */
+  onRedo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
+}
+```
+
+### CommandEventDetail
+
+```typescript
+interface CommandEventDetail {
+  /** 実行されたコマンド */
+  command: GanttCommand
+}
+```
+
+### HistoryChangeEventDetail
+
+```typescript
+interface HistoryChangeEventDetail {
+  canUndo: boolean // Undo可能かどうか
+  canRedo: boolean // Redo可能かどうか
+  historyLength: number // 現在の履歴スタック長
+  currentIndex: number // 現在の履歴インデックス
 }
 ```
 
@@ -1609,8 +1754,14 @@ console.log('クリティカルパス上のタスクID:', Array.from(criticalTas
 | `Enter` / `Space` | フォーカス中のタスクを選択 |
 | `Ctrl/Cmd + Enter` | フォーカス中のタスクの選択をトグル（複数選択） |
 | `Shift + ←` `→` | 選択中のタスクを左右に移動（`moveStep` 単位） |
-| `Delete` / `Backspace` | 選択中のタスクに対して `task-delete` イベントを発火 |
-| `Escape` | 選択とフォーカスをすべてクリア |
+| `Delete` / `Backspace` | 選択中のタスク削除（`task-delete` 発火）または選択中の依存関係線削除（`dependency-delete` 発火） |
+| `Ctrl+Z` / `Cmd+Z` | 直前の操作を取り消す (Undo) |
+| `Ctrl+Y` / `Cmd+Shift+Z` | 直前に取り消した操作をやり直す (Redo) |
+| `Ctrl/Cmd + +` | ズームイン（表示拡大） |
+| `Ctrl/Cmd + -` | ズームアウト（表示縮小） |
+| `Ctrl/Cmd + 0` | ズーム倍率を100%（標準）にリセット |
+| `Ctrl/Cmd + ホイール` | カレンダーのズームイン / ズームアウト |
+| `Escape` | 選択状態（タスク、依存関係線）とフォーカスをすべてクリア |
 | `Home` | 現在の行の最初のタスクにフォーカス |
 | `End` | 現在の行の最後のタスクにフォーカス |
 
@@ -1899,5 +2050,148 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: 全行データ配列
 - **戻り値**: ドロップ可能な場合は `true`、循環参照となる場合は `false`
 
+---
 
+## ズーム機能 (Zoom Controls & Scaling)
 
+`option.zoom` を有効化することで、マウスホイール、キーボードショートカット、またはパブリックメソッドを通じて、ガントチャートの表示倍率（50%〜200%）をスムーズに拡大・縮小できます。
+
+### 特徴
+
+- **連動スケーリング**: カレンダー列幅だけでなく、行ヘッダー幅、タスクバー高さ、フォントサイズ（CSS変数 `--moguchart-font-scale`）もズーム倍率に連動して自然にスケーリングされます（`scaleElements` で個別連動制御可能）。
+- **プリセットレベル**: Chromeなどのブラウザ拡大縮小と親和性の高いプリセットズーム比率（50%, 67%, 75%, 80%, 90%, 100%, 110%, 125%, 150%, 175%, 200%）を標準装備。
+- **ショートカット対応**: `Ctrl/Cmd + ホイール`、`Ctrl/Cmd + + / -`、`Ctrl/Cmd + 0`（リセット）に対応。
+
+### 設定例
+
+```typescript
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  zoom: {
+    enabled: true, // ズーム機能を有効化
+    minPercent: 50, // 最小倍率 (50%)
+    maxPercent: 200, // 最大倍率 (200%)
+    initialPercent: 100, // 初期倍率 (100%)
+    shortcuts: true, // Ctrl/Cmd + +, -, 0 のショートカットを有効化
+    scaleElements: {
+      calendar: true,   // カレンダー列幅を連動
+      rowHeader: true,  // 行ヘッダー幅を連動
+      barHeight: true,  // タスクバー高さを連動
+      fontScale: true,  // チャート全体フォントサイズを連動
+    },
+  },
+}
+```
+
+### パブリックメソッドとイベント
+
+```typescript
+// ズーム操作
+chart.zoomIn() // 1段階拡大
+chart.zoomOut() // 1段階縮小
+chart.zoomToPercent(125) // 125% に設定
+chart.zoomToScale(1.5) // 1.5倍 に設定
+chart.resetZoom() // 100% にリセット
+
+// ズーム変更イベントの監視
+chart.addEventListener('zoom-change', (e) => {
+  const { zoomPercent, zoomScale, pxPerDay } = e.detail
+  console.log(`現在のズーム: ${zoomPercent}% (scale: ${zoomScale}, pxPerDay: ${pxPerDay})`)
+})
+```
+
+---
+
+## 操作履歴管理・Undo / Redo (History Management)
+
+`option.history` により、ガントチャート上での各種ユーザー操作（タスクの移動・リサイズ、進捗率の変更、タスク削除、行の並び替え、依存関係の作成・削除）を履歴スタックとして自動記録し、いつでも取り消し (Undo) およびやり直し (Redo) が可能です。
+
+### 設定例
+
+```typescript
+chart.option = {
+  // ...
+  history: {
+    enabled: true, // 履歴管理を有効化 (デフォルト: true)
+    maxDepth: 50, // 保持する最大履歴数 (デフォルト: 50)
+    keyboard: true, // Cmd+Z, Ctrl+Z, Ctrl+Y などのショートカットを有効化 (デフォルト: true)
+    onUndo: (command) => {
+      console.log('Undo実行直前:', command.type)
+      // return false でUndoをキャンセル可能
+    },
+    onRedo: (command) => {
+      console.log('Redo実行直前:', command.type)
+    },
+  },
+}
+```
+
+### パブリックメソッドとイベント
+
+```typescript
+// Undo / Redo の実行
+if (chart.canUndo) {
+  await chart.undo()
+}
+
+if (chart.canRedo) {
+  await chart.redo()
+}
+
+// 履歴スタックの全消去
+chart.clearHistory()
+
+// 履歴状態変更イベントの監視
+chart.addEventListener('history-change', (e) => {
+  const { canUndo, canRedo, historyLength } = e.detail
+  undoButton.disabled = !canUndo
+  redoButton.disabled = !canRedo
+})
+```
+
+---
+
+## 依存関係線の対話的編集（選択・削除）
+
+タスク間の依存関係（矢印接続線）は、クリックによる選択、ハイライト表示、およびワンクリックまたはキーボードによる削除が可能です。
+
+### 設定例
+
+```typescript
+chart.option = {
+  // ...
+  dependency: {
+    lineStyle: 'orthogonal', // 'orthogonal' (直角折れ線) または 'curve' (曲線)
+    showArrows: true,
+    showConnectors: true,
+    creatable: true, // コネクタからのドラッグによる依存関係作成を許可 (デフォルト: true)
+    deletable: true, // 依存関係の削除を許可 (デフォルト: true)
+    showDeleteButton: true, // 選択時の削除「×」ボタンを表示 (デフォルト: true)
+  },
+}
+```
+
+### イベントとメソッド
+
+```typescript
+// 選択イベント
+chart.addEventListener('dependency-select', (e) => {
+  const { selected } = e.detail
+  if (selected) {
+    console.log(`選択された依存関係: ${selected.sourceTaskId} -> ${selected.targetTaskId}`)
+  } else {
+    console.log('依存関係の選択が解除されました')
+  }
+})
+
+// 削除イベント
+chart.addEventListener('dependency-delete', (e) => {
+  const { sourceTaskId, targetTaskId } = e.detail
+  console.log(`依存関係が削除されました: ${sourceTaskId} -> ${targetTaskId}`)
+})
+
+// プログラムからの依存関係削除
+chart.triggerDependencyDelete('task-1', 'task-2')
+```

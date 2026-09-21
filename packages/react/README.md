@@ -96,6 +96,45 @@ export function MyGanttView() {
 
 ---
 
+## Main Props
+
+| Prop | Type | Description |
+|---|---|---|
+| `rows` | `GanttRow[]` | Gantt chart row and task data |
+| `option` | `GanttChartOption` | Configuration for calendar, zoom, history, dependencies, etc. |
+| `theme` | `'light' \| 'dark' \| 'auto'` | Color theme |
+| `selectedDependency` | `{ fromTaskId: string; toTaskId: string } \| null` | Currently selected dependency connection (highlighted) |
+| `selectedTasks` | `string[]` | Array of selected task IDs |
+| `selectedRows` | `string[]` | Array of selected row IDs |
+
+---
+
+## Imperative API (via `ref`)
+
+Access the underlying `GanttChartElement` instance via `ref` to invoke methods such as Undo/Redo, zoom, and exports:
+
+```tsx
+import React, { useRef } from 'react'
+import { GanttChart, type GanttChartElement } from '@mogura/moguchart-react'
+
+export function GanttToolbar() {
+  const chartRef = useRef<GanttChartElement>(null)
+
+  return (
+    <div>
+      <button onClick={() => chartRef.current?.undo()}>Undo</button>
+      <button onClick={() => chartRef.current?.redo()}>Redo</button>
+      <button onClick={() => chartRef.current?.zoomIn()}>Zoom In</button>
+      <button onClick={() => chartRef.current?.zoomOut()}>Zoom Out</button>
+      <button onClick={() => chartRef.current?.resetZoom()}>Reset Zoom</button>
+      <GanttChart ref={chartRef} rows={[]} />
+    </div>
+  )
+}
+```
+
+---
+
 ## Using with Plugins (e.g. Export)
 
 To export charts as PNG or PDF, pair with `@mogura/moguchart-plugin-export`:
@@ -121,6 +160,7 @@ export function ExportableGantt() {
       await chartRef.current.exportImage('png', {
         filename: 'my-schedule',
         download: true,
+        normalizeZoom: true, // Export at baseline 100% scale regardless of current zoom
       })
     }
   }
@@ -158,12 +198,16 @@ export function ExportableGantt() {
 | `onRowToggleCollapse` | Fired when a row is expanded or collapsed (WBS) |
 | `onDependencyCreate` | Fired when a dependency link is created |
 | `onDependencyClick` | Fired when a dependency link is clicked |
+| `onDependencySelect` | Fired when dependency selection changes (highlight / delete button shown) |
+| `onDependencyDelete` | Fired when a dependency link is deleted |
 | `onMarkerDblClick` | Fired when a marker is double-clicked |
 | `onMarkerContextMenu` | Fired on marker right-click |
 | `onZoomChange` | Fired when zoom scale changes |
+| `onCommand` | Fired when a command is executed (tracked for Undo/Redo) |
+| `onHistoryChange` | Fired when history stack changes (`canUndo`/`canRedo` updated) |
 | `onMinimapMove` | Fired when minimap viewport scrolls |
-| `onMinimapResize` | Fired when minimap is resized |
-| `onMinimapCollapse` | Fired when minimap is collapsed or expanded |
+| `onMinimapResize` | Minimap is resized |
+| `onMinimapCollapse` | Minimap is collapsed or expanded |
 | `onChartContextMenu` | Fired on chart background right-click |
 
 ---

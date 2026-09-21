@@ -94,6 +94,45 @@ export function MyGanttView() {
 
 ---
 
+## 主な Props
+
+| Prop 名 | 型 | 説明 |
+|---|---|---|
+| `rows` | `GanttRow[]` | ガントチャートの行・タスクデータ |
+| `option` | `GanttChartOption` | カレンダー、ズーム、履歴、依存関係等の各種設定 |
+| `theme` | `'light' \| 'dark' \| 'auto'` | カラーテーマ |
+| `selectedDependency` | `{ fromTaskId: string; toTaskId: string } \| null` | 選択中の依存関係線（ハイライト状態） |
+| `selectedTasks` | `string[]` | 選択中のタスクID一覧 |
+| `selectedRows` | `string[]` | 選択中の行ID一覧 |
+
+---
+
+## 命令的 API（ref を介した操作）
+
+`ref` を介して `GanttChartElement` インスタンスを取得することで、Undo / Redo やズーム、エクスポートなどの命令的メソッドを呼び出せます。
+
+```tsx
+import React, { useRef } from 'react'
+import { GanttChart, type GanttChartElement } from '@mogura/moguchart-react'
+
+export function GanttToolbar() {
+  const chartRef = useRef<GanttChartElement>(null)
+
+  return (
+    <div>
+      <button onClick={() => chartRef.current?.undo()}>取り消し (Undo)</button>
+      <button onClick={() => chartRef.current?.redo()}>やり直し (Redo)</button>
+      <button onClick={() => chartRef.current?.zoomIn()}>ズームイン</button>
+      <button onClick={() => chartRef.current?.zoomOut()}>ズームアウト</button>
+      <button onClick={() => chartRef.current?.resetZoom()}>ズームリセット</button>
+      <GanttChart ref={chartRef} rows={[]} />
+    </div>
+  )
+}
+```
+
+---
+
 ## プラグイン（エクスポート機能）との連携
 
 PNG や PDF のエクスポートを行う場合は、`@mogura/moguchart-plugin-export` を組み合わせます。
@@ -119,6 +158,7 @@ export function ExportableGantt() {
       await chartRef.current.exportImage('png', {
         filename: 'my-schedule',
         download: true,
+        normalizeZoom: true, // ズーム倍率に関わらず標準スケールで出力
       })
     }
   }
@@ -156,9 +196,13 @@ export function ExportableGantt() {
 | `onRowToggleCollapse` | 行の開閉時（WBS） |
 | `onDependencyCreate` | 依存関係（リンク）作成時 |
 | `onDependencyClick` | 依存関係クリック時 |
+| `onDependencySelect` | 依存関係の選択状態変更時（ハイライト・削除ボタン表示） |
+| `onDependencyDelete` | 依存関係削除時 |
 | `onMarkerDblClick` | マーカーダブルクリック時 |
 | `onMarkerContextMenu` | マーカー右クリック時 |
 | `onZoomChange` | ズーム倍率変更時 |
+| `onCommand` | 操作コマンド実行時（Undo / Redo 対象の操作完了時） |
+| `onHistoryChange` | 履歴スタック変更時（Undo / Redo 可否状態の更新時） |
 | `onMinimapMove` | ミニマップスクロール時 |
 | `onMinimapResize` | ミニマップリサイズ時 |
 | `onMinimapCollapse` | ミニマップ折りたたみ時 |

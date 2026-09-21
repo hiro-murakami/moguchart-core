@@ -14,14 +14,18 @@ moguchart-core is a Gantt chart Web Component built with Lit.
 
 Properties that can be passed to the component.
 
-| Property               | Type                | Description                                                                                                                                        |
-| :--------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rows`                 | `GanttRow[]`        | Array of row data to display in the Gantt chart. Each row contains tasks.                                                                          |
-| `option`               | `GanttChartOption`  | Options object for configuring chart appearance and behavior.                                                                                      |
-| `theme`                | `'light' \| 'dark'` | (Attribute) Specifies the theme. Serves as the base for CSS variable styling. If `option.theme` is specified, it takes precedence.                 |
-| `selectedRowIds`       | `string[]`          | Array of row IDs to set as selected.                                                                                                               |
-| `selectedTaskIds`      | `string[]`          | Array of task IDs to set as selected.                                                                                                              |
-| `externalDraggingTask` | `GanttTask \| null` | When dragging a task from outside the component, pass the task information here. This displays a preview (ghost) of the dragged task on the chart. |
+| Property               | Type                                                      | Description                                                                                                                                        |
+| :--------------------- | :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rows`                 | `GanttRow[]`                                              | Array of row data to display in the Gantt chart. Each row contains tasks.                                                                          |
+| `option`               | `GanttChartOption`                                        | Options object for configuring chart appearance and behavior.                                                                                      |
+| `theme`                | `'light' \| 'dark'`                                       | (Attribute) Specifies the theme. Serves as the base for CSS variable styling. If `option.theme` is specified, it takes precedence.                 |
+| `selectedRowIds`       | `string[]`                                                | Array of row IDs to set as selected.                                                                                                               |
+| `selectedTaskIds`      | `string[]`                                                | Array of task IDs to set as selected.                                                                                                              |
+| `selectedDependency`   | `{ sourceTaskId: string; targetTaskId: string } \| null`  | Currently selected dependency line info, or `null` when deselected.                                                                                |
+| `externalDraggingTask` | `GanttTask \| null`                                       | When dragging a task from outside the component, pass the task information here. This displays a preview (ghost) of the dragged task on the chart. |
+| `canUndo`              | `boolean`                                                 | (Readonly) Indicates whether an undo operation can be performed.                                                                                   |
+| `canRedo`              | `boolean`                                                 | (Readonly) Indicates whether a redo operation can be performed.                                                                                    |
+| `historyManager`       | `IHistoryManager \| undefined`                            | (Readonly) Provides access to the internal history manager instance.                                                                               |
 
 ## Options (GanttChartOption)
 
@@ -126,55 +130,19 @@ interface GanttChartOption {
     moveStep?: number
   }
   /** Zoom feature settings */
-  zoom?: {
-    /** Whether to enable zoom (default: false) */
-    enabled?: boolean
-    /** Minimum pxPerDay (default: 2). Acts as minimum pxPerMonth in monthly mode */
-    min?: number
-    /** Maximum pxPerDay (default: 200). Acts as maximum pxPerMonth in monthly mode */
-    max?: number
-    /** Zoom multiplier per wheel tick (default: 1.2) */
-    step?: number
-  }
+  zoom?: GanttChartOptionZoom
   /** Overview Minimap configuration */
-  minimap?: {
-    enabled?: boolean // Whether to enable minimap (default: false)
-    width?: number // Width of the minimap in px (default: 200)
-    height?: number // Height of the minimap in px (default: 120)
-    maxHeight?: number // Maximum height when preserving aspect ratio in px (default: height or 120)
-    preserveAspectRatio?: boolean // Whether to preserve the chart content aspect ratio (default: true)
-    resizable?: boolean // Whether to allow drag resizing by user (default: true)
-    minWidth?: number // Minimum width during resize in px (default: 120)
-    maxWidth?: number // Maximum width during resize in px (default: 600)
-    minHeight?: number // Minimum height during resize in px (default: 60)
-    collapsible?: boolean // Whether to show collapse button (default: true)
-    collapsed?: boolean // Whether initially collapsed (default: false)
-    showMilestones?: boolean // Whether to display milestones on minimap (default: true)
-    showCurrentTime?: boolean // Whether to display current time line on minimap (default: true)
-    position?: MinimapPosition // Initial position of minimap relative to parent container bottom-right in px
-    opacity?: number // Opacity of minimap (0.1 to 1.0, default: 1.0)
-  }
+  minimap?: GanttChartOptionMinimap
   /** Progress management configuration */
-  progress?: {
-    enabled?: boolean // Whether to enable progress display (default: true)
-    editable?: boolean // Whether progress can be adjusted by dragging (default: false)
-    color?: string // Default progress bar color (CSS color string)
-    summaryColor?: string // Custom progress bar color for summary tasks (CSS color string)
-    showLabel?: boolean // Whether to show progress label text (e.g. '50%') (default: false)
-    showSummaryLabel?: boolean // Whether to show progress label for summary tasks (default: true - synced when showLabel is enabled)
-    labelPosition?: 'inside' | 'right' | 'left' | 'center' // Label position (default: 'inside')
-    labelFormatter?: (progress: number, task: GanttTask) => string // Custom label format function
-    snapStep?: number // Progress snap increment during drag (default: 1)
-    indicatorPosition?: 'full' | 'bottom' | 'top' // Progress indicator display style (default: 'full')
-  }
+  progress?: GanttChartOptionProgress
   /** Task selection and marquee rubberband selection settings */
-  selection?: {
-    marquee?: boolean // Whether to enable rectangular marquee selection (default: true)
-    borderColor?: string // Marquee selection border color (CSS color string). Defaults to theme color
-    backgroundColor?: string // Marquee selection background color (CSS color string). Defaults to theme color
-  }
+  selection?: GanttChartOptionSelection
   /** WBS & hierarchical tree configuration */
   tree?: GanttChartOptionTree
+  /** Operation history and Undo/Redo configuration */
+  history?: GanttChartOptionHistory
+  /** Extension plugins */
+  plugins?: GanttPlugin[]
 }
 ```
 
@@ -206,8 +174,12 @@ Custom events dispatched by the component.
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
 | `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
 | `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
+| `dependency-select`      | `DependencySelectEventDetail`     | Fired when a dependency line is selected or deselected.                              |
+| `dependency-delete`      | `DependencyDeleteEventDetail`     | Fired when a dependency line is deleted (via Delete key, button, or method).         |
 | `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
-| `zoom-change`            | `ZoomChangeEventDetail`           | Fired when the zoom level changes (via Ctrl+wheel, `zoomTo()`, or `resetZoom()`).    |
+| `zoom-change`            | `ZoomChangeEventDetail`           | Fired when the zoom level changes (via shortcut, wheel, or method call).             |
+| `command`                | `CommandEventDetail`              | Fired when an edit command is executed and recorded in the history stack.            |
+| `history-change`         | `HistoryChangeEventDetail`        | Fired when undo/redo availability or history stack state changes.                    |
 | `marker-dblclick`        | `MarkerDblClickEventDetail`       | Fired when a marker is double-clicked.                                               |
 | `marker-contextmenu`     | `MarkerContextMenuEventDetail`    | Fired when a marker is right-clicked. Use for implementing custom context menus.     |
 
@@ -215,21 +187,32 @@ Custom events dispatched by the component.
 
 Public methods that can be called on the component instance.
 
-| Method            | Signature                                                                                   | Description                                                                                                                                                                                     |
-| :---------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectTask`      | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
-| `use`             | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                           |
-| `hitTest`         | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
-| `exportImage`     | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
-| `zoomTo`          | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode). Clamped to zoom.min/max range.                                                                                         |
-| `zoomToFit`       | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
-| `resetZoom`       | `() => void`                                                                                | Resets zoom to the original scale set by `option.calendar.pxPerDay` (or `pxPerMonth`).                                                                                                          |
-| `getRowPositions` | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
-| `toggleRowCollapse` | `(rowId: string, collapsed?: boolean) => boolean`                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
-| `collapseAll`       | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
-| `expandAll`         | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
-| `resetScroll`       | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
-| `scrollToPosition`  | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
+| Method                    | Signature                                                                                   | Description                                                                                                                                                                                     |
+| :------------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `undo`                    | `() => Promise<boolean>`                                                                    | Reverts the most recent user operation (Undo). Returns `true` on success.                                                                                                                       |
+| `redo`                    | `() => Promise<boolean>`                                                                    | Re-executes the most recently undone operation (Redo). Returns `true` on success.                                                                                                               |
+| `clearHistory`            | `() => void`                                                                                | Clears the entire operation history stack.                                                                                                                                                      |
+| `recordCommand`           | `(command: GanttCommand) => void`                                                           | Manually records a custom command to the history stack and dispatches the `command` event.                                                                                                      |
+| `zoomToPercent`           | `(percent: number) => void`                                                                 | Sets the zoom magnification percentage (e.g. `100` = 100%, clamped to `minPercent`..`maxPercent`). Synchronizes calendar width, row header, bar height, and font scale.                         |
+| `zoomToScale`             | `(scale: number) => void`                                                                   | Sets the zoom magnification scale factor (e.g. `1.0` = 100%, `0.75` = 75%).                                                                                                              |
+| `zoomIn`                  | `(step?: number) => void`                                                                   | Zooms in by one preset level or specified custom delta.                                                                                                                                         |
+| `zoomOut`                 | `(step?: number) => void`                                                                   | Zooms out by one preset level or specified custom delta.                                                                                                                                        |
+| `getZoomPercent`          | `() => number`                                                                              | Returns the current zoom percentage (e.g. `100`).                                                                                                                                               |
+| `getZoomScale`            | `() => number`                                                                              | Returns the current effective zoom scale factor (e.g. `1.0`).                                                                                                                                   |
+| `zoomTo`                  | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode) (backward compatibility).                                                                                               |
+| `zoomToFit`               | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
+| `resetZoom`               | `() => void`                                                                                | Resets zoom back to 100% standard magnification.                                                                                                                                                |
+| `triggerDependencyDelete` | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | Programmatically deletes the dependency connection between two tasks, emitting `dependency-delete` and recording the undoable command.                                                         |
+| `selectTask`              | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
+| `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
+| `exportImage`             | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `getRowPositions`         | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
+| `toggleRowCollapse`       | `(rowId: string, collapsed?: boolean) => boolean`                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
+| `collapseAll`             | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
+| `expandAll`               | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
+| `resetScroll`             | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
+| `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
 
 ### Usage Examples
 
@@ -991,6 +974,12 @@ interface GanttChartOptionDependency {
   showConnectors?: boolean
   /** Whether to show the critical path (default: false). Automatically calculates the longest chain in the dependency graph and highlights relevant task bars and lines */
   showCriticalPath?: boolean
+  /** Whether creating dependencies via drag-and-drop is allowed (default: true) */
+  creatable?: boolean
+  /** Whether deleting dependencies is allowed (default: true) */
+  deletable?: boolean
+  /** Whether to show the delete "×" button on selected line (default: true) */
+  showDeleteButton?: boolean
 }
 ```
 
@@ -1004,6 +993,38 @@ interface DependencyCreateEventDetail {
   sourceEndpoint: DependencyEndpoint // Source endpoint (start=left edge, end=right edge)
   targetTaskId: string // Target task ID
   targetEndpoint: DependencyEndpoint // Target endpoint (start=left edge, end=right edge)
+}
+```
+
+### DependencyClickEventDetail
+
+```typescript
+interface DependencyClickEventDetail {
+  sourceTaskId: string // Source (dependency) task ID
+  targetTaskId: string // Target (dependent) task ID
+  event: MouseEvent // Original mouse event
+}
+```
+
+### DependencySelectEventDetail
+
+```typescript
+interface DependencySelectEventDetail {
+  /** Selected dependency info, or null when deselected */
+  selected: {
+    sourceTaskId: string
+    targetTaskId: string
+  } | null
+}
+```
+
+### DependencyDeleteEventDetail
+
+```typescript
+interface DependencyDeleteEventDetail {
+  sourceTaskId: string // Source task ID
+  targetTaskId: string // Target task ID
+  originalEvent?: Event // Original triggering event (e.g. KeyboardEvent for Delete key, MouseEvent for button click)
 }
 ```
 
@@ -1022,6 +1043,81 @@ interface TaskDeleteEventDetail {
 interface ZoomChangeEventDetail {
   pxPerDay: number // pxPerDay after zoom
   pxPerMonth?: number // pxPerMonth after zoom (only in monthly mode)
+  zoomScale: number // Zoom magnification scale (1.0 = 100%)
+  zoomPercent: number // Zoom magnification percentage (50 to 200)
+}
+```
+
+### GanttChartOptionZoom
+
+```typescript
+interface GanttChartOptionZoom {
+  /** Whether to enable zoom (default: false) */
+  enabled?: boolean
+  /** Minimum zoom percentage (default: 50) */
+  minPercent?: number
+  /** Maximum zoom percentage (default: 200) */
+  maxPercent?: number
+  /** Initial zoom percentage (default: 100) */
+  initialPercent?: number
+  /** Zoom level presets (e.g., [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]) */
+  levels?: readonly number[] | number[]
+  /** Zoom multiplier per wheel tick (default: 1.1) */
+  step?: number
+  /** Granular synchronization options for zoom scaling (default: all true) */
+  scaleElements?: {
+    /** Calendar column width (pxPerDay / pxPerMonth) (default: true) */
+    calendar?: boolean
+    /** Row header width (default: true) */
+    rowHeader?: boolean
+    /** Bar height (default: true) */
+    barHeight?: boolean
+    /** Font scale (default: true) */
+    fontScale?: boolean
+  }
+  /** Whether keyboard shortcuts (Ctrl+0 / Cmd+0 reset etc.) are enabled (default: true) */
+  shortcuts?: boolean
+  /** Minimum pxPerDay (default: 2). Acts as minimum pxPerMonth in monthly mode (backward compatibility) */
+  min?: number
+  /** Maximum pxPerDay (default: 200). Acts as maximum pxPerMonth in monthly mode (backward compatibility) */
+  max?: number
+}
+```
+
+### GanttChartOptionHistory
+
+```typescript
+interface GanttChartOptionHistory {
+  /** Whether history tracking is enabled (default: true) */
+  enabled?: boolean
+  /** Maximum history stack depth (default: 50) */
+  maxDepth?: number
+  /** Whether keyboard shortcuts (Cmd+Z, Ctrl+Z, Cmd+Shift+Z, Ctrl+Y) are enabled (default: true) */
+  keyboard?: boolean
+  /** Intercept hook before undo execution. Return false to cancel */
+  onUndo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
+  /** Intercept hook before redo execution. Return false to cancel */
+  onRedo?: (command: GanttCommand) => Promise<boolean | void> | boolean | void
+}
+```
+
+### CommandEventDetail
+
+```typescript
+interface CommandEventDetail {
+  /** Executed command */
+  command: GanttCommand
+}
+```
+
+### HistoryChangeEventDetail
+
+```typescript
+interface HistoryChangeEventDetail {
+  canUndo: boolean // Whether undo is available
+  canRedo: boolean // Whether redo is available
+  historyLength: number // Current history stack depth
+  currentIndex: number // Current history pointer index
 }
 ```
 
@@ -1628,8 +1724,14 @@ When the Gantt chart has focus, you can navigate, select, move, and delete tasks
 | `Enter` / `Space` | Select the focused task |
 | `Ctrl/Cmd + Enter` | Toggle selection of the focused task (multi-select) |
 | `Shift + ←` `→` | Move selected tasks left/right (by `moveStep` amount) |
-| `Delete` / `Backspace` | Fire `task-delete` event for selected tasks |
-| `Escape` | Clear all selection and focus |
+| `Delete` / `Backspace` | Delete selected tasks (`task-delete`) or selected dependency line (`dependency-delete`) |
+| `Ctrl+Z` / `Cmd+Z` | Undo last operation |
+| `Ctrl+Y` / `Cmd+Shift+Z` | Redo undone operation |
+| `Ctrl/Cmd + +` | Zoom in |
+| `Ctrl/Cmd + -` | Zoom out |
+| `Ctrl/Cmd + 0` | Reset zoom to 100% |
+| `Ctrl/Cmd + Wheel` | Zoom in / out via mouse wheel |
+| `Escape` | Clear all selection (tasks, dependencies) and focus |
 | `Home` | Focus the first task in the current row |
 | `End` | Focus the last task in the current row |
 
@@ -1918,4 +2020,148 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: Complete array of row data
 - **Returns**: `true` if drop is permitted, `false` if circular reference would occur
 
+---
 
+## Zoom Controls & Scaling
+
+Enabling `option.zoom` lets users smoothly zoom between 50% and 200% magnification using mouse wheel, keyboard shortcuts, or public API methods.
+
+### Features
+
+- **Coordinated Scaling**: In addition to calendar day/month widths, row header width, task bar height, and font scale (via `--moguchart-font-scale` CSS variable) can scale together in sync. Each element can be toggled using `scaleElements`.
+- **Preset Zoom Levels**: Built-in Chrome-like zoom presets (50%, 67%, 75%, 80%, 90%, 100%, 110%, 125%, 150%, 175%, 200%).
+- **Shortcuts**: `Ctrl/Cmd + Wheel`, `Ctrl/Cmd + + / -`, and `Ctrl/Cmd + 0` (reset to 100%).
+
+### Configuration
+
+```typescript
+const chart = document.querySelector('gantt-chart')
+
+chart.option = {
+  // ...
+  zoom: {
+    enabled: true, // Enable zoom controls
+    minPercent: 50, // Minimum zoom percentage (50%)
+    maxPercent: 200, // Maximum zoom percentage (200%)
+    initialPercent: 100, // Initial zoom percentage (100%)
+    shortcuts: true, // Enable Ctrl/Cmd + +, -, 0 shortcuts
+    scaleElements: {
+      calendar: true,   // Scale calendar column width
+      rowHeader: true,  // Scale row header width
+      barHeight: true,  // Scale task bar height
+      fontScale: true,  // Scale overall chart font size
+    },
+  },
+}
+```
+
+### Public Methods & Events
+
+```typescript
+// Zoom controls
+chart.zoomIn() // Zoom in by one preset step
+chart.zoomOut() // Zoom out by one preset step
+chart.zoomToPercent(125) // Set zoom to 125%
+chart.zoomToScale(1.5) // Set zoom to 1.5x
+chart.resetZoom() // Reset to 100%
+
+// Listen for zoom changes
+chart.addEventListener('zoom-change', (e) => {
+  const { zoomPercent, zoomScale, pxPerDay } = e.detail
+  console.log(`Current zoom: ${zoomPercent}% (scale: ${zoomScale}, pxPerDay: ${pxPerDay})`)
+})
+```
+
+---
+
+## Operation History Management (Undo / Redo)
+
+`option.history` enables automatic command pattern-based history tracking for user operations (moving/resizing tasks, progress adjustments, task deletion, row reordering, and dependency link creation/deletion), allowing effortless Undo and Redo.
+
+### Configuration
+
+```typescript
+chart.option = {
+  // ...
+  history: {
+    enabled: true, // Enable history tracking (default: true)
+    maxDepth: 50, // Maximum commands to retain (default: 50)
+    keyboard: true, // Enable Cmd+Z, Ctrl+Z, Ctrl+Y shortcuts (default: true)
+    onUndo: (command) => {
+      console.log('Before undo:', command.type)
+      // Return false to cancel undo
+    },
+    onRedo: (command) => {
+      console.log('Before redo:', command.type)
+    },
+  },
+}
+```
+
+### Public Methods & Events
+
+```typescript
+// Execute Undo / Redo
+if (chart.canUndo) {
+  await chart.undo()
+}
+
+if (chart.canRedo) {
+  await chart.redo()
+}
+
+// Clear history
+chart.clearHistory()
+
+// Listen for history changes to update UI buttons
+chart.addEventListener('history-change', (e) => {
+  const { canUndo, canRedo, historyLength } = e.detail
+  undoButton.disabled = !canUndo
+  redoButton.disabled = !canRedo
+})
+```
+
+---
+
+## Interactive Dependency Line Operations (Selection & Deletion)
+
+Task dependencies (arrows) can be selected by clicking, highlighted with distinct styling, and deleted via one-click button or keyboard.
+
+### Configuration
+
+```typescript
+chart.option = {
+  // ...
+  dependency: {
+    lineStyle: 'orthogonal', // 'orthogonal' or 'curve'
+    showArrows: true,
+    showConnectors: true,
+    creatable: true, // Allow creating links via connector drag (default: true)
+    deletable: true, // Allow deleting links (default: true)
+    showDeleteButton: true, // Show "×" delete button on selected link (default: true)
+  },
+}
+```
+
+### Events & Methods
+
+```typescript
+// Selection event
+chart.addEventListener('dependency-select', (e) => {
+  const { selected } = e.detail
+  if (selected) {
+    console.log(`Selected dependency: ${selected.sourceTaskId} -> ${selected.targetTaskId}`)
+  } else {
+    console.log('Dependency deselected')
+  }
+})
+
+// Deletion event
+chart.addEventListener('dependency-delete', (e) => {
+  const { sourceTaskId, targetTaskId } = e.detail
+  console.log(`Dependency deleted: ${sourceTaskId} -> ${targetTaskId}`)
+})
+
+// Programmatic deletion
+chart.triggerDependencyDelete('task-1', 'task-2')
+```

@@ -62,6 +62,18 @@ async function handleExportPdf(chartElement) {
 }
 ```
 
+## プラグイン初期化設定 (`ExportPluginConfig`)
+
+```typescript
+chart.use(
+  exportPlugin({
+    defaultScale: 2, // PNG出力時のデフォルト解像度倍率
+    defaultFilename: 'my-schedule', // デフォルトファイル名
+    normalizeZoom: true, // エクスポート時に一時的にズーム倍率を100%に正規化するか（デフォルト: true）
+  })
+)
+```
+
 ## オプション (`ExportImageOptions`)
 
 | オプション | 型 | デフォルト値 | 説明 |
@@ -70,6 +82,7 @@ async function handleExportPdf(chartElement) {
 | `download` | `boolean` | `false` | `true` の場合、自動的にファイルダウンロードをトリガー |
 | `scale` | `number` | `2` | PNG 出力時の解像度倍率 |
 | `splitHeight` | `number` | 未指定 | 指定ピクセル数で縦に分割し、分割位置にカレンダーヘッダーを挿入 |
+| `normalizeZoom` | `boolean` | `true` | エクスポート時に一時的にズーム倍率を100%（標準スケール）に正規化して出力 |
 
 ## ライセンス
 

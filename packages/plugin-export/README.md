@@ -62,6 +62,18 @@ async function handleExportPdf(chartElement) {
 }
 ```
 
+## Plugin Configuration (`ExportPluginConfig`)
+
+```typescript
+chart.use(
+  exportPlugin({
+    defaultScale: 2, // Default resolution multiplier for PNG export
+    defaultFilename: 'my-schedule', // Default output filename
+    normalizeZoom: true, // Temporarily normalize zoom to 100% during export (default: true)
+  })
+)
+```
+
 ## Options (`ExportImageOptions`)
 
 | Option | Type | Default | Description |
@@ -70,6 +82,7 @@ async function handleExportPdf(chartElement) {
 | `download` | `boolean` | `false` | If `true`, automatically triggers browser file download |
 | `scale` | `number` | `2` | Resolution multiplier for PNG rendering |
 | `splitHeight` | `number` | `undefined` | Split height in pixels for vertical multi-page division with repeating calendar headers |
+| `normalizeZoom` | `boolean` | `true` | Temporarily normalize zoom level to 100% (baseline scale) during export |
 
 ## License
 

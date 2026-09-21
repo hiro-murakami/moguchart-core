@@ -9,11 +9,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ズーム機能の包括的強化 (Comprehensive Zoom Controls)**:
+  - 従来のプリセット表示（日/週/月/年）に加え、パーセンテージ（50%〜200%）およびスケール倍率（0.5〜2.0）に基づく柔軟なズーム制御を導入
+  - Chrome準拠のプリセットズームレベル（50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200%）をサポート
+  - パブリックメソッドの追加:
+    - `zoomToPercent(percent: number)`: 指定したパーセンテージでズーム
+    - `zoomToScale(scale: number)`: 指定した倍率（例: `1.0` = 100%）でズーム
+    - `zoomIn(step?: number)`: 1段階拡大（または指定ステップ拡大）
+    - `zoomOut(step?: number)`: 1段階縮小（または指定ステップ縮小）
+    - `getZoomPercent(): number`: 現在のズームパーセンテージを取得
+    - `getZoomScale(): number`: 現在のズーム倍率を取得
+    - `resetZoom()`: ズームを100%（標準倍率）にリセット
+  - 一括連動スケーリングオプション `scaleElements`:
+    - カレンダー列幅（`calendar`）、行ヘッダー幅（`rowHeader`）、バーの高さ（`barHeight`）、フォントサイズ（`fontScale`、`--moguchart-font-scale`）のズーム連動を個別ON/OFF可能
+  - キーボードショートカット:
+    - `Ctrl/Cmd + +`: ズームイン
+    - `Ctrl/Cmd + -`: ズームアウト
+    - `Ctrl/Cmd + 0`: 100%リセット
+  - マウスホイールズーム:
+    - `Ctrl/Cmd + ホイールスクロール` での直感的な拡大縮小操作
+  - `zoom-change` イベントの詳細データ拡充（`pxPerDay`, `pxPerMonth`, `zoomScale`, `zoomPercent`）
+  - デモ画面にパーセンテージ表示付きズームコントロールUI（スライダーおよびプリセットボタングループ）を追加
+
+- **操作履歴管理・Undo / Redo 機能 (History Management)**:
+  - コマンドパターンに基づく操作履歴マネージャー（`HistoryManager`）を実装
+  - 以下の主要操作で自動的にコマンドを記録し、取り消し・やり直しが可能:
+    - タスクのドラッグ移動・行間移動・リサイズ
+    - 進捗率ハンドルのドラッグ変更
+    - タスクの削除（Delete/Backspace）
+    - 行のドラッグ＆ドロップ並び替え
+    - 依存関係線のドラッグ作成および削除
+  - パブリックAPI:
+    - `undo(): Promise<boolean>`: 直前の操作を取り消す
+    - `redo(): Promise<boolean>`: 直前に取り消した操作をやり直す
+    - `canUndo`: 取り消し可能かどうか（getter）
+    - `canRedo`: やり直し可能かどうか（getter）
+    - `clearHistory(): void`: 履歴を全消去
+    - `recordCommand(command: GanttCommand): void`: 外部から任意コマンドを履歴に追加
+  - キーボードショートカット:
+    - `Ctrl+Z` / `Cmd+Z`: Undo
+    - `Ctrl+Y` / `Cmd+Shift+Z` / `Cmd+Y`: Redo
+  - オプション `option.history`:
+    - `enabled`: 履歴管理の有効/無効（デフォルト: `true`）
+    - `maxDepth`: 保持する最大履歴数（デフォルト: `50`）
+    - `keyboard`: ショートカットキー有効/無効（デフォルト: `true`）
+    - `onUndo` / `onRedo`: Undo/Redo 実行直前のインターセプトフック（キャンセル可能）
+  - イベント:
+    - `command`: コマンド実行時に発火
+    - `history-change`: 履歴状態変更時に発火（`canUndo`, `canRedo`, `historyLength` 等を含む）
+  - 公式 React / Vue ラッパーでの props / emits / ref 経由メソッドの完全サポート
+  - デモ画面に Undo / Redo ボタンおよびショートカットキー案内を追加
+
+- **依存関係線の対話的操作・選択・削除サポート**:
+  - 依存関係線（コネクションライン）のクリックによる選択機能を追加
+  - 選択中の依存関係線をハイライト表示（太線化＋シャドウ）
+  - 選択中の依存関係線の中央に削除「×」ボタンを表示（ワンクリックで削除可能）
+  - キーボードによる削除: 依存関係線を選択した状態で `Delete` または `Backspace` キーを押すことで削除可能
+  - パブリックメソッド `triggerDependencyDelete(sourceTaskId, targetTaskId)` を追加
+  - プロパティ `selectedDependency: { sourceTaskId: string; targetTaskId: string } | null` を追加
+  - オプション `option.dependency`:
+    - `creatable`: 依存関係のドラッグ作成可否（デフォルト: `true`）
+    - `deletable`: 依存関係の削除可否（デフォルト: `true`）
+    - `showDeleteButton`: 選択時の削除「×」ボタン表示可否（デフォルト: `true`）
+  - イベント:
+    - `dependency-select`: 依存関係線の選択/解除時に発火
+    - `dependency-delete`: 依存関係線の削除時に発火
+  - 公式 React / Vue ラッパーでの props / emits バインディングのサポート
+
 - **サマリータスクの進捗率表示の追加・改善**:
   - `showLabel: true` 設定時に、サマリータスク（親行の集計タスク）にも自動的に進捗ラベル（例: `72%`）が表示されるよう改善（`showSummaryLabel` の既定値を `true` に変更）
   - サマリータスク専用のプログレスバー視覚スタイル（CSSカスタムプロパティ `--moguchart-summary-progress-color`、既定値: `rgba(255, 255, 255, 0.28)`）を追加し、暗いサマリーバー上でも進捗度合いが明瞭に視認できるよう改善
   - `option.progress.summaryColor` を追加し、サマリータスク専用の進捗バー色を柔軟にカスタマイズ可能に
   - サマリータスクのブラケット形状（上部横棒）に合わせて進捗ラベルの垂直位置を最適化
+
+- **エクスポートプラグインのズーム正規化 (`@mogura/moguchart-plugin-export`)**:
+  - `normalizeZoom` オプション（デフォルト: `true`）を追加。ズーム拡大・縮小状態であっても、エクスポート時に一時的に100%（標準スケール）に正規化してキャプチャを行い、完了後に元のズーム倍率に自動復元する処理を追加
 
 ## [1.1.1] - 2026-09-19
 

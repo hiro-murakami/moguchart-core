@@ -123,6 +123,76 @@ Then use `<GanttChart />` directly in any template without importing it.
 
 ---
 
+---
+
+## Main Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `rows` | `GanttRow[]` | `[]` | Array of Gantt chart rows and tasks |
+| `option` | `GanttChartOption` | **Required** | Options for calendar, zoom, history, dependencies, etc. |
+| `theme` | `'light' \| 'dark'` | `'light'` | Color theme |
+| `selectedRowIds` | `string[]` | `[]` | Array of selected row IDs |
+| `selectedTaskIds` | `string[]` | `[]` | Array of selected task IDs |
+| `selectedDependency` | `{ sourceTaskId: string; targetTaskId: string } \| null` | `null` | Currently selected dependency connection (highlighted) |
+| `externalDraggingTask` | `GanttTask \| null` | `null` | Task currently dragged from an external source |
+
+---
+
+## Imperative Operations via Template Ref (Undo, Redo, Zoom, etc.)
+
+Access the `GanttChartInstance` via Template Ref (`ref="chartRef"`) to call imperative methods such as undo/redo, zoom, collapsing, and exports:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { GanttChart, type GanttChartInstance } from '@mogura/moguchart-vue'
+
+const chartRef = ref<GanttChartInstance | null>(null)
+
+const handleUndo = async () => {
+  if (chartRef.value?.canUndo) {
+    await chartRef.value.undo()
+  }
+}
+
+const handleRedo = async () => {
+  if (chartRef.value?.canRedo) {
+    await chartRef.value.redo()
+  }
+}
+
+const handleZoomIn = () => chartRef.value?.zoomIn()
+const handleZoomOut = () => chartRef.value?.zoomOut()
+const handleResetZoom = () => chartRef.value?.resetZoom()
+</script>
+
+<template>
+  <div>
+    <div class="toolbar">
+      <button :disabled="!chartRef?.canUndo" @click="handleUndo">Undo</button>
+      <button :disabled="!chartRef?.canRedo" @click="handleRedo">Redo</button>
+      <button @click="handleZoomIn">Zoom In</button>
+      <button @click="handleZoomOut">Zoom Out</button>
+      <button @click="handleResetZoom">Reset Zoom</button>
+    </div>
+
+    <GanttChart ref="chartRef" :rows="[]" :option="{}" />
+  </div>
+</template>
+```
+
+### Available Public Methods & Getters
+
+- **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
+- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **Dependency Operations**: `triggerDependencyDelete(fromTaskId, toTaskId)`
+- **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Scroll & Selection**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
+- **Export**: `exportImage(format, options)` (when export plugin is installed)
+
+---
+
 ## Using Plugins (e.g. Export Plugin)
 
 You can register plugins declaratively via `option.plugins` or imperatively using `ref`:
@@ -135,7 +205,7 @@ import {
   type GanttChartInstance,
   type GanttChartOption,
 } from '@mogura/moguchart-vue'
-import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+import { exportPlugin } from '@mogura/moguchart-plugin-export'
 
 const chartRef = ref<GanttChartInstance | null>(null)
 
@@ -145,15 +215,23 @@ const option: GanttChartOption = {
     end: new Date('2026-04-30'),
     pxPerDay: 40,
   },
-  plugins: [new ExportPlugin()],
+  plugins: [exportPlugin()],
 }
 
 const handleExportPng = async () => {
-  await chartRef.value?.exportImage({ format: 'png', scale: 2 })
+  await chartRef.value?.exportImage('png', {
+    filename: 'gantt-export',
+    download: true,
+    scale: 2,
+    normalizeZoom: true, // Export at baseline 100% scale regardless of current zoom
+  })
 }
 
 const handleExportPdf = async () => {
-  await chartRef.value?.exportImage({ format: 'pdf' })
+  await chartRef.value?.exportImage('pdf', {
+    filename: 'gantt-export',
+    download: true,
+  })
 }
 </script>
 
@@ -195,7 +273,16 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@row-toggle-collapse` | Dispatched when a tree row is collapsed/expanded | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | Dispatched when a dependency link is drawn | `DependencyCreateEventDetail` |
 | `@dependency-click` | Dispatched when a dependency line is clicked | `DependencyClickEventDetail` |
+| `@dependency-select` | Dispatched when a dependency line is selected (highlighted / delete button shown) | `DependencySelectEventDetail` |
+| `@dependency-delete` | Dispatched when a dependency link is deleted | `DependencyDeleteEventDetail` |
 | `@zoom-change` | Dispatched when zoom level changes | `ZoomChangeEventDetail` |
+| `@command` | Dispatched when a command is executed (tracked for Undo/Redo) | `CommandEventDetail` |
+| `@history-change` | Dispatched when history stack changes (`canUndo`/`canRedo` updated) | `HistoryChangeEventDetail` |
+| `@marker-dblclick` | Dispatched on double clicking a marker | `MarkerDblClickEventDetail` |
+| `@marker-contextmenu` | Dispatched on right clicking a marker | `MarkerContextMenuEventDetail` |
+| `@minimap-move` | Dispatched when minimap viewport moves | `MinimapMoveEventDetail` |
+| `@minimap-resize` | Dispatched when minimap is resized | `MinimapResizeEventDetail` |
+| `@minimap-collapse` | Dispatched when minimap is collapsed or expanded | `MinimapCollapseEventDetail` |
 | `@chart-contextmenu` | Dispatched on right-clicking empty chart area | `ChartContextMenuEventDetail` |
 
 ---

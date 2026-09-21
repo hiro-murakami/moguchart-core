@@ -123,6 +123,76 @@ app.mount('#app')
 
 ---
 
+---
+
+## 主な Props
+
+| Prop 名 | 型 | 初期値 | 説明 |
+|---|---|---|---|
+| `rows` | `GanttRow[]` | `[]` | ガントチャートの行・タスクデータ配列 |
+| `option` | `GanttChartOption` | **必須** | カレンダー期間、ズーム、履歴、依存関係等の設定 |
+| `theme` | `'light' \| 'dark'` | `'light'` | カラーテーマ |
+| `selectedRowIds` | `string[]` | `[]` | 選択状態の行ID配列 |
+| `selectedTaskIds` | `string[]` | `[]` | 選択状態のタスクID配列 |
+| `selectedDependency` | `{ sourceTaskId: string; targetTaskId: string } \| null` | `null` | 選択状態の依存関係線（ハイライト表示） |
+| `externalDraggingTask` | `GanttTask \| null` | `null` | 外部からドラッグ中のタスク |
+
+---
+
+## テンプレート Ref による命令的操作（Undo / Redo / Zoom等）
+
+Template Ref (`ref="chartRef"`) を通じて `GanttChartInstance` にアクセスすることで、履歴管理やズーム、折りたたみ、エクスポートなどの命令的メソッドを実行できます。
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { GanttChart, type GanttChartInstance } from '@mogura/moguchart-vue'
+
+const chartRef = ref<GanttChartInstance | null>(null)
+
+const handleUndo = async () => {
+  if (chartRef.value?.canUndo) {
+    await chartRef.value.undo()
+  }
+}
+
+const handleRedo = async () => {
+  if (chartRef.value?.canRedo) {
+    await chartRef.value.redo()
+  }
+}
+
+const handleZoomIn = () => chartRef.value?.zoomIn()
+const handleZoomOut = () => chartRef.value?.zoomOut()
+const handleResetZoom = () => chartRef.value?.resetZoom()
+</script>
+
+<template>
+  <div>
+    <div class="toolbar">
+      <button :disabled="!chartRef?.canUndo" @click="handleUndo">元に戻す (Undo)</button>
+      <button :disabled="!chartRef?.canRedo" @click="handleRedo">やり直す (Redo)</button>
+      <button @click="handleZoomIn">ズームイン</button>
+      <button @click="handleZoomOut">ズームアウト</button>
+      <button @click="handleResetZoom">100%リセット</button>
+    </div>
+
+    <GanttChart ref="chartRef" :rows="[]" :option="{}" />
+  </div>
+</template>
+```
+
+### 利用可能な主なメソッド・ゲッター
+
+- **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
+- **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **依存関係操作**: `triggerDependencyDelete(fromTaskId, toTaskId)`
+- **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **スクロール・選択**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
+- **エクスポート**: `exportImage(format, options)`（プラグイン導入時）
+
+---
+
 ## プラグインの利用（エクスポート機能など）
 
 `option.plugins` に渡す宣言的な登録と、`ref` を介した命令的呼び出しに対応しています：
@@ -135,7 +205,7 @@ import {
   type GanttChartInstance,
   type GanttChartOption,
 } from '@mogura/moguchart-vue'
-import { ExportPlugin } from '@mogura/moguchart-plugin-export'
+import { exportPlugin } from '@mogura/moguchart-plugin-export'
 
 const chartRef = ref<GanttChartInstance | null>(null)
 
@@ -145,15 +215,23 @@ const option: GanttChartOption = {
     end: new Date('2026-04-30'),
     pxPerDay: 40,
   },
-  plugins: [new ExportPlugin()],
+  plugins: [exportPlugin()],
 }
 
 const handleExportPng = async () => {
-  await chartRef.value?.exportImage({ format: 'png', scale: 2 })
+  await chartRef.value?.exportImage('png', {
+    filename: 'gantt-export',
+    download: true,
+    scale: 2,
+    normalizeZoom: true, // ズーム倍率に関わらず標準スケールで出力
+  })
 }
 
 const handleExportPdf = async () => {
-  await chartRef.value?.exportImage({ format: 'pdf' })
+  await chartRef.value?.exportImage('pdf', {
+    filename: 'gantt-export',
+    download: true,
+  })
 }
 </script>
 
@@ -195,7 +273,16 @@ const handleExportPdf = async () => {
 | `@row-toggle-collapse` | ツリー行の展開・折りたたみ時 | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | 依存関係コネクタの接続完了時 | `DependencyCreateEventDetail` |
 | `@dependency-click` | 依存関係線のクリック時 | `DependencyClickEventDetail` |
-| `@zoom-change` | カレンダースケール変更時 | `ZoomChangeEventDetail` |
+| `@dependency-select` | 依存関係線の選択状態変更時（ハイライト・削除ボタン表示） | `DependencySelectEventDetail` |
+| `@dependency-delete` | 依存関係線の削除時 | `DependencyDeleteEventDetail` |
+| `@zoom-change` | ズーム倍率変更時 | `ZoomChangeEventDetail` |
+| `@command` | コマンド実行時（Undo / Redo 対象操作） | `CommandEventDetail` |
+| `@history-change` | 履歴スタック変更時（canUndo / canRedo 更新） | `HistoryChangeEventDetail` |
+| `@marker-dblclick` | マーカーダブルクリック時 | `MarkerDblClickEventDetail` |
+| `@marker-contextmenu` | マーカー右クリック時 | `MarkerContextMenuEventDetail` |
+| `@minimap-move` | ミニマップ移動時 | `MinimapMoveEventDetail` |
+| `@minimap-resize` | ミニマップリサイズ時 | `MinimapResizeEventDetail` |
+| `@minimap-collapse` | ミニマップ折りたたみ時 | `MinimapCollapseEventDetail` |
 | `@chart-contextmenu` | チャート背景の右クリック時 | `ChartContextMenuEventDetail` |
 
 ---
