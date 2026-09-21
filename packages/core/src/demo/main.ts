@@ -21,7 +21,9 @@ import type {
   DependencySelectEventDetail,
   TaskProgressChangeEventDetail,
   HistoryChangeEventDetail,
+  ZoomChangeEventDetail,
 } from '../core/types'
+import { CHROME_ZOOM_LEVELS } from '../core/constants'
 import type { ThemeColorPalette } from '../core/types'
 import type { MoguchartLocale } from '../core/i18n'
 import { jaLocale, enLocale } from '../core/i18n'
@@ -85,6 +87,7 @@ if (typeof window !== 'undefined') {
 
 let rows: GanttRow[] = []
 let viewMode: 'day' | 'week' | 'month' | 'hour' = 'day'
+let zoomPercent = 100
 
 let pxPerDay = 48
 let pxPerMonth: number | undefined = undefined
@@ -220,9 +223,10 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(chartStart.getTime() + 1.5 * 24 * 60 * 60 * 1000)
+    chartEnd.setTime(chartStart.getTime() + 5 * 24 * 60 * 60 * 1000)
     rows = generateHourModeData(t)
   }
+  zoomPercent = 100
   renderApp()
 }
 
@@ -409,6 +413,8 @@ const renderApp = () => {
     },
     zoom: {
       enabled: true,
+      initialPercent: zoomPercent,
+      levels: CHROME_ZOOM_LEVELS,
     },
   }
 
@@ -1006,6 +1012,41 @@ const renderApp = () => {
                 </select>
               </span>
               <span class="select-group">
+                ${t.zoomLevel}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => {
+                    const val = Number((e.target as HTMLSelectElement).value)
+                    zoomPercent = val
+                    const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                    if (chart) {
+                      chart.zoomToPercent(val)
+                    }
+                    renderApp()
+                  }}"
+                >
+                  ${CHROME_ZOOM_LEVELS.map(
+                    (lvl) => html` <option value="${lvl}" ?selected="${zoomPercent === lvl}">${lvl}%</option> `,
+                  )}
+                </select>
+                <button
+                  class="export-btn"
+                  style="background: ${zoomPercent === 100 ? '#94a3b8' : '#0284c7'}; padding: 3px 8px; font-size: 11px; margin-left: 4px;"
+                  ?disabled="${zoomPercent === 100}"
+                  title="${t.resetZoomTitle}"
+                  @click="${() => {
+                    zoomPercent = 100
+                    const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
+                    if (chart) {
+                      chart.resetZoom()
+                    }
+                    renderApp()
+                  }}"
+                >
+                  ↺ ${t.resetZoom}
+                </button>
+              </span>
+              <span class="select-group">
                 ${t.tooltipDelay}
                 <select
                   class="mini-select"
@@ -1027,6 +1068,12 @@ const renderApp = () => {
             .option="${option}"
             .selectedRowIds="${selectedIds}"
             theme="${theme}"
+            @zoom-change="${(e: CustomEvent<ZoomChangeEventDetail>) => {
+              if (typeof e.detail?.zoomPercent === 'number' && zoomPercent !== e.detail.zoomPercent) {
+                zoomPercent = e.detail.zoomPercent
+                renderApp()
+              }
+            }}"
             @history-change="${(e: CustomEvent<HistoryChangeEventDetail>) => {
               canUndo = e.detail.canUndo
               canRedo = e.detail.canRedo

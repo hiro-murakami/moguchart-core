@@ -40,6 +40,12 @@ describe('DemoTexts (collapse/expand)', () => {
 
     expect(jaTexts.showSummaryProgressLabel).toBe('サマリー進捗ラベル表示')
     expect(enTexts.showSummaryProgressLabel).toBe('Show Summary Progress Label')
+
+    expect(jaTexts.zoomLevel).toBe('表示倍率:')
+    expect(enTexts.zoomLevel).toBe('Zoom:')
+
+    expect(jaTexts.resetZoom).toBe('100%に戻す')
+    expect(enTexts.resetZoom).toBe('Reset 100%')
   })
 })
 

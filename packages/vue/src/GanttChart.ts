@@ -265,6 +265,12 @@ export const GanttChart = defineComponent({
       zoomTo: (...args: Parameters<GanttChartElement['zoomTo']>) => elRef.value?.zoomTo(...args),
       zoomToFit: (...args: Parameters<GanttChartElement['zoomToFit']>) => elRef.value?.zoomToFit(...args),
       resetZoom: (...args: Parameters<GanttChartElement['resetZoom']>) => elRef.value?.resetZoom(...args),
+      zoomToPercent: (...args: Parameters<GanttChartElement['zoomToPercent']>) => elRef.value?.zoomToPercent(...args),
+      zoomToScale: (...args: Parameters<GanttChartElement['zoomToScale']>) => elRef.value?.zoomToScale(...args),
+      zoomIn: (...args: Parameters<GanttChartElement['zoomIn']>) => elRef.value?.zoomIn(...args),
+      zoomOut: (...args: Parameters<GanttChartElement['zoomOut']>) => elRef.value?.zoomOut(...args),
+      getZoomPercent: () => elRef.value?.getZoomPercent(),
+      getZoomScale: () => elRef.value?.getZoomScale(),
       resetScroll: (...args: Parameters<GanttChartElement['resetScroll']>) => elRef.value?.resetScroll(...args),
       scrollToPosition: (...args: Parameters<GanttChartElement['scrollToPosition']>) => elRef.value?.scrollToPosition(...args),
       selectTask: (...args: Parameters<GanttChartElement['selectTask']>) => elRef.value?.selectTask(...args),
@@ -305,6 +311,12 @@ export interface GanttChartPublicApi {
   zoomTo: GanttChartElement['zoomTo']
   zoomToFit: GanttChartElement['zoomToFit']
   resetZoom: GanttChartElement['resetZoom']
+  zoomToPercent: GanttChartElement['zoomToPercent']
+  zoomToScale: GanttChartElement['zoomToScale']
+  zoomIn: GanttChartElement['zoomIn']
+  zoomOut: GanttChartElement['zoomOut']
+  getZoomPercent: GanttChartElement['getZoomPercent']
+  getZoomScale: GanttChartElement['getZoomScale']
   resetScroll: GanttChartElement['resetScroll']
   scrollToPosition: GanttChartElement['scrollToPosition']
   selectTask: GanttChartElement['selectTask']

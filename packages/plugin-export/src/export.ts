@@ -16,6 +16,8 @@ export interface ExportImageOptions {
   scale?: number
   /** 画像を指定したピクセル数で縦に分割し、分割位置にカレンダー（ヘッダー）を挿入する。未指定時は分割しない */
   splitHeight?: number
+  /** エクスポート時に一時的にズーム倍率を100%に正規化するかどうか。デフォルト: true */
+  normalizeZoom?: boolean
 }
 
 /** データURL のファイルダウンロードをトリガーする */

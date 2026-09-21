@@ -25,6 +25,9 @@ export interface DemoTexts {
   barHeight: string
   dayWidth: string
   rowHeaderWidth: string
+  zoomLevel: string
+  resetZoom: string
+  resetZoomTitle: string
   tooltipDelay: string
   enableProgress: string
   editableProgress: string
@@ -134,6 +137,9 @@ export const jaTexts: DemoTexts = {
   barHeight: 'バーの高さ:',
   dayWidth: '1日の幅:',
   rowHeaderWidth: '行ヘッダーの幅:',
+  zoomLevel: '表示倍率:',
+  resetZoom: '100%に戻す',
+  resetZoomTitle: '表示倍率を100%に戻す (Cmd/Ctrl + 0)',
   tooltipDelay: 'ツールチップ遅延:',
   enableProgress: '進捗表示',
   editableProgress: '進捗ドラッグ編集',
@@ -304,6 +310,9 @@ export const enTexts: DemoTexts = {
   barHeight: 'Bar Height:',
   dayWidth: 'Day Width:',
   rowHeaderWidth: 'Row Header Width:',
+  zoomLevel: 'Zoom:',
+  resetZoom: 'Reset 100%',
+  resetZoomTitle: 'Reset zoom to 100% (Cmd/Ctrl + 0)',
   tooltipDelay: 'Tooltip Delay:',
   enableProgress: 'Show Progress',
   editableProgress: 'Editable Progress',

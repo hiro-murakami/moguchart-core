@@ -15,3 +15,14 @@ export const DEFAULT_COLOR = {
 }
 
 export const DEFAULT_BAR_COLOR = DEFAULT_COLOR.BAR
+
+/** Chrome風のプリセットズームレベル（パーセンテージ） */
+export const CHROME_ZOOM_LEVELS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200] as const
+
+/** ズームのデフォルト値 */
+export const DEFAULT_ZOOM_CONFIG = {
+  MIN_PERCENT: 50,
+  MAX_PERCENT: 200,
+  DEFAULT_PERCENT: 100,
+  STEP: 1.1,
+} as const

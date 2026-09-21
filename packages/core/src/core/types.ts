@@ -441,16 +441,7 @@ export interface GanttChartOption {
     moveStep?: number
   }
   /** ズーム機能の設定 */
-  zoom?: {
-    /** ズーム機能を有効にするか (デフォルト: false) */
-    enabled?: boolean
-    /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth */
-    min?: number
-    /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth */
-    max?: number
-    /** ホイール1回あたりのズーム倍率 (デフォルト: 1.2) */
-    step?: number
-  }
+  zoom?: GanttChartOptionZoom
   /** ミニマップ（Overview Minimap）機能の設定 */
   minimap?: GanttChartOptionMinimap
   /** 進捗管理機能の設定 */
@@ -463,6 +454,43 @@ export interface GanttChartOption {
   plugins?: GanttPlugin[]
   /** 操作履歴・Undo/Redoの設定 */
   history?: GanttChartOptionHistory
+}
+
+/**
+ * ズーム機能に関するオプション
+ */
+export interface GanttChartOptionZoom {
+  /** ズーム機能を有効にするか (デフォルト: false) */
+  enabled?: boolean
+  /** 最小パーセンテージ (デフォルト: 50) */
+  minPercent?: number
+  /** 最大パーセンテージ (デフォルト: 200) */
+  maxPercent?: number
+  /** 初期パーセンテージ (デフォルト: 100) */
+  initialPercent?: number
+  /** ズームレベル一覧 (例: [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]) */
+  levels?: readonly number[] | number[]
+  /** ホイール1回あたりのズーム倍率 (デフォルト: 1.1) */
+  step?: number
+  /**
+   * ズーム時に連動してスケーリングする要素の指定 (デフォルト: すべて true)
+   */
+  scaleElements?: {
+    /** カレンダー列幅 (pxPerDay / pxPerMonth) (デフォルト: true) */
+    calendar?: boolean
+    /** 行ヘッダー幅 (デフォルト: true) */
+    rowHeader?: boolean
+    /** バーの高さ (デフォルト: true) */
+    barHeight?: boolean
+    /** フォントサイズ (デフォルト: true) */
+    fontScale?: boolean
+  }
+  /** キーボードショートカット (Ctrl+0 / Cmd+0 でリセット等) を有効にするか (デフォルト: true) */
+  shortcuts?: boolean
+  /** 最小 pxPerDay (デフォルト: 2)。pxPerMonth モードの場合は最小 pxPerMonth (後方互換用) */
+  min?: number
+  /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth (後方互換用) */
+  max?: number
 }
 
 /**
@@ -979,6 +1007,10 @@ export interface ZoomChangeEventDetail {
   pxPerDay: number
   /** ズーム後の pxPerMonth（月単位モード時のみ） */
   pxPerMonth?: number
+  /** ズーム倍率 (1.0 = 100%) */
+  zoomScale: number
+  /** ズームパーセンテージ (50〜200) */
+  zoomPercent: number
 }
 
 /**

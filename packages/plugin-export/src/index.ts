@@ -4,6 +4,8 @@ import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './export'
 export interface ExportPluginConfig {
   defaultScale?: number
   defaultFilename?: string
+  /** エクスポート時に一時的にズーム倍率を100%に正規化するかどうか。デフォルト: true */
+  normalizeZoom?: boolean
 }
 
 /**
@@ -27,6 +29,15 @@ export function exportPlugin(config?: ExportPluginConfig): GanttPlugin<ExportPlu
         const prevScrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0
         const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0
 
+        const normalizeZoom = opts.normalizeZoom ?? mergedConfig.normalizeZoom ?? true
+        const prevZoom = typeof (chart as any).getZoomPercent === 'function' ? (chart as any).getZoomPercent() : 100
+        const shouldNormalize = normalizeZoom && typeof (chart as any).zoomToPercent === 'function' && prevZoom !== 100
+
+        if (shouldNormalize) {
+          (chart as any).zoomToPercent(100)
+          await chart.updateComplete
+        }
+
         ;(chart as any).isExporting = true
         await chart.updateComplete
         await new Promise((r) => requestAnimationFrame(r))
@@ -34,11 +45,15 @@ export function exportPlugin(config?: ExportPluginConfig): GanttPlugin<ExportPlu
           const finalOptions: ExportImageOptions = {
             scale: mergedConfig.defaultScale ?? 2,
             filename: mergedConfig.defaultFilename,
+            normalizeZoom,
             ...opts,
           }
           return await exportGanttWithHtml2Canvas(chart, format, finalOptions)
         } finally {
           ;(chart as any).isExporting = false
+          if (shouldNormalize) {
+            (chart as any).zoomToPercent(prevZoom)
+          }
           await chart.updateComplete
           if (scrollContainer) {
             scrollContainer.scrollLeft = prevScrollLeft
@@ -81,6 +96,15 @@ export async function exportChart(
   const prevScrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0
   const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0
 
+  const normalizeZoom = options.normalizeZoom ?? true
+  const prevZoom = typeof (chart as any).getZoomPercent === 'function' ? (chart as any).getZoomPercent() : 100
+  const shouldNormalize = normalizeZoom && typeof (chart as any).zoomToPercent === 'function' && prevZoom !== 100
+
+  if (shouldNormalize) {
+    (chart as any).zoomToPercent(100)
+    await chart.updateComplete
+  }
+
   ;(chart as any).isExporting = true
   await chart.updateComplete
   await new Promise((r) => requestAnimationFrame(r))
@@ -88,6 +112,9 @@ export async function exportChart(
     return await exportGanttWithHtml2Canvas(chart, format, options)
   } finally {
     ;(chart as any).isExporting = false
+    if (shouldNormalize) {
+      (chart as any).zoomToPercent(prevZoom)
+    }
     await chart.updateComplete
     if (scrollContainer) {
       scrollContainer.scrollLeft = prevScrollLeft

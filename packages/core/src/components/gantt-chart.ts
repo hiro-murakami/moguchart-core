@@ -1,4 +1,10 @@
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
+import {
+  DEFAULT_BAR_HEIGHT,
+  DEFAULT_BAR_MARGIN,
+  DEFAULT_ROW_HEADER_WIDTH,
+  DEFAULT_ZOOM_CONFIG,
+  CHROME_ZOOM_LEVELS,
+} from '../core/constants'
 import { jaLocale } from '../core/i18n'
 import type {
   BarHoverEventDetail,
@@ -10,6 +16,7 @@ import type {
   DependencyLineStyle,
   DependencySelectEventDetail,
   GanttChartOption,
+  GanttChartOptionZoom,
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
@@ -159,8 +166,13 @@ export class GanttChartElement extends LitElement {
   @state() private isExporting = false
   @state() private focusedTaskId: string | null = null
   @state() private focusedRowId: string | null = null
+  @state() private zoomPercent: number = DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
+  @state() private baseRowHeaderWidth: number = DEFAULT_ROW_HEADER_WIDTH
   @state() private zoomPxPerDay: number | null = null
   @state() private zoomPxPerMonth: number | null = null
+  private _isZoomInitialized = false
+  private _prevInitialPercent: number | undefined = undefined
+  private _lastZoomPercent: number | undefined
   @state() private marqueeSelection: {
     startX: number
     startY: number
@@ -248,17 +260,92 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
+   * ズームオプションのヘルパー
+   */
+  private get zoomOption(): GanttChartOptionZoom | undefined {
+    return this.option?.zoom
+  }
+
+  /**
+   * 現在の実効ズーム倍率 (1.0 = 100%)
+   */
+  private get effectiveZoomScale(): number {
+    return this.zoomPercent / 100
+  }
+
+  private get isScaleCalendarEnabled(): boolean {
+    return this.zoomOption?.scaleElements?.calendar !== false
+  }
+
+  private get isScaleRowHeaderEnabled(): boolean {
+    return this.zoomOption?.scaleElements?.rowHeader !== false
+  }
+
+  private get isScaleBarHeightEnabled(): boolean {
+    return this.zoomOption?.scaleElements?.barHeight !== false
+  }
+
+  private get isScaleFontEnabled(): boolean {
+    return this.zoomOption?.scaleElements?.fontScale !== false
+  }
+
+  /**
    * 現在有効な pxPerDay（ズームオーバーライドがあればそちらを優先）
    */
   private get effectivePxPerDay(): number {
-    return this.zoomPxPerDay ?? this.option.calendar.pxPerDay ?? 50
+    if (this.zoomPxPerDay !== null) return this.zoomPxPerDay
+    const base = this.option.calendar.pxPerDay ?? 50
+    if (this.zoomOption?.enabled && this.isScaleCalendarEnabled) {
+      return Math.max(8, Math.round(base * this.effectiveZoomScale))
+    }
+    return base
   }
 
   /**
    * 現在有効な pxPerMonth（ズームオーバーライドがあればそちらを優先）
    */
   private get effectivePxPerMonth(): number | undefined {
-    return this.zoomPxPerMonth ?? this.option.calendar.pxPerMonth
+    if (this.zoomPxPerMonth !== null) return this.zoomPxPerMonth
+    if (this.option.calendar.pxPerMonth === undefined) return undefined
+    const base = this.option.calendar.pxPerMonth
+    if (this.zoomOption?.enabled && this.isScaleCalendarEnabled) {
+      return Math.max(10, Math.round(base * this.effectiveZoomScale))
+    }
+    return base
+  }
+
+  /**
+   * 現在有効な行ヘッダー幅（ズーム連動）
+   */
+  private get effectiveRowHeaderWidth(): number {
+    if (this.zoomOption?.enabled && this.isScaleRowHeaderEnabled) {
+      return Math.max(60, Math.min(600, Math.round(this.baseRowHeaderWidth * this.effectiveZoomScale)))
+    }
+    return this.baseRowHeaderWidth
+  }
+
+  /**
+   * 現在有効なバー高さ（ズーム連動）
+   */
+  private get effectiveBarHeight(): number {
+    const base = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    if (this.zoomOption?.enabled && this.isScaleBarHeightEnabled) {
+      const scale = this.effectiveZoomScale
+      const dampScale = Math.max(0.7, Math.min(1.5, 1 + (scale - 1) * 0.7))
+      return Math.max(16, Math.round(base * dampScale))
+    }
+    return base
+  }
+
+  /**
+   * 現在有効なフォントスケール（ズーム連動）
+   */
+  private get effectiveFontScale(): number {
+    const base = this.option.fontScale ?? 1
+    if (this.zoomOption?.enabled && this.isScaleFontEnabled) {
+      return base * this.effectiveZoomScale
+    }
+    return base
   }
 
   static styles = ganttChartStyles
@@ -305,6 +392,7 @@ export class GanttChartElement extends LitElement {
     this.addEventListener('keydown', this.handleKeyDown)
     this.addEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.addEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.addEventListener('wheel', this.handleWheel, { passive: false })
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
       this.theme = this._systemThemeMediaQuery?.matches ? 'dark' : 'light'
@@ -343,6 +431,7 @@ export class GanttChartElement extends LitElement {
     this.removeEventListener('keydown', this.handleKeyDown)
     this.removeEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.removeEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer = null
   }
@@ -381,13 +470,26 @@ export class GanttChartElement extends LitElement {
     if (changedProperties.has('option')) {
       this.setupCurrentTimeTimer()
       if (!this.isResizingHeader) {
-        this.currentRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+        this.baseRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
+        this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+      }
+      const currentInitial = this.zoomOption?.initialPercent
+      if (!this._isZoomInitialized) {
+        this._isZoomInitialized = true
+        this._prevInitialPercent = currentInitial
+        this.zoomPercent = currentInitial ?? DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
+      } else if (currentInitial !== undefined && currentInitial !== this._prevInitialPercent) {
+        this._prevInitialPercent = currentInitial
+        this.zoomPercent = currentInitial
       }
       // 利用側が option を直接変更した場合、ズームオーバーライドをリセット
-      this.zoomPxPerDay = null
-      this.zoomPxPerMonth = null
-      if (this.option?.fontScale !== undefined) {
-        this.style.setProperty('--moguchart-font-scale', String(this.option.fontScale))
+      if (this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null) {
+        this.zoomPxPerDay = null
+        this.zoomPxPerMonth = null
+        this.zoomPercent = this.zoomOption?.initialPercent ?? DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
+      }
+      if (this.effectiveFontScale !== undefined) {
+        this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
       } else {
         this.style.removeProperty('--moguchart-font-scale')
       }
@@ -404,6 +506,7 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('rows') ||
       changedProperties.has('option') ||
       changedProperties.has('currentRowHeaderWidth') ||
+      changedProperties.has('zoomPercent') ||
       changedProperties.has('zoomPxPerDay') ||
       changedProperties.has('zoomPxPerMonth')
     ) {
@@ -738,6 +841,9 @@ export class GanttChartElement extends LitElement {
 
       const finalWidth = Math.round(this.currentRowHeaderWidth)
       this.currentRowHeaderWidth = finalWidth
+      this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
+        ? Math.max(60, Math.round(finalWidth / this.effectiveZoomScale))
+        : finalWidth
 
       this.dispatchEvent(
         new CustomEvent<RowHeaderResizeEventDetail>('row-header-resize', {
@@ -832,7 +938,7 @@ export class GanttChartElement extends LitElement {
 
     const layouts = this.displayRows.map((row) => {
       const { tasksWithLanes, laneCount } = calculateTaskLanes(row.tasks)
-      const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+      const barHeight = this.effectiveBarHeight
       const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
       tasksWithLanes.forEach((task: any) => {
@@ -960,7 +1066,7 @@ export class GanttChartElement extends LitElement {
     const { tasksWithLanes } = calculateTaskLanes(displayRow.tasks)
     const taskWithLane = tasksWithLanes.find((t) => t.id === id)
     const lane = taskWithLane ? taskWithLane.lane : 0
-    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barHeight = this.effectiveBarHeight
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
     const taskInitialY = lane * (barHeight + barMargin) + barMargin
@@ -2302,65 +2408,17 @@ export class GanttChartElement extends LitElement {
   // --- ズーム操作 ---
 
   /**
-   * Ctrl/Cmd + マウスホイールによるズーム処理
+   * ズーム変更イベントを発火する内部ヘルパー
    */
-  private handleWheel = (e: WheelEvent) => {
-    // Ctrl/Meta キーが押されていない場合は通常スクロール
-    if (!e.ctrlKey && !e.metaKey) return
-    // ズームが無効の場合は無視
-    if (this.option.zoom?.enabled !== true) return
-
-    e.preventDefault()
-
-    const container = this._scrollContainer
-    if (!container) return
-
-    const rect = container.getBoundingClientRect()
-    const labelWidth = this.currentRowHeaderWidth
-
-    // マウス位置のコンテンツ内X座標（行ヘッダーを除く）
-    const mouseContentX = e.clientX - rect.left + container.scrollLeft - labelWidth
-
-    // 現在のズーム値
+  private _dispatchZoomChange(): void {
     const isMonthMode = this.effectivePxPerMonth !== undefined
-    const currentScale = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
-
-    // ズーム倍率計算
-    const step = this.option.zoom?.step ?? 1.2
-    const defaultMin = isMonthMode ? 20 : 2
-    const defaultMax = isMonthMode ? 600 : 200
-    const min = this.option.zoom?.min ?? defaultMin
-    const max = this.option.zoom?.max ?? defaultMax
-
-    // deltaY > 0 ならズームアウト（縮小）、< 0 ならズームイン（拡大）
-    const factor = e.deltaY > 0 ? 1 / step : step
-    const newScale = Math.max(min, Math.min(max, currentScale * factor))
-
-    // 値が変わらなければ何もしない
-    if (newScale === currentScale) return
-
-    // ズーム値を先に更新（Litの再レンダリングをトリガー）
-    if (isMonthMode) {
-      this.zoomPxPerMonth = newScale
-    } else {
-      this.zoomPxPerDay = newScale
-    }
-
-    // 再レンダリング後にスクロール位置を補正
-    // マウスカーソル位置の日付が画面上の同じ位置に留まるようにする
-    const ratio = newScale / currentScale
-    this.updateComplete.then(() => {
-      const newMouseContentX = mouseContentX * ratio
-      const scrollDelta = newMouseContentX - mouseContentX
-      container.scrollLeft += scrollDelta
-    })
-
-    // イベント通知
     this.dispatchEvent(
       new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
         detail: {
-          pxPerDay: isMonthMode ? this.effectivePxPerDay : newScale,
-          pxPerMonth: isMonthMode ? newScale : undefined,
+          pxPerDay: this.effectivePxPerDay,
+          pxPerMonth: isMonthMode ? this.effectivePxPerMonth : undefined,
+          zoomScale: this.effectiveZoomScale,
+          zoomPercent: this.zoomPercent,
         },
         bubbles: true,
         composed: true,
@@ -2369,7 +2427,170 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
-   * 指定した pxPerDay（または pxPerMonth）にズームを設定する。
+   * Ctrl/Cmd + マウスホイールによるズーム処理
+   */
+  private handleWheel = (e: WheelEvent) => {
+    // Ctrl/Meta キーが押されていない場合は通常スクロール
+    if (!e.ctrlKey && !e.metaKey) return
+    // ズームが無効の場合は無視
+    if (this.option.zoom?.enabled !== true) return
+    if (e.defaultPrevented) return
+
+    e.preventDefault()
+
+    const container = this._scrollContainer
+    const labelWidth = this.currentRowHeaderWidth
+
+    // マウス位置のコンテンツ内X座標（行ヘッダーを除く）
+    let mouseContentX = 0
+    if (container) {
+      const rect = container.getBoundingClientRect()
+      mouseContentX = e.clientX - rect.left + container.scrollLeft - labelWidth
+    }
+
+    // 現在のズーム値
+    const isMonthMode = this.effectivePxPerMonth !== undefined
+
+    // ズーム倍率計算
+    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
+    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
+
+    let newPercent: number
+    const levels = this.option.zoom?.levels
+    if (levels && levels.length > 0) {
+      if (e.deltaY < 0) {
+        // ズームイン: 次に大きいレベルへ
+        newPercent = levels.find((v) => v > this.zoomPercent) ?? maxPercent
+      } else {
+        // ズームアウト: 次に小さいレベルへ
+        newPercent = [...levels].reverse().find((v) => v < this.zoomPercent) ?? minPercent
+      }
+    } else {
+      const step = this.option.zoom?.step ?? DEFAULT_ZOOM_CONFIG.STEP
+      const factor = e.deltaY > 0 ? 1 / step : step
+      newPercent = Math.round(this.zoomPercent * factor)
+    }
+    newPercent = Math.max(minPercent, Math.min(maxPercent, newPercent))
+
+    // 値が変わらなければ何もしない
+    if (newPercent === this.zoomPercent && this.zoomPxPerDay === null && this.zoomPxPerMonth === null) return
+
+    const oldEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
+
+    // ズーム値を先に更新
+    this.zoomPercent = newPercent
+    this.zoomPxPerDay = null
+    this.zoomPxPerMonth = null
+
+    if (this.isScaleRowHeaderEnabled) {
+      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+    }
+    if (this.isScaleFontEnabled) {
+      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
+    }
+
+    const newEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
+    const ratio = newEffectivePx / oldEffectivePx
+
+    // 再レンダリング後にスクロール位置を補正（コンテナが存在する場合のみ）
+    if (container) {
+      this.updateComplete.then(() => {
+        const newMouseContentX = mouseContentX * ratio
+        const scrollDelta = newMouseContentX - mouseContentX
+        container.scrollLeft += scrollDelta
+      })
+    }
+
+    // イベント通知
+    this._dispatchZoomChange()
+  }
+
+  /**
+   * 指定したパーセンテージ（例: 100 = 等倍）にズームを設定する。
+   * カレンダー列幅、行ヘッダー幅、バー高さ、フォントサイズが一括連動します。
+   * @param percent ズームパーセンテージ (50〜200等、option.zoom.minPercent/maxPercentで制限)
+   */
+  public zoomToPercent(percent: number): void {
+    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
+    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
+    const clamped = Math.max(minPercent, Math.min(maxPercent, Math.round(percent)))
+
+    if (this.zoomPercent === clamped && this.zoomPxPerDay === null && this.zoomPxPerMonth === null) {
+      return
+    }
+
+    this.zoomPercent = clamped
+    this.zoomPxPerDay = null
+    this.zoomPxPerMonth = null
+
+    if (this.isScaleRowHeaderEnabled) {
+      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+    }
+    if (this.isScaleFontEnabled) {
+      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
+    }
+
+    this._layoutCache = null
+    this.requestUpdate()
+    this._dispatchZoomChange()
+  }
+
+  /**
+   * 指定した倍率（例: 1.0 = 100%）にズームを設定する。
+   * @param scale ズーム倍率 (0.5〜2.0等)
+   */
+  public zoomToScale(scale: number): void {
+    this.zoomToPercent(Math.round(scale * 100))
+  }
+
+  /**
+   * Chrome風のズームレベルまたは指定ステップで1段階ズームイン（拡大）する。
+   * @param step 増加させるパーセンテージ（省略時はプリセットレベルに沿って拡大）
+   */
+  public zoomIn(step?: number): void {
+    if (step !== undefined) {
+      this.zoomToPercent(this.zoomPercent + step)
+      return
+    }
+    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
+    const levels = this.option.zoom?.levels ?? CHROME_ZOOM_LEVELS
+    const current = this.zoomPercent
+    const next = levels.find((v) => v > current) ?? maxPercent
+    this.zoomToPercent(Math.min(maxPercent, next))
+  }
+
+  /**
+   * Chrome風のズームレベルまたは指定ステップで1段階ズームアウト（縮小）する。
+   * @param step 減少させるパーセンテージ（省略時はプリセットレベルに沿って縮小）
+   */
+  public zoomOut(step?: number): void {
+    if (step !== undefined) {
+      this.zoomToPercent(this.zoomPercent - step)
+      return
+    }
+    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
+    const levels = this.option.zoom?.levels ?? CHROME_ZOOM_LEVELS
+    const current = this.zoomPercent
+    const prev = [...levels].reverse().find((v) => v < current) ?? minPercent
+    this.zoomToPercent(Math.max(minPercent, prev))
+  }
+
+  /**
+   * 現在のズームパーセンテージを取得する。
+   */
+  public getZoomPercent(): number {
+    return this.zoomPercent
+  }
+
+  /**
+   * 現在のズーム倍率を取得する (1.0 = 100%)。
+   */
+  public getZoomScale(): number {
+    return this.effectiveZoomScale
+  }
+
+  /**
+   * 指定した pxPerDay（または pxPerMonth）にズームを設定する (後方互換)。
    * @param value ズーム先の pxPerDay（月単位モード時は pxPerMonth）
    */
   public zoomTo(value: number): void {
@@ -2380,22 +2601,28 @@ export class GanttChartElement extends LitElement {
     const max = this.option.zoom?.max ?? defaultMax
     const clamped = Math.max(min, Math.min(max, value))
 
+    const basePx = isMonthMode
+      ? (this.option.calendar.pxPerMonth ?? 50)
+      : (this.option.calendar.pxPerDay ?? 50)
+    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
+    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
+    const calculatedPercent = Math.round((clamped / basePx) * 100)
+    this.zoomPercent = Math.max(minPercent, Math.min(maxPercent, calculatedPercent))
+
     if (isMonthMode) {
       this.zoomPxPerMonth = clamped
     } else {
       this.zoomPxPerDay = clamped
     }
 
-    this.dispatchEvent(
-      new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
-        detail: {
-          pxPerDay: isMonthMode ? this.effectivePxPerDay : clamped,
-          pxPerMonth: isMonthMode ? clamped : undefined,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+    if (this.isScaleRowHeaderEnabled) {
+      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+    }
+    if (this.isScaleFontEnabled) {
+      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
+    }
+
+    this._dispatchZoomChange()
   }
 
   /**
@@ -2446,26 +2673,19 @@ export class GanttChartElement extends LitElement {
   }
 
   /**
-   * ズームをリセットし、option で設定された元のスケールに戻す。
+   * ズームを100%（標準倍率）に戻す。
    */
   public resetZoom(): void {
-    const wasZoomed = this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null
+    if (
+      this.zoomPercent === DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT &&
+      this.zoomPxPerDay === null &&
+      this.zoomPxPerMonth === null
+    ) {
+      return
+    }
     this.zoomPxPerDay = null
     this.zoomPxPerMonth = null
-
-    if (wasZoomed) {
-      const isMonthMode = this.option.calendar.pxPerMonth !== undefined
-      this.dispatchEvent(
-        new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
-          detail: {
-            pxPerDay: this.option.calendar.pxPerDay ?? 50,
-            pxPerMonth: isMonthMode ? this.option.calendar.pxPerMonth : undefined,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
+    this.zoomToPercent(DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT)
   }
 
   /**
@@ -2630,6 +2850,16 @@ export class GanttChartElement extends LitElement {
         if (!this.option.readOnly) {
           this.redo()
         }
+        e.preventDefault()
+        return
+      }
+    }
+
+    // ズームキーボードショートカット (Cmd/Ctrl + 0 でリセット)
+    if (this.option?.zoom?.enabled !== false && this.option?.zoom?.shortcuts !== false) {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey
+      if (isCmdOrCtrl && (e.key === '0' || e.key === 'Numpad0')) {
+        this.resetZoom()
         e.preventDefault()
         return
       }
@@ -3450,6 +3680,7 @@ export class GanttChartElement extends LitElement {
     if (
       this._lastOptionRef !== this.option ||
       this._lastLabelWidth !== labelWidth ||
+      this._lastZoomPercent !== this.zoomPercent ||
       this._lastZoomPxPerDay !== this.zoomPxPerDay ||
       this._lastZoomPxPerMonth !== this.zoomPxPerMonth
     ) {
@@ -3464,9 +3695,14 @@ export class GanttChartElement extends LitElement {
           pxPerDay: this.effectivePxPerDay,
           pxPerMonth: this.effectivePxPerMonth,
         },
+        bar: {
+          ...this.option.bar,
+          height: this.effectiveBarHeight,
+        },
       }
       this._lastOptionRef = this.option
       this._lastLabelWidth = labelWidth
+      this._lastZoomPercent = this.zoomPercent
       this._lastZoomPxPerDay = this.zoomPxPerDay
       this._lastZoomPxPerMonth = this.zoomPxPerMonth
     }
@@ -3538,7 +3774,7 @@ export class GanttChartElement extends LitElement {
             let hitPathD: string
             let arrowPathD: string
 
-            const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+            const barHeight = this.effectiveBarHeight
             const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
             const isSameRow = Math.abs(startY - endY) < 1
@@ -3672,7 +3908,7 @@ export class GanttChartElement extends LitElement {
           --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
           ${this.option?.tree?.summaryColor ? `--moguchart-summary-bar-color: ${this.option.tree.summaryColor};` : ''}
           ${this.option?.progress?.summaryColor ? `--moguchart-summary-progress-color: ${this.option.progress.summaryColor};` : ''}
-          ${this.option?.fontScale !== undefined ? `--moguchart-font-scale: ${this.option.fontScale};` : ''}
+          ${this.effectiveFontScale !== undefined ? `--moguchart-font-scale: ${this.effectiveFontScale};` : ''}
         }
       </style>
       ${this.isExporting ? html`<style>:host { overflow: visible !important; height: ${this.calendarHeight + totalHeight + 2}px !important; width: max-content !important; min-width: auto !important; border-radius: 0 !important; border: none !important; } * { box-shadow: none !important; }</style>` : ''}

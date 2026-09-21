@@ -115,7 +115,7 @@ describe('GanttChart Dependency Add/Delete & Selection', () => {
     await chart.updateComplete
 
     expect(selectEventDetail).not.toBeNull()
-    expect(selectEventDetail?.selected).toEqual({
+    expect((selectEventDetail as DependencySelectEventDetail | null)?.selected).toEqual({
       sourceTaskId: 'task1',
       targetTaskId: 'task2',
     })
@@ -141,8 +141,8 @@ describe('GanttChart Dependency Add/Delete & Selection', () => {
     await chart.updateComplete
 
     expect(deleteEventDetail).not.toBeNull()
-    expect(deleteEventDetail?.sourceTaskId).toBe('task1')
-    expect(deleteEventDetail?.targetTaskId).toBe('task2')
+    expect((deleteEventDetail as DependencyDeleteEventDetail | null)?.sourceTaskId).toBe('task1')
+    expect((deleteEventDetail as DependencyDeleteEventDetail | null)?.targetTaskId).toBe('task2')
     // 削除後は選択がクリアされること
     expect(chart.selectedDependency).toBeNull()
   })
@@ -160,8 +160,8 @@ describe('GanttChart Dependency Add/Delete & Selection', () => {
     await chart.updateComplete
 
     expect(deleteEventDetail).not.toBeNull()
-    expect(deleteEventDetail?.sourceTaskId).toBe('task1')
-    expect(deleteEventDetail?.targetTaskId).toBe('task2')
+    expect((deleteEventDetail as DependencyDeleteEventDetail | null)?.sourceTaskId).toBe('task1')
+    expect((deleteEventDetail as DependencyDeleteEventDetail | null)?.targetTaskId).toBe('task2')
   })
 
   it('does not render delete button when showDeleteButton is false', async () => {
