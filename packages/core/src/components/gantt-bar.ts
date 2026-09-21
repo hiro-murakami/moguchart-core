@@ -184,6 +184,12 @@ export class GanttBarElement extends LitElement {
       transition: width 0.05s ease;
       z-index: 2;
     }
+    .bar.summary-bar .progress-bar {
+      background-color: var(
+        --moguchart-summary-progress-color,
+        rgba(255, 255, 255, 0.28)
+      );
+    }
     .progress-bar.dragging {
       transition: none;
     }
@@ -291,6 +297,19 @@ export class GanttBarElement extends LitElement {
       top: 50%;
       transform: translateY(-50%);
       color: inherit;
+    }
+    .task-group.summary-task-group .progress-label.pos-inside {
+      top: 28%;
+      right: 10px;
+    }
+    .task-group.summary-task-group .progress-label.pos-center {
+      top: 28%;
+    }
+    .task-group.summary-task-group .progress-label.pos-right {
+      top: 28%;
+    }
+    .task-group.summary-task-group .progress-label.pos-left {
+      top: 28%;
     }
     @keyframes pop-in {
       0% {
@@ -1275,7 +1294,7 @@ export class GanttBarElement extends LitElement {
     const progressVal = hasProgress ? clampProgress(rawProgress ?? 0) : null
     const indicatorPosition = this.option.progress?.indicatorPosition ?? 'full'
     const showProgressLabel =
-      (!isSummary || (this.option.progress?.showSummaryLabel ?? false)) &&
+      (!isSummary || (this.option.progress?.showSummaryLabel ?? true)) &&
       hasProgress &&
       hasProgressValue &&
       this.option.progress?.showLabel === true
@@ -1286,15 +1305,19 @@ export class GanttBarElement extends LitElement {
           ? this.option.progress.labelFormatter(progressVal, this.task)
           : `${Math.round(progressVal)}%`
         : ''
-    const progressColorStyle = this.task.progressColor
-      ? `background-color: ${this.task.progressColor};`
-      : this.option.progress?.color
-        ? `background-color: ${this.option.progress.color};`
-        : ''
+    const progressColorStyle = isSummary
+      ? (this.option.progress?.summaryColor
+          ? `background-color: ${this.option.progress.summaryColor};`
+          : '')
+      : (this.task.progressColor
+          ? `background-color: ${this.task.progressColor};`
+          : this.option.progress?.color
+            ? `background-color: ${this.option.progress.color};`
+            : '')
 
     return html`
       <div
-        class="task-group"
+        class="task-group ${isSummary ? 'summary-task-group' : ''}"
         style="
           left: ${x}px;
           top: ${y}px;

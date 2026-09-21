@@ -3671,6 +3671,7 @@ export class GanttChartElement extends LitElement {
         :host {
           --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
           ${this.option?.tree?.summaryColor ? `--moguchart-summary-bar-color: ${this.option.tree.summaryColor};` : ''}
+          ${this.option?.progress?.summaryColor ? `--moguchart-summary-progress-color: ${this.option.progress.summaryColor};` : ''}
           ${this.option?.fontScale !== undefined ? `--moguchart-font-scale: ${this.option.fontScale};` : ''}
         }
       </style>

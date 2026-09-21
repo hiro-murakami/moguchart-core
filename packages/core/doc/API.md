@@ -159,8 +159,9 @@ interface GanttChartOption {
     enabled?: boolean // Whether to enable progress display (default: true)
     editable?: boolean // Whether progress can be adjusted by dragging (default: false)
     color?: string // Default progress bar color (CSS color string)
+    summaryColor?: string // Custom progress bar color for summary tasks (CSS color string)
     showLabel?: boolean // Whether to show progress label text (e.g. '50%') (default: false)
-    showSummaryLabel?: boolean // Whether to show progress label for summary tasks (default: false)
+    showSummaryLabel?: boolean // Whether to show progress label for summary tasks (default: true - synced when showLabel is enabled)
     labelPosition?: 'inside' | 'right' | 'left' | 'center' // Label position (default: 'inside')
     labelFormatter?: (progress: number, task: GanttTask) => string // Custom label format function
     snapStep?: number // Progress snap increment during drag (default: 1)
@@ -1122,9 +1123,11 @@ interface GanttChartOptionProgress {
   editable?: boolean
   /** Default progress bar color (CSS color string) */
   color?: string
+  /** Custom progress bar color for summary tasks (CSS color string) */
+  summaryColor?: string
   /** Whether to show progress label text (e.g. '50%') (default: false) */
   showLabel?: boolean
-  /** Whether to show progress label for summary tasks (default: false) */
+  /** Whether to show progress label for summary tasks (default: true - synced when showLabel is enabled) */
   showSummaryLabel?: boolean
   /** Progress label position ('inside' | 'right' | 'left' | 'center') (default: 'inside') */
   labelPosition?: 'inside' | 'right' | 'left' | 'center'

@@ -29,6 +29,7 @@ export interface DemoTexts {
   enableProgress: string
   editableProgress: string
   showProgressLabel: string
+  showSummaryProgressLabel: string
   enableMarqueeSelection: string
   collapseAll: string
   collapseAllTitle: string
@@ -137,6 +138,7 @@ export const jaTexts: DemoTexts = {
   enableProgress: '進捗表示',
   editableProgress: '進捗ドラッグ編集',
   showProgressLabel: '進捗ラベル表示',
+  showSummaryProgressLabel: 'サマリー進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
   collapseAll: '折りたたみ',
   collapseAllTitle: '親行を一括折りたたみ',
@@ -306,6 +308,7 @@ export const enTexts: DemoTexts = {
   enableProgress: 'Show Progress',
   editableProgress: 'Editable Progress',
   showProgressLabel: 'Show Progress Label',
+  showSummaryProgressLabel: 'Show Summary Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
   collapseAll: 'Collapse',
   collapseAllTitle: 'Collapse all parent rows',

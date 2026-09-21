@@ -159,8 +159,9 @@ interface GanttChartOption {
     enabled?: boolean // 進捗表示を有効にするかどうか (デフォルト: true)
     editable?: boolean // 進捗バーをドラッグして進捗率を変更可能にするか (デフォルト: false)
     color?: string // 進捗バーのデフォルト色 (CSSカラー文字列)
+    summaryColor?: string // サマリータスクの進捗バーのカスタム色 (CSSカラー文字列)
     showLabel?: boolean // 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false)
-    showSummaryLabel?: boolean // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false)
+    showSummaryLabel?: boolean // サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: true - showLabel有効時に連動)
     labelPosition?: 'inside' | 'right' | 'left' | 'center' // 進捗ラベルの表示位置 (デフォルト: 'inside')
     labelFormatter?: (progress: number, task: GanttTask) => string // 進捗ラベルのカスタムフォーマット関数
     snapStep?: number // ドラッグ編集時の進捗率スナップ単位 (デフォルト: 1)
@@ -1123,9 +1124,11 @@ interface GanttChartOptionProgress {
   editable?: boolean
   /** 進捗バーのデフォルト色 (CSSカラー文字列) */
   color?: string
+  /** サマリータスクの進捗バーのカスタム色 (CSSカラー文字列) */
+  summaryColor?: string
   /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
   showLabel?: boolean
-  /** サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false) */
+  /** サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: true - showLabelが有効な場合にサマリータスクにも表示) */
   showSummaryLabel?: boolean
   /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
   labelPosition?: 'inside' | 'right' | 'left' | 'center'

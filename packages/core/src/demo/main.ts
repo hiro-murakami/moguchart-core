@@ -126,6 +126,7 @@ let showConnectors = true
 let enableProgress = true
 let editableProgress = true
 let showProgressLabel = true
+let showSummaryProgressLabel = true
 let enableMarquee = true
 let isExporting = false
 let exportingFormat: 'png' | 'pdf' | null = null
@@ -303,6 +304,7 @@ const renderApp = () => {
       enabled: enableProgress,
       editable: editableProgress,
       showLabel: showProgressLabel,
+      showSummaryLabel: showSummaryProgressLabel,
       snapStep: 5,
     },
     selection: {
@@ -925,6 +927,11 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${showProgressLabel}" @change="${(e: Event) => { showProgressLabel = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.showProgressLabel}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showSummaryProgressLabel}" @change="${(e: Event) => { showSummaryProgressLabel = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showSummaryProgressLabel}
               </label>
               <label class="toggle-label">
                 <input type="checkbox" .checked="${enableMarquee}" @change="${(e: Event) => { enableMarquee = (e.target as HTMLInputElement).checked; renderApp() }}" />

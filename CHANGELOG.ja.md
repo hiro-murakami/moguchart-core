@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> 英語版は [CHANGELOG.md](./CHANGELOG.md) をご覧ください。
+## [Unreleased]
+
+### Added
+
+- **サマリータスクの進捗率表示の追加・改善**:
+  - `showLabel: true` 設定時に、サマリータスク（親行の集計タスク）にも自動的に進捗ラベル（例: `72%`）が表示されるよう改善（`showSummaryLabel` の既定値を `true` に変更）
+  - サマリータスク専用のプログレスバー視覚スタイル（CSSカスタムプロパティ `--moguchart-summary-progress-color`、既定値: `rgba(255, 255, 255, 0.28)`）を追加し、暗いサマリーバー上でも進捗度合いが明瞭に視認できるよう改善
+  - `option.progress.summaryColor` を追加し、サマリータスク専用の進捗バー色を柔軟にカスタマイズ可能に
+  - サマリータスクのブラケット形状（上部横棒）に合わせて進捗ラベルの垂直位置を最適化
 
 ## [1.1.1] - 2026-09-19
 

@@ -228,7 +228,7 @@ describe('Task Progress Management', () => {
       expect(progressLabel.textContent).toBe('Done: 60%')
     })
 
-    it('does not render progress label for summary task by default', async () => {
+    it('renders progress label for summary task by default when showLabel is true', async () => {
       bar.task = {
         ...bar.task,
         type: 'summary',
@@ -238,6 +238,28 @@ describe('Task Progress Management', () => {
         progress: {
           ...defaultOption.progress,
           showLabel: true,
+        },
+      }
+      await bar.updateComplete
+
+      const progressLabel = bar.shadowRoot?.querySelector('.progress-label') as HTMLElement
+      expect(progressLabel).not.toBeNull()
+      expect(progressLabel.textContent).toBe('60%')
+      const taskGroup = bar.shadowRoot?.querySelector('.task-group')
+      expect(taskGroup?.classList.contains('summary-task-group')).toBe(true)
+    })
+
+    it('does not render progress label for summary task when showSummaryLabel is false', async () => {
+      bar.task = {
+        ...bar.task,
+        type: 'summary',
+      }
+      bar.option = {
+        ...defaultOption,
+        progress: {
+          ...defaultOption.progress,
+          showLabel: true,
+          showSummaryLabel: false,
         },
       }
       await bar.updateComplete
@@ -264,6 +286,25 @@ describe('Task Progress Management', () => {
       const progressLabel = bar.shadowRoot?.querySelector('.progress-label') as HTMLElement
       expect(progressLabel).not.toBeNull()
       expect(progressLabel.textContent).toBe('60%')
+    })
+
+    it('applies summaryColor to summary task progress bar', async () => {
+      bar.task = {
+        ...bar.task,
+        type: 'summary',
+      }
+      bar.option = {
+        ...defaultOption,
+        progress: {
+          ...defaultOption.progress,
+          summaryColor: 'rgb(255, 0, 0)',
+        },
+      }
+      await bar.updateComplete
+
+      const progressBar = bar.shadowRoot?.querySelector('.progress-bar') as HTMLElement
+      expect(progressBar).not.toBeNull()
+      expect(progressBar.style.backgroundColor).toBe('rgb(255, 0, 0)')
     })
 
     it('does not render progress label element when labelFormatter returns empty string', async () => {

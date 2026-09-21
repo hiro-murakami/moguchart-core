@@ -24,3 +24,7 @@ dist-demo
 *.njsproj
 *.sln
 *.sw?
+
+# Synced package docs (generated from root during build)
+packages/core/CHANGELOG.md
+packages/core/CHANGELOG.ja.md

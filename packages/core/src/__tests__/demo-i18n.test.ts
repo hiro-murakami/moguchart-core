@@ -37,6 +37,9 @@ describe('DemoTexts (collapse/expand)', () => {
     expect(enTexts.collapseAllTitle).toBe('Collapse all parent rows')
     expect(enTexts.expandAll).toBe('Expand')
     expect(enTexts.expandAllTitle).toBe('Expand all rows')
+
+    expect(jaTexts.showSummaryProgressLabel).toBe('サマリー進捗ラベル表示')
+    expect(enTexts.showSummaryProgressLabel).toBe('Show Summary Progress Label')
   })
 })
 

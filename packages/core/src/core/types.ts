@@ -521,9 +521,11 @@ export interface GanttChartOptionProgress {
   editable?: boolean
   /** 進捗バーのデフォルト色 (CSSカラー文字列) */
   color?: string
+  /** サマリータスクの進捗バーのカスタム色 (CSSカラー文字列) */
+  summaryColor?: string
   /** 進捗ラベル (例: '50%') を表示するかどうか (デフォルト: false) */
   showLabel?: boolean
-  /** サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: false) */
+  /** サマリータスクにも進捗ラベルを表示するかどうか (デフォルト: true - showLabelが有効な場合にサマリータスクにも表示) */
   showSummaryLabel?: boolean
   /** 進捗ラベルの表示位置 ('inside' | 'right' | 'left' | 'center') (デフォルト: 'inside') */
   labelPosition?: 'inside' | 'right' | 'left' | 'center'
