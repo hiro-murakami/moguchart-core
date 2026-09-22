@@ -100,10 +100,11 @@ export function MyGanttView() {
 |---|---|---|
 | `rows` | `GanttRow[]` | ガントチャートの行・タスクデータ |
 | `option` | `GanttChartOption` | カレンダー、ズーム、履歴、依存関係等の各種設定 |
-| `theme` | `'light' \| 'dark' \| 'auto'` | カラーテーマ |
-| `selectedDependency` | `{ fromTaskId: string; toTaskId: string } \| null` | 選択中の依存関係線（ハイライト状態） |
-| `selectedTasks` | `string[]` | 選択中のタスクID一覧 |
-| `selectedRows` | `string[]` | 選択中の行ID一覧 |
+| `theme` | `'light' \| 'dark'` | カラーテーマ |
+| `selectedRowIds` | `string[]` | 選択中の行ID一覧 |
+| `selectedTaskIds` | `string[]` | 選択中のタスクID一覧 |
+| `selectedDependency` | `{ sourceTaskId: string; targetTaskId: string } \| null` | 選択中の依存関係線（ハイライト状態） |
+| `externalDraggingTask` | `GanttTask \| null` | 外部からドラッグ中のタスクプレビュー |
 
 ---
 

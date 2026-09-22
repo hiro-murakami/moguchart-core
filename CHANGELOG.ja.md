@@ -85,6 +85,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **エクスポートプラグインのズーム正規化 (`@mogura/moguchart-plugin-export`)**:
   - `normalizeZoom` オプション（デフォルト: `true`）を追加。ズーム拡大・縮小状態であっても、エクスポート時に一時的に100%（標準スケール）に正規化してキャプチャを行い、完了後に元のズーム倍率に自動復元する処理を追加
 
+### Changed
+
+- **内部アーキテクチャの大規模リファクタリング（Reactive Controllers への分離）**:
+  - `GanttChartElement`（約2,000行）の内部ロジックを、Lit 公式の Reactive Controller パターンに基づき専任のコントローラーへ分離・モジュール化:
+    - `ZoomController`: ズーム倍率・スケーリング・ホイール・ショートカット操作
+    - `MarqueeController`: 矩形範囲選択（ラバーバンド選択）
+    - `TooltipController`: ホバーツールチップ表示・追従
+    - `KeyboardController`: キーボードナビゲーション・ショートカット処理
+    - `DependencyController`: 依存関係線の選択・削除・ドラッグ接続作成
+    - `TaskDragController`: タスクバー移動・複数選択ドラッグ・リサイズ・ドラッグオーバーレイ・外部ドロップ
+    - `RowReorderController`: 行並び替え（D&D）・ツリー階層循環参照チェック・FLIPアニメーション
+    - `TreeController`: WBS階層の展開/折りたたみ状態管理・サマリータスク自動集計・表示行（`displayRows`）計算
+  - 1,074行に肥大化していた `DragDropController` を、タスクドラッグ専任の `TaskDragController`（約700行）と行並び替え専任の `RowReorderController`（約420行）に分割。既存の `DragDropController` は新コントローラーへ処理を委譲する後方互換ファサード（201行）として維持し、外部破壊的変更ゼロを達成。
+  - `gantt-chart.ts` 内にインラインで展開されていた約160行のタスク間依存関係線（矢印マーカー、直交パス、削除ボタン、プレビュー線）の SVG 描画ロジックを独立ヘルパー `gantt-chart-dependency-svg.ts` へ完全抽出。
+  - すべてのパブリック API、プロパティ、イベント名、型定義における 100% の後方互換性を保証。
+
 ## [1.1.1] - 2026-09-19
 
 ### Fixed

@@ -186,7 +186,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 
 - **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **Dependency Operations**: `triggerDependencyDelete(fromTaskId, toTaskId)`
+- **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
 - **Scroll & Selection**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **Export**: `exportImage(format, options)` (when export plugin is installed)

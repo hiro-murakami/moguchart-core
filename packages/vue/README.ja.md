@@ -186,7 +186,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 
 - **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **依存関係操作**: `triggerDependencyDelete(fromTaskId, toTaskId)`
+- **依存関係操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
 - **スクロール・選択**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **エクスポート**: `exportImage(format, options)`（プラグイン導入時）

@@ -801,14 +801,16 @@ Enable zoom via `option.zoom` (wheel zoom with Ctrl / Cmd key, keyboard shortcut
 ```javascript
 const option = {
   zoom: {
-    enabled: true,
-    minPercent: 25, // Minimum zoom percentage (default: 25)
-    maxPercent: 500, // Maximum zoom percentage (default: 500)
-    shortcuts: true, // Enable Ctrl/Cmd + +/-/0 shortcuts (default: true)
+    enabled: true, // Enable zoom features (default: false)
+    minPercent: 50, // Minimum zoom percentage (default: 50)
+    maxPercent: 200, // Maximum zoom percentage (default: 200)
+    initialPercent: 100, // Initial zoom percentage (default: 100)
+    shortcuts: true, // Enable keyboard shortcuts (default: true)
     scaleElements: {
-      taskBarHeight: true, // Scale task bar height along with zoom (default: false)
-      rowHeight: true, // Scale row height along with zoom (default: false)
-      fontSize: false, // Scale font size (default: false)
+      calendar: true,
+      rowHeader: true,
+      barHeight: true,
+      fontScale: true,
     },
   },
 }

@@ -102,10 +102,11 @@ export function MyGanttView() {
 |---|---|---|
 | `rows` | `GanttRow[]` | Gantt chart row and task data |
 | `option` | `GanttChartOption` | Configuration for calendar, zoom, history, dependencies, etc. |
-| `theme` | `'light' \| 'dark' \| 'auto'` | Color theme |
-| `selectedDependency` | `{ fromTaskId: string; toTaskId: string } \| null` | Currently selected dependency connection (highlighted) |
-| `selectedTasks` | `string[]` | Array of selected task IDs |
-| `selectedRows` | `string[]` | Array of selected row IDs |
+| `theme` | `'light' \| 'dark'` | Color theme |
+| `selectedRowIds` | `string[]` | Array of selected row IDs |
+| `selectedTaskIds` | `string[]` | Array of selected task IDs |
+| `selectedDependency` | `{ sourceTaskId: string; targetTaskId: string } \| null` | Currently selected dependency connection (highlighted) |
+| `externalDraggingTask` | `GanttTask \| null` | External task data currently being dragged over the chart |
 
 ---
 

@@ -84,6 +84,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Export Plugin Zoom Normalization (`@mogura/moguchart-plugin-export`)**:
   - Added `normalizeZoom` option (default: `true`). When exporting while zoomed, the chart temporarily normalizes to 100% standard magnification for optimal capture quality and automatically restores previous zoom after completion.
 
+### Changed
+
+- **Major Internal Architecture Refactoring (Modular Reactive Controllers)**:
+  - Decomposed internal monolithic logic in `GanttChartElement` (~2,000 lines) into dedicated Lit-compliant Reactive Controllers:
+    - `ZoomController`: Zoom controls, percentage/scale calculations, keyboard shortcuts, and wheel zoom handling.
+    - `MarqueeController`: Marquee rubber-band selection.
+    - `TooltipController`: Hover tooltip positioning and display.
+    - `KeyboardController`: Keyboard navigation and shortcut management.
+    - `DependencyController`: Dependency line selection, deletion, and interactive connector creation.
+    - `TaskDragController`: Task bar moving, multi-selection dragging, resizing, drag overlay, and external drop handling.
+    - `RowReorderController`: Row drag-and-drop reordering, tree hierarchy and circular dependency guards, and FLIP animations.
+    - `TreeController`: WBS tree collapse/expand state management, external data synchronization, and summary task aggregation.
+  - Split the oversized `DragDropController` (1,074 lines) into `TaskDragController` (~700 lines) and `RowReorderController` (~420 lines). Maintained `DragDropController` as a backwards-compatible facade (201 lines) delegating to the new controllers with zero breaking changes.
+  - Extracted ~160 lines of inline SVG dependency line rendering (orthogonal paths, arrow markers, delete buttons, and preview lines) into an isolated helper module `gantt-chart-dependency-svg.ts`.
+  - 100% backwards compatibility preserved across all public APIs, properties, events, and type definitions.
+
 ## [1.1.1] - 2026-09-19
 
 ### Fixed
