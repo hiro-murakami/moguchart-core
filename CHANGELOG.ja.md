@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-22
 
 ### Added
 
@@ -441,6 +441,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[1.2.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.12.0...v1.0.0
 [0.12.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/hiro-murakami/moguchart-core/compare/v0.10.0...v0.11.0

@@ -1,7 +1,7 @@
 {
   "name": "@mogura/moguchart-vue",
   "type": "module",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "packageManager": "pnpm@11.21.0",
   "description": "軽量でフレームワーク非依存のWeb Components製ガントチャートコンポーネント (Lit) の公式 Vue 3 ラッパー。Official Vue 3 wrapper for Moguchart.",
   "license": "MIT",
