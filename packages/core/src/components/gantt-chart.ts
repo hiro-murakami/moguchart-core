@@ -5,7 +5,6 @@ import {
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
-  DependencyLineStyle,
   GanttChartOption,
   GanttChartOptionZoom,
   GanttRow,
@@ -21,7 +20,8 @@ import type {
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
 import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
-import { LitElement, html, svg, type PropertyValues } from 'lit'
+import { computeCriticalPath } from '../core/critical-path'
+import { LitElement, html, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 
@@ -30,7 +30,6 @@ import './gantt-calendar'
 import './gantt-row'
 import './gantt-minimap'
 import type { MinimapScrollEventDetail } from './gantt-minimap'
-import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
 import { PluginManager, type GanttPlugin } from '../core/plugin'
 import {
@@ -42,18 +41,18 @@ import {
   DependencyController,
   type ConnectorDragState,
   DragDropController,
+  TaskDragController,
+  RowReorderController,
+  TreeController,
   type DraggingTaskState,
   type DragOverlayInfo,
   type DragPreviewState,
 } from './controllers'
+import { renderDependencySvg } from './gantt-chart-dependency-svg'
 import type { ExportImageOptions } from '../core/types'
-import { computeCriticalPath } from '../core/critical-path'
 import {
   computeRowLevels,
   computeRowWbsCodes,
-  computeChildRowIds,
-  computeVisibleTreeRows,
-  computeSummaryTask,
 } from '../core/wbs'
 
 
@@ -131,83 +130,83 @@ export class GanttChartElement extends LitElement {
   }
 
   public get multiDragDx(): number {
-    return this._dragDropController?.multiDragDx ?? 0
+    return this._taskDragController?.multiDragDx ?? 0
   }
   public set multiDragDx(val: number) {
-    if (this._dragDropController) {
-      this._dragDropController.multiDragDx = val
+    if (this._taskDragController) {
+      this._taskDragController.multiDragDx = val
     }
   }
 
   public get multiDragDy(): number {
-    return this._dragDropController?.multiDragDy ?? 0
+    return this._taskDragController?.multiDragDy ?? 0
   }
   public set multiDragDy(val: number) {
-    if (this._dragDropController) {
-      this._dragDropController.multiDragDy = val
+    if (this._taskDragController) {
+      this._taskDragController.multiDragDy = val
     }
   }
 
   public get multiDragSameRow(): boolean {
-    return this._dragDropController?.multiDragSameRow ?? false
+    return this._taskDragController?.multiDragSameRow ?? false
   }
   public set multiDragSameRow(val: boolean) {
-    if (this._dragDropController) {
-      this._dragDropController.multiDragSameRow = val
+    if (this._taskDragController) {
+      this._taskDragController.multiDragSameRow = val
     }
   }
 
   public get dragTargetRowIndex(): number | null {
-    return this._dragDropController?.dragTargetRowIndex ?? null
+    return this._taskDragController?.dragTargetRowIndex ?? null
   }
   public set dragTargetRowIndex(val: number | null) {
-    if (this._dragDropController) {
-      this._dragDropController.dragTargetRowIndex = val
+    if (this._taskDragController) {
+      this._taskDragController.dragTargetRowIndex = val
     }
   }
 
   public get dragOverlayInfo(): DragOverlayInfo | null {
-    return this._dragDropController?.dragOverlayInfo ?? null
+    return this._taskDragController?.dragOverlayInfo ?? null
   }
   public set dragOverlayInfo(val: DragOverlayInfo | null) {
-    if (this._dragDropController) {
-      this._dragDropController.dragOverlayInfo = val
+    if (this._taskDragController) {
+      this._taskDragController.dragOverlayInfo = val
     }
   }
 
   public get dragOverRowId(): string | null {
-    return this._dragDropController?.dragOverRowId ?? null
+    return this._rowReorderController?.dragOverRowId ?? null
   }
   public set dragOverRowId(val: string | null) {
-    if (this._dragDropController) {
-      this._dragDropController.dragOverRowId = val
+    if (this._rowReorderController) {
+      this._rowReorderController.dragOverRowId = val
     }
   }
 
   public get dragOverPosition(): 'top' | 'bottom' | null {
-    return this._dragDropController?.dragOverPosition ?? null
+    return this._rowReorderController?.dragOverPosition ?? null
   }
   public set dragOverPosition(val: 'top' | 'bottom' | null) {
-    if (this._dragDropController) {
-      this._dragDropController.dragOverPosition = val
+    if (this._rowReorderController) {
+      this._rowReorderController.dragOverPosition = val
     }
   }
 
   public get dragPreview(): DragPreviewState | null {
-    return this._dragDropController?.dragPreview ?? null
+    return this._taskDragController?.dragPreview ?? null
   }
   public set dragPreview(val: DragPreviewState | null) {
-    if (this._dragDropController) {
-      this._dragDropController.dragPreview = val
+    if (this._taskDragController) {
+      this._taskDragController.dragPreview = val
     }
   }
 
   public get _draggingRowId(): string | null {
-    return this._dragDropController?._draggingRowId ?? null
+    return this._rowReorderController?._draggingRowId ?? null
   }
   public set _draggingRowId(val: string | null) {
-    if (this._dragDropController) {
-      this._dragDropController._draggingRowId = val
+    if (this._rowReorderController) {
+      this._rowReorderController._draggingRowId = val
     }
   }
 
@@ -277,7 +276,16 @@ export class GanttChartElement extends LitElement {
   private _tooltipController = new TooltipController(this)
   private _keyboardController = new KeyboardController(this)
   private _dependencyController = new DependencyController(this)
-  private _dragDropController = new DragDropController(this)
+  private _taskDragController = new TaskDragController(this)
+  private _rowReorderController = new RowReorderController(this)
+  private _treeController = new TreeController(this)
+  private _dragDropControllerInstance: DragDropController | null = null
+  public get _dragDropController(): DragDropController {
+    if (!this._dragDropControllerInstance) {
+      this._dragDropControllerInstance = new DragDropController(this)
+    }
+    return this._dragDropControllerInstance
+  }
   private _historyManager = new HistoryManager({
     onChange: (state) => {
       this.dispatchEvent(
@@ -306,8 +314,12 @@ export class GanttChartElement extends LitElement {
   private _lastZoomPxPerDay: number | null = null
   private _lastZoomPxPerMonth: number | null = null
   private _scrollContainer: HTMLElement | null = null
-  public _collapsedRowIds = new Set<string>()
-  private _prevExternalCollapsed = new Map<string, boolean | undefined>()
+  public get _collapsedRowIds(): Set<string> {
+    return this._treeController.collapsedRowIds
+  }
+  public set _collapsedRowIds(val: Set<string>) {
+    this._treeController.collapsedRowIds = val
+  }
 
   public invalidateLayoutCache(): void {
     this._layoutCache = null
@@ -317,52 +329,8 @@ export class GanttChartElement extends LitElement {
     this._tooltipController.clearTooltip()
   }
 
-  public get displayRows() {
-    const treeEnabled = this.option?.tree?.enabled !== false
-    const baseRows = treeEnabled
-      ? computeVisibleTreeRows(this.rows, this.option?.showHiddenRows ?? false)
-      : (this.option?.showHiddenRows
-          ? this.rows
-          : this.rows.filter((row) => row.visible !== false))
-
-    const autoSummary = this.option?.tree?.autoSummary !== false
-    if (!treeEnabled || !autoSummary) {
-      return baseRows
-    }
-
-    // 子を持つ行を特定
-    const rowsWithChildren = new Set<string>()
-    for (const r of this.rows) {
-      if (r.parentId) rowsWithChildren.add(r.parentId)
-    }
-
-    return baseRows.map((row) => {
-      const isParent = rowsWithChildren.has(row.id)
-      const needsSummary = row.isSummary || isParent
-      if (needsSummary && isParent) {
-        const childIds = computeChildRowIds(this.rows, row.id, true)
-        const childRows = this.rows.filter((r) => childIds.includes(r.id))
-        const allChildTasks = childRows.flatMap((r) => r.tasks)
-        if (allChildTasks.length > 0) {
-          const effectiveColor = row.summaryColor || this.option?.tree?.summaryColor
-          const summaryTask = computeSummaryTask(allChildTasks, {
-            id: `${row.id}-summary`,
-            name: row.name,
-            style: effectiveColor ? `background-color: ${effectiveColor};` : undefined,
-          })
-          if (summaryTask) {
-            const normalTasks = (row.tasks || []).filter(
-              (t) => t.id !== summaryTask.id && t.type !== 'summary',
-            )
-            return {
-              ...row,
-              tasks: [summaryTask, ...normalTasks],
-            }
-          }
-        }
-      }
-      return row
-    })
+  public get displayRows(): GanttRow[] {
+    return this._treeController.getDisplayRows()
   }
 
   /**
@@ -555,38 +523,8 @@ export class GanttChartElement extends LitElement {
     }
 
     if (changedProperties.has('rows')) {
-      const currentRowIds = new Set(this.rows.map((r) => r.id))
-      for (const id of this._collapsedRowIds) {
-        if (!currentRowIds.has(id)) {
-          this._collapsedRowIds.delete(id)
-          this._prevExternalCollapsed.delete(id)
-        }
-      }
-
-      let hasCollapsedChanges = false
-      const updatedRows = this.rows.map((row) => {
-        const prevExternal = this._prevExternalCollapsed.get(row.id)
-        const currentExternal = row.collapsed
-
-        if (currentExternal !== prevExternal) {
-          // 外部が明示的に変更した（初回、または外部から値が変わった場合）
-          this._prevExternalCollapsed.set(row.id, currentExternal)
-          if (currentExternal === true) {
-            this._collapsedRowIds.add(row.id)
-          } else if (currentExternal === false) {
-            this._collapsedRowIds.delete(row.id)
-          }
-        }
-
-        const isCollapsed = this._collapsedRowIds.has(row.id)
-        if (Boolean(row.collapsed) !== isCollapsed) {
-          hasCollapsedChanges = true
-          return { ...row, collapsed: isCollapsed }
-        }
-        return row
-      })
-
-      if (hasCollapsedChanges) {
+      const { rows: updatedRows, hasChanges } = this._treeController.syncCollapsedWithRows(this.rows)
+      if (hasChanges) {
         this.rows = updatedRows
       }
     }
@@ -632,11 +570,11 @@ export class GanttChartElement extends LitElement {
   }
 
   public updateDragOverlay(): void {
-    this._dragDropController.updateDragOverlay()
+    this._taskDragController.updateDragOverlay()
   }
 
   public hideDragOverlay(): void {
-    this._dragDropController.hideDragOverlay()
+    this._taskDragController.hideDragOverlay()
   }
 
   private currentTimeTimer: number | undefined
@@ -808,19 +746,15 @@ export class GanttChartElement extends LitElement {
    * ドラッグ中のバーが選択中バーに含まれ、選択数が2以上の場合にtrue。
    */
   public isMultiDrag(taskId: string): boolean {
-    return this._dragDropController.isMultiDrag(taskId)
+    return this._taskDragController.isMultiDrag(taskId)
   }
 
-  /**
-   * 選択中の全タスクが同じ行に属しているかを判定する。
-   * 同じ行なら縦方向（行間）の移動を許可する。
-   */
   public isMultiDragSameRow(): boolean {
-    return this._dragDropController.isMultiDragSameRow()
+    return this._taskDragController.isMultiDragSameRow()
   }
 
   public handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>): void => {
-    this._dragDropController.handleTaskUpdate(e)
+    this._taskDragController.handleTaskUpdate(e)
   }
 
   private handleTaskProgressChange = (e: CustomEvent<TaskProgressChangeEventDetail>) => {
@@ -858,31 +792,31 @@ export class GanttChartElement extends LitElement {
 
 
   public async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom'): Promise<void> {
-    return this._dragDropController.reorderRows(sourceIds, targetId, position)
+    return this._rowReorderController.reorderRows(sourceIds, targetId, position)
   }
 
   public handleContainerDragOver = (e: DragEvent): void => {
-    this._dragDropController.handleContainerDragOver(e)
+    this._rowReorderController.handleContainerDragOver(e)
   }
 
   private handleRowDragStart = (e: CustomEvent<{ rowId: string }>): void => {
-    this._dragDropController.handleRowDragStart(e)
+    this._rowReorderController.handleRowDragStart(e)
   }
 
   private handleRowDragEnd = (): void => {
-    this._dragDropController.handleRowDragEnd()
+    this._rowReorderController.handleRowDragEnd()
   }
 
   public handleContainerDragLeave = (e: DragEvent): void => {
-    this._dragDropController.handleContainerDragLeave(e)
+    this._rowReorderController.handleContainerDragLeave(e)
   }
 
   public handleContainerDrop = (e: DragEvent): void => {
-    this._dragDropController.handleContainerDrop(e)
+    this._rowReorderController.handleContainerDrop(e)
   }
 
   public handleExternalTaskDrop(e: DragEvent, taskJson: string): void {
-    this._dragDropController.handleExternalTaskDrop(e, taskJson)
+    this._taskDragController.handleExternalTaskDrop(e, taskJson)
   }
 
   private handleRowClicked(e: CustomEvent<{ rowId: string; event: MouseEvent }>) {
@@ -1068,7 +1002,6 @@ export class GanttChartElement extends LitElement {
    * @param config プラグインの設定オプション（任意）
    */
   public use<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig): this {
-    console.log('[DEBUG] use called for plugin:', plugin?.name)
     this._pluginManager.use(plugin, config)
     return this
   }
@@ -1423,109 +1356,19 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleRowToggleCollapse(e: CustomEvent<RowToggleCollapseEventDetail>) {
-    const { rowId, collapsed } = e.detail
-    this.toggleRowCollapse(rowId, collapsed)
+    this._treeController.handleRowToggleCollapse(e)
   }
 
-  /**
-   * 指定した行の折りたたみ状態を切り替えます。
-   *
-   * @param rowId 対象の行ID
-   * @param collapsed 設定する折りたたみ状態（省略時は現在の状態を反転）
-   * @returns 切り替えに成功した場合はtrue、行が見つからない場合はfalse
-   */
   public toggleRowCollapse(rowId: string, collapsed?: boolean): boolean {
-    const targetRow = this.rows.find((r) => r.id === rowId)
-    if (!targetRow) return false
-
-    const newCollapsed = collapsed !== undefined ? collapsed : !this._collapsedRowIds.has(rowId)
-
-    if (newCollapsed) {
-      this._collapsedRowIds.add(rowId)
-    } else {
-      this._collapsedRowIds.delete(rowId)
-    }
-    this._prevExternalCollapsed.set(rowId, newCollapsed)
-
-    this.rows = this.rows.map((r) =>
-      r.id === rowId ? { ...r, collapsed: newCollapsed } : r,
-    )
-
-    this.dispatchEvent(
-      new CustomEvent<RowToggleCollapseEventDetail>('row-toggle-collapse', {
-        detail: {
-          rowId,
-          collapsed: newCollapsed,
-          row: this.rows.find((r) => r.id === rowId) ?? targetRow,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    this.dispatchEvent(
-      new CustomEvent<GanttRow[]>('rows-change', {
-        detail: this.rows,
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    this.requestUpdate()
-    return true
+    return this._treeController.toggleRowCollapse(rowId, collapsed)
   }
 
-  /**
-   * 子行を持つすべての親行を折りたたみます。
-   */
   public collapseAll(): void {
-    const rowsWithChildren = new Set<string>()
-    for (const r of this.rows) {
-      if (r.parentId) rowsWithChildren.add(r.parentId)
-    }
-
-    for (const id of rowsWithChildren) {
-      this._collapsedRowIds.add(id)
-      this._prevExternalCollapsed.set(id, true)
-    }
-
-    this.rows = this.rows.map((r) =>
-      rowsWithChildren.has(r.id) ? { ...r, collapsed: true } : r,
-    )
-
-    this.dispatchEvent(
-      new CustomEvent<GanttRow[]>('rows-change', {
-        detail: this.rows,
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    this.requestUpdate()
+    this._treeController.collapseAll()
   }
 
-  /**
-   * すべての行を展開（折りたたみ解除）します。
-   */
   public expandAll(): void {
-    for (const id of this._collapsedRowIds) {
-      this._prevExternalCollapsed.set(id, false)
-    }
-    this._collapsedRowIds.clear()
-
-    this.rows = this.rows.map((r) =>
-      r.collapsed ? { ...r, collapsed: false } : r,
-    )
-
-    this.dispatchEvent(
-      new CustomEvent<GanttRow[]>('rows-change', {
-        detail: this.rows,
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    this.requestUpdate()
+    this._treeController.expandAll()
   }
 
   /**
@@ -1677,162 +1520,8 @@ export class GanttChartElement extends LitElement {
     // 横スクロールバーが表示される場合はその高さ分(17px)を差し引いて判定
     const needsVerticalScroll = totalHeight > this.viewportHeight
 
-    // タスク間の接続線を描く
-    const lines = []
-    const isReadOnly = this.option.readOnly === true
-    const showArrows = this.option.dependency?.showArrows !== false
-    const arrowSize = this.option.dependency?.arrowSize ?? 8
-    const lineStyle: DependencyLineStyle = this.option.dependency?.lineStyle ?? 'orthogonal'
-    const cornerRadius = this.option.dependency?.cornerRadius ?? 8
     const showCriticalPath = this.option.dependency?.showCriticalPath === true
     const criticalPathTaskIds = showCriticalPath ? computeCriticalPath(this.displayRows) : new Set<string>()
-    for (const [taskId, task] of taskCoords) {
-      if (task.dependencies) {
-        for (const depId of task.dependencies) {
-          const depTask = taskCoords.get(depId)
-          if (depTask) {
-            const startX = depTask.x + depTask.width
-            const startY = depTask.y + depTask.height / 2
-            const endX = task.x
-            const endY = task.y + task.height / 2
-            // 前進方向か（ターゲットタスクが開始タスクより右側にあるか）
-            const isForward = startX < endX
-            // 矢印表示時は線の終端を矢印分だけ手前にする
-            const rawAdjustedEndX = showArrows ? endX - arrowSize : endX
-            // 前進方向の場合、パスの終端がstartXより左に行かないように制限する
-            const adjustedEndX = isForward ? Math.max(startX, rawAdjustedEndX) : rawAdjustedEndX
-
-            let pathD: string
-            let hitPathD: string
-            let arrowPathD: string
-
-            const barHeight = this.effectiveBarHeight
-            const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
-
-            const isSameRow = Math.abs(startY - endY) < 1
-
-            if (isSameRow && isForward) {
-              // 同じ行で前進方向（距離が近い場合も含む）、ループさせずに直線を引く
-              pathD = adjustedEndX > startX ? `M ${startX} ${startY} L ${adjustedEndX} ${endY}` : ''
-              hitPathD = endX > startX ? `M ${startX} ${startY} L ${endX} ${endY}` : ''
-            } else if (lineStyle === 'orthogonal') {
-              // 直角折れ線（角丸付き）
-              const paths = buildOrthogonalPath(startX, startY, endX, endY, adjustedEndX, barHeight, barMargin, cornerRadius)
-              pathD = paths.pathD
-              hitPathD = paths.hitPathD
-            } else {
-              // ベジェ曲線
-              if (isForward) {
-                // 前進方向: シンプルなベジェ曲線
-                const midX = (startX + adjustedEndX) / 2
-                pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${adjustedEndX} ${endY}`
-                hitPathD = `M ${startX} ${startY} C ${(startX + endX) / 2} ${startY} ${(startX + endX) / 2} ${endY} ${endX} ${endY}`
-              } else {
-                // 後退方向: S字カーブ
-                const offset = Math.max(12, (startX - endX) * 0.15)
-                const midY = (startY + endY) / 2
-                const effectiveMidY = Math.abs(startY - endY) < barHeight
-                  ? midY + barHeight + barMargin
-                  : midY
-
-                pathD = `M ${startX} ${startY} C ${startX + offset} ${startY}, ${startX + offset} ${effectiveMidY}, ${(startX + adjustedEndX) / 2} ${effectiveMidY} S ${adjustedEndX - offset} ${endY}, ${adjustedEndX} ${endY}`
-                hitPathD = `M ${startX} ${startY} C ${startX + offset} ${startY}, ${startX + offset} ${effectiveMidY}, ${(startX + endX) / 2} ${effectiveMidY} S ${endX - offset} ${endY}, ${endX} ${endY}`
-              }
-            }
-
-            // 矢印用の直線パス（マーカーが正しい方向を向くように）
-            arrowPathD = showArrows
-              ? `M ${adjustedEndX} ${endY} L ${endX} ${endY}`
-              : ''
-
-            // 削除ボタンの表示位置（パスの中央付近）
-            let btnX = (startX + adjustedEndX) / 2
-            let btnY = (startY + endY) / 2
-            if (isSameRow && isForward) {
-              btnY = startY
-            } else if (!isForward) {
-              const midY = (startY + endY) / 2
-              btnY = Math.abs(startY - endY) < barHeight ? midY + barHeight + barMargin : midY
-            }
-
-            const isSelected =
-              this.selectedDependency?.sourceTaskId === depId &&
-              this.selectedDependency?.targetTaskId === taskId
-            const canDelete = !isReadOnly && this.option.dependency?.deletable !== false
-            const showDeleteBtn = canDelete && this.option.dependency?.showDeleteButton !== false
-
-            lines.push(
-              svg`<g class="dependency-group ${isSelected ? 'selected' : ''}">
-                ${!isReadOnly
-                  ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
-                    e.stopPropagation()
-                    this.handleDependencyLineClick(e, taskId, depId)
-                  }}" />`
-                  : ''}
-                <path class="dependency-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${pathD}" />
-                ${showArrows
-                  ? svg`<path class="dependency-line dependency-arrow-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
-                  : ''}
-                ${showDeleteBtn
-                  ? svg`<g
-                      class="dependency-delete-btn"
-                      transform="translate(${btnX}, ${btnY})"
-                      @pointerdown="${(e: PointerEvent) => {
-                        e.stopPropagation()
-                      }}"
-                      @click="${(e: MouseEvent) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        this.triggerDependencyDelete(depId, taskId, e)
-                      }}"
-                    >
-                      <circle class="dependency-delete-btn-hit-area" r="14" cx="0" cy="0" />
-                      <circle class="dependency-delete-btn-circle" r="8" cx="0" cy="0" />
-                      <line class="dependency-delete-btn-icon" x1="-3" y1="-3" x2="3" y2="3" />
-                      <line class="dependency-delete-btn-icon" x1="3" y1="-3" x2="-3" y2="3" />
-                    </g>`
-                  : ''}
-              </g>`,
-            )
-          }
-        }
-      }
-    }
-
-    // コネクタードラッグ中のプレビュー線
-    let connectorPreviewLine = null
-    if (this.connectorDrag) {
-      const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-      if (container) {
-        const rect = container.getBoundingClientRect()
-        const srcStartX = this.connectorDrag.startX
-        const srcStartY = this.connectorDrag.startY
-
-        let endContentX: number
-        let endContentY: number
-
-        if (this.connectorDrag.targetTaskId && this.connectorDrag.targetEndpoint) {
-          // ターゲットにスナップ
-          const targetCoord = taskCoords.get(this.connectorDrag.targetTaskId)
-          if (targetCoord) {
-            endContentX = this.connectorDrag.targetEndpoint === 'start'
-              ? targetCoord.x
-              : targetCoord.x + targetCoord.width
-            endContentY = targetCoord.y + targetCoord.height / 2
-          } else {
-            endContentX = this.connectorDrag.currentClientX - rect.left + container.scrollLeft
-            endContentY = this.connectorDrag.currentClientY - rect.top + container.scrollTop - this.calendarHeight
-          }
-        } else {
-          // フリー
-          endContentX = this.connectorDrag.currentClientX - rect.left + container.scrollLeft
-          endContentY = this.connectorDrag.currentClientY - rect.top + container.scrollTop - this.calendarHeight
-        }
-
-        const midPX = (srcStartX + endContentX) / 2
-        connectorPreviewLine = svg`<path class="connector-preview-line" d="M ${srcStartX} ${srcStartY} C ${midPX} ${srcStartY} ${midPX} ${endContentY} ${endContentX} ${endContentY}" />`
-      }
-    }
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}
@@ -1900,36 +1589,22 @@ export class GanttChartElement extends LitElement {
       }}"
         ></gantt-calendar>
 
-        <svg
-          class="dependency-lines"
-          style="top: 0;"
-          width="${this.getDateX(this.option.calendar.end) + labelWidth}"
-          height="${totalHeight + this.calendarHeight}"
-        >
-          ${showArrows
-        ? svg`<defs>
-                <marker
-                  id="dependency-arrowhead"
-                  markerWidth="${arrowSize}"
-                  markerHeight="${arrowSize}"
-                  refX="${arrowSize}"
-                  refY="${arrowSize / 2}"
-                  orient="auto"
-                  markerUnits="userSpaceOnUse"
-                >
-                  <polygon
-                    points="0 0, ${arrowSize} ${arrowSize / 2}, 0 ${arrowSize}"
-                    fill="${colors.dependencyLine}"
-                    class="dependency-arrowhead-fill"
-                  />
-                </marker>
-              </defs>`
-        : ''}
-          <g transform="translate(0, ${this.calendarHeight})">
-            ${lines}
-            ${connectorPreviewLine}
-          </g>
-        </svg>
+        ${renderDependencySvg({
+          taskCoords,
+          displayRows: this.displayRows,
+          option: this.option,
+          effectiveBarHeight: this.effectiveBarHeight,
+          selectedDependency: this.selectedDependency,
+          connectorDrag: this.connectorDrag,
+          scrollContainer: this._scrollContainer,
+          calendarHeight: this.calendarHeight,
+          totalHeight,
+          labelWidth,
+          colors,
+          getDateX: (d) => this.getDateX(d),
+          onDependencyLineClick: (e, tId, sId) => this.handleDependencyLineClick(e, tId, sId),
+          onDependencyDelete: (sId, tId, e) => this.triggerDependencyDelete(sId, tId, e),
+        })}
 
         ${!this.isExporting &&
         this.option.calendar.showCurrentTime &&
