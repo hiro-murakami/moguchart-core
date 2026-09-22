@@ -1,39 +1,27 @@
 import {
-  DEFAULT_BAR_HEIGHT,
   DEFAULT_BAR_MARGIN,
   DEFAULT_ROW_HEADER_WIDTH,
-  DEFAULT_ZOOM_CONFIG,
-  CHROME_ZOOM_LEVELS,
 } from '../core/constants'
-import { jaLocale } from '../core/i18n'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
-  DependencyClickEventDetail,
-  DependencyCreateEventDetail,
-  DependencyDeleteEventDetail,
-  DependencyEndpoint,
   DependencyLineStyle,
-  DependencySelectEventDetail,
   GanttChartOption,
   GanttChartOptionZoom,
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
   RowHeaderResizeEventDetail,
-  RowReorderEventDetail,
   RowSelectionChangeEventDetail,
   RowToggleCollapseEventDetail,
-  TaskDeleteEventDetail,
   TaskUpdateEventDetail,
   TaskProgressChangeEventDetail,
-  ZoomChangeEventDetail,
   CommandEventDetail,
   HistoryChangeEventDetail,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
-import { calculateTaskLanes, getThemeColors, formatDuration, dateToX, xToDate } from '../core/utils'
-import { LitElement, html, render, svg, type PropertyValues } from 'lit'
+import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
+import { LitElement, html, svg, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 
@@ -42,10 +30,22 @@ import './gantt-calendar'
 import './gantt-row'
 import './gantt-minimap'
 import type { MinimapScrollEventDetail } from './gantt-minimap'
-import type { GanttRowElement } from './gantt-row'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
 import { PluginManager, type GanttPlugin } from '../core/plugin'
+import {
+  ZoomController,
+  MarqueeController,
+  TooltipController,
+  type TooltipState,
+  KeyboardController,
+  DependencyController,
+  type ConnectorDragState,
+  DragDropController,
+  type DraggingTaskState,
+  type DragOverlayInfo,
+  type DragPreviewState,
+} from './controllers'
 import type { ExportImageOptions } from '../core/types'
 import { computeCriticalPath } from '../core/critical-path'
 import {
@@ -54,7 +54,6 @@ import {
   computeChildRowIds,
   computeVisibleTreeRows,
   computeSummaryTask,
-  canDropRow,
 } from '../core/wbs'
 
 
@@ -70,88 +69,215 @@ export class GanttChartElement extends LitElement {
   @property({ type: Array })
   selectedTaskIds: string[] = []
   @property({ attribute: false })
-  selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
+  public get selectedDependency(): { sourceTaskId: string; targetTaskId: string } | null {
+    return this._dependencyController?.selectedDependency ?? null
+  }
+  public set selectedDependency(val: { sourceTaskId: string; targetTaskId: string } | null) {
+    if (this._dependencyController) {
+      this._dependencyController.selectedDependency = val
+    }
+  }
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
-  @state() private selectedRows = new Set<string>()
-  @state() private selectedTasks = new Set<string>()
+  @state() public selectedRows = new Set<string>()
+  @state() public selectedTasks = new Set<string>()
   @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
   @state() private currentScrollLeft = 0
   @state() private currentScrollTop = 0
   @state() private viewportWidth = 800
-  @state() private dragTargetRowIndex: number | null = null
-  @state() private draggingTask: {
-    id: string
-    name?: string
-    start: Date
-    end: Date
-    currentStart: Date
-    currentEnd: Date
-    mode?: GanttTaskMoveMode
-  } | null = null
-  @state() private draggingTaskIds: string[] = []
-  @state() private multiDragDx = 0
-  @state() private multiDragDy = 0
-  @state() private multiDragSameRow = false
   @state() private viewportHeight = 400
-  private dragOverlayInfo: {
-    id: string
-    name?: string
-    start: Date
-    end: Date
-    currentStart: Date
-    currentEnd: Date
-    targetRow?: GanttRow
-    visible: boolean
-    clientX?: number
-    clientY?: number
-    barX?: number
-    barTop?: number
-    barBottom?: number
-  } | null = null
-  @state() private calendarHeight = 0
-  @state() private tooltip: {
-    task: GanttTask
-    x: number
-    y: number
-    barBottom: number
-    visible: boolean
-    below: boolean
-  } | null = null
-  @state() private dragOverRowId: string | null = null
-  @state() private dragOverPosition: 'top' | 'bottom' | null = null
-  private hoverTimer: number | undefined
+  @state() public calendarHeight = 0
+  public get tooltip(): TooltipState | null {
+    return this._tooltipController?.tooltip ?? null
+  }
+  public set tooltip(val: TooltipState | null) {
+    if (this._tooltipController) {
+      this._tooltipController.tooltip = val
+    }
+  }
   @state() private currentTime = new Date()
-  @state() private dragPreview: {
-    task: GanttTask
-    currentStart: Date
-    currentEnd: Date
-    rowId: string
-  } | null = null
-  @state() private currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
+  @state() public currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
   @state() private isResizingHeader = false
   @state() private hoveredMilestoneId: string | null = null
   @state() private cursorLineX: number | null = null
-  @state() private connectorDrag: {
-    sourceTaskId: string
-    sourceEndpoint: DependencyEndpoint
-    /** バーローカル座標系での起点X */
-    startX: number
-    /** バーローカル座標系での起点Y */
-    startY: number
-    /** 現在のマウスclientX */
-    currentClientX: number
-    /** 現在のマウスclientY */
-    currentClientY: number
-    /** ドロップターゲットのタスクID（ホバー中） */
-    targetTaskId: string | null
-    /** ドロップターゲット側のエンドポイント */
-    targetEndpoint: DependencyEndpoint | null
-  } | null = null
+  public get connectorDrag(): ConnectorDragState | null {
+    return this._dependencyController?.connectorDrag ?? null
+  }
+  public set connectorDrag(val: ConnectorDragState | null) {
+    if (this._dependencyController) {
+      this._dependencyController.connectorDrag = val
+    }
+  }
+
+  // --- Drag & Drop Controller Delegation Properties ---
+  public get draggingTask(): DraggingTaskState | null {
+    return this._dragDropController?.draggingTask ?? null
+  }
+  public set draggingTask(val: DraggingTaskState | null) {
+    if (this._dragDropController) {
+      this._dragDropController.draggingTask = val
+    }
+  }
+
+  public get draggingTaskIds(): string[] {
+    return this._dragDropController?.draggingTaskIds ?? []
+  }
+  public set draggingTaskIds(val: string[]) {
+    if (this._dragDropController) {
+      this._dragDropController.draggingTaskIds = val
+    }
+  }
+
+  public get multiDragDx(): number {
+    return this._dragDropController?.multiDragDx ?? 0
+  }
+  public set multiDragDx(val: number) {
+    if (this._dragDropController) {
+      this._dragDropController.multiDragDx = val
+    }
+  }
+
+  public get multiDragDy(): number {
+    return this._dragDropController?.multiDragDy ?? 0
+  }
+  public set multiDragDy(val: number) {
+    if (this._dragDropController) {
+      this._dragDropController.multiDragDy = val
+    }
+  }
+
+  public get multiDragSameRow(): boolean {
+    return this._dragDropController?.multiDragSameRow ?? false
+  }
+  public set multiDragSameRow(val: boolean) {
+    if (this._dragDropController) {
+      this._dragDropController.multiDragSameRow = val
+    }
+  }
+
+  public get dragTargetRowIndex(): number | null {
+    return this._dragDropController?.dragTargetRowIndex ?? null
+  }
+  public set dragTargetRowIndex(val: number | null) {
+    if (this._dragDropController) {
+      this._dragDropController.dragTargetRowIndex = val
+    }
+  }
+
+  public get dragOverlayInfo(): DragOverlayInfo | null {
+    return this._dragDropController?.dragOverlayInfo ?? null
+  }
+  public set dragOverlayInfo(val: DragOverlayInfo | null) {
+    if (this._dragDropController) {
+      this._dragDropController.dragOverlayInfo = val
+    }
+  }
+
+  public get dragOverRowId(): string | null {
+    return this._dragDropController?.dragOverRowId ?? null
+  }
+  public set dragOverRowId(val: string | null) {
+    if (this._dragDropController) {
+      this._dragDropController.dragOverRowId = val
+    }
+  }
+
+  public get dragOverPosition(): 'top' | 'bottom' | null {
+    return this._dragDropController?.dragOverPosition ?? null
+  }
+  public set dragOverPosition(val: 'top' | 'bottom' | null) {
+    if (this._dragDropController) {
+      this._dragDropController.dragOverPosition = val
+    }
+  }
+
+  public get dragPreview(): DragPreviewState | null {
+    return this._dragDropController?.dragPreview ?? null
+  }
+  public set dragPreview(val: DragPreviewState | null) {
+    if (this._dragDropController) {
+      this._dragDropController.dragPreview = val
+    }
+  }
+
+  public get _draggingRowId(): string | null {
+    return this._dragDropController?._draggingRowId ?? null
+  }
+  public set _draggingRowId(val: string | null) {
+    if (this._dragDropController) {
+      this._dragDropController._draggingRowId = val
+    }
+  }
+
+  // --- Keyboard Controller Delegation Properties ---
+  public get focusedTaskId(): string | null {
+    return this._keyboardController?.focusedTaskId ?? null
+  }
+  public set focusedTaskId(val: string | null) {
+    if (this._keyboardController) {
+      this._keyboardController.focusedTaskId = val
+    }
+  }
+
+  public get focusedRowId(): string | null {
+    return this._keyboardController?.focusedRowId ?? null
+  }
+  public set focusedRowId(val: string | null) {
+    if (this._keyboardController) {
+      this._keyboardController.focusedRowId = val
+    }
+  }
+
+  // --- Zoom Controller Delegation Properties ---
+  public get zoomPercent(): number {
+    return this._zoomController?.zoomPercent ?? 100
+  }
+  public set zoomPercent(val: number) {
+    if (this._zoomController) {
+      this._zoomController.zoomPercent = val
+    }
+  }
+
+  @state() public baseRowHeaderWidth: number = DEFAULT_ROW_HEADER_WIDTH
+
+  public get zoomPxPerDay(): number | null {
+    return this._zoomController?.zoomPxPerDay ?? null
+  }
+  public set zoomPxPerDay(val: number | null) {
+    if (this._zoomController) {
+      this._zoomController.zoomPxPerDay = val
+    }
+  }
+
+  public get zoomPxPerMonth(): number | null {
+    return this._zoomController?.zoomPxPerMonth ?? null
+  }
+  public set zoomPxPerMonth(val: number | null) {
+    if (this._zoomController) {
+      this._zoomController.zoomPxPerMonth = val
+    }
+  }
+
+  // --- Marquee Controller Delegation Properties ---
+  public get marqueeSelection() {
+    return this._marqueeController?.marqueeSelection ?? null
+  }
+  public set marqueeSelection(val: any) {
+    if (this._marqueeController) {
+      this._marqueeController.marqueeSelection = val
+    }
+  }
+
   private _systemThemeMediaQuery: MediaQueryList | null = null
   private _pluginManager = new PluginManager(this)
+  private _zoomController = new ZoomController(this)
+  private _marqueeController = new MarqueeController(this)
+  private _tooltipController = new TooltipController(this)
+  private _keyboardController = new KeyboardController(this)
+  private _dependencyController = new DependencyController(this)
+  private _dragDropController = new DragDropController(this)
   private _historyManager = new HistoryManager({
     onChange: (state) => {
       this.dispatchEvent(
@@ -164,34 +290,6 @@ export class GanttChartElement extends LitElement {
     },
   })
   @state() private isExporting = false
-  @state() private focusedTaskId: string | null = null
-  @state() private focusedRowId: string | null = null
-  @state() private zoomPercent: number = DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
-  @state() private baseRowHeaderWidth: number = DEFAULT_ROW_HEADER_WIDTH
-  @state() private zoomPxPerDay: number | null = null
-  @state() private zoomPxPerMonth: number | null = null
-  private _isZoomInitialized = false
-  private _prevInitialPercent: number | undefined = undefined
-  private _lastZoomPercent: number | undefined
-  @state() private marqueeSelection: {
-    startX: number
-    startY: number
-    currentX: number
-    currentY: number
-    active: boolean
-  } | null = null
-
-  private _marqueeDragStart: {
-    clientX: number
-    clientY: number
-    contentStartX: number
-    contentStartY: number
-    initialSelectedTasks: Set<string>
-    isMultiModifier: boolean
-  } | null = null
-  private _isMarqueeActive = false
-  private _justFinishedMarquee = false
-  private _marqueeAutoScrollInterval: number | null = null
 
   private _layoutCache: {
     layouts: any[]
@@ -204,14 +302,22 @@ export class GanttChartElement extends LitElement {
   private _cachedCurrentOption: GanttChartOption | null = null
   private _lastOptionRef: GanttChartOption | null = null
   private _lastLabelWidth: number = -1
+  private _lastZoomPercent: number | null = null
   private _lastZoomPxPerDay: number | null = null
   private _lastZoomPxPerMonth: number | null = null
   private _scrollContainer: HTMLElement | null = null
-  private _collapsedRowIds = new Set<string>()
+  public _collapsedRowIds = new Set<string>()
   private _prevExternalCollapsed = new Map<string, boolean | undefined>()
-  private _draggingRowId: string | null = null
 
-  private get displayRows() {
+  public invalidateLayoutCache(): void {
+    this._layoutCache = null
+  }
+
+  public clearTooltip(): void {
+    this._tooltipController.clearTooltip()
+  }
+
+  public get displayRows() {
     const treeEnabled = this.option?.tree?.enabled !== false
     const baseRows = treeEnabled
       ? computeVisibleTreeRows(this.rows, this.option?.showHiddenRows ?? false)
@@ -262,90 +368,48 @@ export class GanttChartElement extends LitElement {
   /**
    * ズームオプションのヘルパー
    */
-  private get zoomOption(): GanttChartOptionZoom | undefined {
-    return this.option?.zoom
+  public get zoomOption(): GanttChartOptionZoom | undefined {
+    return this._zoomController.zoomOption
   }
 
-  /**
-   * 現在の実効ズーム倍率 (1.0 = 100%)
-   */
-  private get effectiveZoomScale(): number {
-    return this.zoomPercent / 100
+  public get effectiveZoomScale(): number {
+    return this._zoomController.effectiveZoomScale
   }
 
-  private get isScaleCalendarEnabled(): boolean {
-    return this.zoomOption?.scaleElements?.calendar !== false
+  public get isScaleCalendarEnabled(): boolean {
+    return this._zoomController.isScaleCalendarEnabled
   }
 
-  private get isScaleRowHeaderEnabled(): boolean {
-    return this.zoomOption?.scaleElements?.rowHeader !== false
+  public get isScaleRowHeaderEnabled(): boolean {
+    return this._zoomController.isScaleRowHeaderEnabled
   }
 
-  private get isScaleBarHeightEnabled(): boolean {
-    return this.zoomOption?.scaleElements?.barHeight !== false
+  public get isScaleBarHeightEnabled(): boolean {
+    return this._zoomController.isScaleBarHeightEnabled
   }
 
-  private get isScaleFontEnabled(): boolean {
-    return this.zoomOption?.scaleElements?.fontScale !== false
+  public get isScaleFontEnabled(): boolean {
+    return this._zoomController.isScaleFontEnabled
   }
 
-  /**
-   * 現在有効な pxPerDay（ズームオーバーライドがあればそちらを優先）
-   */
-  private get effectivePxPerDay(): number {
-    if (this.zoomPxPerDay !== null) return this.zoomPxPerDay
-    const base = this.option.calendar.pxPerDay ?? 50
-    if (this.zoomOption?.enabled && this.isScaleCalendarEnabled) {
-      return Math.max(8, Math.round(base * this.effectiveZoomScale))
-    }
-    return base
+  public get effectivePxPerDay(): number {
+    return this._zoomController.effectivePxPerDay
   }
 
-  /**
-   * 現在有効な pxPerMonth（ズームオーバーライドがあればそちらを優先）
-   */
-  private get effectivePxPerMonth(): number | undefined {
-    if (this.zoomPxPerMonth !== null) return this.zoomPxPerMonth
-    if (this.option.calendar.pxPerMonth === undefined) return undefined
-    const base = this.option.calendar.pxPerMonth
-    if (this.zoomOption?.enabled && this.isScaleCalendarEnabled) {
-      return Math.max(10, Math.round(base * this.effectiveZoomScale))
-    }
-    return base
+  public get effectivePxPerMonth(): number | undefined {
+    return this._zoomController.effectivePxPerMonth
   }
 
-  /**
-   * 現在有効な行ヘッダー幅（ズーム連動）
-   */
-  private get effectiveRowHeaderWidth(): number {
-    if (this.zoomOption?.enabled && this.isScaleRowHeaderEnabled) {
-      return Math.max(60, Math.min(600, Math.round(this.baseRowHeaderWidth * this.effectiveZoomScale)))
-    }
-    return this.baseRowHeaderWidth
+  public get effectiveRowHeaderWidth(): number {
+    return this._zoomController.effectiveRowHeaderWidth
   }
 
-  /**
-   * 現在有効なバー高さ（ズーム連動）
-   */
-  private get effectiveBarHeight(): number {
-    const base = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
-    if (this.zoomOption?.enabled && this.isScaleBarHeightEnabled) {
-      const scale = this.effectiveZoomScale
-      const dampScale = Math.max(0.7, Math.min(1.5, 1 + (scale - 1) * 0.7))
-      return Math.max(16, Math.round(base * dampScale))
-    }
-    return base
+  public get effectiveBarHeight(): number {
+    return this._zoomController.effectiveBarHeight
   }
 
-  /**
-   * 現在有効なフォントスケール（ズーム連動）
-   */
-  private get effectiveFontScale(): number {
-    const base = this.option.fontScale ?? 1
-    if (this.zoomOption?.enabled && this.isScaleFontEnabled) {
-      return base * this.effectiveZoomScale
-    }
-    return base
+  public get effectiveFontScale(): number {
+    return this._zoomController.effectiveFontScale
   }
 
   static styles = ganttChartStyles
@@ -423,10 +487,6 @@ export class GanttChartElement extends LitElement {
     window.removeEventListener('dragend', this._handleGlobalDragEnd)
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
-    this.stopMarqueeAutoScroll()
-    window.removeEventListener('pointermove', this.handleMarqueePointerMove)
-    window.removeEventListener('pointerup', this.handleMarqueePointerUp)
-    window.removeEventListener('pointercancel', this.handleMarqueePointerUp)
     this._systemThemeMediaQuery?.removeEventListener('change', this.handleSystemThemeChange)
     this.removeEventListener('keydown', this.handleKeyDown)
     this.removeEventListener('pointerdown', this._handlePointerDownFocus, true)
@@ -473,26 +533,7 @@ export class GanttChartElement extends LitElement {
         this.baseRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
         this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
       }
-      const currentInitial = this.zoomOption?.initialPercent
-      if (!this._isZoomInitialized) {
-        this._isZoomInitialized = true
-        this._prevInitialPercent = currentInitial
-        this.zoomPercent = currentInitial ?? DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
-      } else if (currentInitial !== undefined && currentInitial !== this._prevInitialPercent) {
-        this._prevInitialPercent = currentInitial
-        this.zoomPercent = currentInitial
-      }
-      // 利用側が option を直接変更した場合、ズームオーバーライドをリセット
-      if (this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null) {
-        this.zoomPxPerDay = null
-        this.zoomPxPerMonth = null
-        this.zoomPercent = this.zoomOption?.initialPercent ?? DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
-      }
-      if (this.effectiveFontScale !== undefined) {
-        this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
-      } else {
-        this.style.removeProperty('--moguchart-font-scale')
-      }
+      this._zoomController.syncWithOption()
       if (this.option?.history) {
         this._historyManager.updateOptions({
           enabled: this.option.history.enabled,
@@ -586,214 +627,16 @@ export class GanttChartElement extends LitElement {
       }
     }
 
-    if (this.tooltip) {
-      const tooltipEl = this.shadowRoot?.querySelector('.tooltip') as HTMLElement
-      if (tooltipEl) {
-        const content = this.option.customRendering?.tooltip
-          ? this.option.customRendering.tooltip(this.tooltip.task)
-          : undefined
-
-        if (content) {
-          if (typeof content === 'string') {
-            // 文字列コンテンツは textContent で安全に挿入（XSS防止）
-            tooltipEl.textContent = content
-          } else {
-            render(content, tooltipEl)
-          }
-        } else {
-          const locale = this.option.locale ?? jaLocale
-          const isMonthlyMode = !!this.option.calendar.pxPerMonth
-          const duration = Math.round(
-            (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
-          )
-          const hasProgress = typeof this.tooltip.task.progress === 'number' && !Number.isNaN(this.tooltip.task.progress)
-          const progressRow = hasProgress
-            ? html`<div class="tooltip-row">
-                ${locale.tooltip.progress
-                  ? locale.tooltip.progress(Math.round(this.tooltip.task.progress!))
-                  : `進捗: ${Math.round(this.tooltip.task.progress!)}%`}
-              </div>`
-            : ''
-
-          if (isMonthlyMode) {
-            const endForDisplay = new Date(this.tooltip.task.end)
-            endForDisplay.setMonth(endForDisplay.getMonth() - 1)
-            render(
-              html`
-                <div style="font-weight: bold;">${this.tooltip.task.name}</div>
-                <div class="tooltip-row">
-                  ${locale.yearMonthFormat(this.tooltip.task.start)} - ${locale.yearMonthFormat(endForDisplay)}
-                </div>
-                <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
-                ${progressRow}
-              `,
-              tooltipEl,
-            )
-          } else {
-            render(
-              html`
-                <div style="font-weight: bold;">${this.tooltip.task.name}</div>
-                <div class="tooltip-row">
-                  ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
-                </div>
-                <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
-                ${progressRow}
-              `,
-              tooltipEl,
-            )
-          }
-        }
-
-        // ツールチップが画面外にはみ出す場合に位置を調整する
-        const margin = 6
-        const elRect = tooltipEl.getBoundingClientRect()
-
-        // 上端はみ出し: バーの下に表示するようリアクティブ状態を切り替え
-        // 一度 below にしたら同一ツールチップ表示中は維持する（振動防止）
-        if (!this.tooltip.below && elRect.top < margin) {
-          this.tooltip = { ...this.tooltip, below: true }
-          return // テンプレート再描画で正しい位置に配置される
-        }
-
-        // CSS の transform: translate(-50%, ...) が適用されているため、
-        // 実際の描画位置は left - width/2 で算出される。
-        let adjustedLeft = this.tooltip.x
-
-        // 右端はみ出し: 描画右端が画面幅を超える場合
-        if (elRect.right > window.innerWidth - margin) {
-          adjustedLeft = window.innerWidth - margin - elRect.width / 2
-        }
-        // 左端はみ出し: 描画左端が0を下回る場合
-        if (elRect.left < margin) {
-          adjustedLeft = margin + elRect.width / 2
-        }
-
-        if (adjustedLeft !== this.tooltip.x) {
-          tooltipEl.style.left = `${adjustedLeft}px`
-        }
-      }
-    }
-
+    this._tooltipController.updateTooltipDOM()
     this._pluginManager.executeAfterRender()
   }
 
-  /**
-   * ドラッグオーバーレイを直接DOM操作で更新する。
-   * @state() を使わないことで、Litの再レンダリングサイクルを回避する。
-   */
-  private updateDragOverlay() {
-    if (!this.dragOverlayInfo || this.option.showDragInfoOverlay === false) return
-    const colors = getThemeColors(this.theme, this.option.customTheme)
-    const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
-    if (!dragInfoEl) return
-
-    dragInfoEl.classList.toggle('visible', this.dragOverlayInfo.visible)
-    // Lit render() でコンテンツを安全に描画（innerHTML を使わない）
-    const { targetRow } = this.dragOverlayInfo
-    const content = this.option.customRendering?.dragInfo
-      ? this.option.customRendering.dragInfo(
-        {
-          id: this.dragOverlayInfo.id,
-          name: this.dragOverlayInfo.name,
-          start: this.dragOverlayInfo.start,
-          end: this.dragOverlayInfo.end,
-        } as GanttTask,
-        this.dragOverlayInfo.currentStart,
-        this.dragOverlayInfo.currentEnd,
-        targetRow,
-      )
-      : undefined
-
-    if (content) {
-      render(content, dragInfoEl)
-    } else {
-      const locale = this.option.locale ?? jaLocale
-      const isMonthlyMode = !!this.option.calendar.pxPerMonth
-      let startLabel: string
-      let endLabel: string
-      if (isMonthlyMode) {
-        const endForDisplay = new Date(this.dragOverlayInfo.currentEnd)
-        endForDisplay.setMonth(endForDisplay.getMonth() - 1)
-        startLabel = locale.yearMonthFormat(this.dragOverlayInfo.currentStart)
-        endLabel = locale.yearMonthFormat(endForDisplay)
-      } else {
-        startLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentStart)
-        endLabel = locale.dateTimeFormat(this.dragOverlayInfo.currentEnd)
-      }
-      render(
-        html`
-          <div style="font-weight: bold;">
-            ${this.dragOverlayInfo.name || locale.dragOverlay.noTitle}
-          </div>
-          <div class="drag-info-sub">
-            ${startLabel} -
-            ${endLabel}
-            (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.option.locale)})
-          </div>
-          ${targetRow
-            ? html`<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
-            : ''}
-        `,
-        dragInfoEl,
-      )
-    }
-
-    // --- タスクバーに追従するポジショニング ---
-    if (this.dragOverlayInfo.barTop !== undefined || this.dragOverlayInfo.clientY !== undefined) {
-      const mouseX = this.dragOverlayInfo.clientX ?? 0
-      const mouseY = this.dragOverlayInfo.clientY ?? 0
-      const hostRect = this.getBoundingClientRect()
-
-      // マウスがガントチャートの外にある場合はオーバーレイを非表示
-      if (
-        this.dragOverlayInfo.clientY !== undefined &&
-        (mouseX < hostRect.left || mouseX > hostRect.right ||
-        mouseY < hostRect.top || mouseY > hostRect.bottom)
-      ) {
-        dragInfoEl.classList.remove('visible')
-        return
-      }
-
-      const overlayWidth = dragInfoEl.offsetWidth || 200
-      const overlayHeight = dragInfoEl.offsetHeight || 60
-      const gap = 10 // バーとオーバーレイの間隔(px)
-      const margin = 8 // ビューポート端からの最小マージン(px)
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-
-      const targetX = this.dragOverlayInfo.barX ?? mouseX
-      const targetTop = this.dragOverlayInfo.barTop ?? mouseY
-      const targetBottom = this.dragOverlayInfo.barBottom ?? mouseY
-
-      // X方向: バーの中心に配置し、画面端でクランプ
-      let left = targetX - overlayWidth / 2
-      left = Math.max(margin, Math.min(left, viewportWidth - overlayWidth - margin))
-
-      // Y方向: デフォルトはバーの上に表示
-      let top = targetTop - overlayHeight - gap
-
-      // 上にはみ出す場合はバーの下に表示
-      if (top < margin) {
-        top = targetBottom + gap
-      }
-
-      // 下にはみ出す場合はクランプ
-      if (top + overlayHeight > viewportHeight - margin) {
-        top = viewportHeight - overlayHeight - margin
-      }
-
-      dragInfoEl.style.left = `${left}px`
-      dragInfoEl.style.transform = 'none'
-      dragInfoEl.style.top = `${top}px`
-      dragInfoEl.style.bottom = 'auto'
-    }
+  public updateDragOverlay(): void {
+    this._dragDropController.updateDragOverlay()
   }
 
-  private hideDragOverlay() {
-    const dragInfoEl = this.shadowRoot?.querySelector('.drag-info-overlay') as HTMLElement
-    if (dragInfoEl) {
-      dragInfoEl.classList.remove('visible')
-    }
+  public hideDragOverlay(): void {
+    this._dragDropController.hideDragOverlay()
   }
 
   private currentTimeTimer: number | undefined
@@ -863,14 +706,7 @@ export class GanttChartElement extends LitElement {
     this.currentScrollLeft = target.scrollLeft
     this.currentScrollTop = target.scrollTop
     this.updateScrollTop(target.scrollTop)
-
-    if (this.hoverTimer !== undefined) {
-      window.clearTimeout(this.hoverTimer)
-      this.hoverTimer = undefined
-    }
-    if (this.tooltip?.visible) {
-      this.tooltip = { ...this.tooltip, visible: false }
-    }
+    this._tooltipController.hideTooltip()
   }
 
   private handleMinimapScroll = (e: CustomEvent<MinimapScrollEventDetail>) => {
@@ -908,7 +744,7 @@ export class GanttChartElement extends LitElement {
     this.cursorLineX = null
   }
 
-  private getDateX(date: Date) {
+  public getDateX(date: Date): number {
     return dateToX(
       date,
       this.option.calendar.start,
@@ -917,7 +753,7 @@ export class GanttChartElement extends LitElement {
     )
   }
 
-  private calculateLayout() {
+  public calculateLayout() {
     if (this._layoutCache) {
       return this._layoutCache
     }
@@ -971,437 +807,20 @@ export class GanttChartElement extends LitElement {
    * 複数バー移動かどうかを判定する。
    * ドラッグ中のバーが選択中バーに含まれ、選択数が2以上の場合にtrue。
    */
-  private isMultiDrag(taskId: string): boolean {
-    return this.selectedTasks.size >= 2 && this.selectedTasks.has(taskId)
+  public isMultiDrag(taskId: string): boolean {
+    return this._dragDropController.isMultiDrag(taskId)
   }
 
   /**
    * 選択中の全タスクが同じ行に属しているかを判定する。
    * 同じ行なら縦方向（行間）の移動を許可する。
    */
-  private isMultiDragSameRow(): boolean {
-    if (this.selectedTasks.size < 2) return false
-    let commonRowId: string | null = null
-    for (const row of this.rows) {
-      for (const task of row.tasks) {
-        if (this.selectedTasks.has(task.id)) {
-          if (commonRowId === null) {
-            commonRowId = row.id
-          } else if (commonRowId !== row.id) {
-            return false
-          }
-        }
-      }
-    }
-    return commonRowId !== null
+  public isMultiDragSameRow(): boolean {
+    return this._dragDropController.isMultiDragSameRow()
   }
 
-  private handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>) {
-    e.stopPropagation()
-    const { id, start, end, dx, isDragging, mode } = e.detail
-    let { dy } = e.detail
-
-    const isMulti = this.isMultiDrag(id)
-    const sameRow = isMulti && this.isMultiDragSameRow()
-
-    // 複数選択移動時：異なる行のバーが含まれる場合はdy=0に固定（行移動を無効化）
-    // 同じ行のバーのみ選択されている場合は縦移動を許可
-    if (isMulti && !sameRow) {
-      dy = 0
-    }
-
-    let newStart = start
-    let newEnd = end
-
-    if (dx !== undefined) {
-      const pxPerDay = this.effectivePxPerDay
-      const pxPerMonth = this.effectivePxPerMonth
-      const startX = this.getDateX(start)
-      const endX = this.getDateX(end)
-      newStart = xToDate(startX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-      newEnd = xToDate(endX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-    }
-
-    // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
-    if (this.option.calendar.pxPerMonth) {
-      if (newStart.getDate() > 15) newStart.setMonth(newStart.getMonth() + 1)
-      newStart.setDate(1)
-      newStart.setHours(0, 0, 0, 0)
-      if (newEnd.getDate() > 15) newEnd.setMonth(newEnd.getMonth() + 1)
-      newEnd.setDate(1)
-      newEnd.setHours(0, 0, 0, 0)
-    } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
-      if (newStart.getDate() > 15) newStart.setMonth(newStart.getMonth() + 1)
-      newStart.setDate(1)
-      newStart.setHours(0, 0, 0, 0)
-      if (newEnd.getDate() > 15) newEnd.setMonth(newEnd.getMonth() + 1)
-      newEnd.setDate(1)
-      newEnd.setHours(0, 0, 0, 0)
-    }
-
-    let sourceRowIndex = -1
-    let taskToMove: GanttTask | undefined
-    let taskIndexInSource = -1
-
-    this.rows.find((r, index) => {
-      const taskI = r.tasks.findIndex((t) => t.id === id)
-      if (taskI !== -1) {
-        sourceRowIndex = index
-        taskToMove = r.tasks[taskI]
-        taskIndexInSource = taskI
-        return true
-      }
-      return false
-    })
-
-    if (sourceRowIndex === -1 || !taskToMove) return
-
-    const { layouts: rowLayouts } = this.calculateLayout()
-    const sourceRowIndexInDisplay = this.displayRows.findIndex((r) => r.id === this.rows[sourceRowIndex].id)
-    if (sourceRowIndexInDisplay === -1) return
-
-    const dragStartRowTop = rowLayouts[sourceRowIndexInDisplay].top
-
-    const displayRow = this.displayRows[sourceRowIndexInDisplay]
-    const { tasksWithLanes } = calculateTaskLanes(displayRow.tasks)
-    const taskWithLane = tasksWithLanes.find((t) => t.id === id)
-    const lane = taskWithLane ? taskWithLane.lane : 0
-    const barHeight = this.effectiveBarHeight
-    const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
-
-    const taskInitialY = lane * (barHeight + barMargin) + barMargin
-    const currentY = dragStartRowTop + taskInitialY + dy + barHeight / 2
-
-    const allowCrossRowMove = this.option.enableCrossRowMove !== false
-    let targetRowIndex = -1
-    if (allowCrossRowMove) {
-      for (let i = 0; i < rowLayouts.length; i++) {
-        const rowLayout = rowLayouts[i]
-        if (currentY >= rowLayout.top && currentY < rowLayout.top + rowLayout.height) {
-          targetRowIndex = i
-          break
-        }
-      }
-    } else {
-      const sourceRow = this.rows[sourceRowIndex]
-      targetRowIndex = this.displayRows.findIndex((r) => r.id === sourceRow.id)
-    }
-
-    const targetRowId = targetRowIndex !== -1 ? this.displayRows[targetRowIndex].id : undefined
-
-    // 外部に通知するイベントに複数選択情報を含める
-    const selectedIds = isMulti ? [...this.selectedTasks] : undefined
-
-    this.dispatchEvent(
-      new CustomEvent('task-update', {
-        detail: {
-          ...e.detail,
-          dy,
-          start: newStart,
-          end: newEnd,
-          targetRowId,
-          selectedTaskIds: selectedIds,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    if (isDragging) {
-      if (this.hoverTimer !== undefined) {
-        window.clearTimeout(this.hoverTimer)
-      }
-      // ドラッグ中はツールチップを非表示にする
-      if (this.tooltip) {
-        this.tooltip = null
-      }
-
-      if (e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
-        // ガントチャート外または行外にあるときは、ドラッグ状態の表示を初期状態（移動なし）に戻す
-        this.multiDragDx = 0
-        this.multiDragDy = 0
-        this.dragTargetRowIndex = null
-        if (this.dragOverlayInfo) {
-          this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
-          this.hideDragOverlay()
-        }
-        return
-      }
-
-      // draggingTaskの更新は、IDが変わった時やドラッグ開始時のみ行う
-      // 座標が変わるたびに更新すると全行の再レンダリングが走ってしまうため
-      if (!this.draggingTask || this.draggingTask.id !== id) {
-        this.draggingTask = {
-          id,
-          name: e.detail.name,
-          start,
-          end,
-          currentStart: newStart,
-          currentEnd: newEnd,
-          mode,
-        }
-
-        // 複数選択時はドラッグ中のタスクIDリストを設定
-        if (isMulti) {
-          this.draggingTaskIds = [...this.selectedTasks]
-        } else {
-          this.draggingTaskIds = []
-        }
-      }
-
-      // 複数ドラッグ中のdx/dy値は毎フレーム更新（ゴースト表示位置の追従のため）
-      if (isMulti) {
-        this.multiDragDx = dx ?? 0
-        this.multiDragSameRow = sameRow
-        if (sameRow) {
-          this.multiDragDy = dy
-        } else {
-          this.multiDragDy = 0
-        }
-      } else if (this.multiDragDx !== 0 || this.multiDragDy !== 0) {
-        this.multiDragDx = 0
-        this.multiDragDy = 0
-      }
-
-      // 複数選択移動時：異なる行のバーが含まれる場合はtargetRowIndexを更新しない
-      // 同じ行のバーのみの場合はtargetRowIndexを更新（行移動を有効化）
-      if (!isMulti || sameRow) {
-        const newDragTargetRowIndex = targetRowIndex >= 0 ? targetRowIndex : null
-        if (this.dragTargetRowIndex !== newDragTargetRowIndex) {
-          this.dragTargetRowIndex = newDragTargetRowIndex
-        }
-      }
-
-      // ドラッグオーバーレイ: 複数選択時は件数を表示
-      if (isMulti) {
-        this.dragOverlayInfo = {
-          id,
-          name: (this.option.locale ?? jaLocale).dragOverlay.movingTasks(this.selectedTasks.size),
-          start,
-          end,
-          currentStart: newStart,
-          currentEnd: newEnd,
-          visible: true,
-          clientX: e.detail.x,
-          clientY: e.detail.y,
-          barX: e.detail.barX,
-          barTop: e.detail.barTop,
-          barBottom: e.detail.barBottom,
-        }
-      } else {
-        this.dragOverlayInfo = {
-          id,
-          name: e.detail.name,
-          start,
-          end,
-          currentStart: newStart,
-          currentEnd: newEnd,
-          targetRow:
-            targetRowIndex >= 0 && this.displayRows[targetRowIndex]?.id !== this.rows[sourceRowIndex]?.id
-              ? this.displayRows[targetRowIndex]
-              : undefined,
-          visible: true,
-          clientX: e.detail.x,
-          clientY: e.detail.y,
-          barX: e.detail.barX,
-          barTop: e.detail.barTop,
-          barBottom: e.detail.barBottom,
-        }
-      }
-      this.updateDragOverlay()
-      return
-    }
-
-    // ドロップ時の処理
-    const droppedMulti = this.draggingTaskIds.length >= 2
-    const droppedSameRow = this.multiDragSameRow
-    this.draggingTask = null
-    this.draggingTaskIds = []
-    this.multiDragDx = 0
-    this.multiDragDy = 0
-    this.multiDragSameRow = false
-    this.dragTargetRowIndex = null
-    if (this.dragOverlayInfo) {
-      this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
-      this.hideDragOverlay()
-    }
-    if (this.tooltip?.visible) {
-      this.tooltip = { ...this.tooltip, visible: false }
-    }
-
-    // キャンセル、チャート外、または行が存在しない場所でドロップされた場合は、タスク移動を適用しない
-    if (e.detail.isCancel || e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
-      return
-    }
-
-    // targetRowIndex は displayRows のインデックスなので、this.rows のインデックスに変換
-    let targetRowIndexInRows = -1
-    if (targetRowIndex !== -1) {
-      const targetRow = this.displayRows[targetRowIndex]
-      targetRowIndexInRows = this.rows.findIndex((r) => r.id === targetRow.id)
-    }
-
-    const previousRows = this.rows
-
-    // 複数バー移動のドロップ処理
-    if (droppedMulti && dx !== undefined) {
-      const pxPerDay = this.effectivePxPerDay
-      const pxPerMonth = this.effectivePxPerMonth
-
-      // 同一行の複数バーが別の行にドロップされた場合の行移動処理
-      const needsRowMove = droppedSameRow && targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows
-
-      if (needsRowMove) {
-        // 全選択タスクをソース行から取り出してターゲット行に移動
-        const newRows = [...this.rows]
-        const sourceRow = { ...newRows[sourceRowIndex] }
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        sourceRow.tasks = [...sourceRow.tasks]
-        targetRow.tasks = [...targetRow.tasks]
-
-        const movedTasks: GanttTask[] = []
-        sourceRow.tasks = sourceRow.tasks.filter((t) => {
-          if (this.selectedTasks.has(t.id)) {
-            const tStartX = this.getDateX(t.start)
-            const tEndX = this.getDateX(t.end)
-            const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-            const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (this.option.calendar.pxPerMonth) {
-              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-              ns.setDate(1)
-              ns.setHours(0, 0, 0, 0)
-              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-              ne.setDate(1)
-              ne.setHours(0, 0, 0, 0)
-            } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
-              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-              ns.setDate(1)
-              ns.setHours(0, 0, 0, 0)
-              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-              ne.setDate(1)
-              ne.setHours(0, 0, 0, 0)
-            }
-            movedTasks.push({ ...t, start: ns, end: ne })
-            return false
-          }
-          return true
-        })
-        targetRow.tasks.push(...movedTasks)
-        newRows[sourceRowIndex] = sourceRow
-        newRows[targetRowIndexInRows] = targetRow
-
-        requestAnimationFrame(() => {
-          this.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'task-move',
-            description: '複数タスクの移動',
-          })
-        })
-      } else {
-        // 同じ行内での水平移動のみ
-        const newRows = this.rows.map((row) => {
-          const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
-          if (!hasSelectedTask) return row
-
-          return {
-            ...row,
-            tasks: row.tasks.map((t) => {
-              if (!this.selectedTasks.has(t.id)) return t
-              const tStartX = this.getDateX(t.start)
-              const tEndX = this.getDateX(t.end)
-              const ns = xToDate(tStartX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-              const ne = xToDate(tEndX + dx, this.option.calendar.start, pxPerDay, pxPerMonth)
-              // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
-              if (this.option.calendar.pxPerMonth) {
-                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                ns.setDate(1)
-                ns.setHours(0, 0, 0, 0)
-                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                ne.setDate(1)
-                ne.setHours(0, 0, 0, 0)
-              } else if (this.option.snapDuration && this.option.snapDuration >= 43200) {
-                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                ns.setDate(1)
-                ns.setHours(0, 0, 0, 0)
-                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                ne.setDate(1)
-                ne.setHours(0, 0, 0, 0)
-              }
-              return {
-                ...t,
-                start: ns,
-                end: ne,
-              }
-            }),
-          }
-        })
-
-        // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
-        requestAnimationFrame(() => {
-          this.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'task-move',
-            description: '複数タスクの移動',
-          })
-        })
-      }
-      return
-    }
-
-    if (mode === 'copy') {
-      if (targetRowIndexInRows !== -1) {
-        const newRows = [...this.rows]
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        targetRow.tasks = [...targetRow.tasks]
-
-        // 新しいIDを生成
-        const newId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-        const newTask = {
-          ...taskToMove,
-          id: newId,
-          start: newStart,
-          end: newEnd,
-          dependencies: [],
-        }
-
-        targetRow.tasks.push(newTask)
-        newRows[targetRowIndexInRows] = targetRow
-
-        requestAnimationFrame(() => {
-          this.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'custom',
-            description: 'タスクの複製',
-          })
-        })
-      }
-    } else {
-      const newRows = [...this.rows]
-      const sourceRow = { ...newRows[sourceRowIndex] }
-      sourceRow.tasks = [...sourceRow.tasks]
-      newRows[sourceRowIndex] = sourceRow
-
-      if (targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows) {
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        targetRow.tasks = [...targetRow.tasks]
-        newRows[targetRowIndexInRows] = targetRow
-
-        const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
-        targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
-      } else {
-        sourceRow.tasks[taskIndexInSource] = {
-          ...taskToMove,
-          start: newStart,
-          end: newEnd,
-        }
-      }
-
-      const isResize = dx === undefined
-      requestAnimationFrame(() => {
-        this.applyRowsChangeWithCommand(previousRows, newRows, {
-          type: isResize ? 'task-resize' : 'task-move',
-          description: isResize ? 'タスク期間の変更' : 'タスクの移動',
-        })
-      })
-    }
+  public handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>): void => {
+    this._dragDropController.handleTaskUpdate(e)
   }
 
   private handleTaskProgressChange = (e: CustomEvent<TaskProgressChangeEventDetail>) => {
@@ -1430,455 +849,40 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleBarMouseEnter(e: CustomEvent<BarHoverEventDetail>) {
-    // ドラッグ中、またはshowTooltipがfalseの場合はツールチップを表示しない
-    if (this.draggingTask || this.option.showTooltip === false) {
-      return
-    }
-    if (this.hoverTimer !== undefined) {
-      window.clearTimeout(this.hoverTimer)
-    }
-    const delay = this.option.tooltipDelay ?? 500
-    if (delay > 0) {
-      this.hoverTimer = window.setTimeout(() => {
-        this.tooltip = { ...e.detail, visible: true, below: false }
-      }, delay)
-    } else {
-      this.tooltip = { ...e.detail, visible: true, below: false }
-    }
+    this._tooltipController.handleBarMouseEnter(e.detail)
   }
 
   private handleBarMouseLeave() {
-    if (this.hoverTimer !== undefined) {
-      window.clearTimeout(this.hoverTimer)
-      this.hoverTimer = undefined
-    }
-    if (this.tooltip?.visible) {
-      this.tooltip = { ...this.tooltip, visible: false }
-    }
+    this._tooltipController.handleBarMouseLeave()
   }
 
-  private async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom') {
-    const previousRows = this.rows
-    const initialIds = Array.isArray(sourceIds) ? sourceIds : [sourceIds]
 
-    // 循環参照・階層ルールガード: 移動対象自身または自身の子孫へのドロップ、親ブロック外移動は禁止
-    if (!canDropRow(this.rows, initialIds, targetId, position)) {
-      return
-    }
-
-    // ブロック連動: 親行が移動対象の場合、その配下の子孫行も一緒に移動対象に含める
-    const allMovingIdsSet = new Set<string>()
-    for (const id of initialIds) {
-      allMovingIdsSet.add(id)
-      const descendantIds = computeChildRowIds(this.rows, id, true)
-      for (const descId of descendantIds) {
-        allMovingIdsSet.add(descId)
-      }
-    }
-
-    // 元の配列の順序を保った移動対象IDリスト
-    const ids = this.rows
-      .filter((r) => allMovingIdsSet.has(r.id))
-      .map((r) => r.id)
-
-    const rowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
-    const positions = new Map<string, number>()
-    rowElements.forEach((el) => {
-      if (el.row) {
-        positions.set(el.row.id, el.getBoundingClientRect().top)
-      }
-    })
-
-    const newRows = [...this.rows]
-    const movingRows: GanttRow[] = []
-    let targetIndex = newRows.findIndex((r) => r.id === targetId)
-    if (targetIndex === -1) return
-
-    // 移動対象の行を抽出して削除
-    // インデックスがずれないように後ろから削除するか、filterを使う
-    // ここではまず抽出してから、元の配列から削除する
-    ids.forEach((id) => {
-      const index = newRows.findIndex((r) => r.id === id)
-      if (index !== -1) {
-        movingRows.push(newRows[index])
-      }
-    })
-
-    // ID順に並べ替える必要はなく、選択順あるいは元々の順序を維持したいが、
-    // ここでは newRows からの抽出順序（＝元々の表示順序）を維持する形で実装
-    const filteredRows = newRows.filter((r) => !ids.includes(r.id))
-
-    // ターゲット位置を再計算（削除によってインデックスが変わる可能性があるため）
-    // targetId自体が移動対象に含まれている場合はどうするか？
-    // ドラッグ＆ドロップの仕様上、ターゲットは自分自身ではないはずだが、複数選択の場合はあり得る
-    // targetId が movingRows に含まれている場合、ドロップ先として無効とみなすか、
-    // あるいは targetId の位置は「削除前の位置」を基準にするか。
-    // ここでは filteredRows における targetId の位置を探す。
-    // もし targetId も移動対象なら、targetId は filteredRows に存在しない。
-    // その場合は処理を中断するか、あるいは別のロジックが必要。
-    // 通常、ドラッグ中の要素の上にドロップはできない（pointer-events: noneなど）が、
-    // 念のためチェック。
-    if (ids.includes(targetId)) return
-
-    let newTargetIndex = filteredRows.findIndex((r) => r.id === targetId)
-
-    if (position === 'bottom') {
-      const targetRow = filteredRows[newTargetIndex]
-      const isTargetCollapsed = targetRow && (targetRow.collapsed || this._collapsedRowIds.has(targetId))
-      if (isTargetCollapsed) {
-        // 折りたたまれた親行の下にドロップした場合、配下の全子孫行の末尾の後ろに配置する
-        const descendantIds = new Set(computeChildRowIds(filteredRows, targetId, true))
-        if (descendantIds.size > 0) {
-          for (let i = newTargetIndex + 1; i < filteredRows.length; i++) {
-            if (descendantIds.has(filteredRows[i].id)) {
-              newTargetIndex = i
-            }
-          }
-        }
-      }
-      newTargetIndex++
-    }
-
-    const targetRowInOrig = this.rows.find((r) => r.id === targetId)
-    const firstParentId = movingRows[0]?.parentId ?? null
-
-    // 新しい親IDの決定:
-    // 1) ターゲットが自身の直接の親行（targetRow.id === firstParentId）の場合:
-    //    - bottom: 親配下の先頭に移動（親はそのまま firstParentId）
-    //    - top: 親行の前へ移動（親は targetRow.parentId）
-    // 2) ターゲットがそれ以外の行の場合:
-    //    - 常に targetRow.parentId が新しい親IDとなる
-    const newParentId =
-      firstParentId !== null && targetRowInOrig && targetRowInOrig.id === firstParentId && position === 'bottom'
-        ? firstParentId
-        : (targetRowInOrig?.parentId ?? null)
-
-    // 移動した直接の対象行（initialIds）の parentId を newParentId に更新
-    const updatedMovingRows = movingRows.map((row) => {
-      if (initialIds.includes(row.id)) {
-        if ((row.parentId ?? null) !== newParentId) {
-          return { ...row, parentId: newParentId }
-        }
-      }
-      return row
-    })
-
-    filteredRows.splice(newTargetIndex, 0, ...updatedMovingRows)
-
-    this.applyRowsChangeWithCommand(previousRows, filteredRows, {
-      type: 'row-reorder',
-      description: '行の並び替え',
-    })
-
-    await this.updateComplete
-
-    const newRowElements = Array.from(this.shadowRoot?.querySelectorAll('gantt-row') ?? []) as GanttRowElement[]
-
-    newRowElements.forEach((el) => {
-      if (el.row) {
-        const oldTop = positions.get(el.row.id)
-        if (oldTop !== undefined) {
-          const newTop = el.getBoundingClientRect().top
-          const dy = oldTop - newTop
-          if (dy !== 0) {
-            el.animate(
-              [
-                { transform: `translateY(${dy}px)`, zIndex: '1' },
-                { transform: 'translateY(0)', zIndex: '1' },
-              ],
-              {
-                duration: 300,
-                easing: 'ease-out',
-              },
-            )
-          }
-        }
-      }
-    })
-
-    this.dispatchEvent(
-      new CustomEvent<RowReorderEventDetail>('row-reordered', {
-        detail: {
-          sourceId: ids[0], // 互換性のため
-          sourceIds: ids,
-          targetId,
-          position,
-          rows: this.rows,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public async reorderRows(sourceIds: string | string[], targetId: string, position: 'top' | 'bottom'): Promise<void> {
+    return this._dragDropController.reorderRows(sourceIds, targetId, position)
   }
 
-  private handleContainerDragOver(e: DragEvent) {
-    // JSONデータが含まれているか、またはプロパティ経由でタスクが渡されている場合
-    const isExternalTask = e.dataTransfer && e.dataTransfer.types.includes('application/json')
-
-    if (!this.option.enableRowReordering && !isExternalTask) {
-      if (e.dataTransfer) {
-        e.dataTransfer.dropEffect = 'none'
-      }
-      return
-    }
-
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-    if (!container) return
-
-    const rect = container.getBoundingClientRect()
-    const y = e.clientY - rect.top + container.scrollTop
-    const yInRows = y - this.calendarHeight
-
-    const { layouts } = this.calculateLayout()
-
-    let foundIndex = -1
-    for (let i = 0; i < layouts.length; i++) {
-      const layout = layouts[i]
-      if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
-        foundIndex = i
-        break
-      }
-    }
-
-    if (foundIndex !== -1) {
-      const row = this.displayRows[foundIndex]
-
-      if (isExternalTask) {
-        e.preventDefault()
-        if (e.dataTransfer) {
-          e.dataTransfer.dropEffect = 'copy'
-        }
-
-        if (this.dragOverRowId !== row.id || this.dragOverPosition !== null) {
-          this.dragOverRowId = row.id
-          this.dragOverPosition = null
-        }
-
-        // ゴースト表示の計算
-        if (this.externalDraggingTask) {
-          const labelWidth = this.currentRowHeaderWidth
-          const scrollLeft = container.scrollLeft
-          const x = e.clientX - rect.left + scrollLeft - labelWidth
-          const pxPerDay = this.effectivePxPerDay
-          const pxPerMonth = this.effectivePxPerMonth
-
-          // スナップ計算
-          const snapDuration = this.option.snapDuration ?? 1440
-          const pxPerMinute = pxPerDay / (24 * 60)
-          const snapPx = pxPerMinute * snapDuration
-          const snappedX = Math.round(x / snapPx) * snapPx
-
-          // 日時計算
-          const currentStart = xToDate(snappedX, this.option.calendar.start, pxPerDay, pxPerMonth)
-          const durationMs = this.externalDraggingTask.end.getTime() - this.externalDraggingTask.start.getTime()
-          const currentEnd = new Date(currentStart.getTime() + durationMs)
-
-          if (
-            !this.dragPreview ||
-            this.dragPreview.rowId !== row.id ||
-            this.dragPreview.currentStart.getTime() !== currentStart.getTime()
-          ) {
-            this.dragPreview = {
-              task: this.externalDraggingTask,
-              currentStart,
-              currentEnd,
-              rowId: row.id,
-            }
-          }
-        }
-      } else {
-        const layout = layouts[foundIndex]
-        const relativeY = yInRows - layout.top
-        const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
-
-        // 行ドラッグ中の場合、移動可否をチェックして不可ならドロップインジケータを表示せず禁止マークにする
-        let canDrop = true
-        const draggingId =
-          this._draggingRowId ||
-          (typeof window !== 'undefined' ? (window as any).__moguchart_dragging_row_id : null)
-
-        if (draggingId) {
-          const sourceIds =
-            this.selectedRows.has(draggingId) && this.selectedRows.size > 1
-              ? Array.from(this.selectedRows)
-              : [draggingId]
-          canDrop = canDropRow(this.rows, sourceIds, row.id, position)
-        }
-
-        if (!canDrop) {
-          if (this.dragOverRowId !== null || this.dragOverPosition !== null) {
-            this.dragOverRowId = null
-            this.dragOverPosition = null
-          }
-          if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'none'
-          }
-          // 重要: canDrop が false のときは preventDefault() を絶対に呼ばない！
-          // preventDefault() を呼ばないことで、ブラウザはデフォルトの「ドロップ禁止」として
-          // OS ネイティブの禁止マーク（🚫 / not-allowed）を確実に表示する
-          return
-        }
-
-        // ドロップ可能な場合のみ preventDefault() を呼び出し、dropEffect = 'move' を設定
-        e.preventDefault()
-        if (e.dataTransfer) {
-          e.dataTransfer.dropEffect = 'move'
-        }
-
-        if (this.dragOverRowId !== row.id || this.dragOverPosition !== position) {
-          this.dragOverRowId = row.id
-          this.dragOverPosition = position
-        }
-      }
-    } else {
-      this.dragOverRowId = null
-      this.dragOverPosition = null
-      this.dragPreview = null
-      if (e.dataTransfer) {
-        e.dataTransfer.dropEffect = 'none'
-      }
-      // 余白もドロップ不可のため preventDefault() は呼ばない
-    }
+  public handleContainerDragOver = (e: DragEvent): void => {
+    this._dragDropController.handleContainerDragOver(e)
   }
 
-  private handleRowDragStart(e: CustomEvent<{ rowId: string }>) {
-    this._draggingRowId = e.detail.rowId
-    if (typeof window !== 'undefined') {
-      ;(window as any).__moguchart_dragging_row_id = e.detail.rowId
-    }
+  private handleRowDragStart = (e: CustomEvent<{ rowId: string }>): void => {
+    this._dragDropController.handleRowDragStart(e)
   }
 
-  private handleRowDragEnd() {
-    this._draggingRowId = null
-    if (typeof window !== 'undefined') {
-      delete (window as any).__moguchart_dragging_row_id
-    }
-    this.dragOverRowId = null
-    this.dragOverPosition = null
+  private handleRowDragEnd = (): void => {
+    this._dragDropController.handleRowDragEnd()
   }
 
-  private handleContainerDragLeave(e: DragEvent) {
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-    const related = e.relatedTarget as HTMLElement
-    if (container && container.contains(related)) return
-
-    this.dragOverRowId = null
-    this.dragOverPosition = null
-    this.dragPreview = null
-    // 注意: ドラッグ中にコンテナ内の別要素へマウスが移動した際、relatedTarget が null になる場合があるため、
-    // ここで this._draggingRowId をクリアしてはならない。クリアは handleRowDragEnd / handleContainerDrop で行う。
+  public handleContainerDragLeave = (e: DragEvent): void => {
+    this._dragDropController.handleContainerDragLeave(e)
   }
 
-  private handleContainerDrop(e: DragEvent) {
-    e.preventDefault()
-
-    const taskJson = e.dataTransfer?.getData('application/json')
-    if (taskJson) {
-      this.handleExternalTaskDrop(e, taskJson)
-      this.dragOverRowId = null
-      this.dragOverPosition = null
-      this.dragPreview = null
-      this._draggingRowId = null
-      if (typeof window !== 'undefined') {
-        delete (window as any).__moguchart_dragging_row_id
-      }
-      return
-    }
-
-    if (!this.option.enableRowReordering) return
-    const sourceId = e.dataTransfer?.getData('text/plain') || this._draggingRowId
-    const targetId = this.dragOverRowId
-    const position = this.dragOverPosition
-
-    this.dragOverRowId = null
-    this.dragOverPosition = null
-    this.dragPreview = null
-    this._draggingRowId = null
-    if (typeof window !== 'undefined') {
-      delete (window as any).__moguchart_dragging_row_id
-    }
-
-    if (sourceId && targetId && sourceId !== targetId && position) {
-      // 複数行選択されており、かつドラッグ開始行が選択行に含まれている場合
-      const sourceIds =
-        this.selectedRows.has(sourceId) && this.selectedRows.size > 1
-          ? Array.from(this.selectedRows)
-          : [sourceId]
-
-      if (!canDropRow(this.rows, sourceIds, targetId, position)) {
-        return
-      }
-
-      this.reorderRows(sourceIds, targetId, position)
-    }
+  public handleContainerDrop = (e: DragEvent): void => {
+    this._dragDropController.handleContainerDrop(e)
   }
 
-  private handleExternalTaskDrop(e: DragEvent, taskJson: string) {
-    try {
-      const parsed = JSON.parse(taskJson)
-
-      // ランタイムバリデーション: 必須フィールドの存在と型を検証
-      if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        typeof parsed.id !== 'string' ||
-        typeof parsed.name !== 'string' ||
-        !parsed.start ||
-        !parsed.end
-      ) {
-        console.warn('Invalid dropped task data: missing required fields (id, name, start, end)')
-        return
-      }
-
-      // start / end を Date オブジェクトに安全に変換
-      const start = new Date(parsed.start)
-      const end = new Date(parsed.end)
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        console.warn('Invalid dropped task data: start or end is not a valid date')
-        return
-      }
-
-      const task: GanttTask = { ...parsed, start, end }
-      const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-      if (!container) return
-
-      const rect = container.getBoundingClientRect()
-      const scrollLeft = container.scrollLeft
-      const scrollTop = container.scrollTop
-      const labelWidth = this.currentRowHeaderWidth
-
-      // X座標 -> 日時
-      const x = e.clientX - rect.left + scrollLeft - labelWidth
-      const pxPerDay = this.effectivePxPerDay
-      const pxPerMonth = this.effectivePxPerMonth
-      const dropDate = xToDate(x, this.option.calendar.start, pxPerDay, pxPerMonth)
-
-      // Y座標 -> 行
-      const yInRows = e.clientY - rect.top + scrollTop - this.calendarHeight
-
-      const { layouts } = this.calculateLayout()
-      let targetRowId: string | undefined
-
-      for (let i = 0; i < layouts.length; i++) {
-        const layout = layouts[i]
-        if (yInRows >= layout.top && yInRows < layout.top + layout.height) {
-          targetRowId = this.displayRows[i].id
-          break
-        }
-      }
-
-      if (targetRowId) {
-        this.dispatchEvent(
-          new CustomEvent('task-drop', {
-            detail: { task, dropDate, targetRowId },
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      }
-    } catch (err) {
-      console.warn('Failed to parse dropped task data', err)
-    }
+  public handleExternalTaskDrop(e: DragEvent, taskJson: string): void {
+    this._dragDropController.handleExternalTaskDrop(e, taskJson)
   }
 
   private handleRowClicked(e: CustomEvent<{ rowId: string; event: MouseEvent }>) {
@@ -1940,214 +944,17 @@ export class GanttChartElement extends LitElement {
 
   // --- 矩形範囲選択（Marquee Selection） ---
 
-  private handleContainerPointerDown = (e: PointerEvent) => {
-    // 左クリックのみ
-    if (e.button !== 0) return
-    // 矩形選択が無効化されている場合はスキップ
-    if (this.option?.selection?.marquee === false) return
-
-    // 除外ターゲット判定
-    const target = e.target as HTMLElement | null
-    if (!target) return
-
-    // タスクバー、各種ハンドル、コネクタ、マーカー、マイルストーン、ヘッダーリサイザー上での操作は除外
-    if (
-      target.closest(
-        '.bar, .task-group, .handle-left, .handle-right, .handle-progress, .connector-left, .connector-right, .marker-wrapper, .milestone-line, .header-resizer, .dependency-hit-area, .dependency-delete-btn',
-      )
-    ) {
-      return
-    }
-
-    // カレンダーヘッダー上での操作は除外
-    if (target.closest('gantt-calendar')) {
-      return
-    }
-
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
-    if (!container) return
-
-    const rect = container.getBoundingClientRect()
-    const labelWidth = this.currentRowHeaderWidth
-    const contentX = e.clientX - rect.left + container.scrollLeft
-    const contentY = e.clientY - rect.top + container.scrollTop - this.calendarHeight
-
-    // 行ヘッダー領域またはカレンダー領域でのクリックは除外
-    if (contentX < labelWidth || contentY < 0) {
-      return
-    }
-
-    const isMultiModifier = e.shiftKey || e.ctrlKey || e.metaKey
-
-    this._marqueeDragStart = {
-      clientX: e.clientX,
-      clientY: e.clientY,
-      contentStartX: contentX,
-      contentStartY: contentY,
-      initialSelectedTasks: new Set(this.selectedTasks),
-      isMultiModifier,
-    }
-    this._isMarqueeActive = false
-
-    window.addEventListener('pointermove', this.handleMarqueePointerMove)
-    window.addEventListener('pointerup', this.handleMarqueePointerUp)
-    window.addEventListener('pointercancel', this.handleMarqueePointerUp)
+  private handleContainerPointerDown = (e: PointerEvent): void => {
+    this._marqueeController.handlePointerDown(e)
   }
 
-  private handleMarqueePointerMove = (e: PointerEvent) => {
-    if (!this._marqueeDragStart) return
-
-    const dist = Math.hypot(
-      e.clientX - this._marqueeDragStart.clientX,
-      e.clientY - this._marqueeDragStart.clientY,
-    )
-
-    // ドラッグ判定の閾値（4px）
-    if (!this._isMarqueeActive && dist < 4) {
-      return
-    }
-
-    if (!this._isMarqueeActive) {
-      this._isMarqueeActive = true
-    }
-
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
-    if (!container) return
-
-    const rect = container.getBoundingClientRect()
-    const labelWidth = this.currentRowHeaderWidth
-    const rawContentX = e.clientX - rect.left + container.scrollLeft
-    const rawContentY = e.clientY - rect.top + container.scrollTop - this.calendarHeight
-
-    const currentX = Math.max(labelWidth, rawContentX)
-    const currentY = Math.max(0, rawContentY)
-    const startX = this._marqueeDragStart.contentStartX
-    const startY = this._marqueeDragStart.contentStartY
-
-    const rectLeft = Math.min(startX, currentX)
-    const rectRight = Math.max(startX, currentX)
-    const rectTop = Math.min(startY, currentY)
-    const rectBottom = Math.max(startY, currentY)
-
-    this.marqueeSelection = {
-      startX,
-      startY,
-      currentX,
-      currentY,
-      active: true,
-    }
-
-    // AABB 交差判定
-    const { taskCoords } = this.calculateLayout()
-    const intersectingTaskIds = new Set<string>()
-
-    for (const [taskId, coord] of taskCoords) {
-      const taskLeft = coord.x
-      const taskRight = coord.x + coord.width
-      const taskTop = coord.y
-      const taskBottom = coord.y + coord.height
-
-      if (
-        taskLeft < rectRight &&
-        taskRight > rectLeft &&
-        taskTop < rectBottom &&
-        taskBottom > rectTop
-      ) {
-        intersectingTaskIds.add(taskId)
-      }
-    }
-
-    let newSelectedTasks: Set<string>
-    if (this._marqueeDragStart.isMultiModifier) {
-      newSelectedTasks = new Set([
-        ...this._marqueeDragStart.initialSelectedTasks,
-        ...intersectingTaskIds,
-      ])
-    } else {
-      newSelectedTasks = intersectingTaskIds
-    }
-
-    this.selectedTasks = newSelectedTasks
-
-    // オートスクロール
-    this.handleMarqueeAutoScroll(e, rect, container)
-  }
-
-  private handleMarqueePointerUp = () => {
-    window.removeEventListener('pointermove', this.handleMarqueePointerMove)
-    window.removeEventListener('pointerup', this.handleMarqueePointerUp)
-    window.removeEventListener('pointercancel', this.handleMarqueePointerUp)
-    this.stopMarqueeAutoScroll()
-
-    if (this._isMarqueeActive) {
-      this._justFinishedMarquee = true
-      this.marqueeSelection = null
-      this._isMarqueeActive = false
-      this._marqueeDragStart = null
-
-      this.dispatchEvent(
-        new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
-          detail: {
-            selectedIds: [...this.selectedTasks],
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-
-      setTimeout(() => {
-        this._justFinishedMarquee = false
-      }, 100)
-    } else {
-      this._marqueeDragStart = null
-    }
-  }
-
-  private handleMarqueeAutoScroll(e: PointerEvent, containerRect: DOMRect, container: HTMLElement) {
-    const scrollEdgeThreshold = 30
-    const scrollSpeed = 10
-
-    let scrollDx = 0
-    let scrollDy = 0
-
-    if (e.clientX < containerRect.left + this.currentRowHeaderWidth + scrollEdgeThreshold) {
-      scrollDx = -scrollSpeed
-    } else if (e.clientX > containerRect.right - scrollEdgeThreshold) {
-      scrollDx = scrollSpeed
-    }
-
-    if (e.clientY < containerRect.top + this.calendarHeight + scrollEdgeThreshold) {
-      scrollDy = -scrollSpeed
-    } else if (e.clientY > containerRect.bottom - scrollEdgeThreshold) {
-      scrollDy = scrollSpeed
-    }
-
-    if (scrollDx !== 0 || scrollDy !== 0) {
-      if (this._marqueeAutoScrollInterval === null) {
-        this._marqueeAutoScrollInterval = window.setInterval(() => {
-          if (!this._isMarqueeActive) {
-            this.stopMarqueeAutoScroll()
-            return
-          }
-          if (scrollDx !== 0) container.scrollLeft += scrollDx
-          if (scrollDy !== 0) container.scrollTop += scrollDy
-        }, 20)
-      }
-    } else {
-      this.stopMarqueeAutoScroll()
-    }
-  }
-
-  private stopMarqueeAutoScroll() {
-    if (this._marqueeAutoScrollInterval !== null) {
-      window.clearInterval(this._marqueeAutoScrollInterval)
-      this._marqueeAutoScrollInterval = null
-    }
+  public stopMarqueeAutoScroll(): void {
+    this._marqueeController.stopMarqueeAutoScroll()
   }
 
   private handleContainerClick(e: MouseEvent) {
-    if (this._justFinishedMarquee) {
-      this._justFinishedMarquee = false
+    if (this._marqueeController.justFinishedMarquee) {
+      this._marqueeController.justFinishedMarquee = false
       return
     }
     // 行ヘッダーなどのクリックイベントが伝播してきた場合はここで処理しない
@@ -2261,6 +1068,7 @@ export class GanttChartElement extends LitElement {
    * @param config プラグインの設定オプション（任意）
    */
   public use<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig): this {
+    console.log('[DEBUG] use called for plugin:', plugin?.name)
     this._pluginManager.use(plugin, config)
     return this
   }
@@ -2325,7 +1133,7 @@ export class GanttChartElement extends LitElement {
   /**
    * rowsの更新と同時にUndo/Redoコマンドを生成・登録する内部共通ヘルパー
    */
-  private applyRowsChangeWithCommand(
+  public applyRowsChangeWithCommand(
     previousRows: GanttRow[],
     nextRows: GanttRow[],
     commandInfo: {
@@ -2405,388 +1213,61 @@ export class GanttChartElement extends LitElement {
     )
   }
 
-  // --- ズーム操作 ---
+  // --- ズーム操作（ZoomControllerへの委譲） ---
 
-  /**
-   * ズーム変更イベントを発火する内部ヘルパー
-   */
-  private _dispatchZoomChange(): void {
-    const isMonthMode = this.effectivePxPerMonth !== undefined
-    this.dispatchEvent(
-      new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
-        detail: {
-          pxPerDay: this.effectivePxPerDay,
-          pxPerMonth: isMonthMode ? this.effectivePxPerMonth : undefined,
-          zoomScale: this.effectiveZoomScale,
-          zoomPercent: this.zoomPercent,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public handleWheel = (e: WheelEvent): void => {
+    this._zoomController.handleWheel(e, this._scrollContainer)
   }
 
-  /**
-   * Ctrl/Cmd + マウスホイールによるズーム処理
-   */
-  private handleWheel = (e: WheelEvent) => {
-    // Ctrl/Meta キーが押されていない場合は通常スクロール
-    if (!e.ctrlKey && !e.metaKey) return
-    // ズームが無効の場合は無視
-    if (this.option.zoom?.enabled !== true) return
-    if (e.defaultPrevented) return
-
-    e.preventDefault()
-
-    const container = this._scrollContainer
-    const labelWidth = this.currentRowHeaderWidth
-
-    // マウス位置のコンテンツ内X座標（行ヘッダーを除く）
-    let mouseContentX = 0
-    if (container) {
-      const rect = container.getBoundingClientRect()
-      mouseContentX = e.clientX - rect.left + container.scrollLeft - labelWidth
-    }
-
-    // 現在のズーム値
-    const isMonthMode = this.effectivePxPerMonth !== undefined
-
-    // ズーム倍率計算
-    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
-    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
-
-    let newPercent: number
-    const levels = this.option.zoom?.levels
-    if (levels && levels.length > 0) {
-      if (e.deltaY < 0) {
-        // ズームイン: 次に大きいレベルへ
-        newPercent = levels.find((v) => v > this.zoomPercent) ?? maxPercent
-      } else {
-        // ズームアウト: 次に小さいレベルへ
-        newPercent = [...levels].reverse().find((v) => v < this.zoomPercent) ?? minPercent
-      }
-    } else {
-      const step = this.option.zoom?.step ?? DEFAULT_ZOOM_CONFIG.STEP
-      const factor = e.deltaY > 0 ? 1 / step : step
-      newPercent = Math.round(this.zoomPercent * factor)
-    }
-    newPercent = Math.max(minPercent, Math.min(maxPercent, newPercent))
-
-    // 値が変わらなければ何もしない
-    if (newPercent === this.zoomPercent && this.zoomPxPerDay === null && this.zoomPxPerMonth === null) return
-
-    const oldEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
-
-    // ズーム値を先に更新
-    this.zoomPercent = newPercent
-    this.zoomPxPerDay = null
-    this.zoomPxPerMonth = null
-
-    if (this.isScaleRowHeaderEnabled) {
-      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-    }
-    if (this.isScaleFontEnabled) {
-      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
-    }
-
-    const newEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
-    const ratio = newEffectivePx / oldEffectivePx
-
-    // 再レンダリング後にスクロール位置を補正（コンテナが存在する場合のみ）
-    if (container) {
-      this.updateComplete.then(() => {
-        const newMouseContentX = mouseContentX * ratio
-        const scrollDelta = newMouseContentX - mouseContentX
-        container.scrollLeft += scrollDelta
-      })
-    }
-
-    // イベント通知
-    this._dispatchZoomChange()
-  }
-
-  /**
-   * 指定したパーセンテージ（例: 100 = 等倍）にズームを設定する。
-   * カレンダー列幅、行ヘッダー幅、バー高さ、フォントサイズが一括連動します。
-   * @param percent ズームパーセンテージ (50〜200等、option.zoom.minPercent/maxPercentで制限)
-   */
   public zoomToPercent(percent: number): void {
-    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
-    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
-    const clamped = Math.max(minPercent, Math.min(maxPercent, Math.round(percent)))
-
-    if (this.zoomPercent === clamped && this.zoomPxPerDay === null && this.zoomPxPerMonth === null) {
-      return
-    }
-
-    this.zoomPercent = clamped
-    this.zoomPxPerDay = null
-    this.zoomPxPerMonth = null
-
-    if (this.isScaleRowHeaderEnabled) {
-      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-    }
-    if (this.isScaleFontEnabled) {
-      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
-    }
-
-    this._layoutCache = null
-    this.requestUpdate()
-    this._dispatchZoomChange()
+    this._zoomController.zoomToPercent(percent)
   }
 
-  /**
-   * 指定した倍率（例: 1.0 = 100%）にズームを設定する。
-   * @param scale ズーム倍率 (0.5〜2.0等)
-   */
   public zoomToScale(scale: number): void {
-    this.zoomToPercent(Math.round(scale * 100))
+    this._zoomController.zoomToScale(scale)
   }
 
-  /**
-   * Chrome風のズームレベルまたは指定ステップで1段階ズームイン（拡大）する。
-   * @param step 増加させるパーセンテージ（省略時はプリセットレベルに沿って拡大）
-   */
   public zoomIn(step?: number): void {
-    if (step !== undefined) {
-      this.zoomToPercent(this.zoomPercent + step)
-      return
-    }
-    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
-    const levels = this.option.zoom?.levels ?? CHROME_ZOOM_LEVELS
-    const current = this.zoomPercent
-    const next = levels.find((v) => v > current) ?? maxPercent
-    this.zoomToPercent(Math.min(maxPercent, next))
+    this._zoomController.zoomIn(step)
   }
 
-  /**
-   * Chrome風のズームレベルまたは指定ステップで1段階ズームアウト（縮小）する。
-   * @param step 減少させるパーセンテージ（省略時はプリセットレベルに沿って縮小）
-   */
   public zoomOut(step?: number): void {
-    if (step !== undefined) {
-      this.zoomToPercent(this.zoomPercent - step)
-      return
-    }
-    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
-    const levels = this.option.zoom?.levels ?? CHROME_ZOOM_LEVELS
-    const current = this.zoomPercent
-    const prev = [...levels].reverse().find((v) => v < current) ?? minPercent
-    this.zoomToPercent(Math.max(minPercent, prev))
+    this._zoomController.zoomOut(step)
   }
 
-  /**
-   * 現在のズームパーセンテージを取得する。
-   */
   public getZoomPercent(): number {
-    return this.zoomPercent
+    return this._zoomController.getZoomPercent()
   }
 
-  /**
-   * 現在のズーム倍率を取得する (1.0 = 100%)。
-   */
   public getZoomScale(): number {
-    return this.effectiveZoomScale
+    return this._zoomController.getZoomScale()
   }
 
-  /**
-   * 指定した pxPerDay（または pxPerMonth）にズームを設定する (後方互換)。
-   * @param value ズーム先の pxPerDay（月単位モード時は pxPerMonth）
-   */
   public zoomTo(value: number): void {
-    const isMonthMode = this.effectivePxPerMonth !== undefined
-    const defaultMin = isMonthMode ? 20 : 2
-    const defaultMax = isMonthMode ? 600 : 200
-    const min = this.option.zoom?.min ?? defaultMin
-    const max = this.option.zoom?.max ?? defaultMax
-    const clamped = Math.max(min, Math.min(max, value))
-
-    const basePx = isMonthMode
-      ? (this.option.calendar.pxPerMonth ?? 50)
-      : (this.option.calendar.pxPerDay ?? 50)
-    const minPercent = this.option.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
-    const maxPercent = this.option.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
-    const calculatedPercent = Math.round((clamped / basePx) * 100)
-    this.zoomPercent = Math.max(minPercent, Math.min(maxPercent, calculatedPercent))
-
-    if (isMonthMode) {
-      this.zoomPxPerMonth = clamped
-    } else {
-      this.zoomPxPerDay = clamped
-    }
-
-    if (this.isScaleRowHeaderEnabled) {
-      this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-    }
-    if (this.isScaleFontEnabled) {
-      this.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
-    }
-
-    this._dispatchZoomChange()
+    this._zoomController.zoomTo(value)
   }
 
-  /**
-   * 全タスクが表示領域に収まるようにズームレベルを自動調整する。
-   */
   public zoomToFit(): void {
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-    if (!container) return
-
-    // 全タスクの最小開始日・最大終了日を取得
-    let minStart: Date | null = null
-    let maxEnd: Date | null = null
-    for (const row of this.displayRows) {
-      for (const task of row.tasks) {
-        if (!minStart || task.start < minStart) minStart = task.start
-        if (!maxEnd || task.end > maxEnd) maxEnd = task.end
-      }
-    }
-
-    if (!minStart || !maxEnd) return
-
-    const labelWidth = this.currentRowHeaderWidth
-    const availableWidth = container.clientWidth - labelWidth
-    if (availableWidth <= 0) return
-
-    const isMonthMode = this.effectivePxPerMonth !== undefined
-
-    if (isMonthMode) {
-      // 月数を計算
-      const monthDiff =
-        (maxEnd.getFullYear() - minStart.getFullYear()) * 12 + (maxEnd.getMonth() - minStart.getMonth())
-      const totalMonths = Math.max(1, monthDiff)
-      const targetPxPerMonth = availableWidth / totalMonths
-      this.zoomTo(targetPxPerMonth)
-    } else {
-      // 日数を計算
-      const diffMs = maxEnd.getTime() - minStart.getTime()
-      const totalDays = Math.max(1, diffMs / (1000 * 60 * 60 * 24))
-      const targetPxPerDay = availableWidth / totalDays
-      this.zoomTo(targetPxPerDay)
-    }
-
-    // タスク開始位置にスクロール
-    requestAnimationFrame(() => {
-      const startX = this.getDateX(minStart!) + labelWidth
-      container.scrollLeft = Math.max(0, startX - 10)
-    })
+    this._zoomController.zoomToFit()
   }
 
-  /**
-   * ズームを100%（標準倍率）に戻す。
-   */
   public resetZoom(): void {
-    if (
-      this.zoomPercent === DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT &&
-      this.zoomPxPerDay === null &&
-      this.zoomPxPerMonth === null
-    ) {
-      return
-    }
-    this.zoomPxPerDay = null
-    this.zoomPxPerMonth = null
-    this.zoomToPercent(DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT)
+    this._zoomController.resetZoom()
   }
 
-  /**
-   * 依存関係線の選択状態を解除する
-   */
-  public clearDependencySelection() {
-    if (!this.selectedDependency) return
-    this.selectedDependency = null
-    this.dispatchEvent(
-      new CustomEvent<DependencySelectEventDetail>('dependency-select', {
-        detail: {
-          selected: null,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public clearDependencySelection(): void {
+    this._dependencyController.clearDependencySelection()
   }
 
-  /**
-   * 依存関係線を選択状態にする
-   */
-  public selectDependency(sourceTaskId: string, targetTaskId: string) {
-    if (
-      this.selectedDependency &&
-      this.selectedDependency.sourceTaskId === sourceTaskId &&
-      this.selectedDependency.targetTaskId === targetTaskId
-    ) {
-      return
-    }
-
-    this.selectedDependency = { sourceTaskId, targetTaskId }
-    this.dispatchEvent(
-      new CustomEvent<DependencySelectEventDetail>('dependency-select', {
-        detail: {
-          selected: { sourceTaskId, targetTaskId },
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public selectDependency(sourceTaskId: string, targetTaskId: string): void {
+    this._dependencyController.selectDependency(sourceTaskId, targetTaskId)
   }
 
-  /**
-   * 依存関係の削除リクエストイベントを発火する
-   */
-  public triggerDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event) {
-    if (this.option.readOnly || this.option.dependency?.deletable === false) return
-
-    let sourceTask: GanttTask | undefined
-    let targetTask: GanttTask | undefined
-    for (const row of this.rows) {
-      for (const t of row.tasks) {
-        if (t.id === sourceTaskId) sourceTask = t
-        if (t.id === targetTaskId) targetTask = t
-      }
-    }
-
-    if (targetTask && targetTask.dependencies?.includes(sourceTaskId)) {
-      const previousRows = this.rows
-      const newRows = previousRows.map((row) => ({
-        ...row,
-        tasks: row.tasks.map((t) => {
-          if (t.id === targetTaskId && t.dependencies) {
-            return {
-              ...t,
-              dependencies: t.dependencies.filter((id) => id !== sourceTaskId),
-            }
-          }
-          return t
-        }),
-      }))
-
-      this.applyRowsChangeWithCommand(previousRows, newRows, {
-        type: 'dependency-delete',
-        description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を削除`,
-      })
-    }
-
-    this.dispatchEvent(
-      new CustomEvent<DependencyDeleteEventDetail>('dependency-delete', {
-        detail: {
-          sourceTaskId,
-          targetTaskId,
-          originalEvent,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    if (
-      this.selectedDependency &&
-      this.selectedDependency.sourceTaskId === sourceTaskId &&
-      this.selectedDependency.targetTaskId === targetTaskId
-    ) {
-      this.clearDependencySelection()
-    }
+  public triggerDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event): void {
+    this._dependencyController.triggerDependencyDelete(sourceTaskId, targetTaskId, originalEvent)
   }
 
-  private clearSelection() {
+  public clearSelection() {
     if (this.selectedRows.size === 0 && this.selectedTasks.size === 0 && !this.selectedDependency) return
 
     if (this.selectedRows.size > 0) {
@@ -2820,342 +1301,9 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  // --- キーボード操作 ---
 
-  private handleKeyDown = (e: KeyboardEvent) => {
-    // キーボード操作が無効化されている場合はスキップ
-    if (this.option.keyboard?.enabled === false) return
-
-    // 入力要素にフォーカスがある場合はスキップ
-    const composedPath = e.composedPath()
-    const target = composedPath[0] as HTMLElement
-    if (target !== this && target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-
-    // Undo / Redo キーボードショートカット
-    if (this.option?.history?.keyboard !== false && this.option?.history?.enabled !== false) {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey
-      if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
-        if (e.shiftKey) {
-          if (!this.option.readOnly) {
-            this.redo()
-          }
-        } else {
-          if (!this.option.readOnly) {
-            this.undo()
-          }
-        }
-        e.preventDefault()
-        return
-      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'y') {
-        if (!this.option.readOnly) {
-          this.redo()
-        }
-        e.preventDefault()
-        return
-      }
-    }
-
-    // ズームキーボードショートカット (Cmd/Ctrl + 0 でリセット)
-    if (this.option?.zoom?.enabled !== false && this.option?.zoom?.shortcuts !== false) {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey
-      if (isCmdOrCtrl && (e.key === '0' || e.key === 'Numpad0')) {
-        this.resetZoom()
-        e.preventDefault()
-        return
-      }
-    }
-
-    switch (e.key) {
-      case 'ArrowRight':
-        if (e.shiftKey && !this.option.readOnly) {
-          this.moveSelectedTasksByKeyboard(1)
-        } else {
-          this.moveFocusHorizontal(1)
-        }
-        e.preventDefault()
-        break
-
-      case 'ArrowLeft':
-        if (e.shiftKey && !this.option.readOnly) {
-          this.moveSelectedTasksByKeyboard(-1)
-        } else {
-          this.moveFocusHorizontal(-1)
-        }
-        e.preventDefault()
-        break
-
-      case 'ArrowDown':
-        this.moveFocusVertical(1)
-        e.preventDefault()
-        break
-
-      case 'ArrowUp':
-        this.moveFocusVertical(-1)
-        e.preventDefault()
-        break
-
-      case 'Enter':
-      case ' ':
-        if (this.focusedTaskId) {
-          if (e.ctrlKey || e.metaKey) {
-            this.toggleTaskSelection(this.focusedTaskId)
-          } else {
-            this.selectSingleTask(this.focusedTaskId)
-          }
-        }
-        e.preventDefault()
-        break
-
-      case 'Escape':
-        this.clearSelection()
-        this.focusedTaskId = null
-        this.focusedRowId = null
-        break
-
-      case 'Delete':
-      case 'Backspace':
-        if (!this.option.readOnly) {
-          if (this.selectedDependency && this.option.dependency?.deletable !== false) {
-            this.triggerDependencyDelete(
-              this.selectedDependency.sourceTaskId,
-              this.selectedDependency.targetTaskId,
-              e,
-            )
-            e.preventDefault()
-            break
-          }
-          if (this.selectedTasks.size > 0) {
-            this.dispatchEvent(
-              new CustomEvent<TaskDeleteEventDetail>('task-delete', {
-                detail: {
-                  taskIds: [...this.selectedTasks],
-                  event: e,
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-          }
-        }
-        e.preventDefault()
-        break
-
-      case 'Home':
-        this.focusFirstOrLastTaskInRow('first')
-        e.preventDefault()
-        break
-
-      case 'End':
-        this.focusFirstOrLastTaskInRow('last')
-        e.preventDefault()
-        break
-    }
-  }
-
-  /**
-   * 水平方向にフォーカスを移動する（同一行内のタスク間、または次/前行へ）
-   */
-  private moveFocusHorizontal(direction: 1 | -1) {
-    const rows = this.displayRows
-    if (rows.length === 0) return
-
-    // フォーカスがない場合は最初のタスクにフォーカス
-    if (!this.focusedTaskId || !this.focusedRowId) {
-      this.focusFirstAvailableTask()
-      return
-    }
-
-    const rowIndex = rows.findIndex((r) => r.id === this.focusedRowId)
-    if (rowIndex === -1) {
-      this.focusFirstAvailableTask()
-      return
-    }
-
-    const row = rows[rowIndex]
-    const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
-    const taskIndex = sortedTasks.findIndex((t) => t.id === this.focusedTaskId)
-
-    if (taskIndex === -1) {
-      // フォーカス中のタスクがこの行にない（データが変わった等）
-      if (sortedTasks.length > 0) {
-        this.setFocus(sortedTasks[0].id, row.id)
-      }
-      return
-    }
-
-    const nextIndex = taskIndex + direction
-    if (nextIndex >= 0 && nextIndex < sortedTasks.length) {
-      // 同一行内で移動
-      this.setFocus(sortedTasks[nextIndex].id, row.id)
-    } else {
-      // 次/前の行に移動
-      this.moveFocusVertical(direction)
-    }
-  }
-
-  /**
-   * 垂直方向にフォーカスを移動する（行をまたぐ）
-   */
-  private moveFocusVertical(direction: 1 | -1) {
-    const rows = this.displayRows
-    if (rows.length === 0) return
-
-    if (!this.focusedTaskId || !this.focusedRowId) {
-      this.focusFirstAvailableTask()
-      return
-    }
-
-    const currentRowIndex = rows.findIndex((r) => r.id === this.focusedRowId)
-    if (currentRowIndex === -1) {
-      this.focusFirstAvailableTask()
-      return
-    }
-
-    // タスクがある行を探す
-    for (let i = currentRowIndex + direction; i >= 0 && i < rows.length; i += direction) {
-      const row = rows[i]
-      if (row.tasks.length > 0) {
-        const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
-        const targetTask = direction > 0 ? sortedTasks[0] : sortedTasks[sortedTasks.length - 1]
-        this.setFocus(targetTask.id, row.id)
-        return
-      }
-    }
-  }
-
-  /**
-   * 最初にタスクを持つ行の最初のタスクにフォーカスする
-   */
-  private focusFirstAvailableTask() {
-    for (const row of this.displayRows) {
-      if (row.tasks.length > 0) {
-        const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
-        this.setFocus(sortedTasks[0].id, row.id)
-        return
-      }
-    }
-  }
-
-  /**
-   * 現在の行の最初または最後のタスクにフォーカスする
-   */
-  private focusFirstOrLastTaskInRow(position: 'first' | 'last') {
-    if (!this.focusedRowId) {
-      this.focusFirstAvailableTask()
-      return
-    }
-
-    const row = this.displayRows.find((r) => r.id === this.focusedRowId)
-    if (!row || row.tasks.length === 0) return
-
-    const sortedTasks = [...row.tasks].sort((a, b) => a.start.getTime() - b.start.getTime())
-    const target = position === 'first' ? sortedTasks[0] : sortedTasks[sortedTasks.length - 1]
-    this.setFocus(target.id, row.id)
-  }
-
-  /**
-   * フォーカスを設定し、必要に応じてスクロールする
-   */
-  private setFocus(taskId: string, rowId: string) {
-    this.focusedTaskId = taskId
-    this.focusedRowId = rowId
-    this.scrollToTask(taskId)
-  }
-
-  /**
-   * タスクの選択をトグルする（Ctrl/Cmd+Enter）
-   */
-  private toggleTaskSelection(taskId: string) {
-    const newSelectedTasks = new Set(this.selectedTasks)
-    if (newSelectedTasks.has(taskId)) {
-      newSelectedTasks.delete(taskId)
-    } else {
-      newSelectedTasks.add(taskId)
-    }
-    this.selectedTasks = newSelectedTasks
-    this.dispatchEvent(
-      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
-        detail: { selectedIds: [...newSelectedTasks] },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-  }
-
-  /**
-   * 単一タスクを選択する（Enter/Space）
-   */
-  private selectSingleTask(taskId: string) {
-    this.selectedTasks = new Set([taskId])
-    this.dispatchEvent(
-      new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
-        detail: { selectedIds: [taskId] },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-  }
-
-  /**
-   * Shift+矢印キーで選択中タスクを移動する
-   */
-  private moveSelectedTasksByKeyboard(direction: 1 | -1) {
-    if (this.selectedTasks.size === 0) return
-
-    const moveStep = this.option.keyboard?.moveStep ?? this.option.snapDuration ?? 1440
-    const moveMs = moveStep * 60 * 1000 * direction
-
-    const newRows = this.rows.map((row) => {
-      const hasSelectedTask = row.tasks.some((t) => this.selectedTasks.has(t.id))
-      if (!hasSelectedTask) return row
-
-      return {
-        ...row,
-        tasks: row.tasks.map((t) => {
-          if (!this.selectedTasks.has(t.id)) return t
-          return {
-            ...t,
-            start: new Date(t.start.getTime() + moveMs),
-            end: new Date(t.end.getTime() + moveMs),
-          }
-        }),
-      }
-    })
-
-    // 各選択タスクについて task-update イベントを発火
-    for (const row of this.rows) {
-      for (const task of row.tasks) {
-        if (!this.selectedTasks.has(task.id)) continue
-        const newStart = new Date(task.start.getTime() + moveMs)
-        const newEnd = new Date(task.end.getTime() + moveMs)
-        this.dispatchEvent(
-          new CustomEvent('task-update', {
-            detail: {
-              id: task.id,
-              name: task.name,
-              start: newStart,
-              end: newEnd,
-              dx: 0,
-              dy: 0,
-              isDragging: false,
-              mode: 'move' as GanttTaskMoveMode,
-              targetRowId: row.id,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      }
-    }
-
-    this.rows = newRows
-    this.dispatchEvent(
-      new CustomEvent('rows-change', {
-        detail: this.rows,
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public handleKeyDown = (e: KeyboardEvent): void => {
+    this._keyboardController.handleKeyDown(e)
   }
 
   private handleBarClick(e: CustomEvent<{ task: GanttTask; event: MouseEvent; isMultiSelect: boolean }>) {
@@ -3223,238 +1371,22 @@ export class GanttChartElement extends LitElement {
     )
   }
 
-  // --- コネクタードラッグ管理 ---
+  // --- コネクタードラッグ管理（DependencyControllerへの委譲） ---
 
-  private handleConnectorDragStart(e: CustomEvent) {
-    if (this.option.readOnly || this.option.dependency?.creatable === false) return
-    const { taskId, endpoint, clientX, clientY } = e.detail
-    e.stopPropagation()
-
-    const { taskCoords } = this.calculateLayout()
-    const coord = taskCoords.get(taskId)
-    if (coord?.isSummary) return
-
-    const labelWidth = this.currentRowHeaderWidth
-    let startX = e.detail.startX + labelWidth
-    let startY = e.detail.startY
-
-    if (coord) {
-      startX = endpoint === 'start' ? coord.x : coord.x + coord.width
-      startY = coord.y + coord.height / 2
-    }
-
-    this.connectorDrag = {
-      sourceTaskId: taskId,
-      sourceEndpoint: endpoint,
-      startX,
-      startY,
-      currentClientX: clientX,
-      currentClientY: clientY,
-      targetTaskId: null,
-      targetEndpoint: null,
-    }
-
-    // ツールチップを消す
-    if (this.tooltip) {
-      this.tooltip = null
-    }
+  public handleConnectorDragStart = (e: CustomEvent): void => {
+    this._dependencyController.handleConnectorDragStart(e)
   }
 
-  private handleConnectorDragMove(e: CustomEvent) {
-    if (!this.connectorDrag) return
-    e.stopPropagation()
-
-    const { clientX, clientY } = e.detail
-
-    // マウス座標 -> コンテンツ内座標
-    const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
-    if (!container) return
-
-    const rect = container.getBoundingClientRect()
-    const contentX = clientX - rect.left + container.scrollLeft
-    const contentY = clientY - rect.top + container.scrollTop - this.calendarHeight
-
-    // ターゲットタスクの検出
-    const { taskCoords } = this.calculateLayout()
-    let closestTaskId: string | null = null
-    let closestEndpoint: DependencyEndpoint | null = null
-    let minDist = 30 // スナップ閾値（px）
-
-    for (const [taskId, coord] of taskCoords) {
-      if (taskId === this.connectorDrag.sourceTaskId) continue
-      if (coord.isSummary) continue
-
-      // バーの左端（start）と右端（end）それぞれの距離を計算
-      const centerY = coord.y + coord.height / 2
-      const leftX = coord.x
-      const rightX = coord.x + coord.width
-
-      const distLeft = Math.sqrt((contentX - leftX) ** 2 + (contentY - centerY) ** 2)
-      const distRight = Math.sqrt((contentX - rightX) ** 2 + (contentY - centerY) ** 2)
-
-      if (distLeft < minDist) {
-        minDist = distLeft
-        closestTaskId = taskId
-        closestEndpoint = 'start'
-      }
-      if (distRight < minDist) {
-        minDist = distRight
-        closestTaskId = taskId
-        closestEndpoint = 'end'
-      }
-    }
-
-    // gantt-bar 要素の connectorDropTarget 属性を更新
-    const prevTargetId = this.connectorDrag.targetTaskId
-    if (prevTargetId !== closestTaskId) {
-      // 前のターゲットのハイライトを解除
-      if (prevTargetId) {
-        this._setConnectorDropTarget(prevTargetId, false)
-      }
-      // 新しいターゲットをハイライト
-      if (closestTaskId) {
-        this._setConnectorDropTarget(closestTaskId, true)
-      }
-    }
-
-    this.connectorDrag = {
-      ...this.connectorDrag,
-      currentClientX: clientX,
-      currentClientY: clientY,
-      targetTaskId: closestTaskId,
-      targetEndpoint: closestEndpoint,
-    }
+  public handleConnectorDragMove = (e: CustomEvent): void => {
+    this._dependencyController.handleConnectorDragMove(e)
   }
 
-  private handleConnectorDragEnd(e: CustomEvent) {
-    if (!this.connectorDrag) return
-    e.stopPropagation()
-
-    const { cancelled } = e.detail
-    const { sourceTaskId, sourceEndpoint, targetTaskId, targetEndpoint } = this.connectorDrag
-
-    // ターゲットのハイライトを解除
-    if (targetTaskId) {
-      this._setConnectorDropTarget(targetTaskId, false)
-    }
-
-    if (!cancelled && targetTaskId && targetEndpoint && sourceTaskId !== targetTaskId) {
-      const { taskCoords } = this.calculateLayout()
-      const sourceCoord = taskCoords.get(sourceTaskId)
-      const targetCoord = taskCoords.get(targetTaskId)
-      if (!sourceCoord?.isSummary && !targetCoord?.isSummary) {
-        let sourceTask: GanttTask | undefined
-        let targetTask: GanttTask | undefined
-        for (const row of this.rows) {
-          for (const t of row.tasks) {
-            if (t.id === sourceTaskId) sourceTask = t
-            if (t.id === targetTaskId) targetTask = t
-          }
-        }
-
-        const currentDeps = targetTask?.dependencies ?? []
-        if (targetTask && !currentDeps.includes(sourceTaskId)) {
-          const previousRows = this.rows
-          const newRows = previousRows.map((row) => ({
-            ...row,
-            tasks: row.tasks.map((t) => {
-              if (t.id === targetTaskId) {
-                return {
-                  ...t,
-                  dependencies: [...(t.dependencies ?? []), sourceTaskId],
-                }
-              }
-              return t
-            }),
-          }))
-
-          this.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'dependency-create',
-            description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を追加`,
-          })
-        }
-
-        // 依存関係作成イベントを発火
-        this.dispatchEvent(
-          new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
-            detail: {
-              sourceTaskId,
-              sourceEndpoint,
-              targetTaskId,
-              targetEndpoint,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      }
-    }
-
-    this.connectorDrag = null
+  public handleConnectorDragEnd = (e: CustomEvent): void => {
+    this._dependencyController.handleConnectorDragEnd(e)
   }
 
-  /**
-   * 指定タスクIDのgantt-bar要素にconnectorDropTarget属性をセットする
-   */
-  private _setConnectorDropTarget(taskId: string, value: boolean) {
-    const rows = this.shadowRoot?.querySelectorAll('gantt-row')
-    if (!rows) return
-    for (const row of rows) {
-      const bars = (row as any).shadowRoot?.querySelectorAll('gantt-bar')
-      if (!bars) continue
-      for (const bar of bars) {
-        if ((bar as any).task?.id === taskId) {
-          ; (bar as any).connectorDropTarget = value
-          return
-        }
-      }
-    }
-  }
-
-  /**
-   * 依存関係線がクリックされた時のハンドラ。
-   * dependency-removeイベントを発火する。
-   * @param targetTaskId 依存を持つタスクのID（矢印の先）
-   * @param sourceTaskId 依存元のタスクのID（矢印の根元）
-   */
-  private handleDependencyLineClick(event: MouseEvent, targetTaskId: string, sourceTaskId: string) {
-    // 他の選択（タスクや行）を解除
-    if (this.selectedRows.size > 0 || this.selectedTasks.size > 0) {
-      if (this.selectedRows.size > 0) {
-        this.selectedRows = new Set()
-        this.dispatchEvent(
-          new CustomEvent<RowSelectionChangeEventDetail>('row-selection-change', {
-            detail: { selectedIds: [] },
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      }
-      if (this.selectedTasks.size > 0) {
-        this.selectedTasks = new Set()
-        this.dispatchEvent(
-          new CustomEvent<BarSelectionChangeEventDetail>('bar-selection-change', {
-            detail: { selectedIds: [] },
-            bubbles: true,
-            composed: true,
-          }),
-        )
-      }
-    }
-
-    this.selectDependency(sourceTaskId, targetTaskId)
-
-    this.dispatchEvent(
-      new CustomEvent<DependencyClickEventDetail>('dependency-click', {
-        detail: {
-          event,
-          sourceTaskId,
-          targetTaskId,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  public handleDependencyLineClick = (event: MouseEvent, targetTaskId: string, sourceTaskId: string): void => {
+    this._dependencyController.handleDependencyLineClick(event, targetTaskId, sourceTaskId)
   }
 
 
@@ -3636,7 +1568,7 @@ export class GanttChartElement extends LitElement {
   /**
    * 指定タスクが表示範囲外の場合にスクロールして表示する
    */
-  private scrollToTask(taskId: string): void {
+  public scrollToTask(taskId: string): void {
     const { taskCoords } = this.calculateLayout()
     const coords = taskCoords.get(taskId)
     if (!coords) return
