@@ -262,6 +262,7 @@ export const GanttChart = defineComponent({
       recordCommand: (...args: Parameters<GanttChartElement['recordCommand']>) => elRef.value?.recordCommand(...args),
       use: (...args: Parameters<GanttChartElement['use']>) => elRef.value?.use(...args),
       exportImage: (...args: Parameters<GanttChartElement['exportImage']>) => elRef.value?.exportImage(...args),
+      exportExcel: (...args: any[]) => (elRef.value as any)?.exportExcel?.(...args),
       zoomTo: (...args: Parameters<GanttChartElement['zoomTo']>) => elRef.value?.zoomTo(...args),
       zoomToFit: (...args: Parameters<GanttChartElement['zoomToFit']>) => elRef.value?.zoomToFit(...args),
       resetZoom: (...args: Parameters<GanttChartElement['resetZoom']>) => elRef.value?.resetZoom(...args),
@@ -308,6 +309,7 @@ export interface GanttChartPublicApi {
   recordCommand: GanttChartElement['recordCommand']
   use: GanttChartElement['use']
   exportImage: GanttChartElement['exportImage']
+  exportExcel?: (options?: any) => Promise<Blob>
   zoomTo: GanttChartElement['zoomTo']
   zoomToFit: GanttChartElement['zoomToFit']
   resetZoom: GanttChartElement['resetZoom']

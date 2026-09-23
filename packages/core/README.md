@@ -85,6 +85,7 @@ Moguchart is structured as a modular monorepo, allowing you to choose the exact 
 | **[@mogura/moguchart-react](https://www.npmjs.com/package/@mogura/moguchart-react)** | **Official React wrapper**. Provides type-safe props, camelCase events, and ref support. |
 | **[@mogura/moguchart-vue](https://www.npmjs.com/package/@mogura/moguchart-vue)** | **Official Vue 3 wrapper**. Supports `<script setup>`, reactive props, and native emits. |
 | **[@mogura/moguchart-plugin-export](https://www.npmjs.com/package/@mogura/moguchart-plugin-export)** | **Official export plugin**. Provides high-resolution PNG and PDF export. |
+| **[@mogura/moguchart-plugin-excel](https://www.npmjs.com/package/@mogura/moguchart-plugin-excel)** | **Official Excel plugin**. Provides styled Excel (.xlsx) schedule and data table export. |
 
 ---
 
@@ -792,6 +793,41 @@ You can also dynamically load the plugin on-demand (e.g. only when clicking the 
 ```javascript
 const { exportChart } = await import('@mogura/moguchart-plugin-export')
 await exportChart(chart, 'png', { download: true })
+```
+
+#### Excel Export Plugin (`@mogura/moguchart-plugin-excel`)
+
+Export your Gantt chart data into beautifully styled Excel (`.xlsx`) files. Supports an interactive timeline view with colored task cells (visual Gantt) and clean, auto-filtered data tables completely in the browser.
+
+```bash
+pnpm add @mogura/moguchart-plugin-excel
+```
+
+```javascript
+import '@mogura/moguchart-core'
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+// Register plugin with the chart
+chart.use(excelPlugin({
+  defaultFilename: 'project-schedule.xlsx',
+  themeColor: '#3B82F6',
+}))
+
+// Export with visual timeline (auto-downloads in browser)
+await chart.exportExcel()
+
+// Export table only
+await chart.exportExcel({
+  mode: 'table-only',
+  filename: 'task-list.xlsx',
+})
+```
+
+Or dynamically import and run as a standalone function:
+
+```javascript
+const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
+await exportExcel(chart, { filename: 'schedule.xlsx' })
 ```
 
 #### Zoom Operations (`zoomIn`, `zoomOut`, `zoomToPercent`, `zoomToScale`, `zoomToFit`, `resetZoom`)

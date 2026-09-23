@@ -79,6 +79,7 @@ Moguchart は柔軟なモノレポ構成となっており、用途やフレー�
 | **[@mogura/moguchart-react](https://www.npmjs.com/package/@mogura/moguchart-react)** | **公式 React ラッパー**。型安全な Props、イベント、ref を提供します。 |
 | **[@mogura/moguchart-vue](https://www.npmjs.com/package/@mogura/moguchart-vue)** | **公式 Vue 3 ラッパー**。Composition API、リアクティブ Props、emits を提供します。 |
 | **[@mogura/moguchart-plugin-export](https://www.npmjs.com/package/@mogura/moguchart-plugin-export)** | **公式エクスポートプラグイン**。高解像度 PNG および PDF 出力を提供します。 |
+| **[@mogura/moguchart-plugin-excel](https://www.npmjs.com/package/@mogura/moguchart-plugin-excel)** | **公式 Excel プラグイン**。タイムライン付き工程表やタスク一覧の Excel (.xlsx) 出力を提供します。 |
 
 ---
 
@@ -773,6 +774,41 @@ const pdfBlob = await chart.exportImage('pdf', {
 ```javascript
 const { exportChart } = await import('@mogura/moguchart-plugin-export')
 await exportChart(chart, 'png', { download: true })
+```
+
+#### Excel エクスポートプラグイン (`@mogura/moguchart-plugin-excel`)
+
+ガントチャートのデータを美しくスタイリングされた Excel（`.xlsx`）ファイルとして出力します。カレンダー日付列にタスク期間が色塗りされた「タイムライン付き工程表」や、オートフィルター付きの「タスク一覧データ」をブラウザ完結で出力できます。
+
+```bash
+pnpm add @mogura/moguchart-plugin-excel
+```
+
+```javascript
+import '@mogura/moguchart-core'
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+// チャートにプラグインを登録
+chart.use(excelPlugin({
+  defaultFilename: 'プロジェクト工程表.xlsx',
+  themeColor: '#3B82F6',
+}))
+
+// タイムライン付き工程表としてエクスポート（自動ダウンロード）
+await chart.exportExcel()
+
+// データ一覧テーブルのみ出力
+await chart.exportExcel({
+  mode: 'table-only',
+  filename: 'タスク一覧.xlsx',
+})
+```
+
+または動的インポートでスタンドアロン関数を呼び出すことも可能です：
+
+```javascript
+const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
+await exportExcel(chart, { filename: '工程表.xlsx' })
 ```
 
 #### ズーム操作 (zoomToPercent / zoomToScale / zoomIn / zoomOut / resetZoom)
