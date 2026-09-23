@@ -68,11 +68,15 @@ async function handleExportExcel(chartElement) {
 | `sheetName` | `string` | `'工程表'` | Output worksheet name |
 | `mode` | `'with-timeline' \| 'table-only' \| 'both'` | `'with-timeline'` | Output mode |
 | `timelineScale` | `'hour' \| 'day' \| 'week' \| 'month'` | Auto-detect (`'day'`) | Timeline column unit (hour, day, week, month) |
+| `columnsPerUnit` | `number` | `1` | Number of columns per day or hour (e.g. 2 for half-day / 30-min slots) |
+| `snapDurationMinutes` | `number` | Auto-detect / `1440` or `60` | Snap duration in minutes to auto-calculate columns per day/hour (e.g. 720 -> 2 cols/day) |
 | `timelineColumnWidth` | `number` | Auto-computed | Timeline column width (in chars, auto-derived from screen px or defaults) |
 | `dateFormat` | `string` | `'YYYY/MM/DD'` | Date format |
-| `includeWeekends` | `boolean` | `true` | Include weekends in timeline |
+| `includeWeekends` | `boolean` | `true` | Include weekends in timeline (day scale only: Saturdays in light blue, Sundays & holidays in light red/pink) |
 | `highlightToday` | `boolean` | `true` | Highlight today's date column |
 | `themeColor` | `string` | `'#3B82F6'` | Theme color for header & bars |
+| `isHoliday` | `(date: Date) => boolean` | Auto-detect | Holiday judgment function (auto-detected from `chart.option.calendar.isHoliday`) |
+| `holidayColor` | `string` | `'#FEE2E2'` | Background color for holiday and Sunday columns (applies to day scale only) |
 | `columns` | `ExcelExportColumn[]` | Standard cols | Custom column definitions |
 | `download` | `boolean` | `true` | Auto-trigger file download |
 

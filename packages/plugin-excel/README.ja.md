@@ -73,11 +73,15 @@ async function handleExportExcel(chartElement) {
 | `sheetName` | `string` | `'工程表'` | 出力シート名 |
 | `mode` | `'with-timeline' \| 'table-only' \| 'both'` | `'with-timeline'` | 出力モード（タイムライン付き / テーブルのみ / 両方） |
 | `timelineScale` | `'hour' \| 'day' \| 'week' \| 'month'` | 自動判定 (`'day'`) | タイムライン列の刻み単位（時間・日・週・月） |
+| `columnsPerUnit` | `number` | `1` | 1日または1時間あたりの列数・分割数（例: 2で半日単位や30分刻み） |
+| `snapDurationMinutes` | `number` | 自動判定 / `1440` or `60` | スナップ単位（分）。日単位（1440, 720, 360, 180等）や時間単位（60, 30, 15等）から分割列数を自動計算 |
 | `timelineColumnWidth` | `number` | 自動算出 | タイムライン列の幅（文字数単位。指定なし時は画面のpx幅または既定値から自動計算） |
 | `dateFormat` | `string` | `'YYYY/MM/DD'` | 日付の表示形式 |
-| `includeWeekends` | `boolean` | `true` | タイムラインに土日を含めるか（土日列は薄いグレー背景） |
+| `includeWeekends` | `boolean` | `true` | タイムラインに土日を含めるか（日単位出力時: 土曜は淡いブルー、日曜・祝祭日は淡い赤/ピンク背景） |
 | `highlightToday` | `boolean` | `true` | 今日の日付列をハイライト表示するか |
 | `themeColor` | `string` | `'#3B82F6'` | ヘッダー行やアクセントのテーマカラー（HEX） |
+| `isHoliday` | `(date: Date) => boolean` | 自動判定 | 祝祭日判定関数（指定なし時は `chart.option.calendar.isHoliday` を自動参照） |
+| `holidayColor` | `string` | `'#FEE2E2'` | 祝祭日および日曜日の背景色（日単位出力時のみ適用、淡い赤/ピンク） |
 | `columns` | `ExcelExportColumn[]` | 標準カラム | 出力するテーブル列のカスタム定義配列 |
 | `download` | `boolean` | `true` | ブラウザで自動ダウンロードをトリガーするか |
 

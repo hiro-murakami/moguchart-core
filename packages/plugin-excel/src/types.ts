@@ -45,6 +45,10 @@ export interface ExportExcelOptions {
   dateFormat?: string
   /** タイムラインの単位 (デフォルト: 'day') */
   timelineScale?: ExcelTimelineScale
+  /** 1日または1時間あたりの列数・分割数 (デフォルト: 1。スナップ単位が指定されている場合は自動計算) */
+  columnsPerUnit?: number
+  /** スナップ単位（分）。日単位（1440, 720, 360, 180等）または時間単位（60, 30, 15等）に応じた分割列数を自動計算 */
+  snapDurationMinutes?: number
   /** タイムライン（カレンダー）列の幅 (文字数ベース。指定しない場合は画面表示幅またはスケール既定値から自動計算) */
   timelineColumnWidth?: number
   /** タイムラインに土日を含めるか (デフォルト: true。土日列は薄いグレー背景) */
@@ -53,6 +57,10 @@ export interface ExportExcelOptions {
   highlightToday?: boolean
   /** ヘッダーやアクセントのテーマカラー (CSS HEXカラー。デフォルト: '#3B82F6') */
   themeColor?: string
+  /** 祝祭日判定関数 (trueを返すと祝祭日として扱われます。未指定時はchart.option.calendar.isHolidayを自動参照) */
+  isHoliday?: (date: Date) => boolean
+  /** 祝祭日列の背景色 (CSS HEXカラー。デフォルト: '#FEE2E2') */
+  holidayColor?: string
   /** タイムラインの表示開始日 (指定しない場合は全タスクの最小開始日または現在日) */
   startDate?: Date
   /** タイムラインの表示終了日 (指定しない場合は全タスクの最大終了日または開始日から1ヶ月後) */
@@ -77,12 +85,20 @@ export interface ExcelPluginConfig {
   dateFormat?: string
   /** デフォルトのタイムライン単位 */
   timelineScale?: ExcelTimelineScale
+  /** デフォルトの1日/1時間あたり列数 */
+  columnsPerUnit?: number
+  /** デフォルトのスナップ単位（分） */
+  snapDurationMinutes?: number
   /** デフォルトのタイムライン列幅 */
   timelineColumnWidth?: number
   /** 土日を含めるか */
   includeWeekends?: boolean
   /** テーマカラー */
   themeColor?: string
+  /** デフォルトの祝祭日判定関数 */
+  isHoliday?: (date: Date) => boolean
+  /** デフォルトの祝祭日背景色 */
+  holidayColor?: string
 }
 
 declare module '@mogura/moguchart-core' {

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import type { GanttChartElement, GanttTask } from '@mogura/moguchart-core'
-import type { ExportExcelOptions, ExcelExportColumn, ExcelExportMode } from './types'
+import type { ExportExcelOptions, ExcelExportColumn, ExcelExportMode, ExcelTimelineScale } from './types'
 import {
   hexToArgb,
   sanitizeSheetName,
@@ -8,8 +8,13 @@ import {
   generateTimelineList,
   detectTimelineScale,
   detectTimelineColumnWidth,
+  detectColumnsPerUnit,
+  extractTaskBarColor,
+  getContrastArgb,
+  getTimelineCellBgColor,
   calculateWbsHierarchy,
   downloadBlob,
+  toExcelDate,
   type FlatRowItem,
   type TimelineItem,
 } from './utils'
@@ -17,14 +22,34 @@ import {
 /**
  * デフォルトの標準カラム定義
  */
-function getDefaultColumns(): ExcelExportColumn[] {
+function getDefaultColumns(scale: ExcelTimelineScale = 'day'): ExcelExportColumn[] {
+  const isMonth = scale === 'month'
+  const isHour = scale === 'hour'
   return [
     { key: 'wbs', header: 'WBS', width: 9, align: 'center' },
     { key: 'rowName', header: 'カテゴリ/行', width: 18, align: 'left' },
     { key: 'taskName', header: 'タスク名', width: 28, align: 'left' },
-    { key: 'start', header: '開始日', width: 13, align: 'center', numFmt: 'yyyy/mm/dd' },
-    { key: 'end', header: '終了日', width: 13, align: 'center', numFmt: 'yyyy/mm/dd' },
-    { key: 'duration', header: '期間', width: 10, align: 'right', numFmt: '#,##0"日"' },
+    {
+      key: 'start',
+      header: isMonth ? '開始月' : isHour ? '開始日時' : '開始日',
+      width: isMonth ? 11 : isHour ? 18 : 13,
+      align: 'center',
+      numFmt: isMonth ? 'yyyy/mm' : isHour ? 'yyyy/mm/dd hh:mm' : 'yyyy/mm/dd',
+    },
+    {
+      key: 'end',
+      header: isMonth ? '終了月' : isHour ? '終了日時' : '終了日',
+      width: isMonth ? 11 : isHour ? 18 : 13,
+      align: 'center',
+      numFmt: isMonth ? 'yyyy/mm' : isHour ? 'yyyy/mm/dd hh:mm' : 'yyyy/mm/dd',
+    },
+    {
+      key: 'duration',
+      header: '期間',
+      width: 10,
+      align: 'right',
+      numFmt: isHour ? '#,##0.#"時間"' : '#,##0"日"',
+    },
     { key: 'progress', header: '進捗', width: 10, align: 'right', numFmt: '0%' },
     { key: 'dependencies', header: '先行タスク', width: 14, align: 'left' },
   ]
@@ -43,20 +68,41 @@ export async function exportGanttToExcel(
   const baseSheetName = sanitizeSheetName(options.sheetName || '工程表', '工程表', mode === 'both' ? 24 : 31)
   const timelineSheetName = baseSheetName
   const themeArgb = hexToArgb(options.themeColor, 'FF3B82F6')
-  const columns = options.columns && options.columns.length > 0 ? options.columns : getDefaultColumns()
+  const scale = detectTimelineScale(chart, options.timelineScale)
+  const columns = options.columns && options.columns.length > 0 ? options.columns : getDefaultColumns(scale)
 
   const flatItems = calculateWbsHierarchy(rows)
-  const scale = detectTimelineScale(chart, options.timelineScale)
+  const columnsPerUnit = detectColumnsPerUnit(chart, options, scale)
+  const isHoliday = options.isHoliday ?? chart.option?.calendar?.isHoliday
+  const holidayArgb = hexToArgb(options.holidayColor, 'FFFEE2E2')
   const { startDate, endDate } = getTimelineRange(rows, options, scale, chart.option?.calendar)
-  const columnWidth = detectTimelineColumnWidth(chart, options.timelineColumnWidth, scale)
-  const timelineList = generateTimelineList(startDate, endDate, scale, options.includeWeekends ?? true, columnWidth)
+  const columnWidth = detectTimelineColumnWidth(chart, options.timelineColumnWidth, scale, columnsPerUnit)
+  const timelineList = generateTimelineList(
+    startDate,
+    endDate,
+    scale,
+    options.includeWeekends ?? true,
+    columnWidth,
+    columnsPerUnit,
+    isHoliday
+  )
 
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Moguchart'
   workbook.created = new Date()
 
   if (mode === 'with-timeline' || mode === 'both') {
-    buildTimelineSheet(workbook, timelineSheetName, flatItems, columns, timelineList, themeArgb, options)
+    buildTimelineSheet(
+      workbook,
+      timelineSheetName,
+      flatItems,
+      columns,
+      timelineList,
+      themeArgb,
+      holidayArgb,
+      options,
+      scale
+    )
   }
 
   if (mode === 'table-only' || mode === 'both') {
@@ -64,7 +110,7 @@ export async function exportGanttToExcel(
       mode === 'both'
         ? `${baseSheetName}_データ一覧`
         : sanitizeSheetName(options.sheetName || '工程表', '工程表', 31)
-    buildTableSheet(workbook, tableSheetName, flatItems, columns, themeArgb)
+    buildTableSheet(workbook, tableSheetName, flatItems, columns, themeArgb, scale)
   }
 
   // ワークブックをバッファに書き出し
@@ -91,7 +137,9 @@ function buildTimelineSheet(
   columns: ExcelExportColumn[],
   timelineList: TimelineItem[],
   themeArgb: string,
-  options: ExportExcelOptions
+  holidayArgb: string,
+  options: ExportExcelOptions,
+  scale: ExcelTimelineScale = 'day'
 ): void {
   const ws = workbook.addWorksheet(sheetName, {
     views: [{ state: 'frozen', xSplit: columns.length, ySplit: 2 }],
@@ -153,7 +201,7 @@ function buildTimelineSheet(
     const colIndex = columns.length + idx + 1
     const cell = headerRow2.getCell(colIndex)
     cell.value = d.subLabel
-    applyTimelineSubHeaderStyle(cell, d, options.highlightToday ?? true)
+    applyTimelineSubHeaderStyle(cell, d, options.highlightToday ?? true, holidayArgb, scale)
   })
 
   // --- データ行の出力 ---
@@ -167,8 +215,8 @@ function buildTimelineSheet(
     if (tasks.length === 0) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 20
-      renderTableRowCells(excelRow, columns, item, null, depth, isParent)
-      applyTimelineEmptyCells(excelRow, columns.length, timelineList)
+      renderTableRowCells(excelRow, columns, item, null, depth, isParent, scale)
+      applyTimelineEmptyCells(excelRow, columns.length, timelineList, holidayArgb, scale)
       currentRowIndex++
       continue
     }
@@ -176,10 +224,10 @@ function buildTimelineSheet(
     for (const task of tasks) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 22
-      renderTableRowCells(excelRow, columns, item, task, depth, isParent)
+      renderTableRowCells(excelRow, columns, item, task, depth, isParent, scale)
 
       // タイムラインのセル塗りつぶし描画
-      renderTimelineTaskBar(excelRow, columns.length, timelineList, task, isParent, themeArgb)
+      renderTimelineTaskBar(excelRow, columns.length, timelineList, task, isParent, themeArgb, holidayArgb, scale)
 
       currentRowIndex++
     }
@@ -197,7 +245,8 @@ function buildTableSheet(
   sheetName: string,
   flatItems: FlatRowItem[],
   columns: ExcelExportColumn[],
-  themeArgb: string
+  themeArgb: string,
+  scale: ExcelTimelineScale = 'day'
 ): void {
   const ws = workbook.addWorksheet(sheetName, {
     views: [{ state: 'frozen', ySplit: 1 }],
@@ -224,7 +273,7 @@ function buildTableSheet(
     if (tasks.length === 0) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 20
-      renderTableRowCells(excelRow, columns, item, null, depth, isParent)
+      renderTableRowCells(excelRow, columns, item, null, depth, isParent, scale)
       currentRowIndex++
       continue
     }
@@ -232,7 +281,7 @@ function buildTableSheet(
     for (const task of tasks) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 22
-      renderTableRowCells(excelRow, columns, item, task, depth, isParent)
+      renderTableRowCells(excelRow, columns, item, task, depth, isParent, scale)
       currentRowIndex++
     }
   }
@@ -255,7 +304,8 @@ function renderTableRowCells(
   item: FlatRowItem,
   task: GanttTask | null,
   depth: number,
-  isParent: boolean
+  isParent: boolean,
+  scale: ExcelTimelineScale = 'day'
 ): void {
   const { row, wbsNumber } = item
 
@@ -283,15 +333,59 @@ function renderTableRowCells(
           }
           break
         case 'start':
-          value = task?.start ? new Date(task.start) : ''
+          if (task?.start) {
+            const startDate = new Date(task.start)
+            if (scale === 'month') {
+              const localMonthStart = new Date(startDate.getFullYear(), startDate.getMonth(), 1, 0, 0, 0)
+              value = toExcelDate(localMonthStart)
+            } else {
+              value = toExcelDate(startDate)
+            }
+          } else {
+            value = ''
+          }
           break
         case 'end':
-          value = task?.end ? new Date(task.end) : ''
+          if (task?.end) {
+            const endDate = new Date(task.end)
+            if (scale === 'month') {
+              const taskStart = task.start ? new Date(task.start).getTime() : 0
+              const taskEnd = endDate.getTime()
+              let targetDate = endDate
+              if (taskStart < taskEnd) {
+                // 排他境界（例: 翌月1日0:00）の場合に前月の月を正しく反映する
+                targetDate = new Date(taskEnd - 1)
+              }
+              const localMonthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1, 0, 0, 0)
+              value = toExcelDate(localMonthEnd)
+            } else if (scale === 'day') {
+              const taskStart = task.start ? new Date(task.start).getTime() : 0
+              const taskEnd = endDate.getTime()
+              let targetDate = endDate
+              // 日単位の場合、ガントバーの終了日時が0時0分の時は前日の日付で表示
+              if (
+                taskStart < taskEnd &&
+                endDate.getHours() === 0 &&
+                endDate.getMinutes() === 0
+              ) {
+                targetDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() - 1)
+              }
+              value = toExcelDate(targetDate)
+            } else {
+              value = toExcelDate(endDate)
+            }
+          } else {
+            value = ''
+          }
           break
         case 'duration':
           if (task?.start && task?.end) {
             const diff = new Date(task.end).getTime() - new Date(task.start).getTime()
-            value = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)) + 1)
+            if (scale === 'hour') {
+              value = Math.max(0.1, Math.round((diff / (1000 * 60 * 60)) * 10) / 10)
+            } else {
+              value = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)))
+            }
           } else {
             value = ''
           }
@@ -348,18 +442,16 @@ function renderTimelineTaskBar(
   timelineList: TimelineItem[],
   task: GanttTask,
   isParent: boolean,
-  themeArgb: string
+  themeArgb: string,
+  holidayArgb = 'FFFEE2E2',
+  scale: ExcelTimelineScale = 'day'
 ): void {
   const taskStart = task.start ? new Date(task.start).getTime() : 0
   const taskEnd = task.end ? new Date(task.end).getTime() : 0
 
-  // タスクバーの塗りつぶし色を決定
-  let barArgb = themeArgb
-  if (isParent || task.type === 'summary') {
-    barArgb = 'FF475569' // サマリータスクはスレートグレー
-  } else if (task.progressColor) {
-    barArgb = hexToArgb(task.progressColor, themeArgb)
-  }
+  // ガントチャートの表示色に合わせてタスクバーの塗りつぶし色を決定
+  const barArgb = extractTaskBarColor(task, isParent, themeArgb)
+  const textArgb = getContrastArgb(barArgb)
 
   let progressRendered = false
 
@@ -370,7 +462,12 @@ function renderTimelineTaskBar(
     const itemEnd = item.endDate.getTime()
 
     // タスク期間とタイムライン列期間の重複判定
-    const isInTask = taskStart <= itemEnd && taskEnd >= itemStart
+    // タスクの end は半開区間の終端 [start, end) のため、期間を持つタスクでは taskEnd > itemStart で判定
+    // （開始と終了が同時刻のタスクは該当日時が含まれるセルを判定）
+    const isInTask =
+      taskStart === taskEnd
+        ? taskStart >= itemStart && taskStart <= itemEnd
+        : taskStart <= itemEnd && taskEnd > itemStart
 
     if (isInTask) {
       cell.fill = {
@@ -380,19 +477,20 @@ function renderTimelineTaskBar(
       }
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
 
-      // 該当タスクの最初の描画セルに進捗率を白文字で記載（視認性向上）
+      // 該当タスクの最初の描画セルに進捗率をコントラスト文字色で記載（視認性向上）
       if (!progressRendered && typeof task.progress === 'number' && task.progress > 0) {
         cell.value = `${task.progress}%`
-        cell.font = { size: 8, bold: true, color: { argb: 'FFFFFFFF' } }
+        cell.font = { size: 8, bold: true, color: { argb: textArgb } }
         progressRendered = true
       }
     } else {
-      // タスク期間外のセル（土日・週末は薄いグレー）
-      if (item.isWeekend) {
+      // タスク期間外のセル（日単位の場合のみ祝祭日、土日）
+      const bgArgb = getTimelineCellBgColor(item, holidayArgb, scale)
+      if (bgArgb) {
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: 'FFF1F5F9' },
+          fgColor: { argb: bgArgb },
         }
       }
     }
@@ -405,16 +503,19 @@ function renderTimelineTaskBar(
 function applyTimelineEmptyCells(
   excelRow: ExcelJS.Row,
   tableColCount: number,
-  timelineList: TimelineItem[]
+  timelineList: TimelineItem[],
+  holidayArgb = 'FFFEE2E2',
+  scale: ExcelTimelineScale = 'day'
 ): void {
   timelineList.forEach((item, idx) => {
     const colIndex = tableColCount + idx + 1
     const cell = excelRow.getCell(colIndex)
-    if (item.isWeekend) {
+    const bgArgb = getTimelineCellBgColor(item, holidayArgb, scale)
+    if (bgArgb) {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFF1F5F9' },
+        fgColor: { argb: bgArgb },
       }
     }
   })
@@ -452,17 +553,27 @@ function applyDateHeaderGroupStyle(cell: ExcelJS.Cell, themeArgb: string): void 
 function applyTimelineSubHeaderStyle(
   cell: ExcelJS.Cell,
   item: TimelineItem,
-  highlightToday: boolean
+  highlightToday: boolean,
+  holidayArgb = 'FFFEE2E2',
+  scale?: ExcelTimelineScale
 ): void {
   let bgArgb = 'FFF8FAFC'
   let textArgb = 'FF475569'
 
+  const currentScale = scale ?? item.scale ?? 'day'
+
   if (item.isToday && highlightToday) {
     bgArgb = 'FFFEF3C7' // 本日は黄色系ハイライト
     textArgb = 'FFB45309'
-  } else if (item.isWeekend) {
-    bgArgb = 'FFE2E8F0' // 週末はグレー
-    textArgb = item.startDate.getDay() === 0 ? 'FFDC2626' : 'FF2563EB' // 日曜赤、土曜青
+  } else if (currentScale === 'day') {
+    // 日単位の場合のみ、土日・祝日の背景色・文字色分けを行う
+    if (item.isHoliday || item.startDate.getDay() === 0) {
+      bgArgb = holidayArgb // 祝祭日および日曜日は淡い赤/ピンク
+      textArgb = 'FFDC2626' // 赤文字
+    } else if (item.isWeekend) {
+      bgArgb = 'FFEFF6FF' // 土曜は淡いブルー
+      textArgb = 'FF2563EB' // 土曜は青文字
+    }
   }
 
   cell.fill = {

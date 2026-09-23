@@ -26,9 +26,13 @@ export function excelPlugin(config?: ExcelPluginConfig): GanttPlugin<ExcelPlugin
           mode: opts.mode ?? mergedConfig.defaultMode,
           dateFormat: opts.dateFormat ?? mergedConfig.dateFormat,
           timelineScale: opts.timelineScale ?? mergedConfig.timelineScale,
+          columnsPerUnit: opts.columnsPerUnit ?? mergedConfig.columnsPerUnit,
+          snapDurationMinutes: opts.snapDurationMinutes ?? mergedConfig.snapDurationMinutes,
           timelineColumnWidth: opts.timelineColumnWidth ?? mergedConfig.timelineColumnWidth,
           includeWeekends: opts.includeWeekends ?? mergedConfig.includeWeekends,
           themeColor: opts.themeColor ?? mergedConfig.themeColor,
+          isHoliday: opts.isHoliday ?? mergedConfig.isHoliday,
+          holidayColor: opts.holidayColor ?? mergedConfig.holidayColor,
           ...opts,
         }
 

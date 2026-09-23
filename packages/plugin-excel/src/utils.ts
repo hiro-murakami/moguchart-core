@@ -23,7 +23,9 @@ export interface TimelineItem {
   endDate: Date
   groupLabel: string // ヘッダー行1 (年月、年、日など)
   subLabel: string // ヘッダー行2 (日/曜日、月名、週名、時刻など)
+  scale?: ExcelTimelineScale
   isWeekend?: boolean
+  isHoliday?: boolean
   isToday?: boolean
   width?: number
 }
@@ -57,40 +59,199 @@ export function sanitizeSheetName(name?: string, fallback = '工程表', maxLen 
   return sanitized.substring(0, maxLen)
 }
 
-/**
- * CSSのHEXカラーをExcelJS用のARGB形式に変換する
- * 例: '#3B82F6' -> 'FF3B82F6', '#fff' -> 'FFFFFFFF'
- */
-export function hexToArgb(hex?: string, defaultArgb = 'FF3B82F6'): string {
-  if (!hex || typeof hex !== 'string') return defaultArgb
+const NAMED_COLORS: Record<string, string> = {
+  black: 'FF000000',
+  white: 'FFFFFFFF',
+  red: 'FFFF0000',
+  green: 'FF008000',
+  blue: 'FF0000FF',
+  yellow: 'FFFFFF00',
+  orange: 'FFFFA500',
+  purple: 'FF800080',
+  teal: 'FF008080',
+  cyan: 'FF00FFFF',
+  navy: 'FF000080',
+  gray: 'FF808080',
+  grey: 'FF808080',
+  lightgray: 'FFD3D3D3',
+  lightgrey: 'FFD3D3D3',
+  darkgray: 'FFA9A9A9',
+  darkgrey: 'FFA9A9A9',
+  transparent: '00FFFFFF',
+}
 
-  let clean = hex.trim().replace(/^#/, '')
+/**
+ * CSSカラー文字列（HEX, rgb, rgba, 主要カラー名）をExcelJS用のARGB形式に変換する
+ * 例: '#3B82F6' -> 'FF3B82F6', 'rgb(59, 130, 246)' -> 'FF3B82F6'
+ */
+export function hexToArgb(color?: string, defaultArgb = 'FF3B82F6'): string {
+  if (!color || typeof color !== 'string') return defaultArgb
+
+  const trimmed = color.trim()
+  const lower = trimmed.toLowerCase()
+
+  // 1. カラー名
+  if (NAMED_COLORS[lower]) {
+    return NAMED_COLORS[lower]
+  }
+
+  // 2. rgb(r, g, b) または rgba(r, g, b, a)
+  const rgbMatch = lower.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/)
+  if (rgbMatch) {
+    const r = Math.min(255, Math.max(0, parseInt(rgbMatch[1], 10)))
+    const g = Math.min(255, Math.max(0, parseInt(rgbMatch[2], 10)))
+    const b = Math.min(255, Math.max(0, parseInt(rgbMatch[3], 10)))
+    let a = 255
+    if (rgbMatch[4] !== undefined) {
+      const alphaVal = parseFloat(rgbMatch[4])
+      if (!isNaN(alphaVal)) {
+        a = Math.min(255, Math.max(0, Math.round(alphaVal * 255)))
+      }
+    }
+    const toHex = (n: number) => n.toString(16).padStart(2, '0').toUpperCase()
+    return `${toHex(a)}${toHex(r)}${toHex(g)}${toHex(b)}`
+  }
+
+  // 3. HEXカラー
+  const clean = trimmed.replace(/^#/, '')
 
   // 3桁 HEX (例: 'FFF' -> 'FFFFFF')
-  if (clean.length === 3) {
-    clean = clean
-      .split('')
-      .map((c) => c + c)
-      .join('')
-  } else if (clean.length === 4) {
-    // 4桁 HEX with alpha (例: 'FFF8' -> 'FFFFFF88')
+  if (clean.length === 3 && /^[0-9a-fA-F]{3}$/.test(clean)) {
+    return (
+      'FF' +
+      clean
+        .split('')
+        .map((c) => c + c)
+        .join('')
+        .toUpperCase()
+    )
+  }
+
+  // 4桁 HEX with alpha (例: 'FFF8' -> 'FFFFFF88')
+  if (clean.length === 4 && /^[0-9a-fA-F]{4}$/.test(clean)) {
     const [r, g, b, a] = clean.split('')
-    clean = `${a}${a}${r}${r}${g}${g}${b}${b}`
+    const hexA = `${a}${a}`.toUpperCase()
+    const hexR = `${r}${r}`.toUpperCase()
+    const hexG = `${g}${g}`.toUpperCase()
+    const hexB = `${b}${b}`.toUpperCase()
+    return `${hexA}${hexR}${hexG}${hexB}`
   }
 
   // 6桁 HEX
-  if (clean.length === 6) {
+  if (clean.length === 6 && /^[0-9a-fA-F]{6}$/.test(clean)) {
     return `FF${clean.toUpperCase()}`
   }
 
   // 8桁 HEX (RRGGBBAA -> AARRGGBB に変換)
-  if (clean.length === 8) {
+  if (clean.length === 8 && /^[0-9a-fA-F]{8}$/.test(clean)) {
     const rgb = clean.substring(0, 6)
     const alpha = clean.substring(6, 8)
     return `${alpha.toUpperCase()}${rgb.toUpperCase()}`
   }
 
   return defaultArgb
+}
+
+/**
+ * ARGB形式の色から輝度（Luminance）を計算し、視認性の高いコントラスト文字色（白または黒）を返す
+ */
+export function getContrastArgb(argb: string): string {
+  if (typeof argb === 'string' && argb.length === 8) {
+    const r = parseInt(argb.substring(2, 4), 16)
+    const g = parseInt(argb.substring(4, 6), 16)
+    const b = parseInt(argb.substring(6, 8), 16)
+    if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b
+      return luminance > 165 ? 'FF000000' : 'FFFFFFFF'
+    }
+  }
+  return 'FFFFFFFF'
+}
+
+/**
+ * タスク情報からガントチャート表示色（ARGB形式）を抽出・決定する
+ * 優先順位:
+ * 1. task.style の background-color / background
+ * 2. task.attribute.colorPalette.backgroundColor または task.colorPalette.backgroundColor
+ * 3. task.progressColor
+ * 4. task.backgroundColor または task.color
+ * 5. サマリータスクの場合は 'FF334155'、通常タスクの場合は themeArgb
+ */
+export function extractTaskBarColor(
+  task: any,
+  isParent = false,
+  themeArgb = 'FF3B82F6'
+): string {
+  const isSummary = isParent || task?.type === 'summary'
+  const fallbackColor = isSummary ? 'FF334155' : themeArgb
+
+  if (!task) return fallbackColor
+
+  // 1. task.style から background-color を抽出
+  if (typeof task.style === 'string' && task.style) {
+    const bgMatch = task.style.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;!]+)/i)
+    if (bgMatch && bgMatch[1]) {
+      const colorVal = bgMatch[1].trim()
+      if (colorVal && colorVal !== 'inherit' && colorVal !== 'initial' && colorVal !== 'transparent') {
+        return hexToArgb(colorVal, fallbackColor)
+      }
+    }
+  }
+
+  // 2. attribute.colorPalette.backgroundColor
+  const paletteBg =
+    task.attribute?.colorPalette?.backgroundColor ||
+    task.colorPalette?.backgroundColor
+  if (typeof paletteBg === 'string' && paletteBg.trim()) {
+    return hexToArgb(paletteBg.trim(), fallbackColor)
+  }
+
+  // 3. task.progressColor
+  if (typeof task.progressColor === 'string' && task.progressColor.trim()) {
+    return hexToArgb(task.progressColor.trim(), fallbackColor)
+  }
+
+  // 4. task.backgroundColor または task.color
+  const directColor = task.backgroundColor || task.color
+  if (typeof directColor === 'string' && directColor.trim()) {
+    return hexToArgb(directColor.trim(), fallbackColor)
+  }
+
+  return fallbackColor
+}
+
+/**
+ * タイムライン列アイテム（祝祭日、土日、平日）に応じた背景色（ARGB）を返す
+ * ※ 背景色（土日・祝祭日）の適用は「日単位（scale === 'day'）」のみ行います。
+ * - 祝祭日・日曜日: holidayArgb (デフォルト: 'FFFEE2E2', 淡い赤/ピンク)
+ * - 土曜日: 'FFEFF6FF' (淡いブルー)
+ * - 平日（または日単位以外）: null (背景色なし / 白)
+ */
+export function getTimelineCellBgColor(
+  item: TimelineItem,
+  holidayArgb = 'FFFEE2E2',
+  scale?: ExcelTimelineScale
+): string | null {
+  const currentScale = scale ?? item.scale ?? 'day'
+
+  // 日単位（day）以外の場合は背景色を指定しない
+  if (currentScale !== 'day') {
+    return null
+  }
+
+  const dayOfWeek = item.startDate.getDay()
+
+  // 1. 祝祭日または日曜日（dayOfWeek === 0）は同じ赤/ピンク背景
+  if (item.isHoliday || dayOfWeek === 0) {
+    return holidayArgb
+  }
+
+  // 2. 土曜日（dayOfWeek === 6）
+  if (dayOfWeek === 6 || item.isWeekend) {
+    return 'FFEFF6FF' // 土曜日は淡いブルー
+  }
+
+  return null
 }
 
 /**
@@ -116,6 +277,17 @@ export function detectTimelineScale(
   }
 
   return 'day'
+}
+
+/**
+ * ExcelJS に渡す Date オブジェクトを、ローカル時刻の見た目通りの日付シリアル値になるよう補正する。
+ * ExcelJS は内部で date.getTime() (UTC) を使用してシリアル値を計算するため、
+ * JST などの正のタイムゾーン下ではローカル日時 (例: 2025-01-01 00:00:00) が前日 (2024-12-31 15:00:00) のシリアル値として
+ * 書き込まれてしまい、Excel 上で 1日 (または月単位で 1ヶ月) 過去にずれて表示される。
+ * そのため、getTimezoneOffset() 分を差し引くことで、Excel 上のシリアル値がローカル日時と完全に一致するようにする。
+ */
+export function toExcelDate(date: Date): Date {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000)
 }
 
 /**
@@ -213,7 +385,8 @@ export function pxToExcelColumnWidth(px: number, minWidth = 3): number {
 export function detectTimelineColumnWidth(
   chart?: GanttChartElement,
   explicitWidth?: number,
-  scale: ExcelTimelineScale = 'day'
+  scale: ExcelTimelineScale = 'day',
+  columnsPerUnit = 1
 ): number {
   // 1. オプションで明示的に指定されている場合は最優先
   if (typeof explicitWidth === 'number' && explicitWidth > 0) {
@@ -228,8 +401,9 @@ export function detectTimelineColumnWidth(
     }
     if (scale === 'hour') {
       if (typeof calendar.pxPerDay === 'number' && calendar.pxPerDay > 0) {
-        const pxPerHour = calendar.pxPerDay / 24
-        return pxToExcelColumnWidth(pxPerHour, 4.5)
+        const pxPerHour = calendar.pxPerDay / 24 / columnsPerUnit
+        const minW = columnsPerUnit > 1 ? 3.5 : 4.5
+        return pxToExcelColumnWidth(pxPerHour, minW)
       }
     }
     if (scale === 'week') {
@@ -238,7 +412,9 @@ export function detectTimelineColumnWidth(
       }
     }
     if (scale === 'day' && typeof calendar.pxPerDay === 'number' && calendar.pxPerDay > 0) {
-      return pxToExcelColumnWidth(calendar.pxPerDay, 3.5)
+      const pxPerSlot = calendar.pxPerDay / columnsPerUnit
+      const minW = columnsPerUnit > 1 ? 3.5 : 3.5
+      return pxToExcelColumnWidth(pxPerSlot, minW)
     }
   }
 
@@ -249,11 +425,49 @@ export function detectTimelineColumnWidth(
     case 'week':
       return 7.5
     case 'hour':
-      return 5.0
+      return columnsPerUnit > 1 ? 3.8 : 5.0
     case 'day':
     default:
-      return 4.2
+      return columnsPerUnit > 1 ? 3.8 : 4.2
   }
+}
+
+/**
+ * 1日または1時間あたりの分割列数を判定・算出する
+ * 優先順位:
+ * 1. options.columnsPerUnit (明示的指定)
+ * 2. options.snapDurationMinutes (スナップ分数から計算)
+ * 3. chart.option.snapDuration (チャート設定のスナップ分数から計算)
+ * 4. デフォルト: 1
+ */
+export function detectColumnsPerUnit(
+  chart?: GanttChartElement,
+  options?: Pick<ExportExcelOptions, 'columnsPerUnit' | 'snapDurationMinutes'>,
+  scale: ExcelTimelineScale = 'day'
+): number {
+  if (scale === 'month' || scale === 'week') {
+    return 1
+  }
+
+  // 1. columnsPerUnit が明示的に指定されている場合
+  if (typeof options?.columnsPerUnit === 'number' && options.columnsPerUnit > 0) {
+    return Math.max(1, Math.round(options.columnsPerUnit))
+  }
+
+  // 2. snapDurationMinutes または chart.option.snapDuration から算出
+  const snapMinutes = options?.snapDurationMinutes ?? chart?.option?.snapDuration
+  if (typeof snapMinutes === 'number' && snapMinutes > 0) {
+    if (scale === 'day') {
+      // 1440分（24時間）に対する分割数（1440=1, 720=2, 360=4, 180=8, 60=24 等）
+      return Math.max(1, Math.round(1440 / snapMinutes))
+    }
+    if (scale === 'hour') {
+      // 60分に対する分割数（60=1, 30=2, 15=4, 12=5, 6=10, 5=12 等）
+      return Math.max(1, Math.round(60 / snapMinutes))
+    }
+  }
+
+  return 1
 }
 
 /**
@@ -264,14 +478,28 @@ export function generateTimelineList(
   endDate: Date,
   scale: ExcelTimelineScale = 'day',
   includeWeekends = true,
-  columnWidth?: number
+  columnWidth?: number,
+  columnsPerUnit = 1,
+  isHoliday?: (date: Date) => boolean
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTime = today.getTime()
 
-  const defaultWidth = scale === 'month' ? 8.0 : scale === 'week' ? 7.5 : scale === 'hour' ? 5.0 : 4.2
+  const validCols = Math.max(1, Math.round(columnsPerUnit))
+  const defaultWidth =
+    scale === 'month'
+      ? 8.0
+      : scale === 'week'
+        ? 7.5
+        : scale === 'hour'
+          ? validCols > 1
+            ? 3.8
+            : 5.0
+          : validCols > 1
+            ? 3.8
+            : 4.2
   const resolvedWidth = typeof columnWidth === 'number' && columnWidth > 0 ? columnWidth : defaultWidth
 
   if (scale === 'month') {
@@ -292,6 +520,7 @@ export function generateTimelineList(
         endDate: mEnd,
         groupLabel: `${year}年`,
         subLabel: `${month}月`,
+        scale: 'month',
         isWeekend: false,
         isToday: isCurrentMonth,
         width: resolvedWidth,
@@ -322,6 +551,7 @@ export function generateTimelineList(
         endDate: wEnd,
         groupLabel: `${year}年${month}月`,
         subLabel: `${month}/${day}〜`,
+        scale: 'week',
         isWeekend: false,
         isToday: isCurrentWeek,
         width: resolvedWidth,
@@ -336,12 +566,13 @@ export function generateTimelineList(
     const cur = new Date(startDate)
     cur.setMinutes(0, 0, 0)
     const endTime = endDate.getTime()
+    const slotMinutes = 60 / validCols
 
     while (cur.getTime() <= endTime) {
       const hStart = new Date(cur)
-      const hEnd = new Date(cur.getTime() + 60 * 60 * 1000 - 1)
       const dayOfWeek = hStart.getDay()
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+      const isHolidayDay = isHoliday ? isHoliday(hStart) : false
 
       if (includeWeekends || !isWeekend) {
         const year = hStart.getFullYear()
@@ -354,16 +585,39 @@ export function generateTimelineList(
           today.getMonth() + 1 === month &&
           today.getDate() === day
 
-        items.push({
-          key: `hour-${year}-${month}-${day}-${hour}`,
-          startDate: hStart,
-          endDate: hEnd,
-          groupLabel: `${year}年${month}月${day}日 (${getDayOfWeekText(dayOfWeek)})`,
-          subLabel: `${String(hour).padStart(2, '0')}:00`,
-          isWeekend,
-          isToday,
-          width: resolvedWidth,
-        })
+        if (validCols === 1) {
+          items.push({
+            key: `hour-${year}-${month}-${day}-${hour}`,
+            startDate: hStart,
+            endDate: new Date(cur.getTime() + 60 * 60 * 1000 - 1),
+            groupLabel: `${year}年${month}月${day}日 (${getDayOfWeekText(dayOfWeek)})`,
+            subLabel: `${String(hour).padStart(2, '0')}:00`,
+            scale: 'hour',
+            isWeekend,
+            isHoliday: isHolidayDay,
+            isToday,
+            width: resolvedWidth,
+          })
+        } else {
+          for (let sIdx = 0; sIdx < validCols; sIdx++) {
+            const slotStart = new Date(hStart.getTime() + sIdx * slotMinutes * 60 * 1000)
+            const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60 * 1000 - 1)
+            const startMin = slotStart.getMinutes()
+
+            items.push({
+              key: `hour-${year}-${month}-${day}-${hour}-${sIdx}`,
+              startDate: slotStart,
+              endDate: slotEnd,
+              groupLabel: `${year}年${month}月${day}日 ${String(hour).padStart(2, '0')}時`,
+              subLabel: `:${String(startMin).padStart(2, '0')}`,
+              scale: 'hour',
+              isWeekend,
+              isHoliday: isHolidayDay,
+              isToday,
+              width: resolvedWidth,
+            })
+          }
+        }
       }
 
       cur.setHours(cur.getHours() + 1)
@@ -375,28 +629,54 @@ export function generateTimelineList(
   const cur = new Date(startDate)
   cur.setHours(0, 0, 0, 0)
   const endTime = endDate.getTime()
+  const slotMinutes = 1440 / validCols
 
   while (cur.getTime() <= endTime) {
     const dayOfWeek = cur.getDay()
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    const isHolidayDay = isHoliday ? isHoliday(cur) : false
 
     if (includeWeekends || !isWeekend) {
-      const dStart = new Date(cur)
-      const dEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999)
       const year = cur.getFullYear()
       const month = cur.getMonth() + 1
       const day = cur.getDate()
 
-      items.push({
-        key: `day-${year}-${month}-${day}`,
-        startDate: dStart,
-        endDate: dEnd,
-        groupLabel: `${year}年${month}月`,
-        subLabel: `${day}\n${getDayOfWeekText(dayOfWeek)}`,
-        isWeekend,
-        isToday: cur.getTime() === todayTime,
-        width: resolvedWidth,
-      })
+      if (validCols === 1) {
+        const dStart = new Date(cur)
+        const dEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999)
+        items.push({
+          key: `day-${year}-${month}-${day}`,
+          startDate: dStart,
+          endDate: dEnd,
+          groupLabel: `${year}年${month}月`,
+          subLabel: `${day}\n${getDayOfWeekText(dayOfWeek)}`,
+          scale: 'day',
+          isWeekend,
+          isHoliday: isHolidayDay,
+          isToday: cur.getTime() === todayTime,
+          width: resolvedWidth,
+        })
+      } else {
+        for (let sIdx = 0; sIdx < validCols; sIdx++) {
+          const slotStart = new Date(cur.getTime() + sIdx * slotMinutes * 60 * 1000)
+          const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60 * 1000 - 1)
+          const startHour = slotStart.getHours()
+          const startMin = slotStart.getMinutes()
+
+          items.push({
+            key: `day-${year}-${month}-${day}-${sIdx}`,
+            startDate: slotStart,
+            endDate: slotEnd,
+            groupLabel: `${year}年${month}月${day}日 (${getDayOfWeekText(dayOfWeek)})`,
+            subLabel: `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`,
+            scale: 'day',
+            isWeekend,
+            isHoliday: isHolidayDay,
+            isToday: cur.getTime() === todayTime,
+            width: resolvedWidth,
+          })
+        }
+      }
     }
 
     cur.setDate(cur.getDate() + 1)

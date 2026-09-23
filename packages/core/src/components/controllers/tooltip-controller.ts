@@ -139,11 +139,21 @@ export class TooltipController implements ReactiveController {
           tooltipEl,
         )
       } else {
+        const isHourlyMode = !!this.host.option.calendar.showTime
+        const endForDisplay = new Date(this.tooltip.task.end)
+        if (
+          !isHourlyMode &&
+          this.tooltip.task.start.getTime() < this.tooltip.task.end.getTime() &&
+          endForDisplay.getHours() === 0 &&
+          endForDisplay.getMinutes() === 0
+        ) {
+          endForDisplay.setDate(endForDisplay.getDate() - 1)
+        }
         render(
           html`
             <div style="font-weight: bold;">${this.tooltip.task.name}</div>
             <div class="tooltip-row">
-              ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(this.tooltip.task.end)}
+              ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(endForDisplay)}
             </div>
             <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
             ${progressRow}
