@@ -5,17 +5,23 @@ import {
   ExcelPlugin,
   exportExcel,
   exportGanttToExcel,
+  getDefaultColumns,
+  registerExcelLocale,
+  getExcelLocale,
+  getSupportedExcelLocales,
+  resolveExcelLocale,
+  zhLocale,
 } from '../index'
 import {
   hexToArgb,
   sanitizeSheetName,
   calculateWbsHierarchy,
   getTimelineRange,
-  generateDateList,
   generateTimelineList,
   detectTimelineScale,
   detectTimelineColumnWidth,
   detectColumnsPerUnit,
+  detectLocale,
   extractTaskBarColor,
   getContrastArgb,
   getTimelineCellBgColor,
@@ -264,16 +270,6 @@ describe('Utils', () => {
     expect(range.endDate.getDate()).toBe(25)
   })
 
-  it('generateDateList should produce list of dates with weekend info', () => {
-    const start = new Date(2026, 8, 1) // 2026-09-01
-    const end = new Date(2026, 8, 3) // 2026-09-03
-    const dates = generateDateList(start, end, true)
-
-    expect(dates).toHaveLength(3)
-    expect(dates[0].day).toBe(1)
-    expect(dates[1].day).toBe(2)
-    expect(dates[2].day).toBe(3)
-  })
 
   it('getDayOfWeekText should return proper Japanese day text', () => {
     expect(getDayOfWeekText(0)).toBe('日')
@@ -316,9 +312,10 @@ describe('Utils', () => {
     const startHour = new Date(2026, 8, 1, 9, 0, 0)
     const endHour = new Date(2026, 8, 1, 12, 0, 0)
     const hourItems = generateTimelineList(startHour, endHour, 'hour', true)
-    expect(hourItems).toHaveLength(4) // 09:00, 10:00, 11:00, 12:00
-    expect(hourItems[0].subLabel).toBe('09:00')
-    expect(hourItems[3].subLabel).toBe('12:00')
+    expect(hourItems).toHaveLength(4) // 9, 10, 11, 12
+    expect(hourItems[0].subLabel).toBe('9')
+    expect(hourItems[3].subLabel).toBe('12')
+    expect(hourItems[0].groupLabel).toBe('2026年9月1日')
 
     // custom columnWidth
     const customWidthItems = generateTimelineList(startMonth, endMonth, 'month', true, 12.5)
@@ -404,9 +401,10 @@ describe('Utils', () => {
     const endHour = new Date(2026, 8, 1, 9, 0, 0)
     const hourItems = generateTimelineList(startHour, endHour, 'hour', true, undefined, 2)
     expect(hourItems).toHaveLength(2)
-    expect(hourItems[0].subLabel).toBe(':00')
-    expect(hourItems[1].subLabel).toBe(':30')
-    expect(hourItems[0].groupLabel).toBe(hourItems[1].groupLabel) // 同じ時グループ
+    expect(hourItems[0].subLabel).toBe('9')
+    expect(hourItems[1].subLabel).toBe('')
+    expect(hourItems[0].groupLabel).toBe('2026年9月1日') // 日付だけ
+    expect(hourItems[1].groupLabel).toBe('2026年9月1日')
 
     // 祝祭日フラグの判定 (2026-09-21: 敬老の日)
     const isHolidayMock = (d: Date) => d.getDate() === 21
@@ -499,14 +497,13 @@ describe('exportGanttToExcel', () => {
     },
   ]
 
-  it('should generate valid Blob with with-timeline mode', async () => {
+  it('should generate valid Blob with gantt chart export', async () => {
     const dummyChart: any = {
       rows: sampleRows,
       option: {},
     }
 
     const blob = await exportGanttToExcel(dummyChart, {
-      mode: 'with-timeline',
       download: false,
     })
 
@@ -515,35 +512,6 @@ describe('exportGanttToExcel', () => {
     expect(blob.size).toBeGreaterThan(0)
   })
 
-  it('should generate valid Blob with table-only mode', async () => {
-    const dummyChart: any = {
-      rows: sampleRows,
-      option: {},
-    }
-
-    const blob = await exportGanttToExcel(dummyChart, {
-      mode: 'table-only',
-      download: false,
-    })
-
-    expect(blob).toBeInstanceOf(Blob)
-    expect(blob.size).toBeGreaterThan(0)
-  })
-
-  it('should generate valid Blob with both mode', async () => {
-    const dummyChart: any = {
-      rows: sampleRows,
-      option: {},
-    }
-
-    const blob = await exportExcel(dummyChart, {
-      mode: 'both',
-      download: false,
-    })
-
-    expect(blob).toBeInstanceOf(Blob)
-    expect(blob.size).toBeGreaterThan(0)
-  })
 
   it('should handle empty rows gracefully', async () => {
     const dummyChart: any = {
@@ -752,13 +720,13 @@ describe('exportGanttToExcel', () => {
     expect(ws).toBeDefined()
 
     // 1行目タスク (row 3): 9/1〜9/3 は #ef5350 ('FFEF5350')
-    const redCell = ws!.getCell(3, 9) // table cols (8) + 1st day (1) = 9
+    const redCell = ws!.getCell(3, 10) // table cols (9) + 1st day (1) = 10
     expect((redCell.fill as any)?.fgColor?.argb).toBe('FFEF5350')
     // #ef5350 は暗い色なので進捗文字色は白
     expect(redCell.font?.color?.argb).toBe('FFFFFFFF')
 
     // 2行目タスク (row 4): 9/4〜9/6 は #ffee58 ('FFFFEE58')
-    const yellowCell = ws!.getCell(4, 12) // table cols (8) + 4th day (4) = 12
+    const yellowCell = ws!.getCell(4, 13) // table cols (9) + 4th day (4) = 13
     expect((yellowCell.fill as any)?.fgColor?.argb).toBe('FFFFEE58')
     // #ffee58 は明るい黄色なので進捗文字色は黒
     expect(yellowCell.font?.color?.argb).toBe('FF000000')
@@ -815,23 +783,23 @@ describe('exportGanttToExcel', () => {
     // col 12: 9/23 (水・祝)
 
     // ヘッダー行2 (row 2)
-    const sundayHeader = ws!.getCell(2, 9)
+    const sundayHeader = ws!.getCell(2, 10)
     expect((sundayHeader.fill as any)?.fgColor?.argb).toBe('FFFEE2E2') // 日曜も祝祭日と同じ淡いピンク/赤
     expect(sundayHeader.font?.color?.argb).toBe('FFDC2626') // 赤文字
 
-    const holidayHeader = ws!.getCell(2, 10)
+    const holidayHeader = ws!.getCell(2, 11)
     expect((holidayHeader.fill as any)?.fgColor?.argb).toBe('FFFEE2E2') // 祝祭日淡いピンク/赤
     expect(holidayHeader.font?.color?.argb).toBe('FFDC2626') // 赤文字
 
-    const weekdayHeader = ws!.getCell(2, 11)
+    const weekdayHeader = ws!.getCell(2, 12)
     expect((weekdayHeader.fill as any)?.fgColor?.argb).toBe('FFF8FAFC') // 平日ヘッダー
 
     // データ行 (row 3): タスクがない 9/21(祝) のセルは祝日色
-    const holidayDataCell = ws!.getCell(3, 10)
+    const holidayDataCell = ws!.getCell(3, 11)
     expect((holidayDataCell.fill as any)?.fgColor?.argb).toBe('FFFEE2E2')
 
     // タスクがない 9/20(日) のセルも祝祭日と同じ色
-    const sundayDataCell = ws!.getCell(3, 9)
+    const sundayDataCell = ws!.getCell(3, 10)
     expect((sundayDataCell.fill as any)?.fgColor?.argb).toBe('FFFEE2E2')
   })
 
@@ -869,13 +837,13 @@ describe('exportGanttToExcel', () => {
     const ws = workbook.getWorksheet('工程表')
     expect(ws).toBeDefined()
 
-    // タイムラインのサブヘッダー（row 2, col 9 = 00:00）
-    const hourHeader = ws!.getCell(2, 9)
+    // タイムラインのサブヘッダー（row 2, col 10 = 00:00）
+    const hourHeader = ws!.getCell(2, 10)
     // 日単位ではないため、祝日・日曜背景色（FFFEE2E2）は適用されず通常のFFF8FAFC
     expect((hourHeader.fill as any)?.fgColor?.argb).toBe('FFF8FAFC')
 
-    // データ行のセル（row 3, col 9）
-    const hourDataCell = ws!.getCell(3, 9)
+    // データ行のセル（row 3, col 10）
+    const hourDataCell = ws!.getCell(3, 10)
     // 日単位ではないため、背景色は設定されない（undefined / null）
     expect((hourDataCell.fill as any)?.fgColor?.argb).toBeUndefined()
   })
@@ -926,16 +894,16 @@ describe('exportGanttToExcel', () => {
 
     // テーブル列: 8列 (WBS〜先行タスク)
     // タイムライン列:
-    // col 9: 9/1
-    // col 10: 9/2
-    // col 11: 9/3
-    // col 12: 9/4
-    // col 13: 9/5
-    const cell9_1 = dayWs.getCell(3, 9)
-    const cell9_2 = dayWs.getCell(3, 10)
-    const cell9_3 = dayWs.getCell(3, 11)
-    const cell9_4 = dayWs.getCell(3, 12)
-    const cell9_5 = dayWs.getCell(3, 13)
+    // col 10: 9/1
+    // col 11: 9/2
+    // col 12: 9/3
+    // col 13: 9/4
+    // col 14: 9/5
+    const cell9_1 = dayWs.getCell(3, 10)
+    const cell9_2 = dayWs.getCell(3, 11)
+    const cell9_3 = dayWs.getCell(3, 12)
+    const cell9_4 = dayWs.getCell(3, 13)
+    const cell9_5 = dayWs.getCell(3, 14)
 
     // 9/1 〜 9/4 はタスクバー色（デフォルトテーマ色: FF3B82F6）
     expect((cell9_1.fill as any)?.fgColor?.argb).toBe('FF3B82F6')
@@ -981,10 +949,10 @@ describe('exportGanttToExcel', () => {
     await hourWb.xlsx.load(hourBuf)
     const hourWs = hourWb.getWorksheet('工程表')!
 
-    // col 9: 09:00〜09:30
-    // col 10: 09:30〜10:00
-    const slot0900 = hourWs.getCell(3, 9)
-    const slot0930 = hourWs.getCell(3, 10)
+    // col 10: 09:00〜09:30
+    // col 11: 09:30〜10:00
+    const slot0900 = hourWs.getCell(3, 10)
+    const slot0930 = hourWs.getCell(3, 11)
 
     // 09:00〜09:30 のみタスク色
     expect((slot0900.fill as any)?.fgColor?.argb).toBe('FF3B82F6')
@@ -1040,17 +1008,22 @@ describe('exportGanttToExcel', () => {
     const ws = wb.getWorksheet('工程表')!
 
     // ヘッダー（行1）の確認
-    const startHeader = ws.getCell(1, 4) // 列4: start
-    const endHeader = ws.getCell(1, 5) // 列5: end
+    const noHeader = ws.getCell(1, 1) // 列1: No.
+    const startHeader = ws.getCell(1, 5) // 列5: start
+    const endHeader = ws.getCell(1, 6) // 列6: end
+    expect(noHeader.value).toBe('No.')
     expect(startHeader.value).toBe('開始月')
     expect(endHeader.value).toBe('終了月')
-    expect(ws.getColumn(4).width).toBe(11)
+    expect(ws.getColumn(1).width).toBe(6)
     expect(ws.getColumn(5).width).toBe(11)
+    expect(ws.getColumn(6).width).toBe(11)
 
     // データ行（行3: ヘッダーが2行あるため行3がデータ1行目）
-    const startCell = ws.getCell(3, 4)
-    const endCell = ws.getCell(3, 5)
+    const noCell = ws.getCell(3, 1)
+    const startCell = ws.getCell(3, 5)
+    const endCell = ws.getCell(3, 6)
 
+    expect(noCell.value).toBe(1)
     expect(startCell.numFmt).toBe('yyyy/mm')
     expect(endCell.numFmt).toBe('yyyy/mm')
 
@@ -1066,27 +1039,6 @@ describe('exportGanttToExcel', () => {
     expect(endDateVal.getUTCFullYear()).toBe(2025)
     expect(endDateVal.getUTCMonth()).toBe(11) // 12月
 
-    // 2. table-only モードでも開始月・終了月となることを確認
-    const tableBlob = await exportGanttToExcel(monthChart, {
-      timelineScale: 'month',
-      mode: 'table-only',
-      download: false,
-    })
-    const tableBuf = await readBlob(tableBlob)
-    const tableWb = new ExcelJS.Workbook()
-    await tableWb.xlsx.load(tableBuf)
-    const tableWs = tableWb.getWorksheet('工程表')!
-
-    expect(tableWs.getCell(1, 4).value).toBe('開始月')
-    expect(tableWs.getCell(1, 5).value).toBe('終了月')
-    expect(tableWs.getCell(2, 4).numFmt).toBe('yyyy/mm')
-    expect(tableWs.getCell(2, 5).numFmt).toBe('yyyy/mm')
-    const tableStartVal = tableWs.getCell(2, 4).value as Date
-    const tableEndVal = tableWs.getCell(2, 5).value as Date
-    expect(tableStartVal.getUTCFullYear()).toBe(2025)
-    expect(tableStartVal.getUTCMonth()).toBe(9)
-    expect(tableEndVal.getUTCFullYear()).toBe(2025)
-    expect(tableEndVal.getUTCMonth()).toBe(11)
   })
 
   it('should display "開始日時" and "終了日時" with yyyy/mm/dd hh:mm format when exporting in hour scale', async () => {
@@ -1137,17 +1089,23 @@ describe('exportGanttToExcel', () => {
     const ws = wb.getWorksheet('工程表')!
 
     // ヘッダー（行1）の確認
-    const startHeader = ws.getCell(1, 4) // 列4: start
-    const endHeader = ws.getCell(1, 5) // 列5: end
+    const startHeader = ws.getCell(1, 5) // 列5: start
+    const endHeader = ws.getCell(1, 6) // 列6: end
     expect(startHeader.value).toBe('開始日時')
     expect(endHeader.value).toBe('終了日時')
-    expect(ws.getColumn(4).width).toBe(18)
     expect(ws.getColumn(5).width).toBe(18)
+    expect(ws.getColumn(6).width).toBe(18)
+
+    // タイムラインヘッダーの確認（上部は日付だけ、下部は時間）
+    const timelineDateHeader = ws.getCell(1, 10) // タイムライン開始列 (列10)
+    const timelineHourHeader = ws.getCell(2, 10)
+    expect(timelineDateHeader.value).toBe('2026年5月10日')
+    expect(timelineHourHeader.value).toBe('8')
 
     // データ行（行3: ヘッダーが2行あるため行3がデータ1行目）
-    const startCell = ws.getCell(3, 4)
-    const endCell = ws.getCell(3, 5)
-    const durationCell = ws.getCell(3, 6)
+    const startCell = ws.getCell(3, 5)
+    const endCell = ws.getCell(3, 6)
+    const durationCell = ws.getCell(3, 7)
 
     expect(startCell.numFmt).toBe('yyyy/mm/dd hh:mm')
     expect(endCell.numFmt).toBe('yyyy/mm/dd hh:mm')
@@ -1172,23 +1130,6 @@ describe('exportGanttToExcel', () => {
     expect(endDateVal.getUTCHours()).toBe(10)
     expect(endDateVal.getUTCMinutes()).toBe(30)
 
-    // 2. table-only モードでも開始日時・終了日時となることを確認
-    const tableBlob = await exportGanttToExcel(hourChart, {
-      timelineScale: 'hour',
-      mode: 'table-only',
-      download: false,
-    })
-    const tableBuf = await readBlob(tableBlob)
-    const tableWb = new ExcelJS.Workbook()
-    await tableWb.xlsx.load(tableBuf)
-    const tableWs = tableWb.getWorksheet('工程表')!
-
-    expect(tableWs.getCell(1, 4).value).toBe('開始日時')
-    expect(tableWs.getCell(1, 5).value).toBe('終了日時')
-    expect(tableWs.getCell(2, 4).numFmt).toBe('yyyy/mm/dd hh:mm')
-    expect(tableWs.getCell(2, 5).numFmt).toBe('yyyy/mm/dd hh:mm')
-    expect(tableWs.getCell(2, 6).numFmt).toBe('#,##0.#"時間"')
-    expect(tableWs.getCell(2, 6).value).toBe(1.5)
   })
 
   it('should display previous day as end date when task end time is 00:00 in day scale', async () => {
@@ -1245,9 +1186,9 @@ describe('exportGanttToExcel', () => {
     const ws = wb.getWorksheet('工程表')!
 
     // 行3: タスク1 (t1: 9/1 00:00 - 9/5 00:00) -> 終了日は前日 9/4
-    const startCell1 = ws.getCell(3, 4)
-    const endCell1 = ws.getCell(3, 5)
-    const durationCell1 = ws.getCell(3, 6)
+    const startCell1 = ws.getCell(3, 5)
+    const endCell1 = ws.getCell(3, 6)
+    const durationCell1 = ws.getCell(3, 7)
 
     expect(startCell1.numFmt).toBe('yyyy/mm/dd')
     expect(endCell1.numFmt).toBe('yyyy/mm/dd')
@@ -1264,38 +1205,411 @@ describe('exportGanttToExcel', () => {
     expect(endDate1.getUTCDate()).toBe(4) // 00:00のため前日の9/4が表示される
 
     // 行4: タスク2 (t2: 9/6 00:00 - 9/8 12:00) -> 00:00ではないため当日 9/8
-    const startCell2 = ws.getCell(4, 4)
-    const endCell2 = ws.getCell(4, 5)
+    const startCell2 = ws.getCell(4, 5)
+    const endCell2 = ws.getCell(4, 6)
     const endDate2 = endCell2.value as Date
     expect(endDate2.getUTCFullYear()).toBe(2026)
     expect(endDate2.getUTCMonth()).toBe(8)
     expect(endDate2.getUTCDate()).toBe(8)
 
     // 行5: タスク3 (t3: 9/10 00:00 - 9/10 00:00) -> 開始=終了のため前日にならず当日 9/10
-    const startCell3 = ws.getCell(5, 4)
-    const endCell3 = ws.getCell(5, 5)
+    const startCell3 = ws.getCell(5, 5)
+    const endCell3 = ws.getCell(5, 6)
     const endDate3 = endCell3.value as Date
     expect(endDate3.getUTCFullYear()).toBe(2026)
     expect(endDate3.getUTCMonth()).toBe(8)
     expect(endDate3.getUTCDate()).toBe(10)
 
-    // 2. table-only モードでも同様であることを確認
-    const tableBlob = await exportGanttToExcel(dayChart, {
-      timelineScale: 'day',
-      mode: 'table-only',
+  })
+
+  it('should support customizing columns via options.columns function to export assignees', async () => {
+    const chartWithAssignees: any = {
+      rows: [
+        {
+          id: 'row-1',
+          name: '開発',
+          tasks: [
+            {
+              id: 't1',
+              name: 'フロントエンド開発',
+              start: new Date(2026, 8, 1, 9, 0, 0),
+              end: new Date(2026, 8, 3, 18, 0, 0),
+              attribute: {
+                assignees: ['alice@example.com', 'bob@example.com'],
+              },
+            },
+            {
+              id: 't2',
+              name: 'バックエンド開発',
+              start: new Date(2026, 8, 4, 9, 0, 0),
+              end: new Date(2026, 8, 6, 18, 0, 0),
+              dependencies: ['t1'],
+              attribute: {
+                assignees: ['charlie@example.com'],
+              },
+            },
+            {
+              id: 't3',
+              name: '単体テスト',
+              start: new Date(2026, 8, 7, 9, 0, 0),
+              end: new Date(2026, 8, 8, 18, 0, 0),
+              dependencies: ['t1', 't2'],
+              // 単一文字列属性のケース
+              attribute: {
+                assignees: 'david@example.com',
+              },
+            },
+          ],
+        },
+      ],
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 10),
+        },
+      },
+    }
+
+    const blob = await exportGanttToExcel(chartWithAssignees, {
+      download: false,
+      columns: (defaultCols) => {
+        const taskNameIdx = defaultCols.findIndex((col) => col.key === 'taskName')
+        const assigneeCol = {
+          key: 'assignees',
+          header: '担当者',
+          width: 20,
+          align: 'left' as const,
+        }
+        const next = [...defaultCols]
+        next.splice(taskNameIdx + 1, 0, assigneeCol)
+        return next
+      },
+    })
+
+    const readBlob = (b: Blob): Promise<Uint8Array> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+    }
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+
+    // データ一覧シートは出力されず、工程表シート1枚のみであることを確認
+    expect(wb.worksheets.length).toBe(1)
+    expect(wb.getWorksheet('工程表_データ一覧')).toBeUndefined()
+
+    // 工程表シート
+    // 列1: No., 列2: WBS, 列3: 行名, 列4: タスク名, 列5: 担当者(挿入), 列6: 開始日, ..., 列10: 先行タスク
+    const timelineWs = wb.getWorksheet('工程表')!
+    expect(timelineWs).toBeDefined()
+    expect(timelineWs.getCell(1, 1).value).toBe('No.')
+    expect(timelineWs.getCell(1, 5).value).toBe('担当者')
+    expect(timelineWs.getCell(1, 6).value).toBe('開始日')
+    expect(timelineWs.getCell(1, 10).value).toBe('先行タスク')
+
+    // row 3: t1 (No: 1, 先行タスクなし)
+    expect(timelineWs.getCell(3, 1).value).toBe(1)
+    expect(timelineWs.getCell(3, 5).value).toBe('alice@example.com, bob@example.com')
+    expect(timelineWs.getCell(3, 10).value).toBe('')
+
+    // row 4: t2 (No: 2, 先行タスク: t1 -> '1')
+    expect(timelineWs.getCell(4, 1).value).toBe(2)
+    expect(timelineWs.getCell(4, 5).value).toBe('charlie@example.com')
+    expect(timelineWs.getCell(4, 10).value).toBe('1')
+
+    // row 5: t3 (No: 3, 先行タスク: t1, t2 -> '1, 2')
+    expect(timelineWs.getCell(5, 1).value).toBe(3)
+    expect(timelineWs.getCell(5, 5).value).toBe('david@example.com')
+    expect(timelineWs.getCell(5, 10).value).toBe('1, 2')
+  })
+
+  it('should support English locale export with English headers and sheet names', async () => {
+    // 1. detectLocale
+    expect(detectLocale(undefined, 'en')).toBe('en')
+    expect(detectLocale(undefined, 'ja')).toBe('ja')
+    expect(detectLocale({ option: { locale: { monthFormat: 'MMM YYYY' } } } as any)).toBe('en')
+    expect(detectLocale({ option: {} } as any)).toBe('ja')
+
+    // 2. getDayOfWeekText
+    expect(getDayOfWeekText(0, 'en')).toBe('Sun')
+    expect(getDayOfWeekText(1, 'en')).toBe('Mon')
+    expect(getDayOfWeekText(6, 'en')).toBe('Sat')
+    expect(getDayOfWeekText(1, 'ja')).toBe('月')
+
+    // 3. getDefaultColumns
+    const enCols = getDefaultColumns('day', 'en')
+    expect(enCols.find((c) => c.key === 'rowName')?.header).toBe('Category / Row')
+    expect(enCols.find((c) => c.key === 'taskName')?.header).toBe('Task Name')
+    expect(enCols.find((c) => c.key === 'start')?.header).toBe('Start Date')
+    expect(enCols.find((c) => c.key === 'end')?.header).toBe('End Date')
+    expect(enCols.find((c) => c.key === 'duration')?.header).toBe('Duration')
+    expect(enCols.find((c) => c.key === 'progress')?.header).toBe('Progress')
+    expect(enCols.find((c) => c.key === 'dependencies')?.header).toBe('Dependencies')
+
+    const enMonthCols = getDefaultColumns('month', 'en')
+    expect(enMonthCols.find((c) => c.key === 'start')?.header).toBe('Start Month')
+    expect(enMonthCols.find((c) => c.key === 'end')?.header).toBe('End Month')
+
+    const enHourCols = getDefaultColumns('hour', 'en')
+    expect(enHourCols.find((c) => c.key === 'start')?.header).toBe('Start Date & Time')
+    expect(enHourCols.find((c) => c.key === 'end')?.header).toBe('End Date & Time')
+
+    // 4. exportGanttToExcel with mode: 'both' and locale: 'en'
+    const chart: any = {
+      rows: sampleRows,
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 30),
+        },
+      },
+    }
+
+    const blob = await exportGanttToExcel(chart, {
+      locale: 'en',
       download: false,
     })
-    const tableBuf = await readBlob(tableBlob)
-    const tableWb = new ExcelJS.Workbook()
-    await tableWb.xlsx.load(tableBuf)
-    const tableWs = tableWb.getWorksheet('工程表')!
 
-    const tableEndCell1 = tableWs.getCell(2, 5)
-    const tableEndDate1 = tableEndCell1.value as Date
-    expect(tableEndDate1.getUTCFullYear()).toBe(2026)
-    expect(tableEndDate1.getUTCMonth()).toBe(8)
-    expect(tableEndDate1.getUTCDate()).toBe(4)
+    const readBlob = (b: Blob): Promise<Uint8Array> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+    }
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+
+    // データ一覧シートは出力されず、Gantt Chart シート1枚のみ
+    expect(wb.worksheets.length).toBe(1)
+    expect(wb.getWorksheet('Gantt Chart_Data')).toBeUndefined()
+
+    // 英語のデフォルトシート名は "Gantt Chart"
+    const timelineWs = wb.getWorksheet('Gantt Chart')!
+    expect(timelineWs).toBeDefined()
+    expect(timelineWs.getCell(1, 3).value).toBe('Category / Row')
+    expect(timelineWs.getCell(1, 4).value).toBe('Task Name')
+    expect(timelineWs.getCell(1, 5).value).toBe('Start Date')
+    expect(timelineWs.getCell(1, 6).value).toBe('End Date')
+    expect(timelineWs.getCell(1, 7).value).toBe('Duration')
+    expect(timelineWs.getCell(1, 8).value).toBe('Progress')
+    expect(timelineWs.getCell(1, 9).value).toBe('Dependencies')
+
+    // タイムライン列の曜日サブヘッダーが英語（Sun, Mon, etc.）
+    const cell10 = timelineWs.getCell(2, 10).value as string
+    expect(cell10).toContain('Tue')
+  })
+
+  it('should support Chinese (zh) locale export with Chinese headers and sheet names', async () => {
+    // 1. detectLocale
+    expect(detectLocale(undefined, 'zh')).toBe('zh')
+
+    // 2. getDayOfWeekText
+    expect(getDayOfWeekText(0, 'zh')).toBe('日')
+    expect(getDayOfWeekText(1, 'zh')).toBe('一')
+    expect(getDayOfWeekText(6, 'zh')).toBe('六')
+
+    // 3. getDefaultColumns
+    const zhCols = getDefaultColumns('day', 'zh')
+    expect(zhCols.find((c) => c.key === 'rowName')?.header).toBe('类别/行')
+    expect(zhCols.find((c) => c.key === 'taskName')?.header).toBe('任务名称')
+    expect(zhCols.find((c) => c.key === 'start')?.header).toBe('开始日期')
+    expect(zhCols.find((c) => c.key === 'end')?.header).toBe('结束日期')
+    expect(zhCols.find((c) => c.key === 'duration')?.header).toBe('工期')
+    expect(zhCols.find((c) => c.key === 'progress')?.header).toBe('进度')
+    expect(zhCols.find((c) => c.key === 'dependencies')?.header).toBe('前置任务')
+
+    // 4. exportGanttToExcel with mode: 'both' and locale: 'zh'
+    const chart: any = {
+      rows: sampleRows,
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 30),
+        },
+      },
+    }
+
+    const blob = await exportGanttToExcel(chart, {
+      locale: 'zh',
+      download: false,
+    })
+
+    const readBlob = (b: Blob): Promise<Uint8Array> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+    }
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+
+    // データ一覧シートは出力されず、甘特图 シート1枚のみ
+    expect(wb.worksheets.length).toBe(1)
+    expect(wb.getWorksheet('甘特图_数据列表')).toBeUndefined()
+
+    // 中国語のデフォルトシート名は "甘特图"
+    const timelineWs = wb.getWorksheet('甘特图')!
+    expect(timelineWs).toBeDefined()
+    expect(timelineWs.getCell(1, 3).value).toBe('类别/行')
+    expect(timelineWs.getCell(1, 4).value).toBe('任务名称')
+    expect(timelineWs.getCell(1, 5).value).toBe('开始日期')
+    expect(timelineWs.getCell(1, 6).value).toBe('结束日期')
+    expect(timelineWs.getCell(1, 7).value).toBe('工期')
+
+    // タイムラインの曜日表示
+    const cell10 = timelineWs.getCell(2, 10).value as string
+    expect(cell10).toContain('二') // 2026/9/1 は火曜 (周二)
+  })
+
+  it('should support registering custom locale via registerExcelLocale and exporting with it', async () => {
+    // 独自のドイツ語ロケールを登録
+    registerExcelLocale('de', {
+      name: 'de',
+      sheets: {
+        gantt: 'Gantt-Diagramm',
+      },
+      columns: {
+        rowName: 'Kategorie / Zeile',
+        taskName: 'Aufgabenname',
+        start: { day: 'Startdatum' },
+        end: { day: 'Enddatum' },
+        duration: { header: 'Dauer', dayNumFmt: '#,##0" Tage"' },
+      },
+      timeline: {
+        dayNames: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+        monthNames: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      },
+    })
+
+    expect(getSupportedExcelLocales()).toContain('de')
+    expect(getExcelLocale('de')?.sheets?.gantt).toBe('Gantt-Diagramm')
+
+    const deCols = getDefaultColumns('day', 'de')
+    expect(deCols.find((c) => c.key === 'taskName')?.header).toBe('Aufgabenname')
+    expect(deCols.find((c) => c.key === 'start')?.header).toBe('Startdatum')
+
+    const chart: any = {
+      rows: sampleRows,
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 30),
+        },
+      },
+    }
+
+    const blob = await exportGanttToExcel(chart, {
+      locale: 'de',
+      download: false,
+    })
+
+    const readBlob = (b: Blob): Promise<Uint8Array> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+    }
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+
+    // データ一覧シートは出力されず、Gantt-Diagramm シート1枚のみ
+    expect(wb.worksheets.length).toBe(1)
+    expect(wb.getWorksheet('Gantt-Diagramm_Daten')).toBeUndefined()
+
+    const ws = wb.getWorksheet('Gantt-Diagramm')!
+    expect(ws).toBeDefined()
+    expect(ws.getCell(1, 4).value).toBe('Aufgabenname')
+    expect(ws.getCell(1, 5).value).toBe('Startdatum')
+
+    // タイムラインの曜日
+    const cell10 = ws.getCell(2, 10).value as string
+    expect(cell10).toContain('Di') // 2026/9/1 は火曜 (Di)
+  })
+
+  it('should support passing custom ExcelLocaleDefinition directly in options.locale', async () => {
+    const chart: any = {
+      rows: sampleRows,
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 10),
+        },
+      },
+    }
+
+    // オブジェクトとして直接カスタム定義を渡し、未指定項目は日本語にフォールバック
+    const blob = await exportGanttToExcel(chart, {
+      locale: {
+        sheets: {
+          gantt: 'カスタム工程表',
+        },
+        columns: {
+          taskName: 'カスタムタスク名',
+        },
+      },
+      download: false,
+    })
+
+    const readBlob = (b: Blob): Promise<Uint8Array> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+    }
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+
+    const ws = wb.getWorksheet('カスタム工程表')!
+    expect(ws).toBeDefined()
+    expect(ws.getCell(1, 4).value).toBe('カスタムタスク名') // カスタム指定した項目
+    expect(ws.getCell(1, 3).value).toBe('カテゴリ/行') // 未指定で日本語デフォルトにフォールバックした項目
+  })
+
+  it('should register custom locales via excelPlugin config.locales', () => {
+    const dummyChart: any = {}
+    const plugin = excelPlugin({
+      locales: {
+        fr: {
+          name: 'fr',
+          sheets: {
+            gantt: 'Diagramme de Gantt',
+          },
+          columns: {
+            taskName: 'Nom de la tâche',
+          },
+        },
+      },
+    })
+
+    plugin.install?.(dummyChart)
+
+    const frDef = getExcelLocale('fr')
+    expect(frDef).toBeDefined()
+    expect(frDef?.sheets?.gantt).toBe('Diagramme de Gantt')
+    expect(frDef?.columns?.taskName).toBe('Nom de la tâche')
   })
 })
+
 
 

@@ -778,7 +778,7 @@ await exportChart(chart, 'png', { download: true })
 
 #### Excel エクスポートプラグイン (`@mogura/moguchart-plugin-excel`)
 
-ガントチャートのデータを美しくスタイリングされた Excel（`.xlsx`）ファイルとして出力します。カレンダー日付列にタスク期間が色塗りされた「タイムライン付き工程表」や、オートフィルター付きの「タスク一覧データ」をブラウザ完結で出力できます。
+ガントチャートのデータを美しくスタイリングされた Excel（`.xlsx`）ファイルとして出力します。カレンダー日付列にタスク期間が色塗りされた「タイムライン付き工程表」をブラウザ完結で出力できます。日本語・英語・中国語（簡体字）などの多言語切り替えやカスタムロケールにも対応しています。
 
 ```bash
 pnpm add @mogura/moguchart-plugin-excel
@@ -797,10 +797,10 @@ chart.use(excelPlugin({
 // タイムライン付き工程表としてエクスポート（自動ダウンロード）
 await chart.exportExcel()
 
-// データ一覧テーブルのみ出力
+// 英語ロケールでエクスポート
 await chart.exportExcel({
-  mode: 'table-only',
-  filename: 'タスク一覧.xlsx',
+  locale: 'en',
+  filename: 'project-schedule.xlsx',
 })
 ```
 
@@ -808,7 +808,7 @@ await chart.exportExcel({
 
 ```javascript
 const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
-await exportExcel(chart, { filename: '工程表.xlsx' })
+await exportExcel(chart, { filename: '工程表.xlsx', locale: 'ja' })
 ```
 
 #### ズーム操作 (zoomToPercent / zoomToScale / zoomIn / zoomOut / resetZoom)

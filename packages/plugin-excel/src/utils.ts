@@ -1,18 +1,23 @@
 import type { GanttChartElement, GanttRow } from '@mogura/moguchart-core'
-import type { ExcelTimelineScale, ExportExcelOptions } from './types'
+import type { ExcelLocale, ExcelTimelineScale, ExportExcelOptions } from './types'
+import { resolveExcelLocale, jaLocale, enLocale } from './i18n'
+
+export const EN_MONTH_NAMES = enLocale.timeline?.monthNames || [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
 
 /**
- * タイムライン用の単一日付情報（互換性維持用）
+ * ガントチャートまたはオプションから言語・ロケールを判定する
  */
-export interface TimelineDateItem {
-  date: Date
-  year: number
-  month: number
-  day: number
-  dayOfWeek: number // 0: 日, 1: 月, ..., 6: 土
-  isWeekend: boolean
-  isToday: boolean
+export function detectLocale(
+  chart?: GanttChartElement,
+  explicitLocale?: ExcelLocale
+): ExcelLocale {
+  const def = resolveExcelLocale(explicitLocale, chart)
+  return def.name || 'ja'
 }
+
 
 /**
  * タイムライン用の単一列情報（日、月、週、時間など全スケール共通）
@@ -480,12 +485,24 @@ export function generateTimelineList(
   includeWeekends = true,
   columnWidth?: number,
   columnsPerUnit = 1,
-  isHoliday?: (date: Date) => boolean
+  isHoliday?: (date: Date) => boolean,
+  locale: ExcelLocale = 'ja'
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTime = today.getTime()
+
+  const localeDef = resolveExcelLocale(locale)
+  const monthNames = localeDef.timeline?.monthNames || jaLocale.timeline!.monthNames!
+  const dayNames = localeDef.timeline?.dayNames || jaLocale.timeline!.dayNames!
+  const yearFormat = localeDef.timeline?.yearFormat || ((y: number) => `${y}年`)
+  const yearMonthFormat =
+    localeDef.timeline?.yearMonthFormat || ((y: number, m: number) => `${y}年${m}月`)
+  const yearMonthDayFormat =
+    localeDef.timeline?.yearMonthDayFormat ||
+    ((y: number, m: number, d: number, dn: string) => (dn ? `${y}年${m}月${d}日 (${dn})` : `${y}年${m}月${d}日`))
+  const weekSubLabel = localeDef.timeline?.weekSubLabel || ((m: number, d: number) => `${m}/${d}〜`)
 
   const validCols = Math.max(1, Math.round(columnsPerUnit))
   const defaultWidth =
@@ -518,8 +535,8 @@ export function generateTimelineList(
         key: `month-${year}-${month}`,
         startDate: mStart,
         endDate: mEnd,
-        groupLabel: `${year}年`,
-        subLabel: `${month}月`,
+        groupLabel: yearFormat(year),
+        subLabel: monthNames[month - 1] ?? `${month}月`,
         scale: 'month',
         isWeekend: false,
         isToday: isCurrentMonth,
@@ -536,6 +553,7 @@ export function generateTimelineList(
     cur.setHours(0, 0, 0, 0)
     const endTime = endDate.getTime()
 
+    let weekCounter = 1
     while (cur.getTime() <= endTime) {
       const wStart = new Date(cur)
       const wEnd = new Date(cur.getTime() + 7 * 24 * 60 * 60 * 1000 - 1)
@@ -544,13 +562,14 @@ export function generateTimelineList(
       const year = wStart.getFullYear()
       const month = wStart.getMonth() + 1
       const day = wStart.getDate()
+      const monthName = monthNames[month - 1] ?? `${month}月`
 
       items.push({
         key: `week-${year}-${month}-${day}`,
         startDate: wStart,
         endDate: wEnd,
-        groupLabel: `${year}年${month}月`,
-        subLabel: `${month}/${day}〜`,
+        groupLabel: yearMonthFormat(year, month, monthName),
+        subLabel: weekSubLabel(month, day, weekCounter++, monthName),
         scale: 'week',
         isWeekend: false,
         isToday: isCurrentWeek,
@@ -579,19 +598,22 @@ export function generateTimelineList(
         const month = hStart.getMonth() + 1
         const day = hStart.getDate()
         const hour = hStart.getHours()
+        const monthName = monthNames[month - 1] ?? `${month}月`
 
         const isToday =
           today.getFullYear() === year &&
           today.getMonth() + 1 === month &&
           today.getDate() === day
 
+        const groupLabel = yearMonthDayFormat(year, month, day, '', monthName)
+
         if (validCols === 1) {
           items.push({
             key: `hour-${year}-${month}-${day}-${hour}`,
             startDate: hStart,
             endDate: new Date(cur.getTime() + 60 * 60 * 1000 - 1),
-            groupLabel: `${year}年${month}月${day}日 (${getDayOfWeekText(dayOfWeek)})`,
-            subLabel: `${String(hour).padStart(2, '0')}:00`,
+            groupLabel,
+            subLabel: String(hour),
             scale: 'hour',
             isWeekend,
             isHoliday: isHolidayDay,
@@ -602,14 +624,13 @@ export function generateTimelineList(
           for (let sIdx = 0; sIdx < validCols; sIdx++) {
             const slotStart = new Date(hStart.getTime() + sIdx * slotMinutes * 60 * 1000)
             const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60 * 1000 - 1)
-            const startMin = slotStart.getMinutes()
 
             items.push({
               key: `hour-${year}-${month}-${day}-${hour}-${sIdx}`,
               startDate: slotStart,
               endDate: slotEnd,
-              groupLabel: `${year}年${month}月${day}日 ${String(hour).padStart(2, '0')}時`,
-              subLabel: `:${String(startMin).padStart(2, '0')}`,
+              groupLabel,
+              subLabel: sIdx === 0 ? String(hour) : '',
               scale: 'hour',
               isWeekend,
               isHoliday: isHolidayDay,
@@ -640,6 +661,8 @@ export function generateTimelineList(
       const year = cur.getFullYear()
       const month = cur.getMonth() + 1
       const day = cur.getDate()
+      const dayName = dayNames[dayOfWeek] ?? ''
+      const monthName = monthNames[month - 1] ?? `${month}月`
 
       if (validCols === 1) {
         const dStart = new Date(cur)
@@ -648,8 +671,8 @@ export function generateTimelineList(
           key: `day-${year}-${month}-${day}`,
           startDate: dStart,
           endDate: dEnd,
-          groupLabel: `${year}年${month}月`,
-          subLabel: `${day}\n${getDayOfWeekText(dayOfWeek)}`,
+          groupLabel: yearMonthFormat(year, month, monthName),
+          subLabel: `${day}\n${dayName}`,
           scale: 'day',
           isWeekend,
           isHoliday: isHolidayDay,
@@ -667,7 +690,7 @@ export function generateTimelineList(
             key: `day-${year}-${month}-${day}-${sIdx}`,
             startDate: slotStart,
             endDate: slotEnd,
-            groupLabel: `${year}年${month}月${day}日 (${getDayOfWeekText(dayOfWeek)})`,
+            groupLabel: yearMonthDayFormat(year, month, day, dayName, monthName),
             subLabel: `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`,
             scale: 'day',
             isWeekend,
@@ -685,45 +708,6 @@ export function generateTimelineList(
   return items
 }
 
-/**
- * 指定期間内の日別リストを生成する（互換性維持用）
- */
-export function generateDateList(
-  startDate: Date,
-  endDate: Date,
-  includeWeekends = true
-): TimelineDateItem[] {
-  const dates: TimelineDateItem[] = []
-  const current = new Date(startDate)
-  current.setHours(0, 0, 0, 0)
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayTime = today.getTime()
-
-  const endTime = endDate.getTime()
-
-  while (current.getTime() <= endTime) {
-    const dayOfWeek = current.getDay()
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-
-    if (includeWeekends || !isWeekend) {
-      dates.push({
-        date: new Date(current),
-        year: current.getFullYear(),
-        month: current.getMonth() + 1,
-        day: current.getDate(),
-        dayOfWeek,
-        isWeekend,
-        isToday: current.getTime() === todayTime,
-      })
-    }
-
-    current.setDate(current.getDate() + 1)
-  }
-
-  return dates
-}
 
 /**
  * 行リストからWBSコード（1, 1.1, 1.2 等）と階層深さを計算してフラット化する
@@ -787,11 +771,11 @@ export function calculateWbsHierarchy(rows: GanttRow[]): FlatRowItem[] {
 }
 
 /**
- * 曜日の日本語表記を取得する
+ * 曜日の表記を取得する（登録済みロケールまたはカスタム定義に対応）
  */
-export function getDayOfWeekText(dayOfWeek: number): string {
-  const texts = ['日', '月', '火', '水', '木', '金', '土']
-  return texts[dayOfWeek] ?? ''
+export function getDayOfWeekText(dayOfWeek: number, locale: ExcelLocale = 'ja'): string {
+  const localeDef = resolveExcelLocale(locale)
+  return localeDef.timeline?.dayNames?.[dayOfWeek] ?? ''
 }
 
 /**

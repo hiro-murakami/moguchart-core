@@ -3,14 +3,15 @@
 [日本語](./README.ja.md)
 
 Excel (.xlsx) export plugin for `@mogura/moguchart-core`.
-Using ExcelJS, it generates beautifully styled Excel files with an interactive timeline (cell-shaded Gantt chart) and data-focused task tables.
+Using ExcelJS, it generates beautifully styled Excel files with an interactive timeline (cell-shaded Gantt chart / schedule) completely in the browser.
 
 ## Features
 
-- 📊 **Excel Timeline (Visual Gantt)**: Calendar date columns on the right with colored task duration cells (summary tasks, weekend shading, progress labels).
-- 📑 **Data Table Export**: Clean task table format with auto-filters for data aggregation.
-- 🌳 **WBS Hierarchy**: Retains parent-child hierarchy with WBS codes (`1`, `1.1`), indentations, and bold text.
+- 📊 **Excel Timeline (Visual Gantt)**: Task attributes on the left (WBS, Task Name, Assignee, Dates, Progress) and calendar date columns on the right with colored task duration cells (summary tasks, weekend & holiday shading, progress labels).
+- 🌐 **Multi-Language Support & Custom Locales**: Built-in support for Japanese (`ja`), English (`en`), and Simplified Chinese (`zh`). Easily register custom language packs with `registerExcelLocale`.
+- 🌳 **WBS Hierarchy**: Retains parent-child hierarchy with WBS codes (`1`, `1.1`), indentations, and bold styling.
 - 🎨 **Color Customization**: Reflects theme colors and task-specific colors (`progressColor`) in Excel.
+- ⏱ **Multi-Scale Timelines**: Supports hour, day, week, and month scales, including sub-day and sub-hour column divisions.
 - ⚡ **Client-side Generation**: Generates and downloads `.xlsx` files directly in the browser.
 
 ## Installation
@@ -40,10 +41,10 @@ chart.use(excelPlugin({
 // Export with timeline
 await chart.exportExcel()
 
-// Export table only
+// Export in English
 await chart.exportExcel({
-  mode: 'table-only',
-  filename: 'task-list.xlsx'
+  locale: 'en',
+  filename: 'project-schedule.xlsx'
 })
 ```
 
@@ -54,19 +55,54 @@ async function handleExportExcel(chartElement) {
   const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
   await exportExcel(chartElement, {
     filename: 'schedule.xlsx',
-    mode: 'with-timeline',
+    locale: 'en',
     download: true
   })
 }
+```
+
+### 3. Adding Custom Locales
+
+To register and use additional languages:
+
+```typescript
+import { registerExcelLocale, exportExcel } from '@mogura/moguchart-plugin-excel'
+
+registerExcelLocale('fr', {
+  code: 'fr',
+  sheetName: 'Planning',
+  defaultFilename: 'planning-gantt.xlsx',
+  columns: {
+    wbs: 'WBS',
+    name: 'Nom de tâche',
+    assignee: 'Responsable',
+    startDate: 'Date de début',
+    endDate: 'Date de fin',
+    duration: 'Durée',
+    progress: 'Progression',
+  },
+  dateFormat: 'DD/MM/YYYY',
+  timeFormat: 'HH:mm',
+  monthYearFormat: (year, month) => `${month}/${year}`,
+  weekFormat: (year, week) => `Sem ${week}, ${year}`,
+  dayHeaderFormat: (date) => `${date.getDate()}`,
+  hourHeaderFormat: (hour) => `${hour}h`,
+  dayNames: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+  durationUnit: ' d',
+  summaryLabel: ' (Summary)',
+  percentLabel: '%',
+})
+
+await chart.exportExcel({ locale: 'fr' })
 ```
 
 ## Options (`ExportExcelOptions`)
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `locale` | `'ja' \| 'en' \| 'zh' \| string \| ExcelLocaleDefinition` | Auto-detect / `'ja'` | Language & locale definition |
 | `filename` | `string` | `'gantt-chart.xlsx'` | Output filename |
 | `sheetName` | `string` | `'工程表'` | Output worksheet name |
-| `mode` | `'with-timeline' \| 'table-only' \| 'both'` | `'with-timeline'` | Output mode |
 | `timelineScale` | `'hour' \| 'day' \| 'week' \| 'month'` | Auto-detect (`'day'`) | Timeline column unit (hour, day, week, month) |
 | `columnsPerUnit` | `number` | `1` | Number of columns per day or hour (e.g. 2 for half-day / 30-min slots) |
 | `snapDurationMinutes` | `number` | Auto-detect / `1440` or `60` | Snap duration in minutes to auto-calculate columns per day/hour (e.g. 720 -> 2 cols/day) |

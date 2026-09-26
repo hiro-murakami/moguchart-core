@@ -64,6 +64,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@mogura/moguchart-plugin-excel": "workspace:*",
     "@mogura/moguchart-plugin-export": "workspace:*",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.12.0",

@@ -1,6 +1,11 @@
 import ExcelJS from 'exceljs'
 import type { GanttChartElement, GanttTask } from '@mogura/moguchart-core'
-import type { ExportExcelOptions, ExcelExportColumn, ExcelExportMode, ExcelTimelineScale } from './types'
+import type {
+  ExportExcelOptions,
+  ExcelExportColumn,
+  ExcelTimelineScale,
+  ExcelLocale,
+} from './types'
 import {
   hexToArgb,
   sanitizeSheetName,
@@ -18,40 +23,93 @@ import {
   type FlatRowItem,
   type TimelineItem,
 } from './utils'
+import { resolveExcelLocale, jaLocale } from './i18n'
 
 /**
- * デフォルトの標準カラム定義
+ * デフォルトの標準カラム定義（多言語・カスタムロケール対応）
  */
-function getDefaultColumns(scale: ExcelTimelineScale = 'day'): ExcelExportColumn[] {
+export function getDefaultColumns(
+  scale: ExcelTimelineScale = 'day',
+  locale: ExcelLocale = 'ja'
+): ExcelExportColumn[] {
   const isMonth = scale === 'month'
   const isHour = scale === 'hour'
+  const localeDef = resolveExcelLocale(locale)
+  const cols = localeDef.columns || jaLocale.columns!
+  const defaultCols = jaLocale.columns!
+
+  const getStartHeader = () => {
+    if (isMonth) return cols.start?.month || defaultCols.start!.month!
+    if (isHour) return cols.start?.hour || defaultCols.start!.hour!
+    return cols.start?.day || defaultCols.start!.day!
+  }
+
+  const getEndHeader = () => {
+    if (isMonth) return cols.end?.month || defaultCols.end!.month!
+    if (isHour) return cols.end?.hour || defaultCols.end!.hour!
+    return cols.end?.day || defaultCols.end!.day!
+  }
+
+  const getDateFormat = () => {
+    if (isMonth) return cols.dateFormat?.month || defaultCols.dateFormat!.month!
+    if (isHour) return cols.dateFormat?.hour || defaultCols.dateFormat!.hour!
+    return cols.dateFormat?.day || defaultCols.dateFormat!.day!
+  }
+
+  const getDurationNumFmt = () => {
+    if (isHour) return cols.duration?.hourNumFmt || defaultCols.duration!.hourNumFmt!
+    return cols.duration?.dayNumFmt || defaultCols.duration!.dayNumFmt!
+  }
+
   return [
-    { key: 'wbs', header: 'WBS', width: 9, align: 'center' },
-    { key: 'rowName', header: 'カテゴリ/行', width: 18, align: 'left' },
-    { key: 'taskName', header: 'タスク名', width: 28, align: 'left' },
+    { key: 'taskNo', header: cols.taskNo || defaultCols.taskNo || 'No.', width: 6, align: 'center' },
+    { key: 'wbs', header: cols.wbs || defaultCols.wbs || 'WBS', width: 9, align: 'center' },
+    {
+      key: 'rowName',
+      header: cols.rowName || defaultCols.rowName || 'カテゴリ/行',
+      width: 18,
+      align: 'left',
+    },
+    {
+      key: 'taskName',
+      header: cols.taskName || defaultCols.taskName || 'タスク名',
+      width: 28,
+      align: 'left',
+    },
     {
       key: 'start',
-      header: isMonth ? '開始月' : isHour ? '開始日時' : '開始日',
+      header: getStartHeader(),
       width: isMonth ? 11 : isHour ? 18 : 13,
       align: 'center',
-      numFmt: isMonth ? 'yyyy/mm' : isHour ? 'yyyy/mm/dd hh:mm' : 'yyyy/mm/dd',
+      numFmt: getDateFormat(),
     },
     {
       key: 'end',
-      header: isMonth ? '終了月' : isHour ? '終了日時' : '終了日',
+      header: getEndHeader(),
       width: isMonth ? 11 : isHour ? 18 : 13,
       align: 'center',
-      numFmt: isMonth ? 'yyyy/mm' : isHour ? 'yyyy/mm/dd hh:mm' : 'yyyy/mm/dd',
+      numFmt: getDateFormat(),
     },
     {
       key: 'duration',
-      header: '期間',
+      header: cols.duration?.header || defaultCols.duration?.header || '期間',
       width: 10,
       align: 'right',
-      numFmt: isHour ? '#,##0.#"時間"' : '#,##0"日"',
+      numFmt: getDurationNumFmt(),
     },
-    { key: 'progress', header: '進捗', width: 10, align: 'right', numFmt: '0%' },
-    { key: 'dependencies', header: '先行タスク', width: 14, align: 'left' },
+    {
+      key: 'progress',
+      header: cols.progress || defaultCols.progress || '進捗',
+      width: 10,
+      align: 'right',
+      numFmt: '0%',
+    },
+    {
+      key: 'dependencies',
+      header: cols.dependencies || defaultCols.dependencies || '先行タスク',
+      width: 14,
+      align: 'left',
+    },
   ]
 }
 
@@ -63,13 +121,23 @@ export async function exportGanttToExcel(
   options: ExportExcelOptions = {}
 ): Promise<Blob> {
   const rows = chart.rows || []
-  const mode: ExcelExportMode = options.mode || 'with-timeline'
   const filename = options.filename || 'gantt-chart.xlsx'
-  const baseSheetName = sanitizeSheetName(options.sheetName || '工程表', '工程表', mode === 'both' ? 24 : 31)
-  const timelineSheetName = baseSheetName
+  const localeDef = resolveExcelLocale(options.locale, chart)
+  const defaultSheetName = localeDef.sheets?.gantt || '工程表'
+  const sheetName = sanitizeSheetName(
+    options.sheetName || defaultSheetName,
+    defaultSheetName,
+    31
+  )
   const themeArgb = hexToArgb(options.themeColor, 'FF3B82F6')
   const scale = detectTimelineScale(chart, options.timelineScale)
-  const columns = options.columns && options.columns.length > 0 ? options.columns : getDefaultColumns(scale)
+  const defaultCols = getDefaultColumns(scale, localeDef)
+  const columns =
+    typeof options.columns === 'function'
+      ? options.columns(defaultCols)
+      : options.columns && options.columns.length > 0
+        ? options.columns
+        : defaultCols
 
   const flatItems = calculateWbsHierarchy(rows)
   const columnsPerUnit = detectColumnsPerUnit(chart, options, scale)
@@ -84,34 +152,25 @@ export async function exportGanttToExcel(
     options.includeWeekends ?? true,
     columnWidth,
     columnsPerUnit,
-    isHoliday
+    isHoliday,
+    localeDef
   )
 
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Moguchart'
   workbook.created = new Date()
 
-  if (mode === 'with-timeline' || mode === 'both') {
-    buildTimelineSheet(
-      workbook,
-      timelineSheetName,
-      flatItems,
-      columns,
-      timelineList,
-      themeArgb,
-      holidayArgb,
-      options,
-      scale
-    )
-  }
-
-  if (mode === 'table-only' || mode === 'both') {
-    const tableSheetName =
-      mode === 'both'
-        ? `${baseSheetName}_データ一覧`
-        : sanitizeSheetName(options.sheetName || '工程表', '工程表', 31)
-    buildTableSheet(workbook, tableSheetName, flatItems, columns, themeArgb, scale)
-  }
+  buildTimelineSheet(
+    workbook,
+    sheetName,
+    flatItems,
+    columns,
+    timelineList,
+    themeArgb,
+    holidayArgb,
+    options,
+    scale
+  )
 
   // ワークブックをバッファに書き出し
   const buffer = await workbook.xlsx.writeBuffer()
@@ -204,7 +263,28 @@ function buildTimelineSheet(
     applyTimelineSubHeaderStyle(cell, d, options.highlightToday ?? true, holidayArgb, scale)
   })
 
+  // 時間単位で1時間に複数列ある場合、サブヘッダー（行2）を1時間ごとにセル結合
+  if (scale === 'hour') {
+    let currentHourKey = ''
+    let hourStartCol = -1
+    timelineList.forEach((d, idx) => {
+      const colIndex = columns.length + idx + 1
+      const hourKey = `${d.startDate.getFullYear()}-${d.startDate.getMonth()}-${d.startDate.getDate()}-${d.startDate.getHours()}`
+      if (hourKey !== currentHourKey) {
+        if (hourStartCol !== -1 && colIndex - 1 > hourStartCol) {
+          ws.mergeCells(2, hourStartCol, 2, colIndex - 1)
+        }
+        currentHourKey = hourKey
+        hourStartCol = colIndex
+      }
+    })
+    if (hourStartCol !== -1 && columns.length + timelineList.length > hourStartCol) {
+      ws.mergeCells(2, hourStartCol, 2, columns.length + timelineList.length)
+    }
+  }
+
   // --- データ行の出力 ---
+  const { taskIdToNoMap, taskToNoMap } = buildTaskIdToNoMap(flatItems)
   let currentRowIndex = 3
 
   for (const item of flatItems) {
@@ -215,7 +295,7 @@ function buildTimelineSheet(
     if (tasks.length === 0) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 20
-      renderTableRowCells(excelRow, columns, item, null, depth, isParent, scale)
+      renderTableRowCells(excelRow, columns, item, null, null, taskIdToNoMap, depth, isParent, scale)
       applyTimelineEmptyCells(excelRow, columns.length, timelineList, holidayArgb, scale)
       currentRowIndex++
       continue
@@ -224,7 +304,8 @@ function buildTimelineSheet(
     for (const task of tasks) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 22
-      renderTableRowCells(excelRow, columns, item, task, depth, isParent, scale)
+      const taskNo = taskToNoMap.get(task) ?? null
+      renderTableRowCells(excelRow, columns, item, task, taskNo, taskIdToNoMap, depth, isParent, scale)
 
       // タイムラインのセル塗りつぶし描画
       renderTimelineTaskBar(excelRow, columns.length, timelineList, task, isParent, themeArgb, holidayArgb, scale)
@@ -237,62 +318,34 @@ function buildTimelineSheet(
   applyThinBorders(ws, 1, currentRowIndex - 1, 1, columns.length + timelineList.length)
 }
 
+
+
 /**
- * データ一覧（テーブルのみ）シートを構築する
+ * 全タスクに通し番号（1, 2, ...）を付与し、taskIdからタスクNo.への変換マップを生成する
  */
-function buildTableSheet(
-  workbook: ExcelJS.Workbook,
-  sheetName: string,
-  flatItems: FlatRowItem[],
-  columns: ExcelExportColumn[],
-  themeArgb: string,
-  scale: ExcelTimelineScale = 'day'
-): void {
-  const ws = workbook.addWorksheet(sheetName, {
-    views: [{ state: 'frozen', ySplit: 1 }],
-  })
-
-  // ヘッダー行
-  const headerRow = ws.getRow(1)
-  headerRow.height = 24
-
-  columns.forEach((col, idx) => {
-    const colIndex = idx + 1
-    ws.getColumn(colIndex).width = col.width || 15
-    const cell = headerRow.getCell(colIndex)
-    cell.value = col.header
-    applyHeaderStyle(cell, themeArgb)
-  })
-
-  let currentRowIndex = 2
+function buildTaskIdToNoMap(flatItems: FlatRowItem[]): {
+  taskIdToNoMap: Map<string | number, number>
+  taskToNoMap: Map<GanttTask, number>
+} {
+  const taskIdToNoMap = new Map<string | number, number>()
+  const taskToNoMap = new Map<GanttTask, number>()
+  let currentNo = 1
 
   for (const item of flatItems) {
-    const { row, depth, isParent } = item
-    const tasks = Array.isArray(row.tasks) ? row.tasks : []
-
-    if (tasks.length === 0) {
-      const excelRow = ws.getRow(currentRowIndex)
-      excelRow.height = 20
-      renderTableRowCells(excelRow, columns, item, null, depth, isParent, scale)
-      currentRowIndex++
-      continue
-    }
-
+    const tasks = Array.isArray(item.row.tasks) ? item.row.tasks : []
     for (const task of tasks) {
-      const excelRow = ws.getRow(currentRowIndex)
-      excelRow.height = 22
-      renderTableRowCells(excelRow, columns, item, task, depth, isParent, scale)
-      currentRowIndex++
+      if (task) {
+        taskToNoMap.set(task, currentNo)
+        if (task.id !== undefined && task.id !== null) {
+          taskIdToNoMap.set(task.id, currentNo)
+          taskIdToNoMap.set(String(task.id), currentNo)
+        }
+        currentNo++
+      }
     }
   }
 
-  // オートフィルターの有効化
-  ws.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: Math.max(currentRowIndex - 1, 1), column: columns.length },
-  }
-
-  applyThinBorders(ws, 1, currentRowIndex - 1, 1, columns.length)
+  return { taskIdToNoMap, taskToNoMap }
 }
 
 /**
@@ -303,6 +356,8 @@ function renderTableRowCells(
   columns: ExcelExportColumn[],
   item: FlatRowItem,
   task: GanttTask | null,
+  taskNo: number | null,
+  taskIdToNoMap: Map<string | number, number>,
   depth: number,
   isParent: boolean,
   scale: ExcelTimelineScale = 'day'
@@ -317,6 +372,10 @@ function renderTableRowCells(
       value = col.getValue(task || ({} as any), row, excelRow.number)
     } else {
       switch (col.key) {
+        case 'taskNo':
+        case 'no':
+          value = taskNo != null ? taskNo : ''
+          break
         case 'wbs':
           value = wbsNumber
           break
@@ -397,11 +456,38 @@ function renderTableRowCells(
             value = ''
           }
           break
-        case 'dependencies':
-          value = task?.dependencies?.join(', ') || ''
+        case 'dependencies': {
+          const rawDeps =
+            task?.dependencies ??
+            (task as any)?.attribute?.dependencies
+          if (Array.isArray(rawDeps) && rawDeps.length > 0) {
+            const depNos = rawDeps.map((depId) => {
+              const foundNo = taskIdToNoMap.get(depId) ?? taskIdToNoMap.get(String(depId))
+              return foundNo != null ? String(foundNo) : String(depId)
+            })
+            value = depNos.join(', ')
+          } else if (rawDeps !== undefined && rawDeps !== null && rawDeps !== '') {
+            const foundNo = taskIdToNoMap.get(rawDeps) ?? taskIdToNoMap.get(String(rawDeps))
+            value = foundNo != null ? String(foundNo) : String(rawDeps)
+          } else {
+            value = ''
+          }
           break
-        default:
-          value = ''
+        }
+        default: {
+          if (task && col.key) {
+            const attrValue = (task as any).attribute?.[col.key] ?? (task as any)[col.key]
+            if (Array.isArray(attrValue)) {
+              value = attrValue.filter(Boolean).join(', ')
+            } else if (attrValue !== undefined && attrValue !== null) {
+              value = attrValue
+            } else {
+              value = ''
+            }
+          } else {
+            value = ''
+          }
+        }
       }
     }
 
@@ -535,7 +621,7 @@ function applyHeaderStyle(cell: ExcelJS.Cell, themeArgb: string): void {
 }
 
 /**
- * 年月グループヘッダーセルのスタイル
+ * 年月・日付グループヘッダーセルのスタイル
  */
 function applyDateHeaderGroupStyle(cell: ExcelJS.Cell, themeArgb: string): void {
   cell.fill = {
@@ -544,7 +630,7 @@ function applyDateHeaderGroupStyle(cell: ExcelJS.Cell, themeArgb: string): void 
     fgColor: { argb: themeArgb },
   }
   cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
-  cell.alignment = { vertical: 'middle', horizontal: 'center' }
+  cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
 }
 
 /**
@@ -581,7 +667,8 @@ function applyTimelineSubHeaderStyle(
     pattern: 'solid',
     fgColor: { argb: bgArgb },
   }
-  cell.font = { size: 8, bold: true, color: { argb: textArgb } }
+  const fontSize = currentScale === 'hour' ? 10 : 8
+  cell.font = { size: fontSize, bold: true, color: { argb: textArgb } }
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
 }
 

@@ -132,11 +132,11 @@ let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
 let isExporting = false
-let exportingFormat: 'png' | 'pdf' | null = null
+let exportingFormat: 'png' | 'pdf' | 'excel' | null = null
 
 let unassignedTasks: GanttTask[] = generateUnassignedTasks(t)
 
-const handleExport = async (format: 'png' | 'pdf') => {
+const handleExport = async (format: 'png' | 'pdf' | 'excel') => {
   if (isExporting) return
   const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
   if (!chart) return
@@ -146,15 +146,27 @@ const handleExport = async (format: 'png' | 'pdf') => {
   renderApp()
 
   try {
-    if (!chart.pluginManager.hasPlugin('export')) {
-      const { exportPlugin } = await import('@mogura/moguchart-plugin-export')
-      chart.use(exportPlugin())
+    if (format === 'excel') {
+      if (!chart.pluginManager.hasPlugin('excel')) {
+        const { excelPlugin } = await import('@mogura/moguchart-plugin-excel')
+        chart.use(excelPlugin())
+      }
+      await (chart as any).exportExcel?.({
+        download: true,
+        filename: `${t.excelFilename || 'gantt-chart'}`,
+        locale: currentLang,
+      })
+    } else {
+      if (!chart.pluginManager.hasPlugin('export')) {
+        const { exportPlugin } = await import('@mogura/moguchart-plugin-export')
+        chart.use(exportPlugin())
+      }
+      await chart.exportImage(format, {
+        download: true,
+        filename: 'gantt-html2canvas',
+        splitHeight: 1000,
+      })
     }
-    await chart.exportImage(format, {
-      download: true,
-      filename: 'gantt-html2canvas',
-      splitHeight: 1000,
-    })
   } catch (err) {
     console.error('[Demo] Export failed:', err)
   } finally {
@@ -454,6 +466,7 @@ const renderApp = () => {
     headerBorder: isDark ? '#334155' : '#e2e8f0',
     exportAmber: '#f59e0b',
     exportRed: '#ef4444',
+    exportGreen: '#16a34a',
   }
 
   const appStyles = `background-color: ${c.bg}; color: ${c.text};`
@@ -638,6 +651,7 @@ const renderApp = () => {
             <button
               class="export-btn"
               style="background: ${c.exportAmber};"
+              title="${t.exportPngTitle}"
               ?disabled="${isExporting}"
               @click="${() => handleExport('png')}"
             >
@@ -646,10 +660,20 @@ const renderApp = () => {
             <button
               class="export-btn"
               style="background: ${c.exportRed};"
+              title="${t.exportPdfTitle}"
               ?disabled="${isExporting}"
               @click="${() => handleExport('pdf')}"
             >
               ${isExporting && exportingFormat === 'pdf' ? '⏳ PDF...' : '📄 PDF'}
+            </button>
+            <button
+              class="export-btn"
+              style="background: ${c.exportGreen};"
+              title="${t.exportExcelTitle}"
+              ?disabled="${isExporting}"
+              @click="${() => handleExport('excel')}"
+            >
+              ${isExporting && exportingFormat === 'excel' ? '⏳ Excel...' : '📊 Excel'}
             </button>
             <button
               class="export-btn"
@@ -682,7 +706,7 @@ const renderApp = () => {
               class="export-btn"
               style="background: #475569;"
               ?disabled="${!canUndo}"
-              title="元に戻す (Cmd+Z / Ctrl+Z)"
+              title="${t.undoTitle}"
               @click="${() => {
                 const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
                 if (chart) {
@@ -696,7 +720,7 @@ const renderApp = () => {
               class="export-btn"
               style="background: #475569;"
               ?disabled="${!canRedo}"
-              title="やり直す (Cmd+Shift+Z / Ctrl+Y)"
+              title="${t.redoTitle}"
               @click="${() => {
                 const chart = document.getElementById('gantt-chart-instance') as GanttChartElement
                 if (chart) {

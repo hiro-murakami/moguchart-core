@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-26
+
+### Added
+
+- **Excel Export Plugin (`@mogura/moguchart-plugin-excel`)**:
+  - Introduced a dedicated package for exporting Gantt charts into beautifully styled Excel (`.xlsx`) files entirely within the browser.
+  - **Visual Timeline Schedule Export**:
+    - Task attributes positioned on the left (WBS code, Task Name, Assignee, Start Date, End Date, Duration, Progress %, and custom columns).
+    - Interactive timeline calendar columns expanded on the right, cell-shading task duration spans with theme or task-specific colors (`progressColor`).
+    - Summary parent task styling, progress label display, and hierarchy-preserving indentation and bold text.
+    - Weekend shading (Saturday: soft blue, Sunday & holidays: soft red/pink) and today column highlight.
+  - **Multi-Scale & Column Division Support**:
+    - Auto-detection or explicit configuration for hour, day, week, and month timeline scales.
+    - Automatic calculation of sub-day/sub-hour columns via `columnsPerUnit` and `snapDurationMinutes` (e.g. half-day or 30-minute intervals).
+  - **Multi-Language Support & Custom Locale Registry**:
+    - Built-in localization support for Japanese (`ja`), English (`en`), and Simplified Chinese (`zh`).
+    - Localized worksheet names, table column headers, and date/time formatting via the `locale` option.
+    - Extensible custom locale registration system via `registerExcelLocale` (`ExcelLocaleDefinition`).
+  - **Plugin and Dynamic Import APIs**:
+    - Adds `chart.exportExcel()` method via `chart.use(excelPlugin(options))`.
+    - Supports standalone `exportExcel(chart, options)` for bundle-efficient on-demand dynamic imports.
+- **Demo Page Enhancements**:
+  - Added an "Export to Excel" button to the interactive demo toolbar.
+  - Seamlessly synced Excel export language with the demo page language toggle (Japanese / English).
+
+---
+
 ## [1.2.0] - 2026-09-22
 
 ### Added
@@ -473,6 +500,7 @@ This milestone introduces comprehensive support for **WBS (Hierarchical Tree Str
 - UMD and ESM dual bundle outputs.
 - Bundled TypeScript type definitions.
 
+[1.3.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.0.0...v1.1.0

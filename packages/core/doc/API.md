@@ -207,6 +207,7 @@ Public methods that can be called on the component instance.
 | `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
 | `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
 | `exportImage`             | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `exportExcel`             | `(options?: ExportExcelOptions) => Promise<void>`                                           | Exports the Gantt chart into a styled Excel (`.xlsx`) file (**requires `@mogura/moguchart-plugin-excel`**). Supports multi-language output (`ja`, `en`, `zh`, custom locales) and auto-download. |
 | `getRowPositions`         | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
 | `toggleRowCollapse`       | `(rowId: string, collapsed?: boolean) => boolean`                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
 | `collapseAll`             | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
@@ -304,6 +305,36 @@ interface ExportImageOptions {
 ```
 
 > **Note:** `exportImage` exports the entire chart (all scrollable area) regardless of current scroll position. Shadow DOM styles are automatically collected. However, external fonts or images might not render correctly if they are cross-origin.
+
+#### exportExcel
+
+> **Note:** Calling `exportExcel` requires installing and registering `@mogura/moguchart-plugin-excel` (via `chart.use(excelPlugin())` or `option.plugins = [excelPlugin()]`).
+
+```javascript
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+const chart = document.querySelector('gantt-chart')
+chart.use(excelPlugin({
+  themeColor: '#3B82F6',
+  defaultFilename: 'project-schedule.xlsx',
+}))
+
+// Export with default settings
+await chart.exportExcel()
+
+// Export specifying English locale and filename
+await chart.exportExcel({
+  locale: 'en',
+  filename: 'project-schedule.xlsx',
+})
+```
+
+Or dynamically load the plugin on-demand via Dynamic Import:
+
+```javascript
+const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
+await exportExcel(chart, { filename: 'schedule.xlsx', locale: 'en' })
+```
 
 #### zoomTo / zoomToFit / resetZoom
 

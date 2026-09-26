@@ -7,6 +7,7 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
       '@mogura/moguchart-core': path.resolve(import.meta.dirname, './src/index.ts'),
       '@mogura/moguchart-plugin-export': path.resolve(import.meta.dirname, '../plugin-export/src/index.ts'),
+      '@mogura/moguchart-plugin-excel': path.resolve(import.meta.dirname, '../plugin-excel/src/index.ts'),
     },
   },
   // Vercel環境（process.env.VERCEL）または BUILD_MODE が 'demo' の場合はアプリとしてビルド

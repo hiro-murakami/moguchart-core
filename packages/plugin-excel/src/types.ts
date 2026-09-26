@@ -1,4 +1,7 @@
 import type { GanttRow, GanttTask } from '@mogura/moguchart-core'
+import type { ExcelLocaleDefinition } from './i18n'
+
+export type { ExcelLocaleDefinition }
 
 /**
  * Excelエクスポート時のカスタムカラム定義
@@ -18,13 +21,6 @@ export interface ExcelExportColumn {
   getValue?: (task: GanttTask, row: GanttRow, rowIndex: number) => any
 }
 
-/**
- * Excelエクスポートの出力モード
- * - 'with-timeline': 左側にタスク表 + 右側に日付列（セル塗りつぶしガント）
- * - 'table-only': タスクデータ一覧のみ（集計・加工しやすいテーブル）
- * - 'both': 2つのシート（ガント表示 / 生データ）を両方出力
- */
-export type ExcelExportMode = 'with-timeline' | 'table-only' | 'both'
 
 /**
  * タイムライン列の刻み単位
@@ -32,15 +28,22 @@ export type ExcelExportMode = 'with-timeline' | 'table-only' | 'both'
 export type ExcelTimelineScale = 'hour' | 'day' | 'week' | 'month'
 
 /**
+ * Excelエクスポートの対応言語・ロケール指定
+ * - 文字列: 'ja' | 'en' | 'zh' や登録済みのロケール識別名、任意の言語コード
+ * - オブジェクト: 独自の ExcelLocaleDefinition 定義
+ */
+export type ExcelLocale = 'ja' | 'en' | 'zh' | (string & {}) | ExcelLocaleDefinition
+
+/**
  * Excelエクスポートの実行オプション
  */
 export interface ExportExcelOptions {
+  /** 言語・ロケール ('ja' | 'en' | 'zh' 等の識別文字列、またはカスタム定義オブジェクト) */
+  locale?: ExcelLocale
   /** 出力ファイル名 (デフォルト: 'gantt-chart.xlsx') */
   filename?: string
-  /** シート名 (デフォルト: '工程表') */
+  /** シート名 (デフォルト: '工程表' / 英語時 'Gantt Chart') */
   sheetName?: string
-  /** 出力モード (デフォルト: 'with-timeline') */
-  mode?: ExcelExportMode
   /** 日付の表示形式 (デフォルト: 'YYYY/MM/DD') */
   dateFormat?: string
   /** タイムラインの単位 (デフォルト: 'day') */
@@ -65,8 +68,8 @@ export interface ExportExcelOptions {
   startDate?: Date
   /** タイムラインの表示終了日 (指定しない場合は全タスクの最大終了日または開始日から1ヶ月後) */
   endDate?: Date
-  /** 出力カラムのカスタム定義配列 (指定しない場合は標準カラムが出力されます) */
-  columns?: ExcelExportColumn[]
+  /** 出力カラムのカスタム定義配列、または標準カラム配列を受け取ってカスタマイズする関数 (指定しない場合は標準カラムが出力されます) */
+  columns?: ExcelExportColumn[] | ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])
   /** 自動ダウンロードを実行するか (デフォルト: true。ブラウザ環境のみ有効) */
   download?: boolean
 }
@@ -75,12 +78,16 @@ export interface ExportExcelOptions {
  * プラグイン初期化時の設定オプション
  */
 export interface ExcelPluginConfig {
+  /** デフォルトの言語・ロケール */
+  locale?: ExcelLocale
+  /** プラグイン初期化時に追加登録するカスタムロケール辞書 */
+  locales?: Record<string, ExcelLocaleDefinition>
   /** デフォルトのファイル名 */
   defaultFilename?: string
   /** デフォルトのシート名 */
   defaultSheetName?: string
-  /** デフォルトの出力モード */
-  defaultMode?: ExcelExportMode
+  /** デフォルトの出力カラム定義、またはカスタマイズ関数 */
+  defaultColumns?: ExcelExportColumn[] | ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])
   /** デフォルトの日付形式 */
   dateFormat?: string
   /** デフォルトのタイムライン単位 */

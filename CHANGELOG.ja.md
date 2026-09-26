@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-26
+
+### Added
+
+- **Excel エクスポートプラグイン (`@mogura/moguchart-plugin-excel`) の追加**:
+  - ガントチャートを美しくスタイリングされた Excel（`.xlsx`）ファイルとしてブラウザ完結でエクスポートする新パッケージを追加
+  - **タイムライン付き工程表エクスポート**:
+    - 左側にタスク属性（WBS番号、タスク名、担当者、開始日、終了日、期間、進捗率、カスタム列）を配置
+    - 右側にタイムラインカレンダー列を展開し、タスクの開始日〜終了日に対応するセルを自動着色（テーマカラーまたは個別バー色 `progressColor`）
+    - サマリータスク（親タスク）のスタイル、進捗率パーセント表記、WBS階層に応じたインデント・太字装飾をサポート
+    - 週末（土曜: 淡青、日曜: 淡赤）および祝祭日（淡赤）の列背景色分け表示
+    - 今日の日付列の自動ハイライト
+  - **マルチスケール & 列分割対応**:
+    - タイムラインスケール（`hour` / `day` / `week` / `month`）の自動判定および明示指定をサポート
+    - 1日・1時間あたりの列分割（`columnsPerUnit`, `snapDurationMinutes`）から列数を自動計算し、半日単位や30分刻みの時間割工程表を出力可能
+  - **多言語対応 & カスタムロケールシステム**:
+    - 標準で日本語（`ja`）、英語（`en`）、中国語簡体字（`zh`）の3言語ロケールを内包
+    - `locale` オプションによりシート名、各列ヘッダー、日付・曜日フォーマットを言語ごとに最適化
+    - `registerExcelLocale` 関数により、フランス語やドイツ語などの独自言語定義（`ExcelLocaleDefinition`）を追加登録可能
+  - **プラグインおよび動的インポート API**:
+    - `chart.use(excelPlugin(options))` による `chart.exportExcel()` の提供
+    - `exportExcel(chart, options)` による必要な時だけのオンデマンド遅延読み込み（Dynamic Import）に対応
+- **デモページの機能強化**:
+  - デモ画面ツールバーに「Excelエクスポート」ボタンを追加
+  - 画面上部の言語切り替え（日本語 / English）に連動して、エクスポートされる Excel ファイルの言語（ロケール）も自動切り替え
+
+---
+
 ## [1.2.0] - 2026-09-22
 
 ### Added
@@ -441,6 +469,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[1.3.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/hiro-murakami/moguchart-core/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.0.0...v1.1.0

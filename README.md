@@ -797,7 +797,7 @@ await exportChart(chart, 'png', { download: true })
 
 #### Excel Export Plugin (`@mogura/moguchart-plugin-excel`)
 
-Export your Gantt chart data into beautifully styled Excel (`.xlsx`) files. Supports an interactive timeline view with colored task cells (visual Gantt) and clean, auto-filtered data tables completely in the browser.
+Export your Gantt chart data into beautifully styled Excel (`.xlsx`) files completely in the browser. Supports an interactive timeline view with colored task cells (visual Gantt) and multi-language support (English, Japanese, Simplified Chinese, or custom locales).
 
 ```bash
 pnpm add @mogura/moguchart-plugin-excel
@@ -816,10 +816,10 @@ chart.use(excelPlugin({
 // Export with visual timeline (auto-downloads in browser)
 await chart.exportExcel()
 
-// Export table only
+// Export in English
 await chart.exportExcel({
-  mode: 'table-only',
-  filename: 'task-list.xlsx',
+  locale: 'en',
+  filename: 'project-schedule.xlsx',
 })
 ```
 
@@ -827,7 +827,7 @@ Or dynamically import and run as a standalone function:
 
 ```javascript
 const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
-await exportExcel(chart, { filename: 'schedule.xlsx' })
+await exportExcel(chart, { filename: 'schedule.xlsx', locale: 'en' })
 ```
 
 #### Zoom Operations (`zoomIn`, `zoomOut`, `zoomToPercent`, `zoomToScale`, `zoomToFit`, `resetZoom`)

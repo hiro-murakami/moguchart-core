@@ -38,6 +38,12 @@ export interface DemoTexts {
   collapseAllTitle: string
   expandAll: string
   expandAllTitle: string
+  exportPngTitle: string
+  exportPdfTitle: string
+  exportExcelTitle: string
+  undoTitle: string
+  redoTitle: string
+  excelFilename: string
   // セクションタイトル
   sectionCalendar: string
   sectionBehavior: string
@@ -150,6 +156,12 @@ export const jaTexts: DemoTexts = {
   collapseAllTitle: '親行を一括折りたたみ',
   expandAll: '展開',
   expandAllTitle: 'すべての行を展開',
+  exportPngTitle: 'PNG形式でガントチャートを画像エクスポート',
+  exportPdfTitle: 'PDF形式でガントチャートをエクスポート',
+  exportExcelTitle: 'Excel (.xlsx) 形式でガントチャートをエクスポート',
+  undoTitle: '元に戻す (Cmd+Z / Ctrl+Z)',
+  redoTitle: 'やり直す (Cmd+Shift+Z / Ctrl+Y)',
+  excelFilename: '工程表',
   sectionCalendar: 'カレンダー表示',
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
@@ -323,6 +335,12 @@ export const enTexts: DemoTexts = {
   collapseAllTitle: 'Collapse all parent rows',
   expandAll: 'Expand',
   expandAllTitle: 'Expand all rows',
+  exportPngTitle: 'Export Gantt chart as PNG image',
+  exportPdfTitle: 'Export Gantt chart as PDF',
+  exportExcelTitle: 'Export Gantt chart as Excel (.xlsx)',
+  undoTitle: 'Undo (Cmd+Z / Ctrl+Z)',
+  redoTitle: 'Redo (Cmd+Shift+Z / Ctrl+Y)',
+  excelFilename: 'gantt-chart',
   sectionCalendar: 'Calendar',
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',

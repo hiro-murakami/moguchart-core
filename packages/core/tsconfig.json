@@ -26,7 +26,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@mogura/moguchart-plugin-export": ["../plugin-export/src/index.ts"]
+      "@mogura/moguchart-plugin-export": ["../plugin-export/src/index.ts"],
+      "@mogura/moguchart-plugin-excel": ["../plugin-excel/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]

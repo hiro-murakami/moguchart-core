@@ -207,6 +207,7 @@ interface GanttChartOption {
 | `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
 | `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
 | `exportImage`              | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `exportExcel`              | `(options?: ExportExcelOptions) => Promise<void>`                                           | ガントチャートをスタイリングされた Excel（`.xlsx`）ファイルとしてエクスポートします（**`@mogura/moguchart-plugin-excel` プラグインの登録が必要**）。多言語対応（`ja`, `en`, `zh`）やカスタムロケールに対応。デフォルトで自動ダウンロードされます。 |
 | `getRowPositions`          | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
 | `toggleRowCollapse`        | `(rowId: string, collapsed?: boolean) => boolean`                                           | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。                                       |
 | `collapseAll`              | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                                                             |
@@ -304,6 +305,36 @@ interface ExportImageOptions {
 ```
 
 > **Note:** `exportImage` はスクロール位置によらずチャート全体（スクロール領域すべて）をエクスポートします。Shadow DOM のスタイルも自動的に収集されます。ただし、外部フォントや画像がクロスオリジンの場合は正しく描画されないことがあります。
+
+#### exportExcel
+
+> **Note:** 本メソッドの利用には `@mogura/moguchart-plugin-excel` の登録（`chart.use(excelPlugin())` または `option.plugins = [excelPlugin()]`）が必要です。
+
+```javascript
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+const chart = document.querySelector('gantt-chart')
+chart.use(excelPlugin({
+  themeColor: '#3B82F6',
+  defaultFilename: 'プロジェクト工程表.xlsx',
+}))
+
+// 標準設定（日本語）でエクスポート
+await chart.exportExcel()
+
+// 英語ロケールでファイル名を指定してエクスポート
+await chart.exportExcel({
+  locale: 'en',
+  filename: 'project-schedule.xlsx',
+})
+```
+
+または遅延読み込み（動的インポート）によるスタンドアロン実行も可能です：
+
+```javascript
+const { exportExcel } = await import('@mogura/moguchart-plugin-excel')
+await exportExcel(chart, { filename: '工程表.xlsx', locale: 'ja' })
+```
 
 #### zoomTo / zoomToFit / resetZoom
 
