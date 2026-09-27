@@ -758,8 +758,11 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleTaskProgressChange = (e: CustomEvent<TaskProgressChangeEventDetail>) => {
-    if (this.option.readOnly || e.detail.cancelled) return
+    if (e.detail.cancelled) return
     const { task, progress, originalProgress } = e.detail
+    if (this.option.readOnly && !task.progressResizable) return
+    if (task.progressResizable === false) return
+
     const origProgress = originalProgress ?? 0
     if (origProgress === progress) return
 
