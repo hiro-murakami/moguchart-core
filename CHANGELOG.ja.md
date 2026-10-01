@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-10-01
+
+### Fixed
+
+- **読み取り専用モードにおける進捗率リサイズの制御を修正**:
+  - `readOnly: true` が有効な場合でも、タスク単位で `progressResizable: true` が指定されている場合に、進捗率のリサイズ・変更操作が反映されるよう修正
+  - `task.progressResizable === false` が明示指定されたタスクについて、進捗率の変更操作が確実に無効化されるガード処理を追加
+
+---
+
 ## [1.3.0] - 2026-09-27
 
 ### Added
