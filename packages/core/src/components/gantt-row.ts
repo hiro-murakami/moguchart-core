@@ -491,13 +491,17 @@ export class GanttRowElement extends LitElement {
       return
     }
 
+    const currentHeader = e.currentTarget as HTMLElement
+    const contentTarget = (this.shadowRoot?.querySelector('.row-header-content') as HTMLElement) ?? currentHeader
+
     this.dispatchEvent(
       new CustomEvent('row-header-dblclick', {
         detail: {
           rowId: this.row.id,
           row: this.row,
           event: e,
-          target: e.currentTarget as HTMLElement,
+          target: currentHeader,
+          contentTarget,
         },
         bubbles: true,
         composed: true,

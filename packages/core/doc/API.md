@@ -893,6 +893,7 @@ interface RowHeaderDblClickEventDetail {
   row: GanttRow // Double-clicked row data
   event: MouseEvent // Original double-click event
   target: HTMLElement // Double-clicked header element
+  contentTarget?: HTMLElement // Row name content element (excluding indent spacers and toggle icons)
 }
 ```
 

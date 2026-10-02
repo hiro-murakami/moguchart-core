@@ -782,6 +782,8 @@ export interface RowHeaderDblClickEventDetail {
   event: MouseEvent
   /** ダブルクリックされたヘッダー要素 */
   target: HTMLElement
+  /** ダブルクリックされた行名コンテンツ要素（インデントやトグルアイコンを除いた領域） */
+  contentTarget?: HTMLElement
 }
 
 /**

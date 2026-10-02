@@ -1055,6 +1055,7 @@ interface RowHeaderDblClickEventDetail {
   row: GanttRow // ダブルクリックされた行データ
   event: MouseEvent // 元のダブルクリックイベント
   target: HTMLElement // ダブルクリックされたヘッダー要素
+  contentTarget?: HTMLElement // 行名コンテンツ要素（インデントやトグルアイコンを除いた領域）
 }
 ```
 
