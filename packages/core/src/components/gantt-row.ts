@@ -236,10 +236,10 @@ export class GanttRowElement extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 16px;
-      height: 16px;
-      margin-left: 6px;
-      margin-right: 2px;
+      width: calc(16px * var(--moguchart-font-scale, 1));
+      height: calc(16px * var(--moguchart-font-scale, 1));
+      margin-left: calc(6px * var(--moguchart-font-scale, 1));
+      margin-right: calc(2px * var(--moguchart-font-scale, 1));
       cursor: pointer;
       user-select: none;
       font-size: calc(9px * var(--moguchart-font-scale, 1));
@@ -248,7 +248,7 @@ export class GanttRowElement extends LitElement {
       opacity: 0.7;
       transition: transform 0.15s ease, opacity 0.15s ease;
       flex-shrink: 0;
-      border-radius: 3px;
+      border-radius: calc(3px * var(--moguchart-font-scale, 1));
     }
     .tree-toggle-btn:hover {
       opacity: 1;
@@ -256,10 +256,10 @@ export class GanttRowElement extends LitElement {
     }
     .tree-toggle-spacer {
       display: inline-block;
-      width: 16px;
-      height: 16px;
-      margin-left: 6px;
-      margin-right: 2px;
+      width: calc(16px * var(--moguchart-font-scale, 1));
+      height: calc(16px * var(--moguchart-font-scale, 1));
+      margin-left: calc(6px * var(--moguchart-font-scale, 1));
+      margin-right: calc(2px * var(--moguchart-font-scale, 1));
       flex-shrink: 0;
     }
     .wbs-code-badge {

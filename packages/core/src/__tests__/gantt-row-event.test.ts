@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import '../components/gantt-row'
-import type { GanttRowElement } from '../components/gantt-row'
+import { GanttRowElement } from '../components/gantt-row'
 import type { GanttRow, GanttChartOption } from '../core/types'
 
 describe('GanttRowElement', () => {
@@ -261,4 +260,27 @@ describe('GanttRowElement', () => {
       vi.useRealTimers()
     }
   })
+
+  it('scales tree-toggle-btn and tree-toggle-spacer dimensions with --moguchart-font-scale', () => {
+    const styles = GanttRowElement.styles
+    const cssText = Array.isArray(styles)
+      ? styles.map((s: any) => s.cssText).join('\n')
+      : (styles as any).cssText
+
+    // .tree-toggle-btn width and height should scale with --moguchart-font-scale
+    expect(cssText).toMatch(
+      /\.tree-toggle-btn\s*\{[^}]*width:\s*calc\(16px\s*\*\s*var\(--moguchart-font-scale,\s*1\)\)/,
+    )
+    expect(cssText).toMatch(
+      /\.tree-toggle-btn\s*\{[^}]*height:\s*calc\(16px\s*\*\s*var\(--moguchart-font-scale,\s*1\)\)/,
+    )
+    // .tree-toggle-spacer width and height should scale with --moguchart-font-scale
+    expect(cssText).toMatch(
+      /\.tree-toggle-spacer\s*\{[^}]*width:\s*calc\(16px\s*\*\s*var\(--moguchart-font-scale,\s*1\)\)/,
+    )
+    expect(cssText).toMatch(
+      /\.tree-toggle-spacer\s*\{[^}]*height:\s*calc\(16px\s*\*\s*var\(--moguchart-font-scale,\s*1\)\)/,
+    )
+  })
 })
+
