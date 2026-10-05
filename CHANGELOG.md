@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-05
+
+### Added
+
+- **Baseline & Schedule Variance Tracking (Plan vs. Actual Comparison)**:
+  - Added support for baseline schedules (`task.baseline: GanttTaskBaseline`) allowing concurrent rendering and variance tracking of planned vs. actual project timelines within each row lane.
+  - **Flexible Layout Positions (`option.baseline.position`)**:
+    - `'bottom'` (default): Smartly splits the lane height to render the baseline bar underneath the actual bar without affecting row heights or virtual scrolling performance.
+    - `'top'`: Renders the baseline bar above the actual task bar.
+    - `'overlay'`: Renders the baseline bar directly behind the actual task bar with full height.
+  - **Delay & Variance Highlighting (`highlightDelay`, `delayColor`)**:
+    - Automatically identifies delayed tasks (`task.end > baseline.end`) and displays a distinctive delay accent indicator line (`.task-delayed`).
+  - **Interactive Tooltip Integration**:
+    - Hovering over actual or baseline bars displays the baseline duration span, planned progress, and schedule variance badges (e.g. "+3 days delayed", "2 days ahead") with multi-language support (English and Japanese).
+  - **WBS Parent Summary Aggregation (`autoSummary`)**:
+    - Parent summary rows automatically aggregate earliest start date, latest end date, and duration-weighted average progress from all descendant task baselines.
+  - **Minimap 2D Canvas Synchronization**:
+    - Baseline bars are rendered smoothly onto the bird's-eye overview minimap canvas.
+  - **Exported Utility Functions**:
+    - `calculateTaskDelay(task: GanttTask)`: Calculates schedule variance (delay/ahead in ms and days) for an individual task.
+    - `calculateProjectBaselineSummary(rows: GanttRow[])`: Aggregates project-wide statistics including total baseline tasks, delayed tasks count, ahead tasks count, and max delay days.
+- **Interactive Demo Controls**:
+  - Added live toggle controls to the demo page for Baseline visibility (ON/OFF), Delay Highlighting (ON/OFF), and Placement Position (`bottom` / `top` / `overlay`).
+
+---
+
 ## [1.3.1] - 2026-10-01
 
 ### Fixed

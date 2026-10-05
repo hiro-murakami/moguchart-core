@@ -67,6 +67,14 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 仮想スクロールやミニマップと完全に連動する折りたたみ
   - 階層を壊さない安全なD&D並び替え（子タスクのブロック連動移動・循環参照防止）
   - プログラムからの開閉操作（`toggleRowCollapse`, `collapseAll`, `expandAll`）
+- 📈 **予実管理（Baseline / 計画 vs 実績）**:
+  - タスクの当初計画（`task.baseline`）と実績日程を同一レーン上に同時描画
+  - 3つの配置レイアウト（下部分割 `bottom` / 上部 `top` / 重ねて表示 `overlay`）
+  - 遅延タスク（実績終了日 > 計画終了日）の自動検知と遅延アクセント線（`.task-delayed`）でのハイライト表示
+  - ツールチップでの計画期間・進捗率および遅延/前倒し状況（多言語対応）の表示
+  - WBSサマリータスクにおける配下子タスクの計画日程・進捗率の自動集計
+  - 全体鳥瞰ミニマップ（2D Canvas）との同期描画
+  - タスク遅延計算（`calculateTaskDelay`）およびプロジェクト予実統計集計（`calculateProjectBaselineSummary`）関数
 - ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
@@ -714,6 +722,55 @@ chart.addEventListener('row-toggle-collapse', (e) => {
   const { rowId, collapsed } = e.detail
   console.log(`行 ${rowId} が ${collapsed ? '折りたたまれました' : '展開されました'}`)
 })
+```
+
+### 予実管理（Baseline / 計画 vs 実績の比較可視化）
+
+タスクに当初計画（`task.baseline`）を設定することで、計画日程と現在の実績日程を視覚的に比較できます。
+行の高さや仮想スクロールのキャッシュ計算を崩さず、実績バーの下部または上部・背後にスマートにレイアウトされます。
+
+```javascript
+import { calculateTaskDelay, calculateProjectBaselineSummary } from '@mogura/moguchart-core'
+
+const rows = [
+  {
+    id: 'row-1',
+    name: '機能開発',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'UIコンポーネント実装',
+        start: new Date('2026-04-01'),
+        end: new Date('2026-04-14'), // 実績: 4/14まで延長
+        progress: 80,
+        baseline: {
+          start: new Date('2026-04-01'),
+          end: new Date('2026-04-10'), // 計画: 4/10完了予定だった（4日遅延）
+          progress: 100,
+        },
+      },
+    ],
+  },
+]
+
+const option = {
+  baseline: {
+    enabled: true, // ベースライン表示を有効化 (デフォルト: false)
+    position: 'bottom', // 'bottom' (下部分割) | 'top' (上部) | 'overlay' (重ねて表示)
+    highlightDelay: true, // 実績が計画を超過した場合にハイライト表示 (デフォルト: true)
+    delayColor: '#ef4444', // 遅延ハイライト色
+    showTooltip: true, // ツールチップに計画日程と遅延日数を表示 (デフォルト: true)
+    autoSummary: true, // WBS親タスクに子タスクの計画日程を自動集計 (デフォルト: true)
+  },
+}
+
+// 個別タスクの遅延・前倒し計算
+const delayInfo = calculateTaskDelay(rows[0].tasks[0])
+console.log(`遅延判定: ${delayInfo.isDelayed}, 遅延日数: ${delayInfo.delayDays}日`)
+
+// プロジェクト全体の予実統計サマリー
+const summary = calculateProjectBaselineSummary(rows)
+console.log(`計画タスク数: ${summary.totalBaselineTasks}, 遅延タスク数: ${summary.delayedTasksCount}, 最大遅延: ${summary.maxDelayDays}日`)
 ```
 
 ### パブリックメソッド

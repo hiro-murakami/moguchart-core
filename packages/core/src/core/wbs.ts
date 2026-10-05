@@ -191,6 +191,13 @@ export function computeSummaryTask(
   let weightedProgressSum = 0
   let hasAnyProgress = false
 
+  let minBaselineStart = Infinity
+  let maxBaselineEnd = -Infinity
+  let totalBaselineDurationMs = 0
+  let weightedBaselineProgressSum = 0
+  let hasAnyBaseline = false
+  let hasAnyBaselineProgress = false
+
   for (const task of childTasks) {
     const s = task.start.getTime()
     const e = task.end.getTime()
@@ -204,12 +211,45 @@ export function computeSummaryTask(
       hasAnyProgress = true
       weightedProgressSum += (task.progress ?? 0) * duration
     }
+
+    if (task.baseline) {
+      const bs = task.baseline.start.getTime()
+      const be = task.baseline.end.getTime()
+      if (!Number.isNaN(bs) && !Number.isNaN(be)) {
+        hasAnyBaseline = true
+        if (bs < minBaselineStart) minBaselineStart = bs
+        if (be > maxBaselineEnd) maxBaselineEnd = be
+
+        const bDuration = Math.max(1, be - bs)
+        totalBaselineDurationMs += bDuration
+
+        if (task.baseline.progress !== undefined && !Number.isNaN(task.baseline.progress)) {
+          hasAnyBaselineProgress = true
+          weightedBaselineProgressSum += (task.baseline.progress ?? 0) * bDuration
+        }
+      }
+    }
   }
 
   const calculatedProgress =
     hasAnyProgress && totalDurationMs > 0
       ? Math.round((weightedProgressSum / totalDurationMs) * 10) / 10
       : undefined
+
+  const calculatedBaselineProgress =
+    hasAnyBaselineProgress && totalBaselineDurationMs > 0
+      ? Math.round((weightedBaselineProgressSum / totalBaselineDurationMs) * 10) / 10
+      : undefined
+
+  const baseline =
+    template?.baseline ??
+    (hasAnyBaseline && minBaselineStart !== Infinity && maxBaselineEnd !== -Infinity
+      ? {
+          start: new Date(minBaselineStart),
+          end: new Date(maxBaselineEnd),
+          progress: calculatedBaselineProgress,
+        }
+      : undefined)
 
   return {
     id: template?.id ?? 'summary-task',
@@ -220,6 +260,7 @@ export function computeSummaryTask(
     movable: 'none',
     resizable: false,
     progress: calculatedProgress,
+    baseline,
     ...template,
     // type, movable, resizable はサマリー固定
     style: template?.style,

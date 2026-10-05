@@ -139,6 +139,8 @@ interface GanttChartOption {
   selection?: GanttChartOptionSelection
   /** WBS & hierarchical tree configuration */
   tree?: GanttChartOptionTree
+  /** Baseline (plan vs actual) tracking configuration */
+  baseline?: GanttChartOptionBaseline
   /** Operation history and Undo/Redo configuration */
   history?: GanttChartOptionHistory
   /** Extension plugins */
@@ -441,6 +443,20 @@ interface GanttTask {
   progressColor?: string // Custom progress bar color (CSS color string)
   progressStyle?: string // Custom progress bar CSS style string
   progressResizable?: boolean // Whether progress drag editing is enabled for this task
+  baseline?: GanttTaskBaseline // Original planned schedule (baseline)
+}
+```
+
+### GanttTaskBaseline
+
+```typescript
+interface GanttTaskBaseline {
+  start: Date // Planned start date/time
+  end: Date // Planned end date/time
+  progress?: number // Planned progress (0 - 100, optional)
+  style?: string // Custom baseline bar CSS style string
+  color?: string // Custom baseline bar color (CSS color string)
+  name?: string // Baseline name or note
 }
 ```
 
@@ -1300,6 +1316,38 @@ interface GanttChartOptionTree {
 }
 ```
 
+### GanttChartOptionBaseline
+
+Configures baseline (plan vs. actual) tracking and schedule variance visualization.
+
+```typescript
+interface GanttChartOptionBaseline {
+  /** Whether to enable baseline tracking display (default: false) */
+  enabled?: boolean
+  /**
+   * Placement position of baseline bars relative to actual task bars:
+   * - 'bottom': Render below actual task bars (default)
+   * - 'top': Render above actual task bars
+   * - 'overlay': Render directly behind actual task bars
+   */
+  position?: 'bottom' | 'top' | 'overlay'
+  /** Height of baseline bars in px. Defaults to automatic calculation (~6px for bottom/top, full barHeight for overlay) */
+  height?: number
+  /** Default baseline bar color (CSS color string, default: '#94a3b8') */
+  color?: string
+  /** Corner radius for baseline bars in px (default: 2) */
+  cornerRadius?: number
+  /** Whether to visually highlight delayed tasks (actual end > baseline end) (default: true) */
+  highlightDelay?: boolean
+  /** Color for delay highlights (CSS color string, default: '#ef4444') */
+  delayColor?: string
+  /** Whether to show baseline timeline and delay/ahead badges in tooltips (default: true) */
+  showTooltip?: boolean
+  /** Whether to automatically aggregate parent summary task baselines from child tasks (default: true) */
+  autoSummary?: boolean
+}
+```
+
 ### MoguchartLocale
 
 Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
@@ -1913,6 +1961,9 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // Baseline (plan vs actual) calculations
+  calculateTaskDelay,
+  calculateProjectBaselineSummary,
   // Critical path computation
   computeCriticalPath,
   // WBS & Hierarchy calculations
@@ -1969,6 +2020,52 @@ function calculateProjectProgress(rows: GanttRow[]): number
 
 - **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
 - **Returns**: Total project duration-weighted average progress percentage (`0` - `100`)
+
+### calculateTaskDelay
+
+Calculates schedule variance (delay or early completion) against a task's baseline schedule.
+
+```typescript
+function calculateTaskDelay(task: GanttTask): {
+  isDelayed: boolean
+  delayMs: number
+  delayDays: number
+  isAhead: boolean
+  aheadMs: number
+  aheadDays: number
+}
+```
+
+- **`task`**: Target `GanttTask` object
+- **Returns**:
+  - `isDelayed`: `true` if the actual end date exceeds the baseline end date
+  - `delayMs`: Delay in milliseconds
+  - `delayDays`: Delay in days (rounded to 1 decimal place)
+  - `isAhead`: `true` if the actual end date completes earlier than the baseline end date
+  - `aheadMs`: Ahead time in milliseconds
+  - `aheadDays`: Ahead time in days (rounded to 1 decimal place)
+
+### calculateProjectBaselineSummary
+
+Calculates project-wide statistics comparing baselines against actual schedules across all rows (summary tasks are excluded to avoid double-counting).
+
+```typescript
+function calculateProjectBaselineSummary(rows: GanttRow[]): {
+  totalBaselineTasks: number
+  delayedTasksCount: number
+  aheadTasksCount: number
+  onScheduleTasksCount: number
+  maxDelayDays: number
+}
+```
+
+- **`rows`**: Array of all Gantt chart rows (`GanttRow[]`)
+- **Returns**:
+  - `totalBaselineTasks`: Total number of tasks configured with a baseline
+  - `delayedTasksCount`: Number of delayed tasks
+  - `aheadTasksCount`: Number of ahead/early tasks
+  - `onScheduleTasksCount`: Number of tasks on schedule
+  - `maxDelayDays`: Maximum delay in days across the project
 
 ### computeCriticalPath
 

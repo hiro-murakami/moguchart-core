@@ -2,6 +2,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import { html, render } from 'lit'
 import { jaLocale } from '../../core/i18n'
 import type { BarHoverEventDetail, GanttChartOption } from '../../core/types'
+import { calculateTaskDelay } from '../../core/utils'
 
 export type TooltipState = BarHoverEventDetail & {
   visible: boolean
@@ -124,6 +125,61 @@ export class TooltipController implements ReactiveController {
           </div>`
         : ''
 
+      const baseline = this.tooltip.task.baseline
+      const hasBaseline = !!baseline && !!baseline.start && !!baseline.end && this.host.option.baseline?.showTooltip !== false
+      let baselineRow: any = ''
+
+      if (hasBaseline) {
+        const { isDelayed, delayDays, isAhead, aheadDays } = calculateTaskDelay(this.tooltip.task)
+        const bDuration = Math.round((baseline!.end.getTime() - baseline!.start.getTime()) / (1000 * 60 * 60 * 24))
+
+        let bStartStr = ''
+        let bEndStr = ''
+        if (isMonthlyMode) {
+          const bEndForDisplay = new Date(baseline!.end)
+          bEndForDisplay.setMonth(bEndForDisplay.getMonth() - 1)
+          bStartStr = locale.yearMonthFormat(baseline!.start)
+          bEndStr = locale.yearMonthFormat(bEndForDisplay)
+        } else {
+          const bEndForDisplay = new Date(baseline!.end)
+          const isHourlyMode = !!this.host.option.calendar.showTime
+          if (
+            !isHourlyMode &&
+            baseline!.start.getTime() < baseline!.end.getTime() &&
+            bEndForDisplay.getHours() === 0 &&
+            bEndForDisplay.getMinutes() === 0
+          ) {
+            bEndForDisplay.setDate(bEndForDisplay.getDate() - 1)
+          }
+          bStartStr = locale.dateFormat(baseline!.start)
+          bEndStr = locale.dateFormat(bEndForDisplay)
+        }
+
+        const baselineText = locale.tooltip.baseline
+          ? locale.tooltip.baseline(bStartStr, bEndStr, bDuration)
+          : `計画: ${bStartStr} - ${bEndStr} (${bDuration}日)`
+
+        let statusText = ''
+        let statusColor = '#94a3b8'
+        if (isDelayed) {
+          statusText = locale.tooltip.delay ? locale.tooltip.delay(delayDays) : `+${delayDays}日遅れ`
+          statusColor = this.host.option.baseline?.delayColor ?? '#ef4444'
+        } else if (isAhead) {
+          statusText = locale.tooltip.ahead ? locale.tooltip.ahead(aheadDays) : `-${aheadDays}日前倒し`
+          statusColor = '#10b981'
+        } else {
+          statusText = locale.tooltip.onSchedule ?? '計画通り'
+          statusColor = '#94a3b8'
+        }
+
+        baselineRow = html`
+          <div class="tooltip-row" style="color: #94a3b8; font-size: 11px; margin-top: 3px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 3px;">
+            ${baselineText}
+            <span style="color: ${statusColor}; font-weight: 600; margin-left: 4px;">(${statusText})</span>
+          </div>
+        `
+      }
+
       if (isMonthlyMode) {
         const endForDisplay = new Date(this.tooltip.task.end)
         endForDisplay.setMonth(endForDisplay.getMonth() - 1)
@@ -135,6 +191,7 @@ export class TooltipController implements ReactiveController {
             </div>
             <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
             ${progressRow}
+            ${baselineRow}
           `,
           tooltipEl,
         )
@@ -157,6 +214,7 @@ export class TooltipController implements ReactiveController {
             </div>
             <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
             ${progressRow}
+            ${baselineRow}
           `,
           tooltipEl,
         )

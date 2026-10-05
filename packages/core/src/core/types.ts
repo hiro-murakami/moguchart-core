@@ -68,6 +68,24 @@ export interface GanttMarker {
 }
 
 /**
+ * タスクの当初計画（ベースライン）を表すインターフェース
+ */
+export interface GanttTaskBaseline {
+  /** 計画開始日時 */
+  start: Date
+  /** 計画終了日時 */
+  end: Date
+  /** 計画進捗率 (0〜100、省略可能) */
+  progress?: number
+  /** ベースラインバーのカスタムスタイル (CSS文字列) */
+  style?: string
+  /** ベースラインバーのカスタム色 (CSSカラー文字列) */
+  color?: string
+  /** ベースライン名またはメモ（省略可能） */
+  name?: string
+}
+
+/**
  * ガントチャート上の個々のタスクを表すインターフェース
  */
 export interface GanttTask {
@@ -107,6 +125,8 @@ export interface GanttTask {
   progressResizable?: boolean
   /** タスクの種別 ('task': 通常, 'summary': 親サマリー集計バー, 'milestone': マイルストーン) */
   type?: 'task' | 'summary' | 'milestone'
+  /** 当初計画（ベースライン）の日程情報 */
+  baseline?: GanttTaskBaseline
 }
 
 /**
@@ -454,6 +474,37 @@ export interface GanttChartOption {
   plugins?: GanttPlugin[]
   /** 操作履歴・Undo/Redoの設定 */
   history?: GanttChartOptionHistory
+  /** 予実管理（ベースライン）の設定 */
+  baseline?: GanttChartOptionBaseline
+}
+
+/**
+ * ベースライン（予実管理）機能に関するオプション
+ */
+export interface GanttChartOptionBaseline {
+  /** ベースライン表示を有効にするかどうか (デフォルト: false) */
+  enabled?: boolean
+  /**
+   * ベースラインバーの配置位置
+   * - 'bottom': 実績タスクバーの下部に配置（デフォルト）
+   * - 'top': 実績タスクバーの上部に配置
+   * - 'overlay': 実績タスクバーと重なるように背後に配置
+   */
+  position?: 'bottom' | 'top' | 'overlay'
+  /** ベースラインバーの高さ (px)。未指定時は自動計算（bottom/top時は 6px程度、overlay時は barHeight と同等） */
+  height?: number
+  /** ベースラインバーのデフォルト色 (CSSカラー文字列、デフォルト: '#94a3b8'） */
+  color?: string
+  /** ベースラインバーの角丸半径 (px)。未指定時は 2px */
+  cornerRadius?: number
+  /** 遅延タスク（実績終了日 > 計画終了日）のハイライトを行うかどうか (デフォルト: true) */
+  highlightDelay?: boolean
+  /** 遅延ハイライト時の強調色 (CSSカラー文字列、デフォルト: '#ef4444'） */
+  delayColor?: string
+  /** ツールチップに計画日程と遅延日数を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
+  /** サマリータスク（親行）のベースラインを配下タスクから自動計算するかどうか (デフォルト: true) */
+  autoSummary?: boolean
 }
 
 /**

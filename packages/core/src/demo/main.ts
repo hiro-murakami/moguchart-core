@@ -131,6 +131,9 @@ let editableProgress = true
 let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
+let enableBaseline = true
+let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'
+let highlightDelay = true
 let isExporting = false
 let exportingFormat: 'png' | 'pdf' | 'excel' | null = null
 
@@ -325,6 +328,11 @@ const renderApp = () => {
     },
     selection: {
       marquee: enableMarquee,
+    },
+    baseline: {
+      enabled: enableBaseline,
+      position: baselinePosition,
+      highlightDelay,
     },
     tree: {
       enabled: true,
@@ -968,6 +976,37 @@ const renderApp = () => {
                 <span class="toggle-track"></span>
                 ${t.enableMarqueeSelection}
               </label>
+            </div>
+          </div>
+
+          <!-- 予実管理 (Baseline) 設定 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">📊</span>
+              ${t.sectionBaseline}
+            </div>
+            <div class="ctrl-card-body">
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableBaseline}" @change="${(e: Event) => { enableBaseline = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableBaseline}
+              </label>
+              <label class="toggle-label" style="${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                <input type="checkbox" .checked="${highlightDelay}" @change="${(e: Event) => { highlightDelay = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.highlightDelay}
+              </label>
+              <div class="select-group" style="margin-top: 6px; ${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                ${t.baselinePosition}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => { baselinePosition = (e.target as HTMLSelectElement).value as any; renderApp() }}"
+                >
+                  <option value="bottom" ?selected="${baselinePosition === 'bottom'}">Bottom (下部)</option>
+                  <option value="top" ?selected="${baselinePosition === 'top'}">Top (上部)</option>
+                  <option value="overlay" ?selected="${baselinePosition === 'overlay'}">Overlay (重ね合わせ)</option>
+                </select>
+              </div>
             </div>
           </div>
 

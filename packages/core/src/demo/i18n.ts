@@ -34,6 +34,9 @@ export interface DemoTexts {
   showProgressLabel: string
   showSummaryProgressLabel: string
   enableMarqueeSelection: string
+  enableBaseline: string
+  baselinePosition: string
+  highlightDelay: string
   collapseAll: string
   collapseAllTitle: string
   expandAll: string
@@ -48,6 +51,7 @@ export interface DemoTexts {
   sectionCalendar: string
   sectionBehavior: string
   sectionProgress: string
+  sectionBaseline: string
   sectionSize: string
   oneDay: string
   oneMonth: string
@@ -152,6 +156,9 @@ export const jaTexts: DemoTexts = {
   showProgressLabel: '進捗ラベル表示',
   showSummaryProgressLabel: 'サマリー進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
+  enableBaseline: '予実管理（ベースライン）を表示',
+  baselinePosition: '配置位置:',
+  highlightDelay: '遅延タスクをハイライト',
   collapseAll: '折りたたみ',
   collapseAllTitle: '親行を一括折りたたみ',
   expandAll: '展開',
@@ -165,6 +172,7 @@ export const jaTexts: DemoTexts = {
   sectionCalendar: 'カレンダー表示',
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
+  sectionBaseline: '予実管理 (Baseline)',
   sectionSize: 'サイズ設定',
   oneDay: '1日',
   oneMonth: '1ヶ月',
@@ -331,6 +339,9 @@ export const enTexts: DemoTexts = {
   showProgressLabel: 'Show Progress Label',
   showSummaryProgressLabel: 'Show Summary Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
+  enableBaseline: 'Show Baseline (Plan vs Actual)',
+  baselinePosition: 'Position:',
+  highlightDelay: 'Highlight Delayed Tasks',
   collapseAll: 'Collapse',
   collapseAllTitle: 'Collapse all parent rows',
   expandAll: 'Expand',
@@ -344,6 +355,7 @@ export const enTexts: DemoTexts = {
   sectionCalendar: 'Calendar',
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',
+  sectionBaseline: 'Baseline Management',
   sectionSize: 'Sizing',
   oneDay: '1 day',
   oneMonth: '1 month',

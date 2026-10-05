@@ -141,6 +141,8 @@ interface GanttChartOption {
   tree?: GanttChartOptionTree
   /** 操作履歴・Undo/Redoの設定 */
   history?: GanttChartOptionHistory
+  /** 予実管理（ベースライン）の設定 */
+  baseline?: GanttChartOptionBaseline
   /** 拡張プラグインの配列 */
   plugins?: GanttPlugin[]
 }
@@ -441,6 +443,20 @@ interface GanttTask {
   progressColor?: string // 進捗バーのカスタム色 (CSSカラー文字列)
   progressStyle?: string // 進捗バーのカスタムスタイル (CSS文字列)
   progressResizable?: boolean // 進捗バーのドラッグ編集可否 (未指定時はoption.progress.editableに準拠)
+  baseline?: GanttTaskBaseline // 当初計画（ベースライン）の日程情報
+}
+```
+
+### GanttTaskBaseline
+
+```typescript
+interface GanttTaskBaseline {
+  start: Date // 計画開始日時
+  end: Date // 計画終了日時
+  progress?: number // 計画進捗率 (0〜100、省略可能)
+  style?: string // ベースラインバーのカスタムスタイル (CSS文字列)
+  color?: string // ベースラインバーのカスタム色 (CSSカラー文字列)
+  name?: string // ベースライン名またはメモ
 }
 ```
 
@@ -1350,6 +1366,38 @@ interface GanttChartOptionTree {
 }
 ```
 
+### GanttChartOptionBaseline
+
+当初計画（ベースライン）と実績の予実管理・遅延可視化を設定します。
+
+```typescript
+interface GanttChartOptionBaseline {
+  /** ベースライン表示を有効にするかどうか (デフォルト: false) */
+  enabled?: boolean
+  /**
+   * ベースラインバーの配置位置
+   * - 'bottom': 実績タスクバーの下部に配置（デフォルト）
+   * - 'top': 実績タスクバーの上部に配置
+   * - 'overlay': 実績タスクバーと重なるように背後に配置
+   */
+  position?: 'bottom' | 'top' | 'overlay'
+  /** ベースラインバーの高さ (px)。未指定時は自動計算（bottom/top時は 6px程度、overlay時は barHeight と同等） */
+  height?: number
+  /** ベースラインバーのデフォルト色 (CSSカラー文字列、デフォルト: '#94a3b8'） */
+  color?: string
+  /** ベースラインバーの角丸半径 (px)。未指定時は 2px */
+  cornerRadius?: number
+  /** 遅延タスク（実績終了日 > 計画終了日）のハイライトを行うかどうか (デフォルト: true) */
+  highlightDelay?: boolean
+  /** 遅延ハイライト時の強調色 (CSSカラー文字列、デフォルト: '#ef4444'） */
+  delayColor?: string
+  /** ツールチップに計画日程と遅延日数を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
+  /** サマリータスク（親行）のベースラインを配下タスクから自動計算するかどうか (デフォルト: true) */
+  autoSummary?: boolean
+}
+```
+
 ### MoguchartLocale
 
 ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
@@ -1999,6 +2047,52 @@ function calculateProjectProgress(rows: GanttRow[]): number
 
 - **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
 - **戻り値**: プロジェクト全体の加重平均進捗率（`0` 〜 `100`）
+
+### calculateTaskDelay
+
+タスクの当初計画（ベースライン）に対する遅延・前倒し状況を計算します。
+
+```typescript
+function calculateTaskDelay(task: GanttTask): {
+  isDelayed: boolean
+  delayMs: number
+  delayDays: number
+  isAhead: boolean
+  aheadMs: number
+  aheadDays: number
+}
+```
+
+- **`task`**: 対象の `GanttTask` オブジェクト
+- **戻り値**:
+  - `isDelayed`: 実績終了日が計画終了日を超過している場合 `true`
+  - `delayMs`: 遅延ミリ秒数
+  - `delayDays`: 遅延日数（小数第1位丸め）
+  - `isAhead`: 実績終了日が計画終了日より前倒しの場合 `true`
+  - `aheadMs`: 前倒しミリ秒数
+  - `aheadDays`: 前倒し日数（小数第1位丸め）
+
+### calculateProjectBaselineSummary
+
+プロジェクト全体（全行）におけるベースラインと実績の統計要約を計算します（サマリータスクは重複集計を避けるため除外されます）。
+
+```typescript
+function calculateProjectBaselineSummary(rows: GanttRow[]): {
+  totalBaselineTasks: number
+  delayedTasksCount: number
+  aheadTasksCount: number
+  onScheduleTasksCount: number
+  maxDelayDays: number
+}
+```
+
+- **`rows`**: ガントチャートの全行データ配列 (`GanttRow[]`)
+- **戻り値**:
+  - `totalBaselineTasks`: ベースラインが設定されているタスクの総数
+  - `delayedTasksCount`: 遅延しているタスク数
+  - `aheadTasksCount`: 前倒しになっているタスク数
+  - `onScheduleTasksCount`: 計画通り（遅延・前倒しなし）のタスク数
+  - `maxDelayDays`: プロジェクト内の最大遅延日数
 
 ### computeCriticalPath
 

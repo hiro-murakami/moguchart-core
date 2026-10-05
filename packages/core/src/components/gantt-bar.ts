@@ -2,7 +2,7 @@ import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GanttTask, GanttChartOption, DependencyEndpoint, TaskProgressChangeEventDetail } from '../core/types'
 import { getPatternStyle } from '../core/patterns'
-import { dateToX, xToDate, clampProgress } from '../core/utils'
+import { dateToX, xToDate, clampProgress, calculateTaskDelay } from '../core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
 
 @customElement('gantt-bar')
@@ -344,6 +344,57 @@ export class GanttBarElement extends LitElement {
         outline-offset: 3px;
         filter: brightness(1.08);
       }
+    }
+    .baseline-group {
+      position: absolute;
+      box-sizing: border-box;
+      pointer-events: auto;
+      z-index: 2;
+    }
+    .baseline-group.baseline-overlay {
+      opacity: 0.4;
+      z-index: 1;
+      border: 1.5px dashed var(--moguchart-baseline-color, #94a3b8);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .baseline-bar {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: var(--moguchart-baseline-color, #94a3b8);
+      opacity: 0.85;
+      transition: opacity 0.15s ease;
+      cursor: pointer;
+    }
+    .baseline-group:hover .baseline-bar {
+      opacity: 1;
+    }
+    .baseline-progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background-color: var(--moguchart-baseline-progress-color, rgba(0, 0, 0, 0.28));
+      border-radius: inherit;
+    }
+    .task-group.task-delayed .bar {
+      box-shadow: 0 0 0 1.5px var(--moguchart-delay-color, #ef4444);
+    }
+    .task-group.task-delayed::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 3.5px;
+      background-color: var(--moguchart-delay-color, #ef4444);
+      border-top-right-radius: inherit;
+      border-bottom-right-radius: inherit;
+      pointer-events: none;
+      z-index: 6;
     }
   `
 
@@ -1061,6 +1112,33 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onBaselineMouseEnter(e: MouseEvent) {
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseenter', {
+        detail: {
+          task: this.task,
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+          barBottom: rect.bottom,
+          isBaseline: true,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private onBaselineMouseLeave() {
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseleave', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   private onDblClick(e: MouseEvent) {
     this.dispatchEvent(
       new CustomEvent('task-dblclick', {
@@ -1281,6 +1359,56 @@ export class GanttBarElement extends LitElement {
       }
     }
 
+    const isBaselineFeatureEnabled = this.option.baseline?.enabled === true
+    const baselineData = this.task.baseline
+    const hasValidBaseline =
+      isBaselineFeatureEnabled &&
+      !!baselineData &&
+      !!baselineData.start &&
+      !!baselineData.end &&
+      !isNaN(new Date(baselineData.start).getTime()) &&
+      !isNaN(new Date(baselineData.end).getTime())
+
+    const baselinePos = this.option.baseline?.position ?? 'bottom'
+    const defaultBaselineHeight = Math.max(4, Math.min(10, Math.round(barHeight * 0.25)))
+    const baselineHeight = this.option.baseline?.height ?? defaultBaselineHeight
+    const baselineGap = 2
+
+    let actualBarHeight = barHeight
+    let actualBarY = y
+    let baselineY = y
+
+    if (hasValidBaseline) {
+      if (baselinePos === 'bottom') {
+        actualBarHeight = Math.max(8, barHeight - baselineHeight - baselineGap)
+        actualBarY = y
+        baselineY = y + actualBarHeight + baselineGap
+      } else if (baselinePos === 'top') {
+        actualBarHeight = Math.max(8, barHeight - baselineHeight - baselineGap)
+        baselineY = y
+        actualBarY = y + baselineHeight + baselineGap
+      } else if (baselinePos === 'overlay') {
+        actualBarHeight = barHeight
+        actualBarY = y
+        baselineY = y
+      }
+    }
+
+    const bx = hasValidBaseline ? this.getX(baselineData!.start) : 0
+    const bwidth = hasValidBaseline ? Math.max(1, this.getX(baselineData!.end) - bx) : 0
+    const baselineColor =
+      baselineData?.color ?? this.option.baseline?.color ?? (isSummary ? '#64748b' : '#94a3b8')
+    const baselineCornerRadius = this.option.baseline?.cornerRadius ?? 2
+    const hasBaselineProgress =
+      hasValidBaseline &&
+      typeof baselineData?.progress === 'number' &&
+      !Number.isNaN(baselineData.progress)
+    const baselineProgressVal = hasBaselineProgress ? clampProgress(baselineData!.progress!) : null
+
+    const delayInfo = hasValidBaseline ? calculateTaskDelay(this.task) : null
+    const isDelayed = delayInfo?.isDelayed && (this.option.baseline?.highlightDelay !== false)
+    const delayColor = this.option.baseline?.delayColor ?? '#ef4444'
+
     const isProgressFeatureEnabled = this.option.progress?.enabled !== false
     const isProgressEditable =
       isProgressFeatureEnabled &&
@@ -1316,13 +1444,47 @@ export class GanttBarElement extends LitElement {
             : '')
 
     return html`
+      ${hasValidBaseline
+        ? html`
+            <div
+              class="baseline-group ${isSummary ? 'summary-baseline-group' : ''} ${baselinePos === 'overlay'
+                ? 'baseline-overlay'
+                : ''}"
+              style="
+                left: ${bx}px;
+                top: ${baselineY}px;
+                width: ${bwidth}px;
+                height: ${baselinePos === 'overlay' ? barHeight : baselineHeight}px;
+              "
+              @mouseenter="${this.onBaselineMouseEnter}"
+              @mouseleave="${this.onBaselineMouseLeave}"
+            >
+              <div
+                class="baseline-bar ${isSummary ? 'summary-baseline-bar' : ''}"
+                style="
+                  border-radius: ${isSummary ? 0 : baselineCornerRadius}px;
+                  background-color: ${baselineColor};
+                  ${baselineData?.style || ''};
+                "
+              >
+                ${hasBaselineProgress && baselineProgressVal !== null
+                  ? html`<div
+                      class="baseline-progress-bar"
+                      style="width: ${baselineProgressVal}%;"
+                    ></div>`
+                  : ''}
+              </div>
+            </div>
+          `
+        : ''}
       <div
-        class="task-group ${isSummary ? 'summary-task-group' : ''}"
+        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isDelayed ? 'task-delayed' : ''}"
         style="
           left: ${x}px;
-          top: ${y}px;
+          top: ${actualBarY}px;
           width: ${width}px;
-          height: ${barHeight}px;
+          height: ${actualBarHeight}px;
+          ${isDelayed ? `--moguchart-delay-color: ${delayColor};` : ''}
         "
         @mouseenter="${this.onMouseEnter}"
         @mouseleave="${this.onMouseLeave}"

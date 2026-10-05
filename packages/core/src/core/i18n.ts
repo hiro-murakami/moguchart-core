@@ -33,6 +33,14 @@ export interface MoguchartLocale {
     duration: (days: number) => string
     /** 進捗率の表示 (例: 75 → "進捗: 75%" / "Progress: 75%") (オプション) */
     progress?: (percent: number) => string
+    /** ベースラインの表示 (例: "計画: 2024/1/1 - 2024/1/10 (10日)") */
+    baseline?: (startStr: string, endStr: string, days: number) => string
+    /** 遅延の表示 (例: "+3日遅れ" / "+3 days delay") */
+    delay?: (days: number) => string
+    /** 前倒しの表示 (例: "-2日前倒し" / "2 days ahead") */
+    ahead?: (days: number) => string
+    /** 計画通りの表示 (例: "計画通り" / "On schedule") */
+    onSchedule?: string
   }
   /** ドラッグオーバーレイの文字列 */
   dragOverlay: {
@@ -71,6 +79,10 @@ export const jaLocale: MoguchartLocale = {
   tooltip: {
     duration: (days) => `所要日数: ${days}日`,
     progress: (percent) => `進捗: ${percent}%`,
+    baseline: (startStr, endStr, days) => `計画: ${startStr} - ${endStr} (${days}日)`,
+    delay: (days) => `+${days}日遅れ`,
+    ahead: (days) => `-${days}日前倒し`,
+    onSchedule: '計画通り',
   },
   dragOverlay: {
     noTitle: 'タイトルなし',
@@ -107,6 +119,10 @@ export const enLocale: MoguchartLocale = {
   tooltip: {
     duration: (days) => `Duration: ${days} day${days !== 1 ? 's' : ''}`,
     progress: (percent) => `Progress: ${percent}%`,
+    baseline: (startStr, endStr, days) => `Baseline: ${startStr} - ${endStr} (${days}d)`,
+    delay: (days) => `+${days}d delay`,
+    ahead: (days) => `-${days}d ahead`,
+    onSchedule: 'On schedule',
   },
   dragOverlay: {
     noTitle: 'No Title',

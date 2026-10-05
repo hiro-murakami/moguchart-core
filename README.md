@@ -73,6 +73,14 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Collapsing seamlessly integrated with virtual scrolling and overview minimap
   - Safe drag & drop reordering preserving hierarchy (prevents circular nesting, moves subtrees together)
   - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
+- 📈 **Baseline & Schedule Variance Tracking (Plan vs. Actual)**:
+  - Concurrent rendering of planned baseline schedules (`task.baseline`) and actual timelines within each row lane
+  - Three versatile placement layouts: smart split below actual bar (`bottom`), above (`top`), or behind (`overlay`)
+  - Delay highlighting: automatically marks delayed tasks (`task.end > baseline.end`) with an accent line indicator (`.task-delayed`)
+  - Rich tooltip integration with planned duration, progress, and delay/early schedule variance badges
+  - WBS parent summary aggregation of descendant task baselines
+  - Synchronized bird's-eye rendering on the overview minimap (2D Canvas)
+  - Helper functions for individual task variance (`calculateTaskDelay`) and project-wide statistics (`calculateProjectBaselineSummary`)
 - ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
@@ -733,6 +741,55 @@ chart.addEventListener('row-toggle-collapse', (e) => {
   const { rowId, collapsed } = e.detail
   console.log(`Row ${rowId} was ${collapsed ? 'collapsed' : 'expanded'}`)
 })
+```
+
+### Baseline & Variance Tracking (Plan vs. Actual Comparison)
+
+Configure baseline schedules on tasks (`task.baseline`) to compare planned dates and progress against actual performance side-by-side.
+The layout seamlessly adapts without altering overall row heights or impacting virtual scrolling performance.
+
+```javascript
+import { calculateTaskDelay, calculateProjectBaselineSummary } from '@mogura/moguchart-core'
+
+const rows = [
+  {
+    id: 'row-1',
+    name: 'Feature Engineering',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'UI Implementation',
+        start: new Date('2026-04-01'),
+        end: new Date('2026-04-14'), // Actual: extended to April 14
+        progress: 80,
+        baseline: {
+          start: new Date('2026-04-01'),
+          end: new Date('2026-04-10'), // Planned: scheduled for April 10 (4 days delay)
+          progress: 100,
+        },
+      },
+    ],
+  },
+]
+
+const option = {
+  baseline: {
+    enabled: true, // Enable baseline rendering (default: false)
+    position: 'bottom', // 'bottom' (split below) | 'top' (above) | 'overlay' (layered behind)
+    highlightDelay: true, // Highlight tasks where actual end exceeds baseline end (default: true)
+    delayColor: '#ef4444', // Highlight color for delayed tasks
+    showTooltip: true, // Show baseline dates and delay variance in tooltips (default: true)
+    autoSummary: true, // Automatically aggregate child baselines in WBS parent summary rows (default: true)
+  },
+}
+
+// Calculate delay or early completion for an individual task
+const delayInfo = calculateTaskDelay(rows[0].tasks[0])
+console.log(`Is delayed: ${delayInfo.isDelayed}, Delay in days: ${delayInfo.delayDays}`)
+
+// Aggregate project-wide baseline statistics
+const summary = calculateProjectBaselineSummary(rows)
+console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTasksCount}, Max delay: ${summary.maxDelayDays} days`)
 ```
 
 ### Public Methods

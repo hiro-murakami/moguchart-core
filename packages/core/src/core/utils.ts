@@ -350,3 +350,127 @@ export function calculateProjectProgress(rows: GanttRow[]): number {
   return calculateWeightedRowProgress(allTasks)
 }
 
+/**
+ * タスクの当初計画（ベースライン）に対する遅延・前倒し状況を計算します。
+ *
+ * @param task 対象タスク
+ * @returns 遅延状況オブジェクト
+ */
+export function calculateTaskDelay(task: GanttTask): {
+  isDelayed: boolean
+  delayMs: number
+  delayDays: number
+  isAhead: boolean
+  aheadMs: number
+  aheadDays: number
+} {
+  if (!task.baseline || !task.baseline.end || !task.end) {
+    return {
+      isDelayed: false,
+      delayMs: 0,
+      delayDays: 0,
+      isAhead: false,
+      aheadMs: 0,
+      aheadDays: 0,
+    }
+  }
+
+  const actualEndTime = task.end instanceof Date ? task.end.getTime() : new Date(task.end).getTime()
+  const baselineEndTime =
+    task.baseline.end instanceof Date ? task.baseline.end.getTime() : new Date(task.baseline.end).getTime()
+
+  const diffMs = actualEndTime - baselineEndTime
+  const oneDayMs = 1000 * 60 * 60 * 24
+
+  if (diffMs > 0) {
+    return {
+      isDelayed: true,
+      delayMs: diffMs,
+      delayDays: Math.round((diffMs / oneDayMs) * 10) / 10,
+      isAhead: false,
+      aheadMs: 0,
+      aheadDays: 0,
+    }
+  } else if (diffMs < 0) {
+    const aheadMs = -diffMs
+    return {
+      isDelayed: false,
+      delayMs: 0,
+      delayDays: 0,
+      isAhead: true,
+      aheadMs,
+      aheadDays: Math.round((aheadMs / oneDayMs) * 10) / 10,
+    }
+  }
+
+  return {
+    isDelayed: false,
+    delayMs: 0,
+    delayDays: 0,
+    isAhead: false,
+    aheadMs: 0,
+    aheadDays: 0,
+  }
+}
+
+/**
+ * プロジェクト全体（全行）のベースラインに対する進捗・遅延の要約を計算します。
+ *
+ * @param rows ガントチャートの全行
+ * @returns 要約統計オブジェクト
+ */
+export function calculateProjectBaselineSummary(rows: GanttRow[]): {
+  totalBaselineTasks: number
+  delayedTasksCount: number
+  aheadTasksCount: number
+  onScheduleTasksCount: number
+  maxDelayDays: number
+} {
+  let totalBaselineTasks = 0
+  let delayedTasksCount = 0
+  let aheadTasksCount = 0
+  let onScheduleTasksCount = 0
+  let maxDelayDays = 0
+
+  if (!rows || rows.length === 0) {
+    return {
+      totalBaselineTasks: 0,
+      delayedTasksCount: 0,
+      aheadTasksCount: 0,
+      onScheduleTasksCount: 0,
+      maxDelayDays: 0,
+    }
+  }
+
+  for (const row of rows) {
+    if (!row.tasks) continue
+    for (const task of row.tasks) {
+      // サマリータスクは重複集計を防ぐため除外
+      if (task.type === 'summary') continue
+      if (!task.baseline) continue
+
+      totalBaselineTasks++
+      const { isDelayed, isAhead, delayDays } = calculateTaskDelay(task)
+
+      if (isDelayed) {
+        delayedTasksCount++
+        if (delayDays > maxDelayDays) {
+          maxDelayDays = delayDays
+        }
+      } else if (isAhead) {
+        aheadTasksCount++
+      } else {
+        onScheduleTasksCount++
+      }
+    }
+  }
+
+  return {
+    totalBaselineTasks,
+    delayedTasksCount,
+    aheadTasksCount,
+    onScheduleTasksCount,
+    maxDelayDays,
+  }
+}
+

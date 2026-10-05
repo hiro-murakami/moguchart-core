@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-05
+
+### Added
+
+- **予実管理機能（Baseline / 計画 vs 実績の比較可視化）**:
+  - タスクに当初計画（`task.baseline: GanttTaskBaseline`）を持たせることで、計画日程と現在の実績日程を同一レーン上に同時描画・比較できる機能を追加
+  - **3つの柔軟な配置レイアウト (`option.baseline.position`)**:
+    - `'bottom'` (デフォルト): 実績バーの下部にスマート分割して配置。行の高さや仮想スクロールのキャッシュ計算を壊さず、滑らかに表示
+    - `'top'`: 実績バーの上部に配置
+    - `'overlay'`: 実績バーの背後に同一高さで重ねて描画
+  - **遅延ハイライト可視化 (`highlightDelay`, `delayColor`)**:
+    - 実績終了日が計画終了日を超過（`task.end > baseline.end`）しているタスクを自動検知し、遅延アクセント線（`.task-delayed`）で視覚的に強調
+  - **ツールチップの予実連携**:
+    - タスクバーおよびベースラインバーへのホバー時、ツールチップに計画日程（期間・進捗率）および遅延/前倒し状況（「3日遅延」「2日前倒し」等）を多言語（日本語・英語）で自動表示
+  - **サマリータスク（WBS階層）のベースライン自動集計 (`autoSummary`)**:
+    - 配下の子タスク群が持つベースライン日程（最小開始日〜最大終了日）および加重平均進捗率を親のサマリータスクへ自動集計
+  - **ミニマップ（Minimap）描画の完全同期**:
+    - 全体鳥瞰ミニマップ（2D Canvas）にもベースラインバーを同期描画
+  - **公開ユーティリティ関数**:
+    - `calculateTaskDelay(task: GanttTask)`: 個別タスクの遅延・前倒しミリ秒/日数を計算
+    - `calculateProjectBaselineSummary(rows: GanttRow[])`: プロジェクト全体の計画タスク数、遅延タスク数、前倒しタスク数、最大遅延日数等の統計を集計
+- **デモ画面へのコントロール追加**:
+  - デモページの操作パネルにベースライン表示切替（ON/OFF）、遅延ハイライト切替（ON/OFF）、配置位置（下部 / 上部 / 重ねて表示）のリアルタイム操作UIを追加
+
+---
+
 ## [1.3.1] - 2026-10-01
 
 ### Fixed

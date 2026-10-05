@@ -15,6 +15,8 @@ export {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  calculateTaskDelay,
+  calculateProjectBaselineSummary,
   getThemeColors,
 } from './core/utils'
 export { computeCriticalPath } from './core/critical-path'

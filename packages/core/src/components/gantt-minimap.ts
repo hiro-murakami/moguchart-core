@@ -966,6 +966,26 @@ export class GanttMinimapElement extends LitElement {
             }
           }
         }
+
+        // ベースラインバーの描画 (ミニマップ)
+        if (
+          this.option?.baseline?.enabled === true &&
+          task.baseline &&
+          task.baseline.start &&
+          task.baseline.end
+        ) {
+          const bStartX = dateToX(task.baseline.start, startDate, pxPerDay, pxPerMonth)
+          const bEndX = dateToX(task.baseline.end, startDate, pxPerDay, pxPerMonth)
+          const bW = Math.max(bEndX - bStartX, 1)
+
+          const bMiniX = bStartX * scaleX
+          const bMiniW = Math.max(bW * scaleX, 1.5)
+          const bMiniH = Math.max(miniH * 0.3, 1)
+          const bMiniY = miniY + miniH - bMiniH
+
+          ctx.fillStyle = task.baseline.color ?? this.option?.baseline?.color ?? '#94a3b8'
+          ctx.fillRect(bMiniX, bMiniY, bMiniW, bMiniH)
+        }
       }
 
       currentY += rowHeight
