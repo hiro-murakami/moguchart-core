@@ -1070,10 +1070,13 @@ interface RowHeaderDblClickEventDetail {
   rowId: string // ダブルクリックされた行ID
   row: GanttRow // ダブルクリックされた行データ
   event: MouseEvent // 元のダブルクリックイベント
-  target: HTMLElement // ダブルクリックされたヘッダー要素
-  contentTarget?: HTMLElement // 行名コンテンツ要素（インデントやトグルアイコンを除いた領域）
+  target: HTMLElement // ダブルクリックされたヘッダー行要素 (.row-header)
+  contentTarget?: HTMLElement // 行名コンテンツ要素（インデントスペーサーや展開トグルボタンを除いた行名表示領域 .row-header-content）
 }
 ```
+
+> **Tip:** 行名をインライン編集する入力欄（`<input>`）を配置したり、行名に合わせたポップオーバーを表示したい場合、`detail.contentTarget` の位置・寸法（`getBoundingClientRect()`）を参照することで、ツリーのインデント幅やトグルアイコンを考慮した正確な位置合わせが容易に行えます。
+
 
 ### RowHeaderContextMenuEventDetail
 
@@ -1665,7 +1668,7 @@ const option = {
 
 - **カレンダーヘッダー**: 年月セル、週番号セル、日セル、時間セル
 - **インジケーター**: 現在時刻バッジ、祝日バッジ
-- **行ヘッダー**: 行名ラベル、WBSコードバッジ、ツリー開閉トグルアイコン
+- **行ヘッダー**: 行名ラベル、WBSコードバッジ、ツリー開閉トグルボタン・スペーサー（ボタンの幅・高さ・角丸・マージン・アイコンサイズが連動スケーリング）
 - **タスクバー**: バーラベル、進捗率ラベル
 - **オーバーレイ & ポップアップ**: ツールチップ、ドラッグ情報オーバーレイ
 - **マーカー**: マーカー表示名ラベル
@@ -1991,6 +1994,9 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // 予実管理（Baseline）計算
+  calculateTaskDelay,
+  calculateProjectBaselineSummary,
   // クリティカルパス計算
   computeCriticalPath,
   // WBS・階層計算

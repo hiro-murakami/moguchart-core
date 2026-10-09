@@ -14,8 +14,9 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🔒 **充実した TypeScript 型定義**: Props、Emits、コンポーネントインスタンスの型推論に対応
 - 🔄 **リアクティブなプロパティ同期**: `rows`, `option`, `theme` などの変更を基底の Web Component に自動反映
 - 🎯 **直感的なイベントバインディング**: Vue 標準のイベントハンドリング（`@task-update="onUpdate"` など）
-- 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
-- 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` などの公式プラグインをシームレスに利用可能
+- 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
+- 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
+- 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
 
 ---
 
@@ -189,13 +190,72 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **依存関係操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
 - **スクロール・選択**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
-- **エクスポート**: `exportImage(format, options)`（プラグイン導入時）
+- **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
+- **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
+
+---
+
+## 予実管理（Baseline / 計画 vs 実績の可視化）
+
+タスクに当初計画（`baseline`）を定義し、`option.baseline` を設定することで、計画日程と現在の実績日程を同一レーン上に同時描画・比較できます。遅延タスク（`task.end > baseline.end`）は視覚的にハイライトされ、ツールチップに遅延日数などが自動表示されます。
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import {
+  GanttChart,
+  type GanttRow,
+  type GanttChartOption,
+} from '@mogura/moguchart-vue'
+
+const rows = ref<GanttRow[]>([
+  {
+    id: 'row-1',
+    name: '開発フェーズ',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'UIコンポーネント実装',
+        start: new Date('2026-04-05'),
+        end: new Date('2026-04-18'), // 当初予定より遅延
+        progress: 60,
+        baseline: {
+          start: new Date('2026-04-01'),
+          end: new Date('2026-04-12'),
+          progress: 100,
+        },
+      },
+    ],
+  },
+])
+
+const option: GanttChartOption = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+  },
+  baseline: {
+    visible: true,          // ベースライン表示
+    position: 'bottom',     // 'bottom' (下部) | 'top' (上部) | 'overlay' (重ねて表示)
+    highlightDelay: true,   // 遅延タスクをハイライト強調
+    delayColor: '#EF4444',  // 遅延強調アクセント色
+  },
+}
+</script>
+
+<template>
+  <GanttChart :rows="rows" :option="option" style="width: 100%; height: 500px;" />
+</template>
+```
 
 ---
 
 ## プラグインの利用（エクスポート機能など）
 
 `option.plugins` に渡す宣言的な登録と、`ref` を介した命令的呼び出しに対応しています：
+
+### PNG / PDF エクスポート (`@mogura/moguchart-plugin-export`)
 
 ```vue
 <script setup lang="ts">
@@ -250,6 +310,46 @@ const handleExportPdf = async () => {
 </template>
 ```
 
+### Excel (.xlsx) タイムライン工程表エクスポート (`@mogura/moguchart-plugin-excel`)
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { GanttChart, type GanttChartInstance, type GanttChartOption } from '@mogura/moguchart-vue'
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+const chartRef = ref<GanttChartInstance | null>(null)
+
+const option: GanttChartOption = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+  },
+  plugins: [excelPlugin({
+    defaultFilename: 'プロジェクト工程表.xlsx',
+    defaultSheetName: '工程表',
+    themeColor: '#3B82F6',
+  })],
+}
+
+const handleExportExcel = async () => {
+  await chartRef.value?.exportExcel({
+    filename: '工程表_最新.xlsx',
+    locale: 'ja', // 'ja' | 'en' | 'zh'
+    download: true,
+  })
+}
+</script>
+
+<template>
+  <div>
+    <button @click="handleExportExcel">Excelタイムライン出力</button>
+    <GanttChart ref="chartRef" :rows="[]" :option="option" style="width: 100%; height: 600px;" />
+  </div>
+</template>
+```
+
 ---
 
 ## サポートされているイベント
@@ -266,6 +366,9 @@ const handleExportPdf = async () => {
 | `@task-delete` | タスク削除キー（Delete/Backspace）押下時 | `TaskDeleteEventDetail` |
 | `@task-progress-change` | タスク進捗率ハンドル操作完了時 | `TaskProgressChangeEventDetail` |
 | `@bar-hover` | タスクバーホバー時 | `BarHoverEventDetail` |
+| `@row-header-click` | 行ヘッダークリック時 | `RowHeaderClickEventDetail` |
+| `@row-header-dblclick` | 行ヘッダーダブルクリック時（`contentTarget` で行名要素を参照可能） | `RowHeaderDblClickEventDetail` |
+| `@row-header-contextmenu` | 行ヘッダー右クリック時 | `RowHeaderContextMenuEventDetail` |
 | `@row-reordered` | 行のドラッグ＆ドロップ並び替え完了時 | `RowReorderEventDetail` |
 | `@row-header-resize` | 行ヘッダー幅のリサイズ完了時 | `RowHeaderResizeEventDetail` |
 | `@row-selection-change` | 行の選択状態変更時 | `RowSelectionChangeEventDetail` |

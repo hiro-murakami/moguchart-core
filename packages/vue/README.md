@@ -14,8 +14,9 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🔒 **Type-Safe**: Full TypeScript definitions for props, emits, and instance methods.
 - 🔄 **Reactive Sync**: Props (`rows`, `option`, `theme`, etc.) are automatically synced to the underlying Web Component.
 - 🎯 **Vue Event Bindings**: Standard Vue event listening (`@task-update="onUpdate"`, `@task-click="onClick"`, etc.).
-- 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
-- 🔌 **Plugin Support**: Re-exports all `@mogura/moguchart-core` types and integrates smoothly with `@mogura/moguchart-plugin-export`.
+- 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
+- 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
+- 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips.
 
 ---
 
@@ -189,13 +190,72 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
 - **Scroll & Selection**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
-- **Export**: `exportImage(format, options)` (when export plugin is installed)
+- **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
+- **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
 
 ---
 
-## Using Plugins (e.g. Export Plugin)
+## Baseline & Schedule Variance Tracking (Plan vs. Actual)
+
+Provide a baseline schedule on tasks (`task.baseline`) and configure `option.baseline` to visually compare planned timelines against current actual progress. Delayed tasks (`task.end > baseline.end`) are automatically highlighted with accent indicator lines and detailed variance tooltips.
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import {
+  GanttChart,
+  type GanttRow,
+  type GanttChartOption,
+} from '@mogura/moguchart-vue'
+
+const rows = ref<GanttRow[]>([
+  {
+    id: 'row-1',
+    name: 'Development Phase',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'UI Components',
+        start: new Date('2026-04-05'),
+        end: new Date('2026-04-18'), // Delayed beyond original plan
+        progress: 60,
+        baseline: {
+          start: new Date('2026-04-01'),
+          end: new Date('2026-04-12'),
+          progress: 100,
+        },
+      },
+    ],
+  },
+])
+
+const option: GanttChartOption = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+  },
+  baseline: {
+    visible: true,          // Enable baseline rendering
+    position: 'bottom',     // 'bottom' | 'top' | 'overlay'
+    highlightDelay: true,   // Visually highlight delayed tasks
+    delayColor: '#EF4444',  // Custom accent color for delay indicators
+  },
+}
+</script>
+
+<template>
+  <GanttChart :rows="rows" :option="option" style="width: 100%; height: 500px;" />
+</template>
+```
+
+---
+
+## Using Plugins (Export, Excel, etc.)
 
 You can register plugins declaratively via `option.plugins` or imperatively using `ref`:
+
+### PNG / PDF Export (`@mogura/moguchart-plugin-export`)
 
 ```vue
 <script setup lang="ts">
@@ -250,6 +310,46 @@ const handleExportPdf = async () => {
 </template>
 ```
 
+### Excel (.xlsx) Timeline Spreadsheet Export (`@mogura/moguchart-plugin-excel`)
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { GanttChart, type GanttChartInstance, type GanttChartOption } from '@mogura/moguchart-vue'
+import { excelPlugin } from '@mogura/moguchart-plugin-excel'
+
+const chartRef = ref<GanttChartInstance | null>(null)
+
+const option: GanttChartOption = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+  },
+  plugins: [excelPlugin({
+    defaultFilename: 'project-schedule.xlsx',
+    defaultSheetName: 'Schedule',
+    themeColor: '#3B82F6',
+  })],
+}
+
+const handleExportExcel = async () => {
+  await chartRef.value?.exportExcel({
+    filename: 'schedule-latest.xlsx',
+    locale: 'en', // 'en' | 'ja' | 'zh'
+    download: true,
+  })
+}
+</script>
+
+<template>
+  <div>
+    <button @click="handleExportExcel">Export Excel Timeline</button>
+    <GanttChart ref="chartRef" :rows="[]" :option="option" style="width: 100%; height: 600px;" />
+  </div>
+</template>
+```
+
 ---
 
 ## Supported Events
@@ -266,6 +366,9 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@task-delete` | Dispatched when a task is deleted | `TaskDeleteEventDetail` |
 | `@task-progress-change` | Dispatched when task progress changes | `TaskProgressChangeEventDetail` |
 | `@bar-hover` | Dispatched on hovering over a task bar | `BarHoverEventDetail` |
+| `@row-header-click` | Dispatched on clicking a row header | `RowHeaderClickEventDetail` |
+| `@row-header-dblclick` | Dispatched on double clicking a row header (`contentTarget` exposes row name container) | `RowHeaderDblClickEventDetail` |
+| `@row-header-contextmenu` | Dispatched on right clicking a row header | `RowHeaderContextMenuEventDetail` |
 | `@row-reordered` | Dispatched when a row is reordered via drag-and-drop | `RowReorderEventDetail` |
 | `@row-header-resize` | Dispatched when row header width is resized | `RowHeaderResizeEventDetail` |
 | `@row-selection-change` | Dispatched when row selection changes | `RowSelectionChangeEventDetail` |

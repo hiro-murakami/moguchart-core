@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **公開ユーティリティ関数**:
     - `calculateTaskDelay(task: GanttTask)`: 個別タスクの遅延・前倒しミリ秒/日数を計算
     - `calculateProjectBaselineSummary(rows: GanttRow[])`: プロジェクト全体の計画タスク数、遅延タスク数、前倒しタスク数、最大遅延日数等の統計を集計
+- **行ヘッダーダブルクリック時のコンテンツ要素提供 (`contentTarget`)**:
+  - `row-header-dblclick` イベントの detail に `contentTarget?: HTMLElement` を追加
+  - インデントスペーサーやツリートグルアイコンを除いた行名表示領域のDOM要素を直接取得可能にし、行名のインライン編集入力欄の配置やカスタムポップオーバーの配置を容易に改善
+- **フォント倍率に応じたWBSツリーUIの連動スケーリング (`--moguchart-font-scale`)**:
+  - CSS変数 `--moguchart-font-scale`（`option.fontScale`）の値に応じて、ツリートグルボタン（`.tree-toggle-btn`）およびスペーサー（`.tree-toggle-spacer`）の幅、高さ、マージン、角丸、アイコンフォントサイズが動的にスケールするよう改善
 - **デモ画面へのコントロール追加**:
   - デモページの操作パネルにベースライン表示切替（ON/OFF）、遅延ハイライト切替（ON/OFF）、配置位置（下部 / 上部 / 重ねて表示）のリアルタイム操作UIを追加
 

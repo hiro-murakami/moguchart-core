@@ -908,10 +908,13 @@ interface RowHeaderDblClickEventDetail {
   rowId: string // Double-clicked row ID
   row: GanttRow // Double-clicked row data
   event: MouseEvent // Original double-click event
-  target: HTMLElement // Double-clicked header element
-  contentTarget?: HTMLElement // Row name content element (excluding indent spacers and toggle icons)
+  target: HTMLElement // Double-clicked row header element (.row-header)
+  contentTarget?: HTMLElement // Row name content element (excluding indent spacers and toggle icons: .row-header-content)
 }
 ```
+
+> **Tip:** When positioning an inline rename input (`<input>`) or floating popover over the row name, refer to `detail.contentTarget.getBoundingClientRect()` to accurately align with the text content regardless of tree indentation width or toggle buttons.
+
 
 ### RowHeaderContextMenuEventDetail
 
@@ -1635,7 +1638,7 @@ Font scaling is proportionally applied to the following text elements:
 
 - **Calendar Headers**: Year/month cells, week cells, day cells, hour cells
 - **Indicators**: Current time badges, holiday badges
-- **Row Headers**: Row labels, WBS code badges, tree toggle icons
+- **Row Headers**: Row labels, WBS code badges, tree toggle buttons and spacers (dimensions, margins, border radius, and icon sizes scale proportionally)
 - **Task Bars**: Task bar labels, progress labels
 - **Overlays & Popups**: Tooltips, drag info overlays
 - **Markers**: Marker display name labels

@@ -23,7 +23,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Marquee selection (rubberband drag selection) for batch task selection (with Shift / Ctrl / Cmd additive selection support)
   - Multi-task selection and synchronized batch dragging (Ctrl / Cmd + click, marquee selection)
   - Safe drag cancellation and snapback when cursor exits chart boundaries
-  - Double-click and right-click event handling
+  - Double-click (exposing row name DOM container via `contentTarget`) and right-click event handling
 - 🎨 **Highly Customizable**:
   - Custom rendering for task bars, row headers, row header tooltips, tooltips, and drag info overlays
   - Light / Dark / System theme switching + custom color palettes
@@ -42,7 +42,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Custom holiday detection logic
   - Configurable week start day
   - Built-in internationalization (Japanese, English, and custom locale extensibility)
-- 🔤 **Font Scaling (`fontScale`)**: Scale all text font sizes throughout the Gantt chart uniformly via `fontScale` option or `--moguchart-font-scale` CSS variable, ideal for responsive zooming and high-density views.
+- 🔤 **Font Scaling (`fontScale`)**: Scale all text font sizes throughout the Gantt chart uniformly via `fontScale` option or `--moguchart-font-scale` CSS variable; calendar headers, task bars, as well as WBS tree toggle buttons and spacers scale dynamically to guarantee optimal layouts across display densities.
 - 🏁 **Milestones**: Display key milestones with vertical markers and customizable badges.
 - 📍 **Markers**: Place labeled triangle marker indicators on individual row timelines.
 - 🗺️ **Overview Minimap**: Floating bird's-eye canvas preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move, edge drag-resizing, opacity slider, and collapsible window state.
@@ -54,8 +54,9 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - `task-progress-change` custom event
   - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
-- 🧩 **Plugin Architecture**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while allowing rich extensions like PNG/PDF exports.
-- 📷 **Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with automatic zoom normalization `normalizeZoom`, scroll position preservation, and auto-download support).
+- 🧩 **Plugin Architecture**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while allowing rich extensions like exports.
+- 📷 **Image & PDF Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with automatic zoom normalization `normalizeZoom`, scroll position preservation, and auto-download support).
+- 📊 **Excel Spreadsheet Export Plugin**: Styled Excel (.xlsx) schedule and timeline export powered by `@mogura/moguchart-plugin-excel` (multi-language support `ja`/`en`/`zh`, WBS hierarchy preservation, cell-shaded task duration bars, and holiday formatting).
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move / copy modes

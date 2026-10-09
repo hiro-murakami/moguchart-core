@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Exported Utility Functions**:
     - `calculateTaskDelay(task: GanttTask)`: Calculates schedule variance (delay/ahead in ms and days) for an individual task.
     - `calculateProjectBaselineSummary(rows: GanttRow[])`: Aggregates project-wide statistics including total baseline tasks, delayed tasks count, ahead tasks count, and max delay days.
+- **Row Header Double-Click Content Target (`contentTarget`)**:
+  - Added `contentTarget?: HTMLElement` to the `row-header-dblclick` event detail, exposing the specific row name content DOM element (excluding indentation spacers and collapse toggle icons) to simplify positioning inline rename inputs and custom floating popovers.
+- **WBS Tree Toggle & Spacer Font Scaling (`--moguchart-font-scale`)**:
+  - Improved `.tree-toggle-btn` and `.tree-toggle-spacer` dimensions, margins, border radius, and icon font size to dynamically scale with the CSS variable `--moguchart-font-scale` (`option.fontScale`), providing proportional WBS tree layouts under custom display scales.
 - **Interactive Demo Controls**:
   - Added live toggle controls to the demo page for Baseline visibility (ON/OFF), Delay Highlighting (ON/OFF), and Placement Position (`bottom` / `top` / `overlay`).
 
