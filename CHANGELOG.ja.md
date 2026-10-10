@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - インデントスペーサーやツリートグルアイコンを除いた行名表示領域のDOM要素を直接取得可能にし、行名のインライン編集入力欄の配置やカスタムポップオーバーの配置を容易に改善
 - **フォント倍率に応じたWBSツリーUIの連動スケーリング (`--moguchart-font-scale`)**:
   - CSS変数 `--moguchart-font-scale`（`option.fontScale`）の値に応じて、ツリートグルボタン（`.tree-toggle-btn`）およびスペーサー（`.tree-toggle-spacer`）の幅、高さ、マージン、角丸、アイコンフォントサイズが動的にスケールするよう改善
+- **WBSサマリータスクへの半透明・フィルタアウト状態の自動連動**:
+  - サマリー行（親行）配下のタスクがフィルタ等で全て半透明化（`_isFilteredOut === true` または `style` に `opacity: 0.x`）されている場合、親のサマリータスク（およびそのベースラインバー）に対しても自動的に半透明スタイル（`opacity: 0.2`）および `labelStyle: 'opacity: 0.2;'` を適用
+  - 遅延ハイライト線（`.task-delayed`）やバーラベル、進捗ラベルも半透明表示（`.filtered-out`）に連動
+- **`scrollToTask` スクロール挙動の最適化 & Vue ラッパーへの公開**:
+  - `packages/vue` の `GanttChart` コンポーネントの公開 API（`GanttChartPublicApi`）に `scrollToTask(taskId: string): void` を追加し、`ref` から目的のタスクへ直接スクロール可能に改善
+  - `scrollToTask` のスクロール挙動を最適化：縦方向と横方向のスクロールが必要な場合に単一の `container.scrollTo` を呼び出し、滑らかに同時スクロール（`behavior: 'smooth'`）するよう改善
+  - 横スクロール時、行ヘッダー幅に加えて左側マージン（40px）を確保し、タスクの開始位置が明瞭に見えるよう視認性を向上
 - **デモ画面へのコントロール追加**:
   - デモページの操作パネルにベースライン表示切替（ON/OFF）、遅延ハイライト切替（ON/OFF）、配置位置（下部 / 上部 / 重ねて表示）のリアルタイム操作UIを追加
 

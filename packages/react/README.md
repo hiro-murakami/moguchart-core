@@ -130,11 +130,24 @@ export function GanttToolbar() {
       <button onClick={() => chartRef.current?.zoomIn()}>Zoom In</button>
       <button onClick={() => chartRef.current?.zoomOut()}>Zoom Out</button>
       <button onClick={() => chartRef.current?.resetZoom()}>Reset Zoom</button>
+      <button onClick={() => chartRef.current?.scrollToTask('task-1')}>Scroll to Task</button>
       <GanttChart ref={chartRef} rows={[]} />
     </div>
   )
 }
 ```
+
+### Available Methods & Properties
+
+The following methods can be invoked directly on `ref.current`:
+
+- **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
+- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
+- **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `selectDependency(...)`, `clearDependencySelection()`
+- **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
+- **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
 
 ---
 

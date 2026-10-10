@@ -63,6 +63,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Snap feature (time unit grid snapping, automatic monthly boundary snap in month view)
   - `hitTest` method for calculating row ID and datetime from screen coordinates
   - Programmatic task selection + auto-scroll (`selectTask`)
+  - Smooth programmatic scroll to any specific task (`scrollToTask`)
   - Row layout coordinates inspection (`getRowPositions`)
 - 🌳 **WBS (Hierarchical Tree & Collapsible Rows)**:
   - Unlimited parent-child hierarchy via `parentId`
@@ -71,6 +72,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Configurable summary task bar colors (chart default `summaryColor` and row-level `summaryColor` overrides)
   - Coexistence of summary task bars and normal tasks within parent rows (two-lane rendering)
   - Configurable progress label display on summary task bars (`showSummaryLabel`)
+  - Automated opacity & dimmed styling linking when all child tasks are filtered out
   - Collapsing seamlessly integrated with virtual scrolling and overview minimap
   - Safe drag & drop reordering preserving hierarchy (prevents circular nesting, moves subtrees together)
   - Programmatic expand/collapse methods (`toggleRowCollapse`, `collapseAll`, `expandAll`)
@@ -815,6 +817,26 @@ document.addEventListener('mousemove', (e) => {
     console.log(`Row: ${result.rowId}, Date: ${result.date}`)
   }
 })
+```
+
+#### scrollToTask
+
+Smoothly scrolls the Gantt chart container so that the specified task comes into view (centered vertically, with row header width and an extra 40px margin applied horizontally).
+
+```javascript
+chart.scrollToTask('task-1')
+```
+
+#### scrollToPosition / resetScroll
+
+Scrolls to specific coordinates or resets scroll back to origin.
+
+```javascript
+// Smooth scroll to position
+chart.scrollToPosition({ left: 400, top: 200, behavior: 'smooth' })
+
+// Reset scroll to top-left (0, 0)
+chart.resetScroll()
 ```
 
 #### Export Plugin (`@mogura/moguchart-plugin-export`)

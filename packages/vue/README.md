@@ -189,7 +189,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **Scroll & Selection**: `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
+- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
 - **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
 

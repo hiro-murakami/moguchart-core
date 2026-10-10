@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `contentTarget?: HTMLElement` to the `row-header-dblclick` event detail, exposing the specific row name content DOM element (excluding indentation spacers and collapse toggle icons) to simplify positioning inline rename inputs and custom floating popovers.
 - **WBS Tree Toggle & Spacer Font Scaling (`--moguchart-font-scale`)**:
   - Improved `.tree-toggle-btn` and `.tree-toggle-spacer` dimensions, margins, border radius, and icon font size to dynamically scale with the CSS variable `--moguchart-font-scale` (`option.fontScale`), providing proportional WBS tree layouts under custom display scales.
+- **WBS Parent Summary Opacity & Filter State Linking**:
+  - When all leaf/child tasks of a summary row are filtered out (marked with `_isFilteredOut === true` or styled with `opacity: 0.x`), the parent summary task (and its baseline bar) automatically inherits a dimmed semi-transparent style (`opacity: 0.2`) and `labelStyle: 'opacity: 0.2;'`.
+  - Delay accent lines (`.task-delayed`) and progress/task labels also respect the semi-transparent state (`.filtered-out`).
+- **`scrollToTask` Optimization & Vue Wrapper Exposure**:
+  - Added `scrollToTask(taskId: string): void` to the public API (`GanttChartPublicApi`) of `@mogura/moguchart-vue`, enabling direct programmatic scrolling to any task via template `ref`.
+  - Optimized `scrollToTask` scrolling behavior by consolidating simultaneous vertical and horizontal scrolls into a single `container.scrollTo({ behavior: 'smooth' })` call, eliminating scroll stutter.
+  - Added a 40px left-side margin alongside row header width during horizontal scroll for improved task visibility.
 - **Interactive Demo Controls**:
   - Added live toggle controls to the demo page for Baseline visibility (ON/OFF), Delay Highlighting (ON/OFF), and Placement Position (`bottom` / `top` / `overlay`).
 

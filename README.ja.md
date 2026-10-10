@@ -60,12 +60,14 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - スナップ機能（時間単位でのグリッドスナップ）
   - 座標から行・日時を取得する `hitTest` メソッド
   - プログラムによるタスク選択＋自動スクロール (`selectTask`)
+  - 目的のタスクへスムーズに移動するスクロールメソッド (`scrollToTask`)
 - 🌳 **WBS（階層ツリー・展開/折りたたみ）**:
   - `parentId` による無制限の親子階層構造
   - インデント表示と開閉トグルボタン（▶/▼）
   - 配下の子タスクから自動計算されるサマリータスクバー（ブラケット形状）
   - サマリータスクバーの色設定（プロジェクト既定色および行単位の個別色指定）
   - 親行におけるサマリータスクと通常タスクの共存・同時描画
+  - 子タスクの半透明化（フィルタアウト）に連動したサマリータスク・ベースラインの自動半透明化
   - 仮想スクロールやミニマップと完全に連動する折りたたみ
   - 階層を壊さない安全なD&D並び替え（子タスクのブロック連動移動・循環参照防止）
   - プログラムからの開閉操作（`toggleRowCollapse`, `collapseAll`, `expandAll`）
@@ -797,6 +799,26 @@ document.addEventListener('mousemove', (e) => {
     console.log(`行: ${result.rowId}, 日付: ${result.date}`)
   }
 })
+```
+
+#### scrollToTask
+
+指定したIDのタスクが表示領域外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は中央付近、横方向は行ヘッダー幅とマージンを考慮）。
+
+```javascript
+chart.scrollToTask('task-1')
+```
+
+#### scrollToPosition / resetScroll
+
+指定したスクロール座標への移動や、スクロール位置の初期化を行います。
+
+```javascript
+// スムーズスクロール
+chart.scrollToPosition({ left: 400, top: 200, behavior: 'smooth' })
+
+// 左上 (0, 0) にリセット
+chart.resetScroll()
 ```
 
 #### エクスポートプラグイン (`@mogura/moguchart-plugin-export`)

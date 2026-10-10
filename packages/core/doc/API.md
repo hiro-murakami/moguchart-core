@@ -216,6 +216,7 @@ Public methods that can be called on the component instance.
 | `expandAll`               | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
 | `resetScroll`             | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
 | `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
+| `scrollToTask`            | `(taskId: string) => void`                                                                  | Smoothly scrolls the chart to ensure the specified task is visible within the viewport (centered vertically, and adjusted horizontally with row header width and margin).                       |
 
 ### Usage Examples
 
@@ -400,6 +401,18 @@ chart.resetScroll()
 
 // Scroll to arbitrary position
 chart.scrollToPosition({ left: 300, top: 100, behavior: 'smooth' })
+```
+
+#### scrollToTask
+
+Smoothly scrolls the Gantt chart container to make the specified task visible within the viewport if it is currently outside view.
+Vertically, the task is centered within the container viewport. Horizontally, scrolling accounts for row header width and an extra 40px margin so the task's start position is clearly visible (axes already in view are not scrolled).
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// Smoothly scroll to the task with ID 'task-102'
+chart.scrollToTask('task-102')
 ```
 
 ## Type Definitions
@@ -1951,6 +1964,7 @@ By specifying `parentId` on individual rows, you can seamlessly build an unlimit
 - **Coexistence with Normal Tasks**: If a parent row also contains its own direct tasks, both summary bars and normal tasks are rendered together (summary task on the top lane, normal tasks below).
 - **Custom Summary Colors**: Define a chart-wide summary bar color via `option.tree.summaryColor`, or customize colors per row via `row.summaryColor`.
 - **Connector Suppression**: Summary tasks aggregate child timelines and are automatically excluded from dependency connector line rendering to prevent confusion and circular dependency loops.
+- **Opacity & Filter State Linking**: When all child tasks of a summary row are filtered out (marked with `_isFilteredOut === true` or styled with `opacity: 0.x`), the parent summary task (and its baseline bar) automatically inherits a dimmed semi-transparent style (`opacity: 0.2`) and label opacity, preserving visual coherence across the chart.
 - **Safe Drag & Drop Reordering**: Reordering a parent row moves its entire subtree of descendant rows together as an atomic block. Dropping onto a descendant is automatically prevented to eliminate circular parent-child references.
 
 ## Utility Functions

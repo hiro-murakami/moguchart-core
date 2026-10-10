@@ -128,11 +128,24 @@ export function GanttToolbar() {
       <button onClick={() => chartRef.current?.zoomIn()}>ズームイン</button>
       <button onClick={() => chartRef.current?.zoomOut()}>ズームアウト</button>
       <button onClick={() => chartRef.current?.resetZoom()}>ズームリセット</button>
+      <button onClick={() => chartRef.current?.scrollToTask('task-1')}>タスクへ移動</button>
       <GanttChart ref={chartRef} rows={[]} />
     </div>
   )
 }
 ```
+
+### 利用可能な主なメソッド・プロパティ
+
+`ref.current` 経由で以下のメソッドを直接呼び出すことができます：
+
+- **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
+- **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
+- **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **依存関係操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `selectDependency(...)`, `clearDependencySelection()`
+- **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
+- **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
 
 ---
 

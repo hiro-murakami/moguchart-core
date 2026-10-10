@@ -216,6 +216,7 @@ interface GanttChartOption {
 | `expandAll`                | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                                                             |
 | `resetScroll`              | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
 | `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
+| `scrollToTask`             | `(taskId: string) => void`                                                                  | 指定したIDのタスクが表示範囲外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は画面中央付近、横方向は行ヘッダー幅とマージンを考慮してスクロール）。                                    |
 
 ### 使用例
 
@@ -400,6 +401,18 @@ chart.resetScroll()
 
 // 任意の位置へスクロール
 chart.scrollToPosition({ left: 300, top: 100, behavior: 'smooth' })
+```
+
+#### scrollToTask
+
+指定したタスクが表示領域外にある場合、タスクが見える位置までスムーズに自動スクロールします。
+縦方向は画面中央付近に表示されるよう調整され、横方向は行ヘッダー幅とマージン（40px）を考慮してタスクの開始位置が表示領域に収まるようにスクロールされます（すでに表示領域内にある方向はスクロールされません）。
+
+```javascript
+const chart = document.querySelector('gantt-chart')
+
+// 指定IDのタスクの位置までスムーズにスクロール
+chart.scrollToTask('task-102')
 ```
 
 ## 型定義 (Types)
@@ -1981,6 +1994,7 @@ const projectProgress = calculateProjectProgress(rows) // プロジェクト全�
 - **通常タスクとの共存描画**: 親行自身に通常タスクが登録されている場合、上段にサマリータスク、下段に通常タスクが2段で並んで描画されます。
 - **サマリータスクの色設定**: `option.tree.summaryColor` で全体の既定色を指定でき、行側の `row.summaryColor` で個別上書きが可能です。
 - **依存関係線の自動抑止**: サマリータスクは子タスクの集計結果であるため、依存関係線（矢印）の描画対象外となり、誤った依存関係の混乱や循環参照を防ぎます。
+- **フィルタ・半透明状態の自動連動**: フィルタ等で配下の子タスクがすべて半透明化（`_isFilteredOut === true` または `style` に `opacity: 0.x`）されている場合、親のサマリータスク（およびベースラインバー）に対しても自動的に半透明スタイル（`opacity: 0.2`）およびラベルの半透明化が適用され、チャート全体の視覚的整合性を保ちます。
 - **安全なドラッグ＆ドロップ並び替え**: 親行を移動すると子孫行もブロックとして一体となって追従移動し、自身の子孫へのドロップ（循環参照）は自動的に防止されます。
 
 ## ユーティリティ関数 (Utility Functions)
