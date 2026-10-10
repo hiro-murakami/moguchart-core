@@ -396,6 +396,9 @@ export class GanttBarElement extends LitElement {
       pointer-events: none;
       z-index: 6;
     }
+    .task-group.task-delayed.filtered-out::after {
+      opacity: 0.2;
+    }
   `
 
   private getX(date: Date) {
@@ -1443,13 +1446,17 @@ export class GanttBarElement extends LitElement {
             ? `background-color: ${this.option.progress.color};`
             : '')
 
+    const isFiltered =
+      (this.task as any)._isFilteredOut === true ||
+      (typeof this.task.style === 'string' && /opacity:\s*0(\.\d+)?/i.test(this.task.style))
+
     return html`
       ${hasValidBaseline
         ? html`
             <div
               class="baseline-group ${isSummary ? 'summary-baseline-group' : ''} ${baselinePos === 'overlay'
                 ? 'baseline-overlay'
-                : ''}"
+                : ''} ${isFiltered ? 'filtered-out' : ''}"
               style="
                 left: ${bx}px;
                 top: ${baselineY}px;
@@ -1478,7 +1485,7 @@ export class GanttBarElement extends LitElement {
           `
         : ''}
       <div
-        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isDelayed ? 'task-delayed' : ''}"
+        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isFiltered ? 'filtered-out' : ''}"
         style="
           left: ${x}px;
           top: ${actualBarY}px;
@@ -1510,10 +1517,10 @@ export class GanttBarElement extends LitElement {
           ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
         </div>
         ${!this.option.customRendering?.barContent && this.task.name
-          ? html`<div class="bar-label" style="${this.task.labelStyle || ''}">${this.task.name}</div>`
+          ? html`<div class="bar-label" style="${this.task.labelStyle || ''}; ${isFiltered ? 'opacity: 0.2;' : ''}">${this.task.name}</div>`
           : ''}
         ${showProgressLabel && progressLabelText
-          ? html`<div class="progress-label pos-${labelPosition}">${progressLabelText}</div>`
+          ? html`<div class="progress-label pos-${labelPosition}" style="${isFiltered ? 'opacity: 0.2;' : ''}">${progressLabelText}</div>`
           : ''}
         ${isProgressEditable && progressVal !== null
           ? html`<div

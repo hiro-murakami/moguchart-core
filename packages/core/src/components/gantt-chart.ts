@@ -1430,9 +1430,11 @@ export class GanttChartElement extends LitElement {
     const visibleTop = container.scrollTop
     const visibleBottom = container.scrollTop + container.clientHeight
 
+    let targetTop: number | undefined
+    let targetLeft: number | undefined
+
     if (taskTopInContent < visibleTop || taskBottomInContent > visibleBottom) {
-      const targetScrollTop = taskTopInContent - container.clientHeight / 2 + coords.height / 2
-      container.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' })
+      targetTop = Math.max(0, taskTopInContent - container.clientHeight / 2 + coords.height / 2)
     }
 
     // 横スクロール: 行ヘッダー幅を考慮
@@ -1442,8 +1444,15 @@ export class GanttChartElement extends LitElement {
     const visibleRight = container.scrollLeft + container.clientWidth
 
     if (taskLeftInContent < visibleLeft || taskRightInContent > visibleRight) {
-      const targetScrollLeft = taskLeftInContent - labelWidth - 20
-      container.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' })
+      targetLeft = Math.max(0, taskLeftInContent - labelWidth - 40)
+    }
+
+    if (targetTop !== undefined || targetLeft !== undefined) {
+      container.scrollTo({
+        top: targetTop !== undefined ? targetTop : container.scrollTop,
+        left: targetLeft !== undefined ? targetLeft : container.scrollLeft,
+        behavior: 'smooth',
+      })
     }
   }
 

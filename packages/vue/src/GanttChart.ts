@@ -274,6 +274,7 @@ export const GanttChart = defineComponent({
       getZoomScale: () => elRef.value?.getZoomScale(),
       resetScroll: (...args: Parameters<GanttChartElement['resetScroll']>) => elRef.value?.resetScroll(...args),
       scrollToPosition: (...args: Parameters<GanttChartElement['scrollToPosition']>) => elRef.value?.scrollToPosition(...args),
+      scrollToTask: (...args: Parameters<GanttChartElement['scrollToTask']>) => elRef.value?.scrollToTask(...args),
       selectTask: (...args: Parameters<GanttChartElement['selectTask']>) => elRef.value?.selectTask(...args),
       toggleRowCollapse: (...args: Parameters<GanttChartElement['toggleRowCollapse']>) => elRef.value?.toggleRowCollapse(...args),
       collapseAll: (...args: Parameters<GanttChartElement['collapseAll']>) => elRef.value?.collapseAll(...args),
@@ -321,6 +322,7 @@ export interface GanttChartPublicApi {
   getZoomScale: GanttChartElement['getZoomScale']
   resetScroll: GanttChartElement['resetScroll']
   scrollToPosition: GanttChartElement['scrollToPosition']
+  scrollToTask: GanttChartElement['scrollToTask']
   selectTask: GanttChartElement['selectTask']
   toggleRowCollapse: GanttChartElement['toggleRowCollapse']
   collapseAll: GanttChartElement['collapseAll']

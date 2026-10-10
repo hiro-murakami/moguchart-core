@@ -513,6 +513,94 @@ describe('GanttChartElement WBS Integration', () => {
       expect(summaryTask).toBeDefined()
       expect(summaryTask?.style).toContain('background-color: #f59e0b;')
     })
+
+    it('子タスクが全て半透明化されている場合、サマリータスクおよびbaselineも半透明化される', async () => {
+      element.option = {
+        ...element.option,
+        calendar: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-31'),
+          pxPerDay: 20,
+        },
+        tree: {
+          enabled: true,
+          autoSummary: true,
+        },
+        baseline: {
+          enabled: true,
+        },
+      }
+
+      // 子タスクすべてに _isFilteredOut と opacity: 0.2 を設定
+      element.rows = element.rows.map((r) => {
+        if (r.id === 'phase1' || r.id === 'phase2') {
+          return {
+            ...r,
+            tasks: r.tasks.map((t) => ({
+              ...t,
+              style: 'opacity: 0.2;',
+              _isFilteredOut: true,
+              baseline: {
+                start: t.start,
+                end: t.end,
+                progress: t.progress,
+                style: 'opacity: 0.2;',
+              },
+            })),
+          }
+        }
+        return r
+      })
+      await element.updateComplete
+
+      const displayRows = (element as any).displayRows
+      const p1Row = displayRows.find((r: GanttRow) => r.id === 'p1')
+      const summaryTask = p1Row?.tasks.find((t: any) => t.type === 'summary')
+
+      expect(summaryTask).toBeDefined()
+      expect(summaryTask?.style).toContain('opacity: 0.2;')
+      expect(summaryTask?._isFilteredOut).toBe(true)
+      expect(summaryTask?.baseline?.style).toContain('opacity: 0.2;')
+    })
+
+    it('子タスクの中に1つでも通常表示タスクがある場合、サマリータスクは半透明化されない', async () => {
+      element.option = {
+        ...element.option,
+        calendar: {
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-31'),
+          pxPerDay: 20,
+        },
+        tree: {
+          enabled: true,
+          autoSummary: true,
+        },
+      }
+
+      // phase1 のみ半透明化、phase2 は通常表示
+      element.rows = element.rows.map((r) => {
+        if (r.id === 'phase1') {
+          return {
+            ...r,
+            tasks: r.tasks.map((t) => ({
+              ...t,
+              style: 'opacity: 0.2;',
+              _isFilteredOut: true,
+            })),
+          }
+        }
+        return r
+      })
+      await element.updateComplete
+
+      const displayRows = (element as any).displayRows
+      const p1Row = displayRows.find((r: GanttRow) => r.id === 'p1')
+      const summaryTask = p1Row?.tasks.find((t: any) => t.type === 'summary')
+
+      expect(summaryTask).toBeDefined()
+      expect(summaryTask?.style ?? '').not.toContain('opacity: 0.2;')
+      expect(summaryTask?._isFilteredOut).toBeUndefined()
+    })
   })
 })
 

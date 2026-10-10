@@ -94,12 +94,42 @@ export class TreeController implements ReactiveController {
         const allChildTasks = childRows.flatMap((r) => r.tasks)
         if (allChildTasks.length > 0) {
           const effectiveColor = row.summaryColor || this.host.option?.tree?.summaryColor
+
+          // 子タスクが全て半透明化（フィルタアウト）されているかを判定
+          const leafTasks = allChildTasks.filter((t) => t.type !== 'summary')
+          const tasksToCheck = leafTasks.length > 0 ? leafTasks : allChildTasks
+          const isTaskFilteredOut = (t: any) =>
+            t._isFilteredOut === true ||
+            (typeof t.style === 'string' && /opacity:\s*0(\.\d+)?/i.test(t.style))
+
+          const allChildrenFilteredOut =
+            tasksToCheck.length > 0 && tasksToCheck.every((t) => isTaskFilteredOut(t))
+
+          let summaryStyle = effectiveColor ? `background-color: ${effectiveColor};` : ''
+          if (allChildrenFilteredOut) {
+            const separator = summaryStyle && !summaryStyle.trim().endsWith(';') ? ';' : ''
+            summaryStyle = `${summaryStyle}${separator} opacity: 0.2;`.trim()
+          }
+
           const summaryTask = computeSummaryTask(allChildTasks, {
             id: `${row.id}-summary`,
             name: row.name,
-            style: effectiveColor ? `background-color: ${effectiveColor};` : undefined,
+            style: summaryStyle || undefined,
+            labelStyle: allChildrenFilteredOut ? 'opacity: 0.2;' : undefined,
           })
           if (summaryTask) {
+            if (allChildrenFilteredOut) {
+              ;(summaryTask as any)._isFilteredOut = true
+              if (summaryTask.baseline) {
+                const bStyle = summaryTask.baseline.style || ''
+                const bSep = bStyle && !bStyle.trim().endsWith(';') ? ';' : ''
+                summaryTask.baseline = {
+                  ...summaryTask.baseline,
+                  style: `${bStyle}${bSep} opacity: 0.2;`.trim(),
+                }
+              }
+            }
+
             const normalTasks = (row.tasks || []).filter(
               (t) => t.id !== summaryTask.id && t.type !== 'summary',
             )
