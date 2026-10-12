@@ -281,5 +281,75 @@ describe('gantt-chart multi-column grid', () => {
     const nameCell = firstRow?.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
     expect(nameCell?.style.width).toBe('250px')
   })
+
+  it('preserves user-resized grid header width and column width when row is clicked or option reference changes', async () => {
+    chart.rows = sampleRows
+    chart.option = {
+      ...baseOption,
+      grid: {
+        enabled: true,
+        columns: [
+          { id: 'name', width: 150 },
+          { id: 'startDate', width: 100 },
+        ],
+      },
+    }
+    await chart.updateComplete
+
+    // 1. Simulate resizing row header (splitter resize) to 480px
+    chart.currentRowHeaderWidth = 480
+    // Trigger pointerup logic
+    ;(chart as any)._userResizedHeaderWidth = 480
+    ;(chart as any).baseRowHeaderWidth = 480
+    chart.requestUpdate()
+    await chart.updateComplete
+
+    // 2. Simulate resizing column 'name' to 260px
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar')
+    calendar?.dispatchEvent(
+      new CustomEvent('column-resize', {
+        detail: {
+          columnId: 'name',
+          width: 260,
+          previousWidth: 150,
+          isFinal: true,
+          columns: [
+            { id: 'name', width: 260 },
+            { id: 'startDate', width: 100 },
+          ],
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    await chart.updateComplete
+
+    expect(chart.currentRowHeaderWidth).toBe(480)
+    let firstRow = chart.shadowRoot?.querySelectorAll('gantt-row')?.[0]
+    await (firstRow as any)?.updateComplete
+    let nameCell = firstRow?.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
+    expect(nameCell?.style.width).toBe('260px')
+
+    // 3. Simulate clicking a row (fires row-selection-change, causing parent to pass a new option object reference)
+    // Note: Parent passes an option object without explicit width change
+    chart.option = {
+      ...baseOption,
+      grid: {
+        enabled: true,
+        columns: [
+          { id: 'name', width: 150 },
+          { id: 'startDate', width: 100 },
+        ],
+      },
+    }
+    await chart.updateComplete
+
+    // Both grid width (rowHeader width) and column width must be PRESERVED!
+    expect(chart.currentRowHeaderWidth).toBe(480)
+    firstRow = chart.shadowRoot?.querySelectorAll('gantt-row')?.[0]
+    await (firstRow as any)?.updateComplete
+    nameCell = firstRow?.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
+    expect(nameCell?.style.width).toBe('260px')
+  })
 })
 

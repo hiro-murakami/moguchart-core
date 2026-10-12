@@ -102,8 +102,9 @@ export class ZoomController implements ReactiveController {
    */
   public get effectiveRowHeaderWidth(): number {
     const baseWidth = this.host.baseRowHeaderWidth || (this.host.option?.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH)
+    const maxWidth = this.host.option?.rowHeader?.maxWidth ?? 2000
     if (this.zoomOption?.enabled && this.isScaleRowHeaderEnabled) {
-      return Math.max(60, Math.min(600, Math.round(baseWidth * this.effectiveZoomScale)))
+      return Math.max(60, Math.min(maxWidth, Math.round(baseWidth * this.effectiveZoomScale)))
     }
     return baseWidth
   }

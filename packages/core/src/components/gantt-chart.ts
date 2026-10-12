@@ -303,12 +303,20 @@ export class GanttChartElement extends LitElement {
   @state() private isExporting = false
   @state() private currentGridColumns: GanttColumn[] | null = null
   @state() private currentGridScrollLeft = 0
+  private _userResizedHeaderWidth: number | null = null
+  private _lastExplicitOptionWidth: number | undefined = undefined
+  private _userColumnWidths: Map<string, number> = new Map()
 
   public get effectiveGridColumns(): GanttColumn[] | undefined {
     const gridOpt = this.option?.grid
     if (!gridOpt || gridOpt.enabled === false) return undefined
     if (!gridOpt.columns && gridOpt.enabled !== true) return undefined
-    return normalizeGridColumns(this.currentGridColumns ?? gridOpt.columns, this.option?.locale)
+    const baseColumns = this.currentGridColumns ?? gridOpt.columns
+    const normalized = normalizeGridColumns(baseColumns, this.option?.locale)
+    return normalized.map((col) => {
+      const userW = this._userColumnWidths.get(col.id)
+      return userW !== undefined ? { ...col, width: userW } : col
+    })
   }
 
   private _layoutCache: {
@@ -509,9 +517,28 @@ export class GanttChartElement extends LitElement {
     }
     if (changedProperties.has('option')) {
       this.setupCurrentTimeTimer()
+
+      const optionWidth = this.option?.grid?.width ?? this.option?.rowHeader?.width
+      const isExplicitWidthChange = optionWidth !== undefined && optionWidth !== this._lastExplicitOptionWidth
+      this._lastExplicitOptionWidth = optionWidth
+
       if (!this.isResizingHeader) {
-        this.baseRowHeaderWidth = this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH
-        this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+        if (isExplicitWidthChange) {
+          // 親コンポーネント等から明示的に width が変更された場合
+          this._userResizedHeaderWidth = optionWidth
+          this.baseRowHeaderWidth = optionWidth
+          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+        } else if (this._userResizedHeaderWidth !== null) {
+          // ユーザーが手動リサイズ済みの場合はその値を維持する（option 参照更新で初期化しない）
+          this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
+            ? Math.max(60, Math.round(this._userResizedHeaderWidth / this.effectiveZoomScale))
+            : this._userResizedHeaderWidth
+          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+        } else if (!changedProperties.get('option')) {
+          // 初回マウント時
+          this.baseRowHeaderWidth = optionWidth ?? DEFAULT_ROW_HEADER_WIDTH
+          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+        }
       }
       this._zoomController.syncWithOption()
       if (this.option?.history) {
@@ -634,6 +661,7 @@ export class GanttChartElement extends LitElement {
 
       const finalWidth = Math.round(this.currentRowHeaderWidth)
       this.currentRowHeaderWidth = finalWidth
+      this._userResizedHeaderWidth = finalWidth
       this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
         ? Math.max(60, Math.round(finalWidth / this.effectiveZoomScale))
         : finalWidth
@@ -647,11 +675,14 @@ export class GanttChartElement extends LitElement {
       )
     }
 
-      target.addEventListener('pointermove', handleMove)
+    target.addEventListener('pointermove', handleMove)
     target.addEventListener('pointerup', handleUp)
   }
 
   private handleColumnResize = (e: CustomEvent<ColumnResizeEventDetail>) => {
+    if (e.detail.columnId && typeof e.detail.width === 'number') {
+      this._userColumnWidths.set(e.detail.columnId, e.detail.width)
+    }
     this.currentGridColumns = e.detail.columns
     this.requestUpdate()
     this.dispatchEvent(

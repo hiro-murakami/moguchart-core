@@ -22,6 +22,8 @@ import type {
   TaskProgressChangeEventDetail,
   HistoryChangeEventDetail,
   ZoomChangeEventDetail,
+  GanttColumn,
+  ColumnResizeEventDetail,
 } from '../core/types'
 import { CHROME_ZOOM_LEVELS } from '../core/constants'
 import type { ThemeColorPalette } from '../core/types'
@@ -133,6 +135,14 @@ let showSummaryProgressLabel = true
 let enableMarquee = true
 let enableBaseline = true
 let enableGrid = true
+let demoGridColumns: GanttColumn[] = [
+  { id: 'wbs', width: 60 },
+  { id: 'name', width: 220 },
+  { id: 'startDate', width: 95 },
+  { id: 'endDate', width: 95 },
+  { id: 'duration', width: 70 },
+  { id: 'progress', width: 70 },
+]
 let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'
 let highlightDelay = true
 let isExporting = false
@@ -337,14 +347,7 @@ const renderApp = () => {
     },
     grid: {
       enabled: enableGrid,
-      columns: [
-        { id: 'wbs', width: 60 },
-        { id: 'name', width: 220 },
-        { id: 'startDate', width: 95 },
-        { id: 'endDate', width: 95 },
-        { id: 'duration', width: 70 },
-        { id: 'progress', width: 70 },
-      ],
+      columns: demoGridColumns,
     },
     tree: {
       enabled: true,
@@ -1178,6 +1181,9 @@ const renderApp = () => {
             @task-contextmenu="${handleTaskContextMenu}"
             @task-delete="${handleTaskDelete}"
             @row-header-resize="${handleRowHeaderResize}"
+            @column-resize="${(e: CustomEvent<ColumnResizeEventDetail>) => {
+              demoGridColumns = e.detail.columns
+            }}"
             @row-toggle-collapse="${(e: CustomEvent<RowToggleCollapseEventDetail>) => {
               const { rowId, collapsed } = e.detail
               rows = rows.map((r) => (r.id === rowId ? { ...r, collapsed } : r))
@@ -1458,6 +1464,7 @@ const handleTaskUpdate = (e: CustomEvent<TaskUpdateEventDetail>) => {
 }
 
 const handleRowHeaderResize = (e: CustomEvent<RowHeaderResizeEventDetail>) => {
+  rowHeaderWidth = e.detail.width
   console.log('Row Header Resized:', e.detail)
 }
 

@@ -1175,6 +1175,10 @@ export interface ColumnResizeEventDetail {
   columnId: string
   /** 新しいカラム幅 (px) */
   width: number
+  /** リサイズ前のカラム幅 (px) */
+  previousWidth?: number
+  /** リサイズ確定（ドラッグ終了）かどうか */
+  isFinal?: boolean
   /** 更新後の全カラム定義配列 */
   columns: GanttColumn[]
 }

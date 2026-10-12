@@ -97,6 +97,8 @@ export class GanttCalendarElement extends LitElement {
           detail: {
             columnId,
             width: newWidth,
+            previousWidth: startWidth,
+            isFinal: false,
             columns: [...columns],
           },
           bubbles: true,
@@ -109,6 +111,19 @@ export class GanttCalendarElement extends LitElement {
       target.releasePointerCapture(e.pointerId)
       target.removeEventListener('pointermove', handleMove)
       target.removeEventListener('pointerup', handleUp)
+      this.dispatchEvent(
+        new CustomEvent<ColumnResizeEventDetail>('column-resize', {
+          detail: {
+            columnId,
+            width: targetCol.width ?? startWidth,
+            previousWidth: startWidth,
+            isFinal: true,
+            columns: [...columns],
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
     }
 
     target.addEventListener('pointermove', handleMove)
