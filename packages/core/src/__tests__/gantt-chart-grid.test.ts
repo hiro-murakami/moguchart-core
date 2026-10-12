@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '../components/gantt-chart'
 import { GanttChartElement } from '../components/gantt-chart'
-import type { GanttChartOption, GanttRow } from '../core/types'
+import type { GanttChartOption, GanttRow, GanttColumn } from '../core/types'
 
 // Mock ResizeObserver
 ;(globalThis as any).ResizeObserver = class ResizeObserver {

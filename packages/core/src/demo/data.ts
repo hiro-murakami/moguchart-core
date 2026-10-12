@@ -450,6 +450,76 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
   })
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 単一タスク（1行1タスク）ショーケースエリア
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  rows.push({
+    id: 'single-1',
+    name: t.singleTask1,
+    tasks: [
+      {
+        id: 't-single-1',
+        name: t.singleTask1,
+        start: d(start, 3),
+        end: d(start, 12),
+        style: `background-color: ${colors.cyan};`,
+        progress: 85,
+        baseline: {
+          start: d(start, 2),
+          end: d(start, 10),
+          progress: 90,
+        },
+      },
+    ],
+    markers: [
+      {
+        id: 'marker-s1',
+        date: d(start, 12),
+        anchor: 'end',
+        type: 'diamond',
+        color: colors.cyan,
+        name: '★',
+      },
+    ],
+  })
+
+  rows.push({
+    id: 'single-2',
+    name: t.singleTask2,
+    tasks: [
+      {
+        id: 't-single-2',
+        name: t.singleTask2,
+        start: d(start, 13),
+        end: d(start, 22),
+        style: `background-color: ${colors.amber};`,
+        dependencies: ['t-single-1'],
+        progress: 50,
+        baseline: {
+          start: d(start, 12),
+          end: d(start, 20),
+          progress: 60,
+        },
+      },
+    ],
+  })
+
+  rows.push({
+    id: 'single-3',
+    name: t.singleTask3,
+    tasks: [
+      {
+        id: 't-single-3',
+        name: t.singleTask3,
+        start: d(start, 20),
+        end: d(start, 29),
+        style: `background-color: ${colors.lime};`,
+        dependencies: ['t-single-2'],
+        progress: 15,
+      },
+    ],
+  })
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // WBS 階層ツリー & サマリータスク ショーケースエリア
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   rows.push({
@@ -462,6 +532,12 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     id: 'wbs-phase1',
     name: t.wbsPhase1,
     parentId: 'wbs-root',
+    tasks: [], // autoSummary サマリー行
+  })
+  rows.push({
+    id: 'wbs-task1',
+    name: t.wbsTask1,
+    parentId: 'wbs-phase1',
     tasks: [
       {
         id: 't-wbs-1',
@@ -475,6 +551,13 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
           end: d(start, 6),
         },
       },
+    ],
+  })
+  rows.push({
+    id: 'wbs-task2',
+    name: t.wbsTask2,
+    parentId: 'wbs-phase1',
+    tasks: [
       {
         id: 't-wbs-2',
         name: t.wbsTask2,
@@ -494,6 +577,12 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     id: 'wbs-phase2',
     name: t.wbsPhase2,
     parentId: 'wbs-root',
+    tasks: [], // autoSummary サマリー行
+  })
+  rows.push({
+    id: 'wbs-task3',
+    name: t.wbsTask3,
+    parentId: 'wbs-phase2',
     tasks: [
       {
         id: 't-wbs-3',
@@ -504,6 +593,13 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         dependencies: ['t-wbs-2'],
         progress: 40,
       },
+    ],
+  })
+  rows.push({
+    id: 'wbs-task4',
+    name: t.wbsTask4,
+    parentId: 'wbs-phase2',
+    tasks: [
       {
         id: 't-wbs-4',
         name: t.wbsTask4,
@@ -545,30 +641,49 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     const colorIdx = (i - 11) % barColors.length
     const hasPattern = i % 4 === 0
     const patternIdx = (i - 11) % patternTypes.length
+    const isSingleTask = i % 2 === 1
+
+    const rowTasks: GanttTask[] = isSingleTask
+      ? [
+          {
+            id: `t${i}-1`,
+            name: t.project(i),
+            start: d(start, offset),
+            end: d(start, offset + 12),
+            style: `background-color: ${barColors[colorIdx]};`,
+            pattern: hasPattern
+              ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
+              : undefined,
+            progress: (i * 19) % 100,
+          },
+        ]
+      : [
+          {
+            id: `t${i}-1`,
+            name: t.requirementsDefinition,
+            start: d(start, offset),
+            end: d(start, offset + 5),
+            style: `background-color: ${barColors[colorIdx]};`,
+            pattern: hasPattern
+              ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
+              : undefined,
+            progress: 100,
+          },
+          {
+            id: `t${i}-2`,
+            name: t.design,
+            start: d(start, offset + 6),
+            end: d(start, offset + 15),
+            style: `background-color: ${barColors[(colorIdx + 1) % barColors.length]};`,
+            dependencies: [`t${i}-1`],
+            progress: (i * 13) % 80,
+          },
+        ]
 
     rows.push({
       id: `row${i}`,
       name: t.project(i),
-      tasks: [
-        {
-          id: `t${i}-1`,
-          name: t.requirementsDefinition,
-          start: d(start, offset),
-          end: d(start, offset + 5),
-          style: `background-color: ${barColors[colorIdx]};`,
-          pattern: hasPattern
-            ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
-            : undefined,
-        },
-        {
-          id: `t${i}-2`,
-          name: t.design,
-          start: d(start, offset + 6),
-          end: d(start, offset + 15),
-          style: `background-color: ${barColors[(colorIdx + 1) % barColors.length]};`,
-          dependencies: [`t${i}-1`],
-        },
-      ],
+      tasks: rowTasks,
       visible: i % 5 !== 0,
     })
   }
@@ -593,33 +708,49 @@ export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
     const colorIdx = (i - 1) % barColors.length
     const hasPattern = i % 3 === 0
     const patternIdx = (i - 1) % patternTypes.length
+    const isSingleTask = i > 5 && i % 2 === 1
 
     // 先頭5行は行間依存関係も追加
     const extraDeps = i >= 2 && i <= 5 ? [`w${i - 1}-2`] : []
 
+    const tasks: GanttTask[] = isSingleTask
+      ? [
+          {
+            id: `w${i}-1`,
+            name: t.project(i),
+            start: d(start, offset),
+            end: d(start, offset + 14),
+            style: `background-color: ${barColors[colorIdx]};`,
+            pattern: hasPattern
+              ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
+              : undefined,
+          },
+        ]
+      : [
+          {
+            id: `w${i}-1`,
+            name: i <= 5 ? t.planning : t.requirementsDefinition,
+            start: d(start, offset),
+            end: d(start, offset + 7),
+            style: `background-color: ${barColors[colorIdx]};`,
+            pattern: hasPattern
+              ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
+              : undefined,
+          },
+          {
+            id: `w${i}-2`,
+            name: i <= 5 ? t.development : t.design,
+            start: d(start, offset + 7),
+            end: d(start, offset + 21),
+            style: `background-color: ${barColors[(colorIdx + 2) % barColors.length]};`,
+            dependencies: [`w${i}-1`, ...extraDeps],
+          },
+        ]
+
     rows.push({
       id: `wrow${i}`,
       name: t.project(i),
-      tasks: [
-        {
-          id: `w${i}-1`,
-          name: i <= 5 ? t.planning : t.requirementsDefinition,
-          start: d(start, offset),
-          end: d(start, offset + 7),
-          style: `background-color: ${barColors[colorIdx]};`,
-          pattern: hasPattern
-            ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
-            : undefined,
-        },
-        {
-          id: `w${i}-2`,
-          name: i <= 5 ? t.development : t.design,
-          start: d(start, offset + 7),
-          end: d(start, offset + 21),
-          style: `background-color: ${barColors[(colorIdx + 2) % barColors.length]};`,
-          dependencies: [`w${i}-1`, ...extraDeps],
-        },
-      ],
+      tasks,
       visible: i % 5 !== 0,
     })
   }
@@ -1208,6 +1339,10 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
       { name: t.requirementsDefinition, durationMonths: 1 },
       { name: t.bugfix, durationMonths: 3 },
       { name: t.testing, durationMonths: 1 },
+    ],
+    // パターンI: 単一タスク (1行1タスク)
+    (idx: number) => [
+      { name: t.project(idx), durationMonths: 6 },
     ],
   ]
 

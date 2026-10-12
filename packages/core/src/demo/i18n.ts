@@ -112,6 +112,10 @@ export interface DemoTexts {
   wbsPhase2: string
   wbsTask3: string
   wbsTask4: string
+  // 単一タスク（1行1タスク）ショーケース用テキスト
+  singleTask1: string
+  singleTask2: string
+  singleTask3: string
   // コンテキストメニュー
   edit: string
   duplicate: string
@@ -297,6 +301,9 @@ export const jaTexts: DemoTexts = {
   wbsPhase2: 'フェーズ2: UI/UX設計 & プロトタイプ',
   wbsTask3: '画面設計・ワイヤーフレーム',
   wbsTask4: 'プロトタイプ検証',
+  singleTask1: 'インフラ設計・クラウド環境構築',
+  singleTask2: 'セキュリティ脆弱性診断',
+  singleTask3: '運用マニュアル・手順書作成',
   edit: '編集',
   duplicate: '複製',
   delete_: '削除',
@@ -481,6 +488,9 @@ export const enTexts: DemoTexts = {
   wbsPhase2: 'Phase 2: UI/UX Design & Prototype',
   wbsTask3: 'Wireframing & Screen Design',
   wbsTask4: 'Prototype Usability Testing',
+  singleTask1: 'Cloud Infrastructure Setup',
+  singleTask2: 'Security Vulnerability Assessment',
+  singleTask3: 'Operations Manual Documentation',
   edit: 'Edit',
   duplicate: 'Duplicate',
   delete_: 'Delete',
