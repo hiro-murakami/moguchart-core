@@ -154,6 +154,42 @@ describe('gantt-chart multi-column grid', () => {
     expect(firstRowShadow?.querySelector('.grid-cell-progress')?.textContent).toContain('80%')
   })
 
+  it('renders "開始月" and "終了月" and year/month formatted dates in month mode', async () => {
+    chart.rows = sampleRows
+    chart.option = {
+      ...baseOption,
+      calendar: {
+        ...baseOption.calendar,
+        pxPerMonth: 48,
+      },
+      grid: {
+        enabled: true,
+        columns: [
+          { id: 'wbs', width: 50 },
+          { id: 'name', width: 150 },
+          { id: 'startDate', width: 90 },
+          { id: 'endDate', width: 90 },
+        ],
+      },
+    }
+    await chart.updateComplete
+
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar')
+    expect(calendar).toBeDefined()
+    await calendar?.updateComplete
+
+    const headerCells = calendar?.shadowRoot?.querySelectorAll('.grid-header-cell')
+    expect(headerCells?.[2].textContent).toContain('開始月')
+    expect(headerCells?.[3].textContent).toContain('終了月')
+
+    const rows = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const firstRowShadow = rows?.[0].shadowRoot
+    await (rows?.[0] as any).updateComplete
+
+    expect(firstRowShadow?.querySelector('.grid-cell-startDate')?.textContent).toContain('2026/10')
+    expect(firstRowShadow?.querySelector('.grid-cell-endDate')?.textContent).toContain('2026/10')
+  })
+
   it('supports custom renderCell in grid columns', async () => {
     chart.rows = sampleRows
     chart.option = {

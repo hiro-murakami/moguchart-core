@@ -18,6 +18,8 @@ export const DEFAULT_GRID_COLUMN_CONFIGS: Record<
   name: { width: 200, minWidth: 80, align: 'left', isTreeColumn: true },
   startDate: { width: 100, minWidth: 70, align: 'center' },
   endDate: { width: 100, minWidth: 70, align: 'center' },
+  startMonth: { width: 100, minWidth: 70, align: 'center' },
+  endMonth: { width: 100, minWidth: 70, align: 'center' },
   duration: { width: 80, minWidth: 50, align: 'right' },
   progress: { width: 80, minWidth: 50, align: 'right' },
 }
@@ -102,13 +104,23 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
 export function normalizeGridColumns(
   columns?: GanttColumn[],
   locale?: MoguchartLocale,
+  isMonthMode?: boolean,
 ): GanttColumn[] {
   const currentLocale = locale ?? jaLocale
+  const startDateTitle = isMonthMode
+    ? (currentLocale.grid?.columns.startMonth ?? '開始月')
+    : (currentLocale.grid?.columns.startDate ?? '開始日')
+  const endDateTitle = isMonthMode
+    ? (currentLocale.grid?.columns.endMonth ?? '終了月')
+    : (currentLocale.grid?.columns.endDate ?? '終了日')
+
   const defaultTitles: Record<string, string> = {
     wbs: currentLocale.grid?.columns.wbs ?? 'WBS',
     name: currentLocale.grid?.columns.name ?? 'タスク名',
-    startDate: currentLocale.grid?.columns.startDate ?? '開始日',
-    endDate: currentLocale.grid?.columns.endDate ?? '終了日',
+    startDate: startDateTitle,
+    endDate: endDateTitle,
+    startMonth: currentLocale.grid?.columns.startMonth ?? '開始月',
+    endMonth: currentLocale.grid?.columns.endMonth ?? '終了月',
     duration: currentLocale.grid?.columns.duration ?? '期間',
     progress: currentLocale.grid?.columns.progress ?? '進捗率',
   }
@@ -141,7 +153,32 @@ export function normalizeGridColumns(
       hasTreeCol = true
     }
 
-    const title = col.title ?? defaultTitles[col.id] ?? col.id
+    const isAutoStartDateTitle =
+      !col.title ||
+      col.title === '開始日' ||
+      col.title === '開始月' ||
+      col.title === 'Start Date' ||
+      col.title === 'Start Month' ||
+      col.title === currentLocale.grid?.columns.startDate ||
+      col.title === currentLocale.grid?.columns.startMonth
+
+    const isAutoEndDateTitle =
+      !col.title ||
+      col.title === '終了日' ||
+      col.title === '終了月' ||
+      col.title === 'End Date' ||
+      col.title === 'End Month' ||
+      col.title === currentLocale.grid?.columns.endDate ||
+      col.title === currentLocale.grid?.columns.endMonth
+
+    let title: string
+    if (col.id === 'startDate' && isAutoStartDateTitle) {
+      title = startDateTitle
+    } else if (col.id === 'endDate' && isAutoEndDateTitle) {
+      title = endDateTitle
+    } else {
+      title = col.title ?? defaultTitles[col.id] ?? col.id
+    }
 
     return {
       ...col,
@@ -192,8 +229,10 @@ export function getGridCellValue(
     case 'name':
       return row.name
     case 'startDate':
+    case 'startMonth':
       return summary.start
     case 'endDate':
+    case 'endMonth':
       return summary.end
     case 'duration':
       return summary.durationDays
@@ -216,6 +255,7 @@ export function formatGridCellValue(
   row: GanttRow,
   tasks: GanttTask[],
   locale?: MoguchartLocale,
+  isMonthMode?: boolean,
 ): string {
   const currentLocale = locale ?? jaLocale
 
@@ -234,7 +274,20 @@ export function formatGridCellValue(
     case 'startDate':
     case 'endDate':
       if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        if (isMonthMode) {
+          return currentLocale.yearMonthFormat
+            ? currentLocale.yearMonthFormat(value)
+            : `${value.getFullYear()}/${value.getMonth() + 1}`
+        }
         return currentLocale.dateFormat(value)
+      }
+      return ''
+    case 'startMonth':
+    case 'endMonth':
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return currentLocale.yearMonthFormat
+          ? currentLocale.yearMonthFormat(value)
+          : `${value.getFullYear()}/${value.getMonth() + 1}`
       }
       return ''
     case 'duration':

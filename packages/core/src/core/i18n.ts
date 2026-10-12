@@ -58,6 +58,8 @@ export interface MoguchartLocale {
       name: string
       startDate: string
       endDate: string
+      startMonth?: string
+      endMonth?: string
       duration: string
       progress: string
     }
@@ -106,6 +108,8 @@ export const jaLocale: MoguchartLocale = {
       name: 'タスク名',
       startDate: '開始日',
       endDate: '終了日',
+      startMonth: '開始月',
+      endMonth: '終了月',
       duration: '期間',
       progress: '進捗率',
     },
@@ -156,6 +160,8 @@ export const enLocale: MoguchartLocale = {
       name: 'Task Name',
       startDate: 'Start Date',
       endDate: 'End Date',
+      startMonth: 'Start Month',
+      endMonth: 'End Month',
       duration: 'Duration',
       progress: 'Progress',
     },

@@ -312,7 +312,8 @@ export class GanttChartElement extends LitElement {
     if (!gridOpt || gridOpt.enabled === false) return undefined
     if (!gridOpt.columns && gridOpt.enabled !== true) return undefined
     const baseColumns = this.currentGridColumns ?? gridOpt.columns
-    const normalized = normalizeGridColumns(baseColumns, this.option?.locale)
+    const isMonthMode = this.effectivePxPerMonth !== undefined || this.option?.calendar?.pxPerMonth !== undefined
+    const normalized = normalizeGridColumns(baseColumns, this.option?.locale, isMonthMode)
     return normalized.map((col) => {
       const userW = this._userColumnWidths.get(col.id)
       return userW !== undefined ? { ...col, width: userW } : col

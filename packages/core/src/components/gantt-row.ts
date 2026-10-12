@@ -915,7 +915,8 @@ export class GanttRowElement extends LitElement {
         >
           ${isGridEnabled
             ? (() => {
-                const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+                const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+                const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode)
                 const visibleColumns = columns.filter((c) => c.visible !== false)
                 const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
 
@@ -933,7 +934,7 @@ export class GanttRowElement extends LitElement {
                   >
                     ${visibleColumns.map((col) => {
                       const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
-                      const formatted = formatGridCellValue(col, cellValue, this.row, this.row.tasks, this.option.locale)
+                      const formatted = formatGridCellValue(col, cellValue, this.row, this.row.tasks, this.option.locale, isMonthMode)
                       const customContent = col.renderCell
                         ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
                         : null

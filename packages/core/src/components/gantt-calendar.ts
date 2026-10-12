@@ -79,7 +79,8 @@ export class GanttCalendarElement extends LitElement {
     const target = e.currentTarget as HTMLElement
     target.setPointerCapture(e.pointerId)
 
-    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode)
     const targetCol = columns.find((c) => c.id === columnId)
     if (!targetCol) return
 
@@ -141,7 +142,8 @@ export class GanttCalendarElement extends LitElement {
       (!!this.gridColumns || !!this.option.grid?.columns)
     if (!isGridEnabled) return ''
 
-    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode)
     const visibleColumns = columns.filter((c) => c.visible !== false)
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
 

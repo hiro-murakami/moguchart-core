@@ -98,6 +98,15 @@ describe('grid calculation & formatting', () => {
       const cols = normalizeGridColumns(customCols, jaLocale)
       expect(cols[1].isTreeColumn).toBe(true)
     })
+    it('uses month mode column titles (開始月, 終了月) when isMonthMode is true', () => {
+      const colsJa = normalizeGridColumns(undefined, jaLocale, true)
+      expect(colsJa.find((c) => c.id === 'startDate')?.title).toBe('開始月')
+      expect(colsJa.find((c) => c.id === 'endDate')?.title).toBe('終了月')
+
+      const colsEn = normalizeGridColumns(undefined, enLocale, true)
+      expect(colsEn.find((c) => c.id === 'startDate')?.title).toBe('Start Month')
+      expect(colsEn.find((c) => c.id === 'endDate')?.title).toBe('End Month')
+    })
   })
 
   describe('getGridCellValue & formatGridCellValue', () => {
@@ -115,7 +124,7 @@ describe('grid calculation & formatting', () => {
       expect(formatGridCellValue(col, val, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('Row 1')
     })
 
-    it('handles startDate and endDate columns', () => {
+    it('handles startDate and endDate columns in day and month modes', () => {
       const startCol: GanttColumn = { id: 'startDate' }
       const endCol: GanttColumn = { id: 'endDate' }
 
@@ -124,9 +133,27 @@ describe('grid calculation & formatting', () => {
       expect(startVal).toEqual(sampleTasks[0].start)
       expect(endVal).toEqual(sampleTasks[0].end)
 
+      // Day mode (default)
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/1')
       expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/5')
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, enLocale)).toBe('10/1/2026')
+
+      // Month mode
+      expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
+    })
+
+    it('handles startMonth and endMonth column IDs', () => {
+      const startCol: GanttColumn = { id: 'startMonth' }
+      const endCol: GanttColumn = { id: 'endMonth' }
+
+      const startVal = getGridCellValue(startCol, singleTaskRow, singleTaskRow.tasks)
+      const endVal = getGridCellValue(endCol, singleTaskRow, singleTaskRow.tasks)
+      expect(startVal).toEqual(sampleTasks[0].start)
+      expect(endVal).toEqual(sampleTasks[0].end)
+
+      expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10')
     })
 
     it('handles duration and progress columns', () => {
