@@ -111,18 +111,35 @@ describe('grid calculation & formatting', () => {
       expect(colsEn.find((c) => c.id === 'endDate')?.title).toBe('End Month')
     })
 
-    it('sets wider default widths for startDate, endDate, and duration when isTimeMode is true', () => {
-      const cols = normalizeGridColumns(undefined, jaLocale, false, true)
-      const startCol = cols.find((c) => c.id === 'startDate')
-      const endCol = cols.find((c) => c.id === 'endDate')
-      const durCol = cols.find((c) => c.id === 'duration')
+    it('sets wider default widths and titles (開始日時, 終了日時) for startDate and endDate when isTimeMode is true', () => {
+      const colsJa = normalizeGridColumns(undefined, jaLocale, false, true)
+      const startColJa = colsJa.find((c) => c.id === 'startDate')
+      const endColJa = colsJa.find((c) => c.id === 'endDate')
+      const durColJa = colsJa.find((c) => c.id === 'duration')
 
-      expect(startCol?.width).toBe(130)
-      expect(startCol?.minWidth).toBe(80)
-      expect(endCol?.width).toBe(130)
-      expect(endCol?.minWidth).toBe(80)
-      expect(durCol?.width).toBe(90)
-      expect(durCol?.minWidth).toBe(60)
+      expect(startColJa?.title).toBe('開始日時')
+      expect(startColJa?.width).toBe(130)
+      expect(startColJa?.minWidth).toBe(80)
+      expect(endColJa?.title).toBe('終了日時')
+      expect(endColJa?.width).toBe(130)
+      expect(endColJa?.minWidth).toBe(80)
+      expect(durColJa?.width).toBe(90)
+      expect(durColJa?.minWidth).toBe(60)
+
+      const colsEn = normalizeGridColumns(undefined, enLocale, false, true)
+      const startColEn = colsEn.find((c) => c.id === 'startDate')
+      const endColEn = colsEn.find((c) => c.id === 'endDate')
+      expect(startColEn?.title).toBe('Start Date/Time')
+      expect(endColEn?.title).toBe('End Date/Time')
+    })
+
+    it('handles explicit startDateTime and endDateTime columns', () => {
+      const customCols: GanttColumn[] = [{ id: 'startDateTime' }, { id: 'endDateTime' }]
+      const cols = normalizeGridColumns(customCols, jaLocale)
+      expect(cols[0].title).toBe('開始日時')
+      expect(cols[0].width).toBe(130)
+      expect(cols[1].title).toBe('終了日時')
+      expect(cols[1].width).toBe(130)
     })
   })
 
@@ -202,6 +219,24 @@ describe('grid calculation & formatting', () => {
       }
       const ytEndVal = getGridCellValue(endCol, yearTransitionRow, yearTransitionRow.tasks)
       expect(formatGridCellValue(endCol, ytEndVal, yearTransitionRow, yearTransitionRow.tasks, jaLocale)).toBe('2026/12')
+    })
+
+    it('handles startDateTime and endDateTime column IDs', () => {
+      const startCol: GanttColumn = { id: 'startDateTime' }
+      const endCol: GanttColumn = { id: 'endDateTime' }
+
+      const hourlyRow: GanttRow = {
+        id: 'r-dt',
+        name: 'DT',
+        tasks: [{ id: 'dt1', start: new Date(2026, 9, 1, 9, 15), end: new Date(2026, 9, 1, 18, 45) }],
+      }
+      const startVal = getGridCellValue(startCol, hourlyRow, hourlyRow.tasks)
+      const endVal = getGridCellValue(endCol, hourlyRow, hourlyRow.tasks)
+      expect(startVal).toEqual(hourlyRow.tasks[0].start)
+      expect(endVal).toEqual(hourlyRow.tasks[0].end)
+
+      expect(formatGridCellValue(startCol, startVal, hourlyRow, hourlyRow.tasks, jaLocale)).toBe('2026/10/1 09:15')
+      expect(formatGridCellValue(endCol, endVal, hourlyRow, hourlyRow.tasks, jaLocale)).toBe('2026/10/1 18:45')
     })
 
     it('handles duration and progress columns', () => {

@@ -421,6 +421,13 @@ describe('gantt-chart multi-column grid', () => {
     const rowShadow = rows?.[0].shadowRoot
     await (rows?.[0] as any).updateComplete
 
+    const calendarShadow = chart.shadowRoot?.querySelector('gantt-calendar')?.shadowRoot
+    const startHeader = calendarShadow?.querySelector('.grid-header-cell-startDate')
+    const endHeader = calendarShadow?.querySelector('.grid-header-cell-endDate')
+
+    expect(startHeader?.textContent?.trim()).toBe('開始日時')
+    expect(endHeader?.textContent?.trim()).toBe('終了日時')
+
     const startCell = rowShadow?.querySelector('.grid-cell-startDate')
     const endCell = rowShadow?.querySelector('.grid-cell-endDate')
     const durCell = rowShadow?.querySelector('.grid-cell-duration')

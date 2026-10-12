@@ -21,6 +21,8 @@ export const DEFAULT_GRID_COLUMN_CONFIGS: Record<
   endDate: { width: 100, minWidth: 70, align: 'center' },
   startMonth: { width: 100, minWidth: 70, align: 'center' },
   endMonth: { width: 100, minWidth: 70, align: 'center' },
+  startDateTime: { width: 130, minWidth: 80, align: 'center' },
+  endDateTime: { width: 130, minWidth: 80, align: 'center' },
   duration: { width: 80, minWidth: 50, align: 'right' },
   progress: { width: 80, minWidth: 50, align: 'right' },
 }
@@ -116,10 +118,14 @@ export function normalizeGridColumns(
   const currentLocale = locale ?? jaLocale
   const startDateTitle = isMonthMode
     ? (currentLocale.grid?.columns.startMonth ?? '開始月')
-    : (currentLocale.grid?.columns.startDate ?? '開始日')
+    : isTimeMode
+      ? (currentLocale.grid?.columns.startDateTime ?? '開始日時')
+      : (currentLocale.grid?.columns.startDate ?? '開始日')
   const endDateTitle = isMonthMode
     ? (currentLocale.grid?.columns.endMonth ?? '終了月')
-    : (currentLocale.grid?.columns.endDate ?? '終了日')
+    : isTimeMode
+      ? (currentLocale.grid?.columns.endDateTime ?? '終了日時')
+      : (currentLocale.grid?.columns.endDate ?? '終了日')
 
   const defaultTitles: Record<string, string> = {
     wbs: currentLocale.grid?.columns.wbs ?? 'WBS',
@@ -128,6 +134,8 @@ export function normalizeGridColumns(
     endDate: endDateTitle,
     startMonth: currentLocale.grid?.columns.startMonth ?? '開始月',
     endMonth: currentLocale.grid?.columns.endMonth ?? '終了月',
+    startDateTime: currentLocale.grid?.columns.startDateTime ?? '開始日時',
+    endDateTime: currentLocale.grid?.columns.endDateTime ?? '終了日時',
     duration: currentLocale.grid?.columns.duration ?? '期間',
     progress: currentLocale.grid?.columns.progress ?? '進捗率',
   }
@@ -153,7 +161,7 @@ export function normalizeGridColumns(
     let defaultMinWidth = builtinConfig?.minWidth ?? 40
 
     if (isTimeMode) {
-      if (col.id === 'startDate' || col.id === 'endDate') {
+      if (col.id === 'startDate' || col.id === 'endDate' || col.id === 'startDateTime' || col.id === 'endDateTime') {
         defaultWidth = 130
         defaultMinWidth = 80
       } else if (col.id === 'duration') {
@@ -177,19 +185,25 @@ export function normalizeGridColumns(
       !col.title ||
       col.title === '開始日' ||
       col.title === '開始月' ||
+      col.title === '開始日時' ||
       col.title === 'Start Date' ||
       col.title === 'Start Month' ||
+      col.title === 'Start Date/Time' ||
       col.title === currentLocale.grid?.columns.startDate ||
-      col.title === currentLocale.grid?.columns.startMonth
+      col.title === currentLocale.grid?.columns.startMonth ||
+      col.title === currentLocale.grid?.columns.startDateTime
 
     const isAutoEndDateTitle =
       !col.title ||
       col.title === '終了日' ||
       col.title === '終了月' ||
+      col.title === '終了日時' ||
       col.title === 'End Date' ||
       col.title === 'End Month' ||
+      col.title === 'End Date/Time' ||
       col.title === currentLocale.grid?.columns.endDate ||
-      col.title === currentLocale.grid?.columns.endMonth
+      col.title === currentLocale.grid?.columns.endMonth ||
+      col.title === currentLocale.grid?.columns.endDateTime
 
     let title: string
     if (col.id === 'startDate' && isAutoStartDateTitle) {
@@ -250,9 +264,11 @@ export function getGridCellValue(
       return row.name
     case 'startDate':
     case 'startMonth':
+    case 'startDateTime':
       return summary.start
     case 'endDate':
     case 'endMonth':
+    case 'endDateTime':
       return summary.end
     case 'duration':
       return summary.durationDays
@@ -323,6 +339,15 @@ export function formatGridCellValue(
         return currentLocale.yearMonthFormat
           ? currentLocale.yearMonthFormat(targetDate)
           : `${targetDate.getFullYear()}/${targetDate.getMonth() + 1}`
+      }
+      return ''
+    case 'startDateTime':
+    case 'endDateTime':
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const dateStr = currentLocale.dateFormat(value)
+        const h = value.getHours().toString().padStart(2, '0')
+        const m = value.getMinutes().toString().padStart(2, '0')
+        return `${dateStr} ${h}:${m}`
       }
       return ''
     case 'duration':

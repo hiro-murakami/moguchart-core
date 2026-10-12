@@ -1115,7 +1115,17 @@ export type { MoguchartLocale } from './i18n'
 /**
  * 組み込み標準カラムのID
  */
-export type GanttBuiltinColumnId = 'wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'duration' | 'progress'
+export type GanttBuiltinColumnId =
+  | 'wbs'
+  | 'name'
+  | 'startDate'
+  | 'endDate'
+  | 'startMonth'
+  | 'endMonth'
+  | 'startDateTime'
+  | 'endDateTime'
+  | 'duration'
+  | 'progress'
 
 /**
  * マルチカラムデータグリッドのカラム定義
