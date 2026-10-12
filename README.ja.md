@@ -79,6 +79,13 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - WBSサマリータスクにおける配下子タスクの計画日程・進捗率の自動集計
   - 全体鳥瞰ミニマップ（2D Canvas）との同期描画
   - タスク遅延計算（`calculateTaskDelay`）およびプロジェクト予実統計集計（`calculateProjectBaselineSummary`）関数
+- 📋 **マルチカラムデータグリッド（WBS テーブル）**:
+  - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
+  - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日 `startDate`、終了日 `endDate`、期間 `duration`、進捗率 `progress`）
+  - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出
+  - カスタムカラム（`field`、`valueGetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）
+  - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）
+  - グリッド領域とタイムライン領域のスプリッターリサイズ＆グリッド内独立横スクロール同期
 - ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
@@ -775,6 +782,51 @@ console.log(`遅延判定: ${delayInfo.isDelayed}, 遅延日数: ${delayInfo.del
 // プロジェクト全体の予実統計サマリー
 const summary = calculateProjectBaselineSummary(rows)
 console.log(`計画タスク数: ${summary.totalBaselineTasks}, 遅延タスク数: ${summary.delayedTasksCount}, 最大遅延: ${summary.maxDelayDays}日`)
+```
+
+### マルチカラムデータグリッド（WBSテーブル）
+
+行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、進捗率、カスタム列を柔軟に構成できます。
+
+```javascript
+const option = {
+  // グリッド表示設定
+  grid: {
+    enabled: true, // グリッド表示を有効化 (デフォルト: columns 指定時は true)
+    width: 600, // グリッド領域全体の初期幅 (px)
+    splitterResizable: true, // スプリッターによるグリッド幅変更を許可 (デフォルト: true)
+    showBorders: true, // セル罫線を表示 (デフォルト: true)
+    columns: [
+      { id: 'wbs', width: 60 }, // WBS番号 (1, 1.1, 1.2 など)
+      { id: 'name', width: 220 }, // タスク名 (ツリー開閉トグル付き)
+      { id: 'startDate', width: 95 }, // 開始日
+      { id: 'endDate', width: 95 }, // 終了日
+      { id: 'duration', width: 70 }, // 期間 (カレンダー日数)
+      { id: 'progress', width: 70 }, // 進捗率 (%)
+      {
+        id: 'assignee',
+        title: '担当者',
+        width: 100,
+        field: 'assignee', // row.assignee を参照
+        renderCell: (value, row) => {
+          // カスタムDOM要素のレンダリング
+          const badge = document.createElement('span')
+          badge.className = 'badge'
+          badge.textContent = value || '未設定'
+          return badge
+        },
+      },
+    ],
+  },
+}
+
+// カラム幅リサイズイベントの購読
+chart.addEventListener('column-resize', (event) => {
+  const { columnId, width, previousWidth, isFinal } = event.detail
+  if (isFinal) {
+    console.log(`カラム ${columnId} の幅が ${width}px に変更されました`)
+  }
+})
 ```
 
 ### パブリックメソッド

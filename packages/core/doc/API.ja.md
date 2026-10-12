@@ -143,6 +143,8 @@ interface GanttChartOption {
   history?: GanttChartOptionHistory
   /** 予実管理（ベースライン）の設定 */
   baseline?: GanttChartOptionBaseline
+  /** マルチカラムデータグリッドに関する設定 */
+  grid?: GanttChartOptionGrid
   /** 拡張プラグインの配列 */
   plugins?: GanttPlugin[]
 }
@@ -167,7 +169,8 @@ interface GanttChartOption {
 | `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | ミニマップが最小化（折りたたみ）または展開されたときに発火します。                           |
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
-| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダーの幅がリサイズされたときに発火します。                                             |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダー（またはグリッド領域）の幅がリサイズされたときに発火します。                       |
+| `column-resize`          | `ColumnResizeEventDetail`         | マルチカラムグリッドのカラム幅がドラッグリサイズされたときに発火します。                     |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
@@ -1411,6 +1414,62 @@ interface GanttChartOptionBaseline {
   showTooltip?: boolean
   /** サマリータスク（親行）のベースラインを配下タスクから自動計算するかどうか (デフォルト: true) */
   autoSummary?: boolean
+}
+```
+
+### GanttChartOptionGrid
+
+左側領域を複数カラムのテーブル（WBSデータグリッド）として表示するための設定です。
+
+```typescript
+interface GanttChartOptionGrid {
+  /** マルチカラムグリッド表示を有効にするか (columnsが指定されている場合はデフォルト: true) */
+  enabled?: boolean
+  /** カラム定義の配列 */
+  columns?: GanttColumn[]
+  /** グリッド領域全体の表示幅 (px)。未指定時は全可視カラム幅の合計、または rowHeader.width */
+  width?: number
+  /** スプリッターによるグリッド領域全体の幅リサイズを許可するか (デフォルト: true) */
+  splitterResizable?: boolean
+  /** セルの境界線を表示するか (デフォルト: true) */
+  showBorders?: boolean
+  /** セルのパディング (px)。デフォルト: 4 */
+  cellPadding?: number
+}
+```
+
+#### GanttColumn
+
+各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `duration`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
+
+```typescript
+interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
+  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'duration' | 'progress' またはカスタム文字列) */
+  id: string
+  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用) */
+  title?: string
+  /** 列幅 (px)。未指定時はデフォルト幅 */
+  width?: number
+  /** リサイズ可能な最小幅 (px)。デフォルト: 40 */
+  minWidth?: number
+  /** リサイズ可能な最大幅 (px) */
+  maxWidth?: number
+  /** テキストの水平配置 ('left' | 'center' | 'right') */
+  align?: 'left' | 'center' | 'right'
+  /** ユーザーによる幅ドラッグリサイズを許可するか (デフォルト: true) */
+  resizable?: boolean
+  /** カラムを表示するか (デフォルト: true) */
+  visible?: boolean
+  /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
+  isTreeColumn?: boolean
+  /** 行オブジェクト内の参照プロパティ名 (カスタムカラム用) */
+  field?: string
+  /** 値を独自取得するためのカスタム関数 */
+  valueGetter?: (row: TRow, tasks: TTask[], wbsCode?: string) => any
+  /** 表示用文字列フォーマッター */
+  formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
+  /** HTML/DOM カスタムレンダラー (HTMLElement または HTML文字列を返す) */
+  renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
 }
 ```
 

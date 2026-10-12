@@ -132,6 +132,7 @@ let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
 let enableBaseline = true
+let enableGrid = true
 let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'
 let highlightDelay = true
 let isExporting = false
@@ -333,6 +334,17 @@ const renderApp = () => {
       enabled: enableBaseline,
       position: baselinePosition,
       highlightDelay,
+    },
+    grid: {
+      enabled: enableGrid,
+      columns: [
+        { id: 'wbs', width: 60 },
+        { id: 'name', width: 220 },
+        { id: 'startDate', width: 95 },
+        { id: 'endDate', width: 95 },
+        { id: 'duration', width: 70 },
+        { id: 'progress', width: 70 },
+      ],
     },
     tree: {
       enabled: true,
@@ -1007,6 +1019,21 @@ const renderApp = () => {
                   <option value="overlay" ?selected="${baselinePosition === 'overlay'}">Overlay (重ね合わせ)</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <!-- マルチカラムデータグリッド設定 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">📋</span>
+              データグリッド
+            </div>
+            <div class="ctrl-card-body">
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${enableGrid}" @change="${(e: Event) => { enableGrid = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.enableGrid}
+              </label>
             </div>
           </div>
 

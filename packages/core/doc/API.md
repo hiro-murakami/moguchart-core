@@ -141,6 +141,8 @@ interface GanttChartOption {
   tree?: GanttChartOptionTree
   /** Baseline (plan vs actual) tracking configuration */
   baseline?: GanttChartOptionBaseline
+  /** Multi-column data grid configuration */
+  grid?: GanttChartOptionGrid
   /** Operation history and Undo/Redo configuration */
   history?: GanttChartOptionHistory
   /** Extension plugins */
@@ -167,7 +169,8 @@ Custom events dispatched by the component.
 | `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | Fired when the minimap is collapsed or expanded.                                     |
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
-| `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header width is resized.                                          |
+| `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header (or grid area) width is resized.                            |
+| `column-resize`          | `ColumnResizeEventDetail`         | Fired when a multi-column grid column width is resized by dragging.                  |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
@@ -1361,6 +1364,62 @@ interface GanttChartOptionBaseline {
   showTooltip?: boolean
   /** Whether to automatically aggregate parent summary task baselines from child tasks (default: true) */
   autoSummary?: boolean
+}
+```
+
+### GanttChartOptionGrid
+
+Configuration for displaying the left header area as a multi-column data table (WBS Data Grid).
+
+```typescript
+interface GanttChartOptionGrid {
+  /** Whether to enable multi-column grid display (default: true if columns is defined) */
+  enabled?: boolean
+  /** Array of column definitions */
+  columns?: GanttColumn[]
+  /** Total display width of the grid area (px). Defaults to sum of visible column widths or rowHeader.width */
+  width?: number
+  /** Whether to allow resizing the grid area width via the splitter (default: true) */
+  splitterResizable?: boolean
+  /** Whether to show cell borders (default: true) */
+  showBorders?: boolean
+  /** Cell horizontal padding (px). Default: 4 */
+  cellPadding?: number
+}
+```
+
+#### GanttColumn
+
+Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `duration`, `progress`) are supported alongside arbitrary custom columns.
+
+```typescript
+interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
+  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'duration' | 'progress' or custom string) */
+  id: string
+  /** Header display title (defaults to locale dictionary or column id) */
+  title?: string
+  /** Column width in px */
+  width?: number
+  /** Minimum resizable width in px (default: 40) */
+  minWidth?: number
+  /** Maximum resizable width in px */
+  maxWidth?: number
+  /** Horizontal alignment ('left' | 'center' | 'right') */
+  align?: 'left' | 'center' | 'right'
+  /** Whether to allow user dragging to resize column width (default: true) */
+  resizable?: boolean
+  /** Whether the column is visible (default: true) */
+  visible?: boolean
+  /** Whether to place the hierarchy tree indent and expand/collapse toggle in this column (default: 'name' column) */
+  isTreeColumn?: boolean
+  /** Property name in row object to extract value from (for custom columns) */
+  field?: string
+  /** Custom getter function to resolve cell value */
+  valueGetter?: (row: TRow, tasks: TTask[], wbsCode?: string) => any
+  /** Formatter function to format cell value into string */
+  formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
+  /** Custom renderer function returning an HTMLElement or HTML string */
+  renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
 }
 ```
 

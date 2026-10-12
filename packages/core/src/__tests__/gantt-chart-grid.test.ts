@@ -166,7 +166,7 @@ describe('gantt-chart multi-column grid', () => {
             id: 'customBadge',
             title: 'Badge',
             width: 100,
-            renderCell: (val, row) => {
+            renderCell: (_val, row) => {
               const span = document.createElement('span')
               span.className = 'custom-badge-el'
               span.textContent = `BADGE-${row.name}`

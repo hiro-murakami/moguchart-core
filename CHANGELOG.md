@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-12
+
+### Added
+
+- **Multi-Column Data Grid Support (WBS Table)**:
+  - Added new option `option.grid` to display and interact with the row header area as a full-featured multi-column data table.
+  - **Built-in Standard Columns**:
+    - `wbs`: WBS hierarchical numbering code (e.g. 1, 1.1, 1.2.1).
+    - `name`: Task / row title with embedded hierarchical tree indentation and expand/collapse toggle.
+    - `startDate`: Task start date (automatically computes earliest start date for summary rows and multi-task rows).
+    - `endDate`: Task end date (automatically computes latest end date for summary rows and multi-task rows).
+    - `duration`: Duration / work span in calendar days.
+    - `progress`: Task progress percentage (automatically computes duration-weighted average progress for summary rows and multi-task rows).
+  - **Custom Columns & Flexible Data Mapping**:
+    - Bind arbitrary row properties using `field`, or extract custom values using `valueGetter(row, tasks, wbsCode)`.
+    - Format text outputs with `formatter(value, row, tasks, locale)`, or render rich `HTMLElement` / HTML strings with `renderCell(value, row, tasks, locale)`.
+  - **Interactive Column Drag Resizing (`column-resize`)**:
+    - Intuitive drag-to-resize handles on column headers. Fires `column-resize` custom events during and upon completing resize operations.
+  - **Splitter Resizing & Synchronized Independent Grid Horizontal Scrolling**:
+    - Seamlessly works with the split pane resizer dividing the grid and timeline areas.
+    - When column widths exceed the grid area width, an independent horizontal scroll activates with pixel-perfect synchronization (`transform: translateX(-gridScrollLeft)`) across header and row cells without native scrollbar clutters.
+  - **Multi-language (i18n) Synchronization**:
+    - Built-in Japanese (`jaLocale`) and English (`enLocale`) column headers and duration units adapt automatically to the active chart locale.
+  - **Complete Backward Compatibility**:
+    - When `option.grid` is omitted or disabled, the chart operates in classic single-header row name mode with zero breaking changes.
+
+---
+
 ## [1.4.0] - 2026-10-11
 
 ### Added

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-12
+
+### Added
+
+- **マルチカラムデータグリッド対応（Multi-Column Data Grid / WBS テーブル）**:
+  - 行ヘッダー領域を本格的な複数カラムのテーブルとして表示・操作できる新オプション `option.grid` を追加
+  - **標準組み込みカラムプリセット**:
+    - `wbs`: WBS階層コード（例: 1, 1.1, 1.2.1）
+    - `name`: タスク名・行名（階層ツリーインデント＋展開・折りたたみボタン内包）
+    - `startDate`: タスク開始日（単一タスクは開始日、サマリー行・複数タスク行は最小開始日を自動集計）
+    - `endDate`: タスク終了日（単一タスクは終了日、サマリー行・複数タスク行は最大終了日を自動集計）
+    - `duration`: 期間・工数（カレンダー日数スパン）
+    - `progress`: 進捗率（サマリー行・複数タスク行は期間加重平均進捗率を自動算出）
+  - **カスタムカラム & 自由なデータマッピング**:
+    - `field` による任意オブジェクトプロパティのバインド、および `valueGetter(row, tasks, wbsCode)` による高度なカスタム値抽出に対応
+    - `formatter` による文字列整形、および `renderCell(value, row, tasks)` による `HTMLElement` / HTML 文字列のカスタムレンダリングに対応
+  - **カラム幅のドラッグリサイズ (`column-resize`)**:
+    - カラムヘッダー右端のドラッグ操作により、各カラムの幅を直感的に個別リサイズ可能。リサイズ完了・移動時に `column-resize` カスタムイベントを発火
+  - **スプリッターリサイズ ＆ グリッド内独立横スクロール同期**:
+    - グリッド領域とタイムライン領域を仕切るスプリッターリサイズを完全サポート
+    - カラム合計幅が表示枠を超える場合、グリッド領域内での独立横スクロールに対応。ヘッダーセルと各行セルが1pxのズレもなく同期して横スクロール
+  - **多言語（i18n）自動連動**:
+    - 日本語（`jaLocale`）および英語（`enLocale`）の言語切り替えと標準カラム名・期間単位が自動連動
+  - **完全な後方互換性**:
+    - `option.grid` 未指定時は、従来の単一ヘッダー表示（`row.name`）として完全互換動作
+
 ## [1.4.0] - 2026-10-11
 
 ### Added

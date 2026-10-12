@@ -141,6 +141,17 @@ describe('grid calculation & formatting', () => {
       expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, jaLocale)).toBe('20日')
       expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, enLocale)).toBe('20 days')
       expect(formatGridCellValue(progCol, progVal, multiTaskRow, multiTaskRow.tasks, jaLocale)).toBe('65%')
+
+      // Empty task row
+      const emptyDur = getGridCellValue(durCol, emptyTaskRow, emptyTaskRow.tasks)
+      const emptyProg = getGridCellValue(progCol, emptyTaskRow, emptyTaskRow.tasks)
+      expect(emptyDur).toBe(0)
+      expect(emptyProg).toBeUndefined()
+      expect(formatGridCellValue(durCol, emptyDur, emptyTaskRow, emptyTaskRow.tasks, jaLocale)).toBe('-')
+      expect(formatGridCellValue(progCol, emptyProg, emptyTaskRow, emptyTaskRow.tasks, jaLocale)).toBe('')
+
+      // Explicit 0% progress returns '0%'
+      expect(formatGridCellValue(progCol, 0, emptyTaskRow, emptyTaskRow.tasks, jaLocale)).toBe('0%')
     })
 
     it('supports custom field and custom valueGetter / formatter', () => {

@@ -84,6 +84,13 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - WBS parent summary aggregation of descendant task baselines
   - Synchronized bird's-eye rendering on the overview minimap (2D Canvas)
   - Helper functions for individual task variance (`calculateTaskDelay`) and project-wide statistics (`calculateProjectBaselineSummary`)
+- 📋 **Multi-Column Data Grid (WBS Table)**:
+  - Display and interact with the row header area as a full-featured multi-column data table
+  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date (`startDate`), end date (`endDate`), duration (`duration`), progress (`progress`)
+  - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
+  - Custom column definitions with `field`, `valueGetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes)
+  - Column header drag-resizing with `column-resize` custom events
+  - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area
 - ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
@@ -787,12 +794,57 @@ const option = {
 }
 
 // Calculate delay or early completion for an individual task
-const delayInfo = calculateTaskDelay(rows[0].tasks[0])
+delayInfo = calculateTaskDelay(rows[0].tasks[0])
 console.log(`Is delayed: ${delayInfo.isDelayed}, Delay in days: ${delayInfo.delayDays}`)
 
 // Aggregate project-wide baseline statistics
 const summary = calculateProjectBaselineSummary(rows)
 console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTasksCount}, Max delay: ${summary.maxDelayDays} days`)
+```
+
+### Multi-Column Data Grid (WBS Table)
+
+Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns.
+
+```javascript
+const option = {
+  // Data Grid configuration
+  grid: {
+    enabled: true, // Enable grid mode (default: true if columns is defined)
+    width: 600, // Total initial width of grid area (px)
+    splitterResizable: true, // Allow resizing grid area width via splitter (default: true)
+    showBorders: true, // Display cell borders (default: true)
+    columns: [
+      { id: 'wbs', width: 60 }, // WBS code (1, 1.1, 1.2, etc.)
+      { id: 'name', width: 220 }, // Task name (includes tree indent and collapse toggle)
+      { id: 'startDate', width: 95 }, // Start date
+      { id: 'endDate', width: 95 }, // End date
+      { id: 'duration', width: 70 }, // Duration (calendar days)
+      { id: 'progress', width: 70 }, // Progress (%)
+      {
+        id: 'assignee',
+        title: 'Assignee',
+        width: 100,
+        field: 'assignee', // binds to row.assignee
+        renderCell: (value, row) => {
+          // Custom DOM element rendering
+          const badge = document.createElement('span')
+          badge.className = 'badge'
+          badge.textContent = value || 'Unassigned'
+          return badge
+        },
+      },
+    ],
+  },
+}
+
+// Listen to column resize events
+chart.addEventListener('column-resize', (event) => {
+  const { columnId, width, previousWidth, isFinal } = event.detail
+  if (isFinal) {
+    console.log(`Column ${columnId} resized to ${width}px`)
+  }
+})
 ```
 
 ### Public Methods

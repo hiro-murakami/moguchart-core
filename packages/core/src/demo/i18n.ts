@@ -35,6 +35,7 @@ export interface DemoTexts {
   showSummaryProgressLabel: string
   enableMarqueeSelection: string
   enableBaseline: string
+  enableGrid: string
   baselinePosition: string
   highlightDelay: string
   collapseAll: string
@@ -157,6 +158,7 @@ export const jaTexts: DemoTexts = {
   showSummaryProgressLabel: 'サマリー進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
   enableBaseline: '予実管理（ベースライン）を表示',
+  enableGrid: 'マルチカラムグリッドを表示',
   baselinePosition: '配置位置:',
   highlightDelay: '遅延タスクをハイライト',
   collapseAll: '折りたたみ',
@@ -340,6 +342,7 @@ export const enTexts: DemoTexts = {
   showSummaryProgressLabel: 'Show Summary Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
   enableBaseline: 'Show Baseline (Plan vs Actual)',
+  enableGrid: 'Show Multi-Column Grid',
   baselinePosition: 'Position:',
   highlightDelay: 'Highlight Delayed Tasks',
   collapseAll: 'Collapse',
