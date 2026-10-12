@@ -1,6 +1,7 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail, RowToggleCollapseEventDetail } from '../core/types'
+import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail, RowToggleCollapseEventDetail, GanttColumn } from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
+import { normalizeGridColumns, getGridCellValue, formatGridCellValue } from '../core/grid'
 import { LitElement, css, html, render, type PropertyValues } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -53,6 +54,9 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: Array })
   criticalPathTaskIds: string[] = []
+
+  @property({ type: Number }) gridScrollLeft = 0
+  @property({ type: Array }) gridColumns?: GanttColumn[]
 
   // 月境界線キャッシュ（option.calendar.start/end/pxPerDay/pxPerMonth が変わらない限り再計算不要）
   private _cachedMonthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
@@ -227,6 +231,7 @@ export class GanttRowElement extends LitElement {
       position: sticky;
       left: 0;
       z-index: 100;
+      overflow: hidden;
     }
     .tree-indent-spacer {
       display: inline-block;
@@ -677,6 +682,9 @@ export class GanttRowElement extends LitElement {
     const indentWidth = this.option.tree?.indentWidth ?? 16
     const showToggleIcon = this.option.tree?.showToggleIcon !== false
     const showWbsCode = this.option.tree?.showWbsCode === true
+    const isGridEnabled =
+      (this.option.grid?.enabled === true || (this.option.grid?.columns && this.option.grid?.enabled !== false)) &&
+      (!!this.gridColumns || !!this.option.grid?.columns)
 
     let displayTasks = [...this.row.tasks]
     if (this.externalDragTask) {
@@ -905,28 +913,119 @@ export class GanttRowElement extends LitElement {
           @mouseleave="${this.handleHeaderMouseLeave}"
           @row-header-mouseleave="${this.handleHeaderMouseLeave}"
         >
-          ${treeEnabled && this.level > 0
-            ? html`<span class="tree-indent-spacer" style="width: ${this.level * indentWidth}px;"></span>`
-            : ''}
-          ${treeEnabled && this.hasChildren && showToggleIcon
-            ? html`<span
-                class="tree-toggle-btn"
-                @click="${this.handleToggleCollapse}"
-                @dblclick="${this.handleToggleDblClick}"
-                @mouseenter="${this.handleToggleMouseEnter}"
-                @mouseleave="${this.handleToggleMouseLeave}"
-                >${this.row.collapsed ? '▶' : '▼'}</span
-              >`
-            : treeEnabled && (this.level > 0 || this.hasChildren)
-              ? html`<span class="tree-toggle-spacer"></span>`
-              : ''}
-          ${treeEnabled && showWbsCode && this.wbsCode
-            ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
-            : ''}
-          <div
-            class="row-header-content"
-            style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
-          ></div>
+          ${isGridEnabled
+            ? (() => {
+                const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+                const visibleColumns = columns.filter((c) => c.visible !== false)
+                const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+
+                return html`
+                  <div
+                    class="grid-row-container"
+                    style="
+                      display: flex;
+                      height: 100%;
+                      width: ${totalWidth}px;
+                      min-width: 100%;
+                      transform: translateX(-${this.gridScrollLeft}px);
+                      box-sizing: border-box;
+                    "
+                  >
+                    ${visibleColumns.map((col) => {
+                      const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+                      const formatted = formatGridCellValue(col, cellValue, this.row, this.row.tasks, this.option.locale)
+                      const customContent = col.renderCell
+                        ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
+                        : null
+                      const showBorder = this.option.grid?.showBorders !== false
+
+                      return html`
+                        <div
+                          class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''}"
+                          style="
+                            width: ${col.width}px;
+                            min-width: ${col.minWidth ?? 40}px;
+                            max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
+                            box-sizing: border-box;
+                            display: flex;
+                            align-items: center;
+                            justify-content: ${col.align === 'center'
+                              ? 'center'
+                              : col.align === 'right'
+                                ? 'flex-end'
+                                : 'flex-start'};
+                            padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
+                            ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
+                            overflow: hidden;
+                            white-space: nowrap;
+                            text-overflow: ellipsis;
+                            flex-shrink: 0;
+                          "
+                        >
+                          ${col.isTreeColumn
+                            ? html`
+                                ${treeEnabled && this.level > 0
+                                  ? html`<span
+                                      class="tree-indent-spacer"
+                                      style="width: ${this.level * indentWidth}px;"
+                                    ></span>`
+                                  : ''}
+                                ${treeEnabled && this.hasChildren && showToggleIcon
+                                  ? html`<span
+                                      class="tree-toggle-btn"
+                                      @click="${this.handleToggleCollapse}"
+                                      @dblclick="${this.handleToggleDblClick}"
+                                      @mouseenter="${this.handleToggleMouseEnter}"
+                                      @mouseleave="${this.handleToggleMouseLeave}"
+                                      >${this.row.collapsed ? '▶' : '▼'}</span
+                                    >`
+                                  : treeEnabled && (this.level > 0 || this.hasChildren)
+                                    ? html`<span class="tree-toggle-spacer"></span>`
+                                    : ''}
+                                ${treeEnabled &&
+                                showWbsCode &&
+                                this.wbsCode &&
+                                !columns.some((c) => c.id === 'wbs' && c.visible !== false)
+                                  ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+                                  : ''}
+                              `
+                            : ''}
+                          <div
+                            class="grid-cell-content"
+                            style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                          >
+                            ${customContent !== null ? customContent : formatted}
+                          </div>
+                        </div>
+                      `
+                    })}
+                  </div>
+                `
+              })()
+            : html`
+                ${treeEnabled && this.level > 0
+                  ? html`<span class="tree-indent-spacer" style="width: ${this.level * indentWidth}px;"></span>`
+                  : ''}
+                ${treeEnabled && this.hasChildren && showToggleIcon
+                  ? html`<span
+                      class="tree-toggle-btn"
+                      @click="${this.handleToggleCollapse}"
+                      @dblclick="${this.handleToggleDblClick}"
+                      @mouseenter="${this.handleToggleMouseEnter}"
+                      @mouseleave="${this.handleToggleMouseLeave}"
+                      >${this.row.collapsed ? '▶' : '▼'}</span
+                    >`
+                  : treeEnabled && (this.level > 0 || this.hasChildren)
+                    ? html`<span class="tree-toggle-spacer"></span>`
+                    : ''}
+                ${treeEnabled && showWbsCode && this.wbsCode
+                  ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+                  : ''}
+                <div
+                  class="row-header-content"
+                  style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
+                ></div>
+              `}
         </div>
         <div class="bars-container" style="width: ${(() => {
             if (this.option.calendar.pxPerMonth !== undefined) {

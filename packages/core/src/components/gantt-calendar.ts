@@ -6,10 +6,13 @@ import type {
   CalendarDayCellContext,
   CalendarWeekCellContext,
   CalendarHourCellContext,
+  GanttColumn,
+  ColumnResizeEventDetail,
 } from '../core/types'
 import { jaLocale } from '../core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
+import { normalizeGridColumns } from '../core/grid'
 import dayjs from 'dayjs'
 
 @customElement('gantt-calendar')
@@ -25,6 +28,8 @@ export class GanttCalendarElement extends LitElement {
   @property({ attribute: false }) calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
   @property({ attribute: false }) calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
   @property({ attribute: false }) calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
+  @property({ type: Number }) gridScrollLeft = 0
+  @property({ type: Array }) gridColumns?: GanttColumn[]
 
   /**
    * カスタムレンダリング関数の返却値をターゲット要素に注入するヘルパー
@@ -64,6 +69,121 @@ export class GanttCalendarElement extends LitElement {
     // カレンダーセルのカスタムレンダリング注入
     this.injectCalendarCustomContent()
   }
+
+  /**
+   * カラムヘッダー幅リサイズの開始ハンドラー
+   */
+  private handleColumnResizeStart(e: PointerEvent, columnId: string) {
+    e.stopPropagation()
+    e.preventDefault()
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+    const targetCol = columns.find((c) => c.id === columnId)
+    if (!targetCol) return
+
+    const startX = e.clientX
+    const startWidth = targetCol.width ?? 100
+    const minWidth = targetCol.minWidth ?? 40
+    const maxWidth = targetCol.maxWidth ?? 800
+
+    const handleMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, Math.round(startWidth + dx)))
+      targetCol.width = newWidth
+      this.dispatchEvent(
+        new CustomEvent<ColumnResizeEventDetail>('column-resize', {
+          detail: {
+            columnId,
+            width: newWidth,
+            columns: [...columns],
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
+    const handleUp = () => {
+      target.releasePointerCapture(e.pointerId)
+      target.removeEventListener('pointermove', handleMove)
+      target.removeEventListener('pointerup', handleUp)
+    }
+
+    target.addEventListener('pointermove', handleMove)
+    target.addEventListener('pointerup', handleUp)
+  }
+
+  /**
+   * マルチカラムグリッドのヘッダーを描画する
+   */
+  private renderGridHeaders(colors: ReturnType<typeof getThemeColors>) {
+    if (this.cornerContent) return ''
+
+    const isGridEnabled =
+      (this.option.grid?.enabled === true || (this.option.grid?.columns && this.option.grid?.enabled !== false)) &&
+      (!!this.gridColumns || !!this.option.grid?.columns)
+    if (!isGridEnabled) return ''
+
+    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale)
+    const visibleColumns = columns.filter((c) => c.visible !== false)
+    const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+
+    return html`
+      <div
+        class="grid-header-container"
+        style="
+          display: flex;
+          height: 100%;
+          width: ${totalWidth}px;
+          min-width: 100%;
+          transform: translateX(-${this.gridScrollLeft}px);
+          box-sizing: border-box;
+        "
+      >
+        ${visibleColumns.map(
+          (col) => html`
+            <div
+              class="grid-header-cell grid-header-cell-${col.id}"
+              style="
+                width: ${col.width}px;
+                min-width: ${col.minWidth ?? 40}px;
+                max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: ${col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'};
+                padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
+                ${this.option.grid?.showBorders !== false ? `border-right: 1px solid ${colors.border};` : ''}
+                position: relative;
+                user-select: none;
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                font-size: calc(12px * var(--moguchart-font-scale, 1));
+                font-weight: bold;
+                flex-shrink: 0;
+              "
+            >
+              <span class="grid-header-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${col.title}
+              </span>
+              ${col.resizable !== false
+                ? html`
+                    <div
+                      class="column-resizer"
+                      @pointerdown="${(e: PointerEvent) => this.handleColumnResizeStart(e, col.id)}"
+                    ></div>
+                  `
+                : ''}
+            </div>
+          `,
+        )}
+      </div>
+    `
+  }
+
 
   /**
    * カレンダーセルのカスタムレンダリングコンテンツを注入する
@@ -169,6 +289,19 @@ export class GanttCalendarElement extends LitElement {
       justify-content: flex-end;
       padding-right: 4px;
       overflow: hidden;
+    }
+    .column-resizer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 6px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+    }
+    .column-resizer:hover,
+    .column-resizer:active {
+      background-color: #3b82f6;
     }
     .calendar-group {
       display: flex;
@@ -489,7 +622,9 @@ export class GanttCalendarElement extends LitElement {
         class="label-placeholder"
         style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option
           .rowHeader?.backgroundColor ?? colors.rowHeaderBg};"
-      ></div>
+      >
+        ${this.renderGridHeaders(colors)}
+      </div>
       <div class="calendar-group" style="width: ${totalWidth}px; overflow: hidden;">
         ${this.option.calendar.showMonthsRow
           ? (() => {

@@ -17,8 +17,11 @@ import type {
   TaskProgressChangeEventDetail,
   CommandEventDetail,
   HistoryChangeEventDetail,
+  GanttColumn,
+  ColumnResizeEventDetail,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
+import { normalizeGridColumns } from '../core/grid'
 import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
 import { LitElement, html, type PropertyValues } from 'lit'
@@ -298,6 +301,15 @@ export class GanttChartElement extends LitElement {
     },
   })
   @state() private isExporting = false
+  @state() private currentGridColumns: GanttColumn[] | null = null
+  @state() private currentGridScrollLeft = 0
+
+  public get effectiveGridColumns(): GanttColumn[] | undefined {
+    const gridOpt = this.option?.grid
+    if (!gridOpt || gridOpt.enabled === false) return undefined
+    if (!gridOpt.columns && gridOpt.enabled !== true) return undefined
+    return normalizeGridColumns(this.currentGridColumns ?? gridOpt.columns, this.option?.locale)
+  }
 
   private _layoutCache: {
     layouts: any[]
@@ -635,9 +647,43 @@ export class GanttChartElement extends LitElement {
       )
     }
 
-    target.addEventListener('pointermove', handleMove)
+      target.addEventListener('pointermove', handleMove)
     target.addEventListener('pointerup', handleUp)
   }
+
+  private handleColumnResize = (e: CustomEvent<ColumnResizeEventDetail>) => {
+    this.currentGridColumns = e.detail.columns
+    this.requestUpdate()
+    this.dispatchEvent(
+      new CustomEvent<ColumnResizeEventDetail>('column-resize', {
+        detail: e.detail,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private handleGridWheel = (e: WheelEvent) => {
+    // マウスカーソルが行ヘッダー領域内にある場合の横スクロールを同期
+    const target = e.target as HTMLElement
+    const isInRowHeader = target.closest('.row-header') || target.closest('.label-placeholder')
+    if (!isInRowHeader) return
+
+    const dx = e.deltaX !== 0 ? e.deltaX : (e.shiftKey ? e.deltaY : 0)
+    if (dx === 0) return
+
+    const columns = this.effectiveGridColumns
+    if (!columns) return
+    const visibleColumns = columns.filter((c) => c.visible !== false)
+    const totalGridWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+    const maxScroll = Math.max(0, totalGridWidth - this.currentRowHeaderWidth)
+
+    if (maxScroll > 0) {
+      e.preventDefault()
+      this.currentGridScrollLeft = Math.max(0, Math.min(maxScroll, this.currentGridScrollLeft + dx))
+    }
+  }
+
 
   private handleScroll = (e: Event) => {
     const target = e.target as HTMLElement
@@ -1559,6 +1605,7 @@ export class GanttChartElement extends LitElement {
         @contextmenu="${this.handleContainerContextMenu}"
         @mousemove="${this.handleContainerMouseMove}"
         @mouseleave="${this.handleContainerMouseLeave}"
+        @wheel="${this.handleGridWheel}"
         @connector-drag-start="${this.handleConnectorDragStart}"
         @connector-drag-move="${this.handleConnectorDragMove}"
         @connector-drag-end="${this.handleConnectorDragEnd}"
@@ -1596,6 +1643,9 @@ export class GanttChartElement extends LitElement {
           .calendarDayContent="${this.option.customRendering?.calendarDayContent}"
           .calendarWeekContent="${this.option.customRendering?.calendarWeekContent}"
           .calendarHourContent="${this.option.customRendering?.calendarHourContent}"
+          .gridScrollLeft="${this.currentGridScrollLeft}"
+          .gridColumns="${this.effectiveGridColumns}"
+          @column-resize="${this.handleColumnResize}"
           @milestone-hover-change="${(e: CustomEvent) => {
         this.hoveredMilestoneId = e.detail.milestoneId
       }}"
@@ -1706,6 +1756,8 @@ export class GanttChartElement extends LitElement {
                 .focusedTaskId="${this.focusedTaskId}"
                 .isExporting="${this.isExporting}"
                 .criticalPathTaskIds="${showCriticalPath ? [...criticalPathTaskIds] : []}"
+                .gridScrollLeft="${this.currentGridScrollLeft}"
+                .gridColumns="${this.effectiveGridColumns}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"
