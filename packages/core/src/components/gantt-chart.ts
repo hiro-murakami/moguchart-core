@@ -694,25 +694,76 @@ export class GanttChartElement extends LitElement {
     )
   }
 
-  private handleGridWheel = (e: WheelEvent) => {
-    // マウスカーソルが行ヘッダー領域内にある場合の横スクロールを同期
-    const target = e.target as HTMLElement
-    const isInRowHeader = target.closest('.row-header') || target.closest('.label-placeholder')
-    if (!isInRowHeader) return
-
-    const dx = e.deltaX !== 0 ? e.deltaX : (e.shiftKey ? e.deltaY : 0)
-    if (dx === 0) return
-
+  public handleGridWheel = (e: WheelEvent): boolean => {
     const columns = this.effectiveGridColumns
-    if (!columns) return
+    if (!columns) return false
+
+    // マウスカーソルが行ヘッダー領域内にあるかを判定 (Shadow DOM内の要素をcomposedPathで検出)
+    const path = e.composedPath()
+    let isOverHeader = false
+    let isOverRowHeader = false
+
+    for (const node of path) {
+      if (!(node instanceof HTMLElement)) continue
+      if (
+        node.classList.contains('label-placeholder') ||
+        node.classList.contains('grid-header-cell') ||
+        node.classList.contains('grid-header-container')
+      ) {
+        isOverHeader = true
+        break
+      }
+      if (
+        node.classList.contains('row-header') ||
+        node.classList.contains('grid-cell') ||
+        node.classList.contains('grid-row-container')
+      ) {
+        isOverRowHeader = true
+        break
+      }
+    }
+
+    const container =
+      this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    let isMouseInGrid = false
+    if (container) {
+      const rect = container.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      isMouseInGrid = mouseX >= 0 && mouseX <= this.currentRowHeaderWidth
+    }
+
+    const isInGridArea = isOverHeader || isOverRowHeader || isMouseInGrid
+    if (!isInGridArea) {
+      return false
+    }
+
     const visibleColumns = columns.filter((c) => c.visible !== false)
     const totalGridWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const maxScroll = Math.max(0, totalGridWidth - this.currentRowHeaderWidth)
 
-    if (maxScroll > 0) {
-      e.preventDefault()
-      this.currentGridScrollLeft = Math.max(0, Math.min(maxScroll, this.currentGridScrollLeft + dx))
+    if (maxScroll <= 0) return false
+
+    // スクロール量の算出:
+    // 1. deltaX がある場合 (トラックパッド横スワイプ、チルトホイール): そのまま使用
+    // 2. Shift キーが押されている場合: deltaY を横スクロールに変換
+    // 3. ヘッダー領域 (isOverHeader) 上にマウスがある場合: 縦ホイール回転 (deltaY) を横スクロールに変換
+    let dx = 0
+    if (e.deltaX !== 0) {
+      dx = e.deltaX
+    } else if (e.shiftKey && e.deltaY !== 0) {
+      dx = e.deltaY
+    } else if (isOverHeader && e.deltaY !== 0) {
+      dx = e.deltaY
     }
+
+    if (dx !== 0) {
+      e.preventDefault()
+      e.stopPropagation()
+      this.currentGridScrollLeft = Math.max(0, Math.min(maxScroll, this.currentGridScrollLeft + dx))
+      return true
+    }
+
+    return false
   }
 
 
@@ -1229,6 +1280,9 @@ export class GanttChartElement extends LitElement {
   // --- ズーム操作（ZoomControllerへの委譲） ---
 
   public handleWheel = (e: WheelEvent): void => {
+    if (this.handleGridWheel(e)) {
+      return
+    }
     this._zoomController.handleWheel(e, this._scrollContainer)
   }
 
@@ -1636,7 +1690,6 @@ export class GanttChartElement extends LitElement {
         @contextmenu="${this.handleContainerContextMenu}"
         @mousemove="${this.handleContainerMouseMove}"
         @mouseleave="${this.handleContainerMouseLeave}"
-        @wheel="${this.handleGridWheel}"
         @connector-drag-start="${this.handleConnectorDragStart}"
         @connector-drag-move="${this.handleConnectorDragMove}"
         @connector-drag-end="${this.handleConnectorDragEnd}"

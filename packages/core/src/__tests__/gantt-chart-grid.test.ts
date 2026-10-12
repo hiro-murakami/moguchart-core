@@ -353,3 +353,213 @@ describe('gantt-chart multi-column grid', () => {
   })
 })
 
+describe('GanttChartElement Multi-Column Grid Wheel Scroll', () => {
+  let chart: GanttChartElement
+
+  const scrollColumns: GanttColumn[] = [
+    { id: 'wbs', width: 60, title: 'WBS' },
+    { id: 'name', width: 200, title: 'タスク名', isTreeColumn: true },
+    { id: 'start', width: 120, title: '開始日' },
+    { id: 'end', width: 120, title: '終了日' },
+    { id: 'progress', width: 80, title: '進捗率' },
+  ]
+  // 合計幅: 60 + 200 + 120 + 120 + 80 = 580px
+
+  beforeEach(async () => {
+    chart = new GanttChartElement()
+    chart.option = {
+      calendar: {
+        start: new Date('2024-01-01'),
+        end: new Date('2024-03-31'),
+        pxPerDay: 50,
+      },
+      rowHeader: {
+        width: 300, // 300px表示領域に対し、カラム合計は580px (maxScroll = 280px)
+      },
+      grid: {
+        enabled: true,
+        columns: scrollColumns,
+      },
+    }
+    chart.rows = [
+      {
+        id: 'row-1',
+        name: 'Task 1',
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Task 1',
+            start: new Date('2024-01-05'),
+            end: new Date('2024-01-15'),
+          },
+        ],
+      },
+    ]
+    document.body.appendChild(chart)
+    await chart.updateComplete
+  })
+
+  afterEach(() => {
+    if (chart && chart.parentNode) {
+      chart.parentNode.removeChild(chart)
+    }
+    vi.clearAllMocks()
+  })
+
+  it('scrolls grid horizontally with deltaX on trackpad swipe within grid area', async () => {
+    const scrollContainer = chart.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    expect(scrollContainer).toBeDefined()
+
+    vi.spyOn(scrollContainer, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaX: 50,
+      deltaY: 0,
+      clientX: 150, // rowHeaderWidth (300) 以内
+      bubbles: true,
+      cancelable: true,
+    })
+
+    const preventDefaultSpy = vi.spyOn(wheelEvent, 'preventDefault')
+    const stopPropagationSpy = vi.spyOn(wheelEvent, 'stopPropagation')
+
+    const handled = chart.handleGridWheel(wheelEvent)
+    expect(handled).toBe(true)
+    expect(preventDefaultSpy).toHaveBeenCalled()
+    expect(stopPropagationSpy).toHaveBeenCalled()
+
+    await chart.updateComplete
+
+    const row = chart.shadowRoot?.querySelector('gantt-row') as any
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar') as any
+    expect(row.gridScrollLeft).toBe(50)
+    expect(calendar.gridScrollLeft).toBe(50)
+  })
+
+  it('scrolls grid horizontally with Shift + deltaY within grid area', async () => {
+    const scrollContainer = chart.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    vi.spyOn(scrollContainer, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaX: 0,
+      deltaY: 40,
+      shiftKey: true,
+      clientX: 200,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    const handled = chart.handleGridWheel(wheelEvent)
+    expect(handled).toBe(true)
+
+    await chart.updateComplete
+    const row = chart.shadowRoot?.querySelector('gantt-row') as any
+    expect(row.gridScrollLeft).toBe(40)
+  })
+
+  it('scrolls grid horizontally on header area even with normal deltaY (no Shift)', async () => {
+    const headerCell = document.createElement('div')
+    headerCell.classList.add('label-placeholder')
+
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaX: 0,
+      deltaY: 30,
+      clientX: 100,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    vi.spyOn(wheelEvent, 'composedPath').mockReturnValue([headerCell, chart])
+
+    const handled = chart.handleGridWheel(wheelEvent)
+    expect(handled).toBe(true)
+
+    await chart.updateComplete
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar') as any
+    expect(calendar.gridScrollLeft).toBe(30)
+  })
+
+  it('clamps scroll amount to [0, maxScroll]', async () => {
+    const scrollContainer = chart.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    vi.spyOn(scrollContainer, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const wheelNegative = new WheelEvent('wheel', {
+      deltaX: -100,
+      clientX: 100,
+      bubbles: true,
+      cancelable: true,
+    })
+    chart.handleGridWheel(wheelNegative)
+    await chart.updateComplete
+    let row = chart.shadowRoot?.querySelector('gantt-row') as any
+    expect(row.gridScrollLeft).toBe(0)
+
+    const wheelOverflow = new WheelEvent('wheel', {
+      deltaX: 500,
+      clientX: 100,
+      bubbles: true,
+      cancelable: true,
+    })
+    chart.handleGridWheel(wheelOverflow)
+    await chart.updateComplete
+    row = chart.shadowRoot?.querySelector('gantt-row') as any
+    expect(row.gridScrollLeft).toBe(280)
+  })
+
+  it('does not scroll grid when wheel event occurs outside grid area', async () => {
+    const scrollContainer = chart.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    vi.spyOn(scrollContainer, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    })
+
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaX: 50,
+      clientX: 500,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    const handled = chart.handleGridWheel(wheelEvent)
+    expect(handled).toBe(false)
+  })
+})
+
+
