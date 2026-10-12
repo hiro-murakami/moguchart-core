@@ -53,6 +53,7 @@ export interface DemoTexts {
   sectionBehavior: string
   sectionProgress: string
   sectionBaseline: string
+  sectionGrid: string
   sectionSize: string
   oneDay: string
   oneMonth: string
@@ -179,6 +180,7 @@ export const jaTexts: DemoTexts = {
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
   sectionBaseline: '予実管理 (Baseline)',
+  sectionGrid: 'データグリッド',
   sectionSize: 'サイズ設定',
   oneDay: '1日',
   oneMonth: '1ヶ月',
@@ -366,6 +368,7 @@ export const enTexts: DemoTexts = {
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',
   sectionBaseline: 'Baseline Management',
+  sectionGrid: 'Data Grid',
   sectionSize: 'Sizing',
   oneDay: '1 day',
   oneMonth: '1 month',

@@ -563,6 +563,13 @@ const renderApp = () => {
       .ctrl-row {
         display: flex; gap: 8px; flex-wrap: wrap;
       }
+      .ctrl-col {
+        display: flex; flex-direction: column; gap: 8px;
+        flex: 1; min-width: 240px;
+      }
+      .ctrl-col > .ctrl-card {
+        flex: none;
+      }
       .ctrl-card {
         background: ${c.cardBg}; border: 1px solid ${c.cardBorder};
         border-radius: 10px; padding: 0; overflow: hidden;
@@ -847,65 +854,83 @@ const renderApp = () => {
           </div>
         </div>
 
-        <!-- 2行目: カレンダー表示 + 動作設定 + サイズ設定 -->
+        <!-- 2行目: カレンダー表示/データグリッド + 動作設定 + 予実管理 + サイズ設定 -->
         <div class="ctrl-row">
-          <!-- カレンダー表示 -->
-          <div class="ctrl-card">
-            <div class="ctrl-card-header">
-              <span class="icon">📅</span>
-              ${t.sectionCalendar}
+          <!-- カレンダー表示 & データグリッド カラム -->
+          <div class="ctrl-col">
+            <!-- カレンダー表示 -->
+            <div class="ctrl-card">
+              <div class="ctrl-card-header">
+                <span class="icon">📅</span>
+                ${t.sectionCalendar}
+              </div>
+              <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showTime}
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showMonths}" @change="${(e: Event) => { showMonths = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showYearMonth}
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showDays}" @change="${(e: Event) => { showDays = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showDates}
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showCurrentTime}" @change="${(e: Event) => { showCurrentTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showCurrentTimeLine}
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showCurrentTimeBadge}" @change="${(e: Event) => { showCurrentTimeBadge = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showCurrentTimeBadge}
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showCursorLine}" @change="${(e: Event) => { showCursorLine = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
+                </label>
+                ${viewMode === 'week'
+                  ? html`
+                      <span class="select-group">
+                        ${t.weekStartDay}
+                        <select
+                          class="mini-select"
+                          @change="${(e: Event) => {
+                            weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+                            renderApp()
+                          }}"
+                        >
+                          ${t.dayNames.map(
+                            (name: string, i: number) => html`
+                              <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
+                            `,
+                          )}
+                        </select>
+                      </span>
+                    `
+                  : ''}
+              </div>
             </div>
-            <div class="ctrl-card-body">
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.showTime}
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showMonths}" @change="${(e: Event) => { showMonths = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.showYearMonth}
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showDays}" @change="${(e: Event) => { showDays = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.showDates}
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showCurrentTime}" @change="${(e: Event) => { showCurrentTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.showCurrentTimeLine}
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showCurrentTimeBadge}" @change="${(e: Event) => { showCurrentTimeBadge = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.showCurrentTimeBadge}
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${showCursorLine}" @change="${(e: Event) => { showCursorLine = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
-              </label>
-              ${viewMode === 'week'
-                ? html`
-                    <span class="select-group">
-                      ${t.weekStartDay}
-                      <select
-                        class="mini-select"
-                        @change="${(e: Event) => {
-                          weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
-                          renderApp()
-                        }}"
-                      >
-                        ${t.dayNames.map(
-                          (name: string, i: number) => html`
-                            <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
-                          `,
-                        )}
-                      </select>
-                    </span>
-                  `
-                : ''}
+
+            <!-- マルチカラムデータグリッド設定 -->
+            <div class="ctrl-card">
+              <div class="ctrl-card-header">
+                <span class="icon">📋</span>
+                ${t.sectionGrid}
+              </div>
+              <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${enableGrid}" @change="${(e: Event) => { enableGrid = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.enableGrid}
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1025,20 +1050,7 @@ const renderApp = () => {
             </div>
           </div>
 
-          <!-- マルチカラムデータグリッド設定 -->
-          <div class="ctrl-card">
-            <div class="ctrl-card-header">
-              <span class="icon">📋</span>
-              データグリッド
-            </div>
-            <div class="ctrl-card-body">
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${enableGrid}" @change="${(e: Event) => { enableGrid = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.enableGrid}
-              </label>
-            </div>
-          </div>
+
 
           <!-- サイズ設定 -->
           <div class="ctrl-card">
