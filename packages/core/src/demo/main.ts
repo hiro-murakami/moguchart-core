@@ -138,9 +138,9 @@ let enableGrid = true
 let demoGridColumns: GanttColumn[] = [
   { id: 'wbs', width: 60 },
   { id: 'name', width: 220 },
-  { id: 'startDate', width: 95 },
-  { id: 'endDate', width: 95 },
-  { id: 'duration', width: 70 },
+  { id: 'startDate', width: 125 },
+  { id: 'endDate', width: 125 },
+  { id: 'duration', width: 80 },
   { id: 'progress', width: 70 },
 ]
 let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'

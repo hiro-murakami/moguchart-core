@@ -50,6 +50,7 @@ describe('grid calculation & formatting', () => {
       expect(summary.start).toBeNull()
       expect(summary.end).toBeNull()
       expect(summary.durationDays).toBe(0)
+      expect(summary.durationMs).toBe(0)
       expect(summary.progress).toBeUndefined()
     })
 
@@ -58,6 +59,7 @@ describe('grid calculation & formatting', () => {
       expect(summary.start?.getTime()).toBe(sampleTasks[0].start.getTime())
       expect(summary.end?.getTime()).toBe(sampleTasks[0].end.getTime())
       expect(summary.durationDays).toBe(5)
+      expect(summary.durationMs).toBe(sampleTasks[0].end.getTime() - sampleTasks[0].start.getTime())
       expect(summary.progress).toBe(100)
     })
 
@@ -67,6 +69,7 @@ describe('grid calculation & formatting', () => {
       expect(summary.end?.getTime()).toBe(new Date(2026, 9, 20).getTime())
       // span is Oct 1 to Oct 20 => 20 days
       expect(summary.durationDays).toBe(20)
+      expect(summary.durationMs).toBe(new Date(2026, 9, 20).getTime() - new Date(2026, 9, 1).getTime())
       // weighted progress: (100 * 4d + 50 * 9d) / 13d = 850 / 13 = 65.38... => 65.4
       expect(summary.progress).toBeCloseTo(65.4, 1)
     })
@@ -107,6 +110,20 @@ describe('grid calculation & formatting', () => {
       expect(colsEn.find((c) => c.id === 'startDate')?.title).toBe('Start Month')
       expect(colsEn.find((c) => c.id === 'endDate')?.title).toBe('End Month')
     })
+
+    it('sets wider default widths for startDate, endDate, and duration when isTimeMode is true', () => {
+      const cols = normalizeGridColumns(undefined, jaLocale, false, true)
+      const startCol = cols.find((c) => c.id === 'startDate')
+      const endCol = cols.find((c) => c.id === 'endDate')
+      const durCol = cols.find((c) => c.id === 'duration')
+
+      expect(startCol?.width).toBe(130)
+      expect(startCol?.minWidth).toBe(80)
+      expect(endCol?.width).toBe(130)
+      expect(endCol?.minWidth).toBe(80)
+      expect(durCol?.width).toBe(90)
+      expect(durCol?.minWidth).toBe(60)
+    })
   })
 
   describe('getGridCellValue & formatGridCellValue', () => {
@@ -141,6 +158,28 @@ describe('grid calculation & formatting', () => {
       // Month mode (end date displays previous month)
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
       expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/9')
+
+      // Time mode (displays YYYY/M/D HH:mm, including 00:00)
+      const hourlyTaskRow: GanttRow = {
+        id: 'r-hourly',
+        name: 'Hourly Row',
+        tasks: [{ id: 'ht1', start: new Date(2026, 9, 1, 9, 30), end: new Date(2026, 9, 1, 18, 0) }],
+      }
+      const hStartVal = getGridCellValue(startCol, hourlyTaskRow, hourlyTaskRow.tasks)
+      const hEndVal = getGridCellValue(endCol, hourlyTaskRow, hourlyTaskRow.tasks)
+      expect(formatGridCellValue(startCol, hStartVal, hourlyTaskRow, hourlyTaskRow.tasks, jaLocale, false, true)).toBe('2026/10/1 09:30')
+      expect(formatGridCellValue(endCol, hEndVal, hourlyTaskRow, hourlyTaskRow.tasks, jaLocale, false, true)).toBe('2026/10/1 18:00')
+
+      // Midnight check (00:00 is not omitted)
+      const midnightTaskRow: GanttRow = {
+        id: 'r-midnight',
+        name: 'Midnight Row',
+        tasks: [{ id: 'mt1', start: new Date(2026, 9, 1, 0, 0), end: new Date(2026, 9, 2, 0, 0) }],
+      }
+      const mStartVal = getGridCellValue(startCol, midnightTaskRow, midnightTaskRow.tasks)
+      const mEndVal = getGridCellValue(endCol, midnightTaskRow, midnightTaskRow.tasks)
+      expect(formatGridCellValue(startCol, mStartVal, midnightTaskRow, midnightTaskRow.tasks, jaLocale, false, true)).toBe('2026/10/1 00:00')
+      expect(formatGridCellValue(endCol, mEndVal, midnightTaskRow, midnightTaskRow.tasks, jaLocale, false, true)).toBe('2026/10/2 00:00')
     })
 
     it('handles startMonth and endMonth column IDs, with endMonth displaying previous month', () => {
@@ -188,6 +227,18 @@ describe('grid calculation & formatting', () => {
 
       // Explicit 0% progress returns '0%'
       expect(formatGridCellValue(progCol, 0, emptyTaskRow, emptyTaskRow.tasks, jaLocale)).toBe('0%')
+
+      // Time mode duration
+      const hourlyRow: GanttRow = {
+        id: 'r-h',
+        name: 'H',
+        tasks: [{ id: 'h1', start: new Date(2026, 9, 1, 9, 0), end: new Date(2026, 9, 1, 10, 30) }],
+      }
+      expect(formatGridCellValue(durCol, 1, hourlyRow, hourlyRow.tasks, jaLocale, false, true)).toBe('1時間30分')
+      expect(formatGridCellValue(durCol, 1, hourlyRow, hourlyRow.tasks, enLocale, false, true)).toBe('1 hour30 minutes')
+
+      // Time mode with empty tasks returns '-'
+      expect(formatGridCellValue(durCol, 0, emptyTaskRow, emptyTaskRow.tasks, jaLocale, false, true)).toBe('-')
     })
 
     it('supports custom field and custom valueGetter / formatter', () => {

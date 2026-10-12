@@ -1,6 +1,7 @@
 import type { GanttColumn, GanttBuiltinColumnId, GanttRow, GanttTask } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
+import { formatDuration } from './utils'
 
 /**
  * 組み込みカラムのデフォルト仕様定義
@@ -31,6 +32,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   start: Date | null
   end: Date | null
   durationDays: number
+  durationMs: number
   progress: number | undefined
 } {
   if (!tasks || tasks.length === 0) {
@@ -38,6 +40,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
       start: null,
       end: null,
       durationDays: 0,
+      durationMs: 0,
       progress: undefined,
     }
   }
@@ -71,6 +74,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
       start: null,
       end: null,
       durationDays: 0,
+      durationMs: 0,
       progress: undefined,
     }
   }
@@ -84,6 +88,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime()
   const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime()
   const durationDays = Math.max(1, Math.round((endDay - startDay) / msPerDay) + 1)
+  const durationMs = Math.max(0, maxEnd - minStart)
 
   const calculatedProgress =
     hasAnyProgress && totalDurationMs > 0
@@ -94,6 +99,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
     start: startDate,
     end: endDate,
     durationDays,
+    durationMs,
     progress: calculatedProgress,
   }
 }
@@ -105,6 +111,7 @@ export function normalizeGridColumns(
   columns?: GanttColumn[],
   locale?: MoguchartLocale,
   isMonthMode?: boolean,
+  isTimeMode?: boolean,
 ): GanttColumn[] {
   const currentLocale = locale ?? jaLocale
   const startDateTitle = isMonthMode
@@ -142,8 +149,21 @@ export function normalizeGridColumns(
 
   const normalized = rawColumns.map((col) => {
     const builtinConfig = (DEFAULT_GRID_COLUMN_CONFIGS as any)[col.id]
-    const width = col.width ?? builtinConfig?.width ?? 100
-    const minWidth = col.minWidth ?? builtinConfig?.minWidth ?? 40
+    let defaultWidth = builtinConfig?.width ?? 100
+    let defaultMinWidth = builtinConfig?.minWidth ?? 40
+
+    if (isTimeMode) {
+      if (col.id === 'startDate' || col.id === 'endDate') {
+        defaultWidth = 130
+        defaultMinWidth = 80
+      } else if (col.id === 'duration') {
+        defaultWidth = 90
+        defaultMinWidth = 60
+      }
+    }
+
+    const width = col.width ?? defaultWidth
+    const minWidth = col.minWidth ?? defaultMinWidth
     const align = col.align ?? builtinConfig?.align ?? 'left'
     const resizable = col.resizable !== false
     const visible = col.visible !== false
@@ -256,6 +276,7 @@ export function formatGridCellValue(
   tasks: GanttTask[],
   locale?: MoguchartLocale,
   isMonthMode?: boolean,
+  isTimeMode?: boolean,
 ): string {
   const currentLocale = locale ?? jaLocale
 
@@ -283,6 +304,12 @@ export function formatGridCellValue(
             ? currentLocale.yearMonthFormat(targetDate)
             : `${targetDate.getFullYear()}/${targetDate.getMonth() + 1}`
         }
+        if (isTimeMode) {
+          const dateStr = currentLocale.dateFormat(value)
+          const h = value.getHours().toString().padStart(2, '0')
+          const m = value.getMinutes().toString().padStart(2, '0')
+          return `${dateStr} ${h}:${m}`
+        }
         return currentLocale.dateFormat(value)
       }
       return ''
@@ -299,6 +326,13 @@ export function formatGridCellValue(
       }
       return ''
     case 'duration':
+      if (isTimeMode) {
+        const summary = calculateRowSummaryDates(tasks)
+        if (summary.start && summary.end) {
+          return formatDuration(summary.start, summary.end, currentLocale)
+        }
+        return '-'
+      }
       if (typeof value === 'number' && value > 0) {
         return currentLocale.duration.days(value)
       }

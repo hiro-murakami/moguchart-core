@@ -387,6 +387,48 @@ describe('gantt-chart multi-column grid', () => {
     nameCell = firstRow?.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
     expect(nameCell?.style.width).toBe('260px')
   })
+
+  it('formats dates and duration with time in showTime mode', async () => {
+    chart.rows = [
+      {
+        id: 'row-hourly',
+        name: 'Hourly Task Row',
+        tasks: [
+          {
+            id: 'task-hourly-1',
+            name: 'Hourly Task 1',
+            start: new Date(2026, 9, 1, 9, 0),
+            end: new Date(2026, 9, 1, 17, 30),
+            progress: 50,
+          },
+        ],
+      },
+    ]
+    chart.option = {
+      ...baseOption,
+      calendar: {
+        ...baseOption.calendar,
+        showTime: true,
+      },
+      grid: {
+        enabled: true,
+      },
+    }
+    await chart.updateComplete
+
+    const rows = chart.shadowRoot?.querySelectorAll('gantt-row')
+    expect(rows?.length).toBe(1)
+    const rowShadow = rows?.[0].shadowRoot
+    await (rows?.[0] as any).updateComplete
+
+    const startCell = rowShadow?.querySelector('.grid-cell-startDate')
+    const endCell = rowShadow?.querySelector('.grid-cell-endDate')
+    const durCell = rowShadow?.querySelector('.grid-cell-duration')
+
+    expect(startCell?.textContent?.trim()).toBe('2026/10/1 09:00')
+    expect(endCell?.textContent?.trim()).toBe('2026/10/1 17:30')
+    expect(durCell?.textContent?.trim()).toBe('8時間30分')
+  })
 })
 
 describe('GanttChartElement Multi-Column Grid Wheel Scroll', () => {
