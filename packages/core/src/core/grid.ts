@@ -275,9 +275,13 @@ export function formatGridCellValue(
     case 'endDate':
       if (value instanceof Date && !Number.isNaN(value.getTime())) {
         if (isMonthMode) {
+          const targetDate =
+            column.id === 'endDate'
+              ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
+              : value
           return currentLocale.yearMonthFormat
-            ? currentLocale.yearMonthFormat(value)
-            : `${value.getFullYear()}/${value.getMonth() + 1}`
+            ? currentLocale.yearMonthFormat(targetDate)
+            : `${targetDate.getFullYear()}/${targetDate.getMonth() + 1}`
         }
         return currentLocale.dateFormat(value)
       }
@@ -285,9 +289,13 @@ export function formatGridCellValue(
     case 'startMonth':
     case 'endMonth':
       if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const targetDate =
+          column.id === 'endMonth'
+            ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
+            : value
         return currentLocale.yearMonthFormat
-          ? currentLocale.yearMonthFormat(value)
-          : `${value.getFullYear()}/${value.getMonth() + 1}`
+          ? currentLocale.yearMonthFormat(targetDate)
+          : `${targetDate.getFullYear()}/${targetDate.getMonth() + 1}`
       }
       return ''
     case 'duration':

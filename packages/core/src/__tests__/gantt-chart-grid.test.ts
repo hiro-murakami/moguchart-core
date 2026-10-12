@@ -187,7 +187,7 @@ describe('gantt-chart multi-column grid', () => {
     await (rows?.[0] as any).updateComplete
 
     expect(firstRowShadow?.querySelector('.grid-cell-startDate')?.textContent).toContain('2026/10')
-    expect(firstRowShadow?.querySelector('.grid-cell-endDate')?.textContent).toContain('2026/10')
+    expect(firstRowShadow?.querySelector('.grid-cell-endDate')?.textContent).toContain('2026/9')
   })
 
   it('supports custom renderCell in grid columns', async () => {

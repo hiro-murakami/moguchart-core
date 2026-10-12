@@ -138,12 +138,12 @@ describe('grid calculation & formatting', () => {
       expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/5')
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, enLocale)).toBe('10/1/2026')
 
-      // Month mode
+      // Month mode (end date displays previous month)
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
-      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/9')
     })
 
-    it('handles startMonth and endMonth column IDs', () => {
+    it('handles startMonth and endMonth column IDs, with endMonth displaying previous month', () => {
       const startCol: GanttColumn = { id: 'startMonth' }
       const endCol: GanttColumn = { id: 'endMonth' }
 
@@ -153,7 +153,16 @@ describe('grid calculation & formatting', () => {
       expect(endVal).toEqual(sampleTasks[0].end)
 
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10')
-      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/9')
+
+      // Year transition check (e.g. 2027/01 -> previous month is 2026/12)
+      const yearTransitionRow: GanttRow = {
+        id: 'r-yt',
+        name: 'YT',
+        tasks: [{ id: 'yt1', start: new Date(2026, 9, 1), end: new Date(2027, 0, 1) }],
+      }
+      const ytEndVal = getGridCellValue(endCol, yearTransitionRow, yearTransitionRow.tasks)
+      expect(formatGridCellValue(endCol, ytEndVal, yearTransitionRow, yearTransitionRow.tasks, jaLocale)).toBe('2026/12')
     })
 
     it('handles duration and progress columns', () => {
