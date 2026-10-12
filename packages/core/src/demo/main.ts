@@ -275,7 +275,7 @@ const renderApp = () => {
     rowHeader: {
       width: rowHeaderWidth,
       resizable: rowHeaderResizable,
-      maxWidth: 400,
+      maxWidth: 1600,
       minWidth: 100,
     },
     calendar: {
@@ -1099,9 +1099,12 @@ const renderApp = () => {
                   class="mini-select"
                   @change="${(e: Event) => { rowHeaderWidth = Number((e.target as HTMLSelectElement).value); renderApp() }}"
                 >
-                  ${[150, 200, 250, 300, 350].map(
+                  ${[150, 200, 250, 300, 400, 500, 600, 700, 800, 1000].map(
                     (w) => html` <option value="${w}" ?selected="${rowHeaderWidth === w}">${w}px</option> `,
                   )}
+                  ${![150, 200, 250, 300, 400, 500, 600, 700, 800, 1000].includes(rowHeaderWidth)
+                    ? html`<option value="${rowHeaderWidth}" selected>${rowHeaderWidth}px</option>`
+                    : ''}
                 </select>
               </span>
               <span class="select-group">
