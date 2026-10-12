@@ -51,6 +51,17 @@ export interface MoguchartLocale {
     /** 複数タスク移動中の表示 (例: "3件のタスクを移動中" / "Moving 3 tasks") */
     movingTasks: (count: number) => string
   }
+  /** マルチカラムデータグリッドの文字列 */
+  grid?: {
+    columns: {
+      wbs: string
+      name: string
+      startDate: string
+      endDate: string
+      duration: string
+      progress: string
+    }
+  }
 }
 
 /**
@@ -88,6 +99,16 @@ export const jaLocale: MoguchartLocale = {
     noTitle: 'タイトルなし',
     moveTo: (name) => `移動先: ${name}`,
     movingTasks: (count) => `${count}件のタスクを移動中`,
+  },
+  grid: {
+    columns: {
+      wbs: 'WBS',
+      name: 'タスク名',
+      startDate: '開始日',
+      endDate: '終了日',
+      duration: '期間',
+      progress: '進捗率',
+    },
   },
 }
 
@@ -128,5 +149,15 @@ export const enLocale: MoguchartLocale = {
     noTitle: 'No Title',
     moveTo: (name) => `Move to: ${name}`,
     movingTasks: (count) => `Moving ${count} task${count !== 1 ? 's' : ''}`,
+  },
+  grid: {
+    columns: {
+      wbs: 'WBS',
+      name: 'Task Name',
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      duration: 'Duration',
+      progress: 'Progress',
+    },
   },
 }

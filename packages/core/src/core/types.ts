@@ -476,6 +476,8 @@ export interface GanttChartOption {
   history?: GanttChartOptionHistory
   /** 予実管理（ベースライン）の設定 */
   baseline?: GanttChartOptionBaseline
+  /** マルチカラムデータグリッドに関する設定 */
+  grid?: GanttChartOptionGrid
 }
 
 /**
@@ -1108,4 +1110,72 @@ export interface CommandEventDetail {
 export interface HistoryChangeEventDetail extends HistoryState {}
 
 export type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager }
+export type { MoguchartLocale } from './i18n'
+
+/**
+ * 組み込み標準カラムのID
+ */
+export type GanttBuiltinColumnId = 'wbs' | 'name' | 'startDate' | 'endDate' | 'duration' | 'progress'
+
+/**
+ * マルチカラムデータグリッドのカラム定義
+ */
+export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
+  /** カラム識別子 (例: 'wbs', 'name', 'startDate', 'endDate', 'duration', 'progress' または任意のカスタム文字列) */
+  id: GanttBuiltinColumnId | (string & {})
+  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用) */
+  title?: string
+  /** 列幅 (px)。未指定時はデフォルト幅 */
+  width?: number
+  /** リサイズ可能な最小幅 (px)。デフォルト: 40 */
+  minWidth?: number
+  /** リサイズ可能な最大幅 (px) */
+  maxWidth?: number
+  /** テキストの水平配置 */
+  align?: 'left' | 'center' | 'right'
+  /** ユーザーによる幅リサイズを許可するか (デフォルト: true) */
+  resizable?: boolean
+  /** カラムを表示するか (デフォルト: true) */
+  visible?: boolean
+  /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
+  isTreeColumn?: boolean
+  /** 行オブジェクト内の参照プロパティ名 (カスタムカラム用) */
+  field?: string
+  /** 値を独自取得するためのカスタム関数 */
+  valueGetter?: (row: TRow, tasks: TTask[], wbsCode?: string) => any
+  /** 表示用文字列フォーマッター */
+  formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
+  /** HTML/DOM カスタムレンダラー (HTMLElement または HTML文字列を返す) */
+  renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
+}
+
+/**
+ * マルチカラムデータグリッド機能に関するオプション
+ */
+export interface GanttChartOptionGrid {
+  /** マルチカラムグリッド表示を有効にするか (columnsが指定されている場合はデフォルト: true) */
+  enabled?: boolean
+  /** カラム定義の配列 */
+  columns?: GanttColumn[]
+  /** グリッド領域全体の表示幅 (px)。未指定時は全可視カラム幅の合計、または rowHeader.width */
+  width?: number
+  /** スプリッターによるグリッド領域全体の幅リサイズを許可するか (デフォルト: true) */
+  splitterResizable?: boolean
+  /** セルの境界線を表示するか (デフォルト: true) */
+  showBorders?: boolean
+  /** セルのパディング (px)。デフォルト: 4 */
+  cellPadding?: number
+}
+
+/**
+ * カラム幅リサイズイベントの詳細データ
+ */
+export interface ColumnResizeEventDetail {
+  /** リサイズされたカラムID */
+  columnId: string
+  /** 新しいカラム幅 (px) */
+  width: number
+  /** 更新後の全カラム定義配列 */
+  columns: GanttColumn[]
+}
 

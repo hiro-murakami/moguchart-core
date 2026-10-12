@@ -28,3 +28,4 @@ export {
   computeSummaryTask,
   canDropRow,
 } from './core/wbs'
+export * from './core/grid'
