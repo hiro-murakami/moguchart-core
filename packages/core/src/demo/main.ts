@@ -135,6 +135,7 @@ let showSummaryProgressLabel = true
 let enableMarquee = true
 let enableBaseline = true
 let enableGrid = true
+let enableGridEdit = true
 let demoGridColumns: GanttColumn[] = [
   { id: 'wbs', width: 60 },
   { id: 'name', width: 220 },
@@ -347,6 +348,7 @@ const renderApp = () => {
     },
     grid: {
       enabled: enableGrid,
+      editable: enableGridEdit,
       columns: demoGridColumns,
     },
     tree: {
@@ -929,6 +931,11 @@ const renderApp = () => {
                   <input type="checkbox" .checked="${enableGrid}" @change="${(e: Event) => { enableGrid = (e.target as HTMLInputElement).checked; renderApp() }}" />
                   <span class="toggle-track"></span>
                   ${t.enableGrid}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${enableGridEdit}" @change="${(e: Event) => { enableGridEdit = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.enableGridEdit}
                 </label>
               </div>
             </div>

@@ -647,4 +647,190 @@ describe('GanttChartElement Multi-Column Grid Wheel Scroll', () => {
   })
 })
 
+describe('GanttChartElement Multi-Column Grid Inline Editing', () => {
+  let chart: GanttChartElement
 
+  beforeEach(async () => {
+    chart = new GanttChartElement()
+    chart.rows = [
+      {
+        id: 'parent-1',
+        name: 'Parent Phase',
+        tasks: [],
+      },
+      {
+        id: 'row-1',
+        parentId: 'parent-1',
+        name: 'Task 1',
+        assignee: 'Alice',
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Task 1',
+            start: new Date(2026, 9, 1),
+            end: new Date(2026, 9, 5),
+            progress: 50,
+          },
+        ],
+      } as any,
+    ]
+    chart.option = {
+      calendar: {
+        start: new Date(2026, 9, 1),
+        end: new Date(2026, 9, 31),
+        pxPerDay: 40,
+      },
+      rowHeader: {
+        width: 500,
+      },
+      tree: {
+        enabled: true,
+        autoSummary: true,
+      },
+      grid: {
+        enabled: true,
+        editable: true,
+        columns: [
+          { id: 'wbs', width: 50 },
+          { id: 'name', width: 150 },
+          { id: 'startDate', width: 100 },
+          { id: 'endDate', width: 100 },
+          { id: 'duration', width: 70 },
+          { id: 'progress', width: 70 },
+          {
+            id: 'assignee',
+            title: '担当者',
+            field: 'assignee',
+            editor: 'select',
+            editorOptions: [
+              { label: 'Alice', value: 'Alice' },
+              { label: 'Bob', value: 'Bob' },
+            ],
+          },
+        ],
+      },
+    }
+    document.body.appendChild(chart)
+    await chart.updateComplete
+  })
+
+  afterEach(() => {
+    if (chart && chart.parentNode) {
+      chart.parentNode.removeChild(chart)
+    }
+  })
+
+  it('starts inline editing on dblclick, commits on Enter, updates rows, emits cell-edit, and supports Undo/Redo', async () => {
+    const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const childRowEl = rowElements?.[1] as any
+    await childRowEl.updateComplete
+
+    let editEventDetail: any = null
+    chart.addEventListener('cell-edit', ((e: CustomEvent) => {
+      editEventDetail = e.detail
+    }) as EventListener)
+
+    const nameCell = childRowEl.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
+    expect(nameCell.classList.contains('grid-cell-editable')).toBe(true)
+
+    nameCell.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true }))
+    await childRowEl.updateComplete
+
+    const inputEl = childRowEl.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    expect(inputEl.value).toBe('Task 1')
+
+    inputEl.value = 'Renamed Task 1'
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }))
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+    await chart.updateComplete
+
+    expect(chart.rows[1].name).toBe('Renamed Task 1')
+    expect(chart.rows[1].tasks[0].name).toBe('Renamed Task 1')
+    expect(editEventDetail).toBeTruthy()
+    expect(editEventDetail.columnId).toBe('name')
+    expect(editEventDetail.oldValue).toBe('Task 1')
+    expect(editEventDetail.newValue).toBe('Renamed Task 1')
+
+    // Undo / Redo check
+    expect(chart.canUndo).toBe(true)
+    chart.undo()
+    await chart.updateComplete
+    expect(chart.rows[1].name).toBe('Task 1')
+
+    chart.redo()
+    await chart.updateComplete
+    expect(chart.rows[1].name).toBe('Renamed Task 1')
+  })
+
+  it('cancels inline editing on Escape without modifying row data', async () => {
+    const started = chart.startCellEdit('row-1', 'progress')
+    expect(started).toBe(true)
+
+    const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const childRowEl = rowElements?.[1] as any
+    await childRowEl.updateComplete
+
+    const inputEl = childRowEl.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    expect(inputEl.value).toBe('50')
+
+    inputEl.value = '95'
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }))
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+
+    await childRowEl.updateComplete
+    expect(childRowEl.editingColumnId).toBeNull()
+    expect(chart.rows[1].tasks[0].progress).toBe(50)
+  })
+
+  it('disallows editing task-bound columns on parent/summary rows while allowing name editing', async () => {
+    // Parent row has children -> startDate/duration/progress should not be editable
+    expect(chart.startCellEdit('parent-1', 'startDate')).toBe(false)
+    expect(chart.startCellEdit('parent-1', 'duration')).toBe(false)
+    expect(chart.startCellEdit('parent-1', 'progress')).toBe(false)
+
+    // Parent row name IS editable
+    expect(chart.startCellEdit('parent-1', 'name')).toBe(true)
+    chart.commitCellEdit('Updated Phase Name')
+    await chart.updateComplete
+    expect(chart.rows[0].name).toBe('Updated Phase Name')
+  })
+
+  it('supports select editor for custom columns', async () => {
+    expect(chart.startCellEdit('row-1', 'assignee')).toBe(true)
+
+    const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const childRowEl = rowElements?.[1] as any
+    await childRowEl.updateComplete
+
+    const selectEl = childRowEl.shadowRoot?.querySelector('.grid-cell-select') as HTMLSelectElement
+    expect(selectEl).toBeTruthy()
+    expect(selectEl.value).toBe('Alice')
+
+    selectEl.value = 'Bob'
+    selectEl.dispatchEvent(new Event('change', { bubbles: true }))
+    await chart.updateComplete
+
+    expect((chart.rows[1] as any).assignee).toBe('Bob')
+  })
+
+  it('applies dark theme styles and reflects theme attribute when editing in dark mode', async () => {
+    chart.option = {
+      ...chart.option,
+      theme: 'dark',
+    }
+    await chart.updateComplete
+
+    const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const childRowEl = rowElements?.[1] as any
+    await childRowEl.updateComplete
+
+    expect(childRowEl.getAttribute('theme')).toBe('dark')
+
+    const styleText = childRowEl.shadowRoot?.querySelector('style')?.textContent ?? ''
+    expect(styleText).toContain('color-scheme: dark')
+    expect(styleText).toContain('#1e293b')
+  })
+})

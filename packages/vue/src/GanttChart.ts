@@ -40,6 +40,9 @@ import {
   type TaskProgressChangeEventDetail,
   type CommandEventDetail,
   type HistoryChangeEventDetail,
+  type ColumnResizeEventDetail,
+  type CellEditEventDetail,
+  type RowsChangeEventDetail,
   type IHistoryManager,
 } from '@mogura/moguchart-core'
 
@@ -111,6 +114,9 @@ export const ganttChartEmits = {
   'task-progress-change': (_detail: TaskProgressChangeEventDetail, _e: CustomEvent<TaskProgressChangeEventDetail>) => true,
   'command': (_detail: CommandEventDetail, _e: CustomEvent<CommandEventDetail>) => true,
   'history-change': (_detail: HistoryChangeEventDetail, _e: CustomEvent<HistoryChangeEventDetail>) => true,
+  'column-resize': (_detail: ColumnResizeEventDetail, _e: CustomEvent<ColumnResizeEventDetail>) => true,
+  'cell-edit': (_detail: CellEditEventDetail, _e: CustomEvent<CellEditEventDetail>) => true,
+  'rows-change': (_detail: RowsChangeEventDetail, _e: CustomEvent<RowsChangeEventDetail>) => true,
 }
 
 /**
@@ -282,6 +288,9 @@ export const GanttChart = defineComponent({
       hitTest: (...args: Parameters<GanttChartElement['hitTest']>) => elRef.value?.hitTest(...args),
       getRowPositions: (...args: Parameters<GanttChartElement['getRowPositions']>) => elRef.value?.getRowPositions(...args),
       triggerDependencyDelete: (...args: Parameters<GanttChartElement['triggerDependencyDelete']>) => elRef.value?.triggerDependencyDelete(...args),
+      startCellEdit: (...args: Parameters<GanttChartElement['startCellEdit']>) => elRef.value?.startCellEdit(...args),
+      commitCellEdit: (...args: Parameters<GanttChartElement['commitCellEdit']>) => elRef.value?.commitCellEdit(...args),
+      cancelCellEdit: (...args: Parameters<GanttChartElement['cancelCellEdit']>) => elRef.value?.cancelCellEdit(...args),
     }
 
     expose(publicMethods)
@@ -330,6 +339,9 @@ export interface GanttChartPublicApi {
   hitTest: GanttChartElement['hitTest']
   getRowPositions: GanttChartElement['getRowPositions']
   triggerDependencyDelete: GanttChartElement['triggerDependencyDelete']
+  startCellEdit: GanttChartElement['startCellEdit']
+  commitCellEdit: GanttChartElement['commitCellEdit']
+  cancelCellEdit: GanttChartElement['cancelCellEdit']
   /** コンポーネントのルートDOM要素 */
   $el?: HTMLElement
 }

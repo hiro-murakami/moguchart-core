@@ -30,6 +30,9 @@ import {
   type TaskProgressChangeEventDetail,
   type CommandEventDetail,
   type HistoryChangeEventDetail,
+  type ColumnResizeEventDetail,
+  type CellEditEventDetail,
+  type RowsChangeEventDetail,
 } from '@mogura/moguchart-core'
 
 /**
@@ -70,6 +73,9 @@ export const GanttChart = createComponent({
     onTaskProgressChange: 'task-progress-change' as EventName<CustomEvent<TaskProgressChangeEventDetail>>,
     onCommand: 'command' as EventName<CustomEvent<CommandEventDetail>>,
     onHistoryChange: 'history-change' as EventName<CustomEvent<HistoryChangeEventDetail>>,
+    onColumnResize: 'column-resize' as EventName<CustomEvent<ColumnResizeEventDetail>>,
+    onCellEdit: 'cell-edit' as EventName<CustomEvent<CellEditEventDetail>>,
+    onRowsChange: 'rows-change' as EventName<CustomEvent<RowsChangeEventDetail>>,
   },
 })
 

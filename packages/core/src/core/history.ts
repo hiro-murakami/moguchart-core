@@ -10,6 +10,7 @@ export type GanttCommandType =
   | 'row-reorder'
   | 'dependency-create'
   | 'dependency-delete'
+  | 'cell-edit'
   | 'custom'
 
 /**

@@ -1,9 +1,29 @@
 import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import type { GanttChartOption, GanttMarker, GanttRow, GanttTask, GanttTaskMoveMode, MarkerContextMenuEventDetail, MarkerDblClickEventDetail, MarkerFontSize, MarkerType, RowHeaderContextMenuEventDetail, RowToggleCollapseEventDetail, GanttColumn } from '../core/types'
+import type {
+  GanttChartOption,
+  GanttMarker,
+  GanttRow,
+  GanttTask,
+  GanttTaskMoveMode,
+  MarkerContextMenuEventDetail,
+  MarkerDblClickEventDetail,
+  MarkerFontSize,
+  MarkerType,
+  RowHeaderContextMenuEventDetail,
+  RowToggleCollapseEventDetail,
+  GanttColumn,
+} from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
-import { normalizeGridColumns, getGridCellValue, formatGridCellValue } from '../core/grid'
-import { LitElement, css, html, render, type PropertyValues } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
+import {
+  normalizeGridColumns,
+  getGridCellValue,
+  formatGridCellValue,
+  isGridCellEditable,
+  resolveColumnEditorType,
+  formatGridCellEditValue,
+} from '../core/grid'
+import { LitElement, css, html, nothing, render, type PropertyValues } from 'lit'
+import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 import './gantt-bar'
 import './gantt-row-background'
@@ -34,7 +54,7 @@ export class GanttRowElement extends LitElement {
     currentStart: Date
     currentEnd: Date
   } | null = null
-  @property({ type: String })
+  @property({ type: String, reflect: true })
   theme: 'light' | 'dark' = 'light'
 
   @property({ type: Boolean, reflect: true })
@@ -57,6 +77,10 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
+
+  @state() private _editingColumnId: string | null = null
+  @state() private _editingValue = ''
+  private _isCommittingEdit = false
 
   // 月境界線キャッシュ（option.calendar.start/end/pxPerDay/pxPerMonth が変わらない限り再計算不要）
   private _cachedMonthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
@@ -97,19 +121,28 @@ export class GanttRowElement extends LitElement {
    */
   private resolveMarkerFontSize(size?: MarkerFontSize): number {
     switch (size) {
-      case 'xs': return 8
-      case 'sm': return 10
-      case 'md': return 12
-      case 'lg': return 14
-      case 'xl': return 18
-      default: return 10
+      case 'xs':
+        return 8
+      case 'sm':
+        return 10
+      case 'md':
+        return 12
+      case 'lg':
+        return 14
+      case 'xl':
+        return 18
+      default:
+        return 10
     }
   }
 
   /**
    * マーカーの表示幅を推定する（アイコン＋ラベル）
    */
-  private estimateMarkerWidth(marker: { name?: string; anchor?: string; fontSize?: MarkerFontSize }, markerSize: number): number {
+  private estimateMarkerWidth(
+    marker: { name?: string; anchor?: string; fontSize?: MarkerFontSize },
+    markerSize: number,
+  ): number {
     const fontSize = this.resolveMarkerFontSize(marker.fontSize)
     const charWidth = fontSize * 0.7 // フォントサイズに応じた文字幅推定
     const labelWidth = marker.name ? marker.name.length * charWidth + 4 : 0
@@ -124,7 +157,10 @@ export class GanttRowElement extends LitElement {
   /**
    * マーカーのX方向の占有範囲を計算する
    */
-  private getMarkerXRange(marker: { date: Date; name?: string; anchor?: string }, markerSize: number): { left: number; right: number } {
+  private getMarkerXRange(
+    marker: { date: Date; name?: string; anchor?: string },
+    markerSize: number,
+  ): { left: number; right: number } {
     const x = this.getDateX(marker.date)
     const totalWidth = this.estimateMarkerWidth(marker, markerSize)
     const isCenter = marker.anchor === 'center'
@@ -152,10 +188,12 @@ export class GanttRowElement extends LitElement {
     if (!markers.length) return []
 
     // X座標でソート
-    const sorted = markers.map((m) => ({
-      marker: m,
-      range: this.getMarkerXRange(m, markerSize),
-    })).sort((a, b) => a.range.left - b.range.left)
+    const sorted = markers
+      .map((m) => ({
+        marker: m,
+        range: this.getMarkerXRange(m, markerSize),
+      }))
+      .sort((a, b) => a.range.left - b.range.left)
 
     // 各レーンの右端を記録
     const laneEnds: number[] = []
@@ -251,7 +289,9 @@ export class GanttRowElement extends LitElement {
       line-height: 1;
       color: inherit;
       opacity: 0.7;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition:
+        transform 0.15s ease,
+        opacity 0.15s ease;
       flex-shrink: 0;
       border-radius: calc(3px * var(--moguchart-font-scale, 1));
     }
@@ -292,7 +332,9 @@ export class GanttRowElement extends LitElement {
       position: relative;
     }
     .marker-wrapper {
-      transition: transform 0.15s ease, filter 0.15s ease;
+      transition:
+        transform 0.15s ease,
+        filter 0.15s ease;
       user-select: none;
       -webkit-user-select: none;
     }
@@ -301,22 +343,27 @@ export class GanttRowElement extends LitElement {
     }
     .marker-wrapper:hover {
       transform: scale(1.3);
-      filter: brightness(1.15) drop-shadow(0 2px 6px rgba(0,0,0,0.4)) drop-shadow(0 0 8px rgba(255,255,255,0.5));
+      filter: brightness(1.15) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
       z-index: 10 !important;
     }
     .marker-wrapper.marker-anchor-end:hover {
       transform: translateX(-100%) scale(1.3);
     }
     .marker-wrapper.marker-selected {
-      filter: brightness(1.2) drop-shadow(0 0 6px rgba(59,130,246,0.7)) drop-shadow(0 0 10px rgba(59,130,246,0.4));
+      filter: brightness(1.2) drop-shadow(0 0 6px rgba(59, 130, 246, 0.7)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
       z-index: 10 !important;
     }
     .marker-wrapper.marker-selected .marker-icon {
       animation: marker-pulse 1.2s ease-in-out infinite;
     }
     @keyframes marker-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.65; }
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.65;
+      }
     }
     .grid-background {
       position: absolute;
@@ -325,6 +372,57 @@ export class GanttRowElement extends LitElement {
       width: 100%;
       height: 100%;
       pointer-events: none;
+    }
+    .grid-cell-editable {
+      cursor: text;
+      position: relative;
+    }
+    .grid-cell-editable:hover {
+      background-color: rgba(59, 130, 246, 0.06);
+    }
+    :host([theme='dark']) .grid-cell-editable:hover {
+      background-color: rgba(96, 165, 250, 0.12);
+    }
+    .grid-cell-editing {
+      padding: 0 2px !important;
+      background-color: rgba(59, 130, 246, 0.08);
+    }
+    :host([theme='dark']) .grid-cell-editing {
+      background-color: rgba(96, 165, 250, 0.16);
+    }
+    .grid-cell-editor {
+      width: 100%;
+      min-width: 0;
+      height: calc(100% - 4px);
+      max-height: 26px;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: calc(12px * var(--moguchart-font-scale, 1));
+      color: var(--moguchart-editor-text, #0f172a);
+      background-color: var(--moguchart-editor-bg, #ffffff);
+      border: 1.5px solid var(--moguchart-editor-border, #3b82f6);
+      border-radius: 4px;
+      padding: 0 4px;
+      outline: none;
+      margin: 0;
+      color-scheme: light;
+    }
+    :host([theme='dark']) .grid-cell-editor {
+      background-color: var(--moguchart-editor-bg, #1e293b);
+      color: var(--moguchart-editor-text, #f8fafc);
+      border-color: var(--moguchart-editor-border, #60a5fa);
+      color-scheme: dark;
+    }
+    :host([theme='dark']) .grid-cell-editor option {
+      background-color: var(--moguchart-editor-bg, #1e293b);
+      color: var(--moguchart-editor-text, #f8fafc);
+    }
+    .grid-custom-editor-host {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      min-width: 0;
     }
   `
 
@@ -650,8 +748,215 @@ export class GanttRowElement extends LitElement {
     e.preventDefault()
   }
 
+  // --- インラインセル編集 ---
+  public get editingColumnId(): string | null {
+    return this._editingColumnId
+  }
+
+  public startCellEdit(columnId: string): boolean {
+    if (this.option?.readOnly) return false
+    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+    const isTimeMode = !!this.option.calendar.showTime
+    const columns = normalizeGridColumns(
+      this.gridColumns ?? this.option.grid?.columns,
+      this.option.locale,
+      isMonthMode,
+      isTimeMode,
+    )
+    const col = columns.find((c) => c.id === columnId && c.visible !== false)
+    if (!col) return false
+
+    const gridEditable = this.option.grid?.editable === true
+    if (!isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)) {
+      return false
+    }
+
+    if (this._editingColumnId && this._editingColumnId !== columnId) {
+      this.commitCellEdit()
+    }
+
+    const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+    this._editingValue = formatGridCellEditValue(col, cellValue, this.row, this.row.tasks, isMonthMode, isTimeMode)
+    this._editingColumnId = columnId
+    this.handleHeaderMouseLeave()
+
+    this.updateComplete.then(() => {
+      if (this._editingColumnId !== columnId) return
+      const editorEl = this.shadowRoot?.querySelector('.grid-cell-editor') as
+        HTMLInputElement | HTMLSelectElement | null
+      if (editorEl) {
+        editorEl.focus()
+        if (editorEl instanceof HTMLInputElement && editorEl.type === 'text') {
+          editorEl.select()
+        }
+      }
+    })
+
+    return true
+  }
+
+  public commitCellEdit(overrideValue?: any): boolean {
+    if (!this._editingColumnId || this._isCommittingEdit) return false
+    this._isCommittingEdit = true
+    const columnId = this._editingColumnId
+    const rawValue = overrideValue !== undefined ? overrideValue : this._editingValue
+    this._editingColumnId = null
+    this._editingValue = ''
+
+    this.dispatchEvent(
+      new CustomEvent('row-cell-edit', {
+        detail: {
+          rowId: this.row.id,
+          columnId,
+          rawValue,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    this._isCommittingEdit = false
+    return true
+  }
+
+  public cancelCellEdit(): void {
+    if (!this._editingColumnId) return
+    this._editingColumnId = null
+    this._editingValue = ''
+  }
+
+  private _handleEditorKeyDown = (e: KeyboardEvent) => {
+    e.stopPropagation()
+    if (e.key === 'Enter') {
+      if (e.isComposing || e.keyCode === 229) return
+      e.preventDefault()
+      this.commitCellEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      this.cancelCellEdit()
+    }
+  }
+
+  private _renderCellEditor(col: GanttColumn, isMonthMode: boolean, isTimeMode: boolean) {
+    if (typeof col.editor === 'function') {
+      return html`<div
+        class="grid-custom-editor-host"
+        @click="${(e: Event) => e.stopPropagation()}"
+        @dblclick="${(e: Event) => e.stopPropagation()}"
+        @mousedown="${(e: Event) => e.stopPropagation()}"
+        @keydown="${this._handleEditorKeyDown}"
+      ></div>`
+    }
+
+    const editorType = resolveColumnEditorType(col, isMonthMode, isTimeMode)
+
+    if (editorType === 'select') {
+      const options =
+        typeof col.editorOptions === 'function'
+          ? col.editorOptions(this.row, this.row.tasks)
+          : (col.editorOptions ?? [])
+      return html`
+        <select
+          class="grid-cell-editor grid-cell-select"
+          .value="${this._editingValue}"
+          @change="${(e: Event) => {
+            const val = (e.target as HTMLSelectElement).value
+            this._editingValue = val
+            this.commitCellEdit(val)
+          }}"
+          @blur="${() => this.commitCellEdit()}"
+          @keydown="${this._handleEditorKeyDown}"
+          @click="${(e: Event) => e.stopPropagation()}"
+          @dblclick="${(e: Event) => e.stopPropagation()}"
+          @mousedown="${(e: Event) => e.stopPropagation()}"
+        >
+          ${options.map(
+            (opt) => html`
+              <option value="${String(opt.value)}" ?selected="${String(opt.value) === this._editingValue}">
+                ${opt.label}
+              </option>
+            `,
+          )}
+        </select>
+      `
+    }
+
+    const inputType = editorType === 'datetime' ? 'datetime-local' : editorType
+    const minVal =
+      col.editorMin !== undefined
+        ? col.editorMin
+        : col.id === 'duration'
+          ? isTimeMode
+            ? 0.5
+            : 1
+          : col.id === 'progress'
+            ? 0
+            : undefined
+    const maxVal = col.editorMax !== undefined ? col.editorMax : col.id === 'progress' ? 100 : undefined
+    const stepVal =
+      col.editorStep !== undefined
+        ? col.editorStep
+        : col.id === 'duration'
+          ? isTimeMode
+            ? 0.5
+            : 1
+          : col.id === 'progress'
+            ? 1
+            : undefined
+
+    return html`
+      <input
+        class="grid-cell-editor grid-cell-input"
+        type="${inputType}"
+        .value="${this._editingValue}"
+        min="${minVal !== undefined ? String(minVal) : nothing}"
+        max="${maxVal !== undefined ? String(maxVal) : nothing}"
+        step="${stepVal !== undefined ? String(stepVal) : nothing}"
+        style="text-align: ${col.align ?? 'left'};"
+        @input="${(e: Event) => {
+          this._editingValue = (e.target as HTMLInputElement).value
+        }}"
+        @blur="${() => this.commitCellEdit()}"
+        @keydown="${this._handleEditorKeyDown}"
+        @click="${(e: Event) => e.stopPropagation()}"
+        @dblclick="${(e: Event) => e.stopPropagation()}"
+        @mousedown="${(e: Event) => e.stopPropagation()}"
+      />
+    `
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
+
+    if (this._editingColumnId) {
+      const host = this.shadowRoot?.querySelector('.grid-custom-editor-host') as HTMLElement | null
+      if (host && host.childElementCount === 0) {
+        const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+        const isTimeMode = !!this.option.calendar.showTime
+        const columns = normalizeGridColumns(
+          this.gridColumns ?? this.option.grid?.columns,
+          this.option.locale,
+          isMonthMode,
+          isTimeMode,
+        )
+        const col = columns.find((c) => c.id === this._editingColumnId)
+        if (col && typeof col.editor === 'function') {
+          const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+          const customEl = col.editor({
+            column: col,
+            row: this.row,
+            tasks: this.row.tasks,
+            value: cellValue,
+            commit: (newVal: any) => this.commitCellEdit(newVal),
+            cancel: () => this.cancelCellEdit(),
+          })
+          if (customEl instanceof HTMLElement) {
+            host.appendChild(customEl)
+            customEl.focus()
+          }
+        }
+      }
+    }
 
     // ドラッグ関連プロパティのみ変更された場合はヘッダー再描画をスキップ
     // ヘッダーの再描画は row / option が変わった時のみ必要
@@ -725,7 +1030,7 @@ export class GanttRowElement extends LitElement {
       laneCount = result.laneCount
     }
 
-     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
+    const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
     // マーカーのレーン計算
@@ -733,23 +1038,19 @@ export class GanttRowElement extends LitElement {
     const defaultMarkerSize = Math.min(barHeight, 12)
     const markerItemHeight = defaultMarkerSize + 2 // マーカー1段あたりの高さ（余白含む）
     const markersWithLanes = this.calculateMarkerLanes(markers, defaultMarkerSize)
-    const markerLaneCount = markersWithLanes.length > 0
-      ? Math.max(...markersWithLanes.map((m) => m.lane)) + 1
-      : 0
+    const markerLaneCount = markersWithLanes.length > 0 ? Math.max(...markersWithLanes.map((m) => m.lane)) + 1 : 0
 
     // タスクエリアの高さ
     const taskAreaHeight = laneCount * (barHeight + barMargin) + barMargin
     // マーカーエリアの高さ（複数段ある場合のみ追加スペース）
-    const markerAreaHeight = markerLaneCount > 1
-      ? (markerLaneCount - 1) * markerItemHeight
-      : 0
+    const markerAreaHeight = markerLaneCount > 1 ? (markerLaneCount - 1) * markerItemHeight : 0
     const rowHeight = taskAreaHeight + markerAreaHeight
 
     this.style.height = `${rowHeight}px`
 
     let backgroundStyle = ''
     let monthGridLines: { left: number; isYearBoundary: boolean }[] | null = null
-    
+
     // Always calculate month grid lines for all views
     const startTime = this.option.calendar.start.getTime()
     const endTime = this.option.calendar.end.getTime()
@@ -773,9 +1074,8 @@ export class GanttRowElement extends LitElement {
       // 月単位モードでは end が月の途中でも次の月初日まで含めるため、翌月1日の位置を上限にする
       const calEnd = this.option.calendar.end
       const calEndNextMonth = new Date(calEnd.getFullYear(), calEnd.getMonth() + 1, 1)
-      const endX = this.option.calendar.pxPerMonth !== undefined
-        ? this.getDateX(calEndNextMonth)
-        : this.getDateX(calEnd)
+      const endX =
+        this.option.calendar.pxPerMonth !== undefined ? this.getDateX(calEndNextMonth) : this.getDateX(calEnd)
       const monthBoundaries: { left: number; isYearBoundary: boolean }[] = []
 
       let currentMonthStart = new Date(start)
@@ -807,9 +1107,7 @@ export class GanttRowElement extends LitElement {
       // 開始時刻が0時でない場合、背景グリッドをオフセットして日区切り線位置を合わせる
       const startDate = this.option.calendar.start
       const startOffsetMs =
-        startDate.getHours() * 60 * 60 * 1000 +
-        startDate.getMinutes() * 60 * 1000 +
-        startDate.getSeconds() * 1000
+        startDate.getHours() * 60 * 60 * 1000 + startDate.getMinutes() * 60 * 1000 + startDate.getSeconds() * 1000
       const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * dayWidth
       const hourOffsetPx = startOffsetPx % hourWidth
       const snapOffsetPx = startOffsetPx % snapWidth
@@ -835,9 +1133,7 @@ export class GanttRowElement extends LitElement {
       // 開始時刻が0時でない場合（時間単位モードで日付単位グリッドを描画する際）のオフセット補正
       const startDate = this.option.calendar.start
       const startOffsetMs =
-        startDate.getHours() * 60 * 60 * 1000 +
-        startDate.getMinutes() * 60 * 1000 +
-        startDate.getSeconds() * 1000
+        startDate.getHours() * 60 * 60 * 1000 + startDate.getMinutes() * 60 * 1000 + startDate.getSeconds() * 1000
       const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * gridWidth
       const dayBgPos = startOffsetPx === 0 ? '0px 0' : `${-startOffsetPx}px 0`
       backgroundStyle = `
@@ -847,7 +1143,7 @@ export class GanttRowElement extends LitElement {
       `
     }
 
-    const canReorder = this.option.enableRowReordering && !this.option.readOnly
+    const canReorder = this.option.enableRowReordering && !this.option.readOnly && !this._editingColumnId
 
     const isHidden = this.row.visible === false
 
@@ -898,6 +1194,16 @@ export class GanttRowElement extends LitElement {
           background-color: ${colors.rowSelected};
           opacity: 0.5;
         }
+        .grid-cell-editor {
+          background-color: var(--moguchart-editor-bg, ${this.theme === 'dark' ? colors.bg : '#ffffff'});
+          color: var(--moguchart-editor-text, ${colors.text});
+          border-color: var(--moguchart-editor-border, ${colors.minimapViewportBorder});
+          color-scheme: ${this.theme === 'dark' ? 'dark' : 'light'};
+        }
+        .grid-cell-editor option {
+          background-color: var(--moguchart-editor-bg, ${this.theme === 'dark' ? colors.bg : '#ffffff'});
+          color: var(--moguchart-editor-text, ${colors.text});
+        }
       </style>
       <div class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}">
         <div
@@ -913,18 +1219,26 @@ export class GanttRowElement extends LitElement {
           @mouseleave="${this.handleHeaderMouseLeave}"
           @row-header-mouseleave="${this.handleHeaderMouseLeave}"
         >
-          ${isGridEnabled
-            ? (() => {
-                const isMonthMode = this.option.calendar.pxPerMonth !== undefined
-                const isTimeMode = !!this.option.calendar.showTime
-                const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode, isTimeMode)
-                const visibleColumns = columns.filter((c) => c.visible !== false)
-                const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+          ${
+            isGridEnabled
+              ? (() => {
+                  const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+                  const isTimeMode = !!this.option.calendar.showTime
+                  const columns = normalizeGridColumns(
+                    this.gridColumns ?? this.option.grid?.columns,
+                    this.option.locale,
+                    isMonthMode,
+                    isTimeMode,
+                  )
+                  const visibleColumns = columns.filter((c) => c.visible !== false)
+                  const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+                  const gridEditable = this.option.grid?.editable === true
+                  const editTrigger = this.option.grid?.editTrigger ?? 'dblclick'
 
-                return html`
-                  <div
-                    class="grid-row-container"
-                    style="
+                  return html`
+                    <div
+                      class="grid-row-container"
+                      style="
                       display: flex;
                       height: 100%;
                       width: ${totalWidth}px;
@@ -932,30 +1246,41 @@ export class GanttRowElement extends LitElement {
                       transform: translateX(-${this.gridScrollLeft}px);
                       box-sizing: border-box;
                     "
-                  >
-                    ${visibleColumns.map((col) => {
-                      const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
-                      const formatted = formatGridCellValue(col, cellValue, this.row, this.row.tasks, this.option.locale, isMonthMode, isTimeMode)
-                      const customContent = col.renderCell
-                        ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
-                        : null
-                      const showBorder = this.option.grid?.showBorders !== false
+                    >
+                      ${visibleColumns.map((col) => {
+                        const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+                        const formatted = formatGridCellValue(
+                          col,
+                          cellValue,
+                          this.row,
+                          this.row.tasks,
+                          this.option.locale,
+                          isMonthMode,
+                          isTimeMode,
+                        )
+                        const customContent = col.renderCell
+                          ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
+                          : null
+                        const showBorder = this.option.grid?.showBorders !== false
+                        const isEditable =
+                          !this.option.readOnly &&
+                          isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)
+                        const isEditing = this._editingColumnId === col.id
 
-                      return html`
-                        <div
-                          class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''}"
-                          style="
+                        return html`
+                          <div
+                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isEditing ? 'grid-cell-editing' : ''}"
+                            data-column-id="${col.id}"
+                            style="
                             width: ${col.width}px;
                             min-width: ${col.minWidth ?? 40}px;
                             max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
                             box-sizing: border-box;
                             display: flex;
                             align-items: center;
-                            justify-content: ${col.align === 'center'
-                              ? 'center'
-                              : col.align === 'right'
-                                ? 'flex-end'
-                                : 'flex-start'};
+                            justify-content: ${
+                              col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'
+                            };
                             padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
                             ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
                             overflow: hidden;
@@ -963,105 +1288,149 @@ export class GanttRowElement extends LitElement {
                             text-overflow: ellipsis;
                             flex-shrink: 0;
                           "
-                        >
-                          ${col.isTreeColumn
-                            ? html`
-                                ${treeEnabled && this.level > 0
-                                  ? html`<span
-                                      class="tree-indent-spacer"
-                                      style="width: ${this.level * indentWidth}px;"
-                                    ></span>`
-                                  : ''}
-                                ${treeEnabled && this.hasChildren && showToggleIcon
-                                  ? html`<span
-                                      class="tree-toggle-btn"
-                                      @click="${this.handleToggleCollapse}"
-                                      @dblclick="${this.handleToggleDblClick}"
-                                      @mouseenter="${this.handleToggleMouseEnter}"
-                                      @mouseleave="${this.handleToggleMouseLeave}"
-                                      >${this.row.collapsed ? '▶' : '▼'}</span
-                                    >`
-                                  : treeEnabled && (this.level > 0 || this.hasChildren)
-                                    ? html`<span class="tree-toggle-spacer"></span>`
-                                    : ''}
-                                ${treeEnabled &&
-                                showWbsCode &&
-                                this.wbsCode &&
-                                !columns.some((c) => c.id === 'wbs' && c.visible !== false)
-                                  ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
-                                  : ''}
-                              `
-                            : ''}
-                          <div
-                            class="grid-cell-content"
-                            style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                            @click="${(e: MouseEvent) => {
+                              if (!isEditable || editTrigger !== 'click') return
+                              const target = e.target as HTMLElement | null
+                              if (target?.closest?.('.tree-toggle-btn')) return
+                              this.startCellEdit(col.id)
+                            }}"
+                            @dblclick="${(e: MouseEvent) => {
+                              if (!isEditable) return
+                              const target = e.target as HTMLElement | null
+                              if (target?.closest?.('.tree-toggle-btn')) return
+                              e.stopPropagation()
+                              this.startCellEdit(col.id)
+                            }}"
                           >
-                            ${customContent !== null ? customContent : formatted}
+                            ${
+                              col.isTreeColumn
+                                ? html`
+                                    ${
+                                      treeEnabled && this.level > 0
+                                        ? html`<span
+                                            class="tree-indent-spacer"
+                                            style="width: ${this.level * indentWidth}px;"
+                                          ></span>`
+                                        : ''
+                                    }
+                                    ${
+                                      treeEnabled && this.hasChildren && showToggleIcon
+                                        ? html`<span
+                                            class="tree-toggle-btn"
+                                            @click="${this.handleToggleCollapse}"
+                                            @dblclick="${this.handleToggleDblClick}"
+                                            @mouseenter="${this.handleToggleMouseEnter}"
+                                            @mouseleave="${this.handleToggleMouseLeave}"
+                                            >${this.row.collapsed ? '▶' : '▼'}</span
+                                          >`
+                                        : treeEnabled && (this.level > 0 || this.hasChildren)
+                                          ? html`<span class="tree-toggle-spacer"></span>`
+                                          : ''
+                                    }
+                                    ${
+                                      treeEnabled &&
+                                      showWbsCode &&
+                                      this.wbsCode &&
+                                      !columns.some((c) => c.id === 'wbs' && c.visible !== false)
+                                        ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+                                        : ''
+                                    }
+                                  `
+                                : ''
+                            }
+                            ${
+                              isEditing
+                                ? this._renderCellEditor(col, isMonthMode, isTimeMode)
+                                : html`
+                                    <div
+                                      class="grid-cell-content"
+                                      style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                    >
+                                      ${customContent !== null ? customContent : formatted}
+                                    </div>
+                                  `
+                            }
                           </div>
-                        </div>
-                      `
-                    })}
-                  </div>
+                        `
+                      })}
+                    </div>
+                  `
+                })()
+              : html`
+                  ${
+                    treeEnabled && this.level > 0
+                      ? html`<span class="tree-indent-spacer" style="width: ${this.level * indentWidth}px;"></span>`
+                      : ''
+                  }
+                  ${
+                    treeEnabled && this.hasChildren && showToggleIcon
+                      ? html`<span
+                          class="tree-toggle-btn"
+                          @click="${this.handleToggleCollapse}"
+                          @dblclick="${this.handleToggleDblClick}"
+                          @mouseenter="${this.handleToggleMouseEnter}"
+                          @mouseleave="${this.handleToggleMouseLeave}"
+                          >${this.row.collapsed ? '▶' : '▼'}</span
+                        >`
+                      : treeEnabled && (this.level > 0 || this.hasChildren)
+                        ? html`<span class="tree-toggle-spacer"></span>`
+                        : ''
+                  }
+                  ${
+                    treeEnabled && showWbsCode && this.wbsCode
+                      ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+                      : ''
+                  }
+                  <div
+                    class="row-header-content"
+                    style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
+                  ></div>
                 `
-              })()
-            : html`
-                ${treeEnabled && this.level > 0
-                  ? html`<span class="tree-indent-spacer" style="width: ${this.level * indentWidth}px;"></span>`
-                  : ''}
-                ${treeEnabled && this.hasChildren && showToggleIcon
-                  ? html`<span
-                      class="tree-toggle-btn"
-                      @click="${this.handleToggleCollapse}"
-                      @dblclick="${this.handleToggleDblClick}"
-                      @mouseenter="${this.handleToggleMouseEnter}"
-                      @mouseleave="${this.handleToggleMouseLeave}"
-                      >${this.row.collapsed ? '▶' : '▼'}</span
-                    >`
-                  : treeEnabled && (this.level > 0 || this.hasChildren)
-                    ? html`<span class="tree-toggle-spacer"></span>`
-                    : ''}
-                ${treeEnabled && showWbsCode && this.wbsCode
-                  ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
-                  : ''}
-                <div
-                  class="row-header-content"
-                  style="${this.option.customRendering?.rowHeaderContent ? 'padding: 0; height: 100%;' : ''}"
-                ></div>
-              `}
+          }
         </div>
-        <div class="bars-container" style="width: ${(() => {
+        <div
+          class="bars-container"
+          style="width: ${(() => {
             if (this.option.calendar.pxPerMonth !== undefined) {
               const e = this.option.calendar.end
               return this.getDateX(new Date(e.getFullYear(), e.getMonth() + 1, 1))
             }
             return this.getDateX(this.option.calendar.end)
-          })()}px">
-          ${this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
-            ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" .rowId="${this.row.id}" /> `
-            : ''}
+          })()}px"
+        >
+          ${
+            this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
+              ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" .rowId="${this.row.id}" /> `
+              : ''
+          }
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
           ${backgroundStyle ? html`<div class="grid-background" style="${backgroundStyle}"></div>` : ''}
-          ${monthGridLines
-            ? monthGridLines.map(
-                (line) => {
-                  let lineColor;
+          ${
+            monthGridLines
+              ? monthGridLines.map((line) => {
+                  let lineColor
                   if (line.isYearBoundary) {
-                    lineColor = colors.yearGridLine || colors.monthGridLine || colors.gridLine;
+                    lineColor = colors.yearGridLine || colors.monthGridLine || colors.gridLine
                   } else {
-                    const isMonthMode = this.option.calendar.showMonthsRow || (this.option.calendar.showDays === false && !this.option.calendar.showWeeks);
-                    lineColor = isMonthMode ? colors.gridLine : (colors.monthGridLine || colors.gridLine);
+                    const isMonthMode =
+                      this.option.calendar.showMonthsRow ||
+                      (this.option.calendar.showDays === false && !this.option.calendar.showWeeks)
+                    lineColor = isMonthMode ? colors.gridLine : colors.monthGridLine || colors.gridLine
                   }
-                  return html`<div style="position: absolute; top: 0; left: ${line.left - 1}px; width: 1px; height: 100%; background-color: ${lineColor}; pointer-events: none; z-index: 1;"></div>`;
-                }
-              )
-            : ''}
+                  return html`<div
+                    style="position: absolute; top: 0; left: ${line.left - 1}px; width: 1px; height: 100%; background-color: ${lineColor}; pointer-events: none; z-index: 1;"
+                  ></div>`
+                })
+              : ''
+          }
           ${isHidden ? html`<div class="hidden-row-overlay" style="background: ${colors.rowHiddenBg};"></div>` : ''}
           ${repeat(
             tasksWithLanes,
             (task) => task.id,
             (task) => {
               const isDragging = this.draggingTask?.id === task.id
-              const isMultiDragging = !isDragging && this.draggingTaskIds.length >= 2 && this.draggingTaskIds.includes(task.id)
+              const isMultiDragging =
+                !isDragging && this.draggingTaskIds.length >= 2 && this.draggingTaskIds.includes(task.id)
               const displayTask = isDragging
                 ? {
                     ...task,
@@ -1100,13 +1469,14 @@ export class GanttRowElement extends LitElement {
             // ラベル表示モード: 'center'の場合は下部表示、'end'は左側、それ以外は右側
             const isCenter = marker.anchor === 'center'
             // マーカーのY位置: タスクエリアの中心を基準に、レーンに応じてオフセット
-            const baseY = isCenter ? (taskAreaHeight / 2 - individualMarkerSize) : (taskAreaHeight - individualMarkerSize) / 2
+            const baseY = isCenter
+              ? taskAreaHeight / 2 - individualMarkerSize
+              : (taskAreaHeight - individualMarkerSize) / 2
             const markerY = baseY + markerLane * markerItemHeight
             // anchor: 'start' → dateが全体の左端, 'end' → dateが全体（ラベル含む）の右端, 'center'/未指定 → 中央
             // 'end' は left:x + translateX(-100%) で実際のレンダリング幅に基づき右端をxに揃える
-            const markerLeft = marker.anchor === 'start' ? x
-              : marker.anchor === 'end' ? x
-              : x - individualMarkerSize / 2
+            const markerLeft =
+              marker.anchor === 'start' ? x : marker.anchor === 'end' ? x : x - individualMarkerSize / 2
             const isAnchorEnd = marker.anchor === 'end'
             const labelOnLeft = isAnchorEnd
             const isSelected = this.row.selectedMarkerId === marker.id
@@ -1170,14 +1540,19 @@ export class GanttRowElement extends LitElement {
                 >
                   <path d="${this.getMarkerPath(marker.type, individualMarkerSize)}" fill="${markerColor}" />
                 </svg>
-                ${marker.name
-                  ? html`<span style="
+                ${
+                  marker.name
+                    ? html`<span
+                        style="
                       font-size: calc(${fontSize}px * var(--moguchart-font-scale, 1));
                       color: ${markerColor};
                       line-height: 1;
                       ${isCenter ? 'padding: 1px 0 0 0;' : 'padding: 0 2px;'}
-                    ">${marker.name}</span>`
-                  : ''}
+                    "
+                        >${marker.name}</span
+                      >`
+                    : ''
+                }
               </div>
             `
           })}

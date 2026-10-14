@@ -19,9 +19,10 @@ import type {
   HistoryChangeEventDetail,
   GanttColumn,
   ColumnResizeEventDetail,
+  CellEditEventDetail,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
-import { normalizeGridColumns } from '../core/grid'
+import { normalizeGridColumns, applyGridCellEdit } from '../core/grid'
 import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
 import { LitElement, html, type PropertyValues } from 'lit'
@@ -1507,6 +1508,131 @@ export class GanttChartElement extends LitElement {
     this._treeController.expandAll()
   }
 
+  private handleRowCellEdit = (
+    e: CustomEvent<{ rowId: string; columnId: string; rawValue: any }>,
+  ): void => {
+    if (this.option?.readOnly) return
+    const { rowId, columnId, rawValue } = e.detail
+    const columns = this.effectiveGridColumns
+    if (!columns) return
+    const col = columns.find((c) => c.id === columnId)
+    if (!col) return
+
+    const rowIndex = this.rows.findIndex((r) => r.id === rowId)
+    if (rowIndex === -1) return
+
+    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+    const isTimeMode = !!this.option.calendar.showTime
+    const wbsCodes = computeRowWbsCodes(this.rows)
+    const wbsCode = wbsCodes.get(rowId)
+
+    const previousRows = this.rows
+    const origRow = this.rows[rowIndex]
+    const clonedRow: GanttRow = {
+      ...origRow,
+      tasks: (origRow.tasks ?? []).map((t) => ({
+        ...t,
+        start: t.start instanceof Date ? new Date(t.start.getTime()) : t.start,
+        end: t.end instanceof Date ? new Date(t.end.getTime()) : t.end,
+        dependencies: t.dependencies ? [...t.dependencies] : undefined,
+      })),
+    }
+    const editResult = applyGridCellEdit(
+      col,
+      clonedRow,
+      rawValue,
+      isMonthMode,
+      isTimeMode,
+      wbsCode,
+    )
+
+    if (!editResult.changed) return
+
+    const nextRows = [...this.rows]
+    nextRows[rowIndex] = clonedRow
+
+    this.applyRowsChangeWithCommand(previousRows, nextRows, {
+      type: 'cell-edit',
+      description: `${col.title ?? col.id} の編集`,
+    })
+
+    const updatedRow = this.rows.find((r) => r.id === rowId) ?? clonedRow
+    const normalTasks = (updatedRow.tasks ?? []).filter(
+      (t) => t.type !== 'summary' && !(t as any).isSummary,
+    )
+    const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
+
+    this.dispatchEvent(
+      new CustomEvent<CellEditEventDetail>('cell-edit', {
+        detail: {
+          rowId,
+          columnId,
+          column: col,
+          oldValue: editResult.oldValue,
+          newValue: editResult.newValue,
+          row: updatedRow,
+          previousRow: origRow,
+          task: singleTask,
+          rows: this.rows,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  /**
+   * 指定された行とカラムのインライン編集を開始する
+   */
+  public startCellEdit(rowId: string, columnId: string): boolean {
+    const rowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as Array<HTMLElement & { row?: GanttRow; startCellEdit?: (colId: string) => boolean }>
+    const targetRowEl = rowElements.find((el) => el.row?.id === rowId)
+    if (!targetRowEl || typeof targetRowEl.startCellEdit !== 'function') {
+      return false
+    }
+    return targetRowEl.startCellEdit(columnId)
+  }
+
+  /**
+   * 現在編集中のセルがあれば編集を確定する
+   */
+  public commitCellEdit(overrideValue?: any): boolean {
+    const rowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as Array<
+      HTMLElement & {
+        editingColumnId?: string | null
+        commitCellEdit?: (val?: any) => boolean
+      }
+    >
+    const editingRowEl = rowElements.find((el) => el.editingColumnId !== null && el.editingColumnId !== undefined)
+    if (!editingRowEl || typeof editingRowEl.commitCellEdit !== 'function') {
+      return false
+    }
+    return editingRowEl.commitCellEdit(overrideValue)
+  }
+
+  /**
+   * 現在編集中のセルがあれば編集をキャンセルする
+   */
+  public cancelCellEdit(): void {
+    const rowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as Array<
+      HTMLElement & {
+        editingColumnId?: string | null
+        cancelCellEdit?: () => void
+      }
+    >
+    for (const el of rowElements) {
+      if (el.editingColumnId && typeof el.cancelCellEdit === 'function') {
+        el.cancelCellEdit()
+      }
+    }
+  }
+
   /**
    * スクロール位置を左上（0, 0）にリセットします。
    */
@@ -1850,6 +1976,7 @@ export class GanttChartElement extends LitElement {
                 @row-toggle-collapse="${this.handleRowToggleCollapse}"
                 @row-dragstart="${this.handleRowDragStart}"
                 @row-dragend="${this.handleRowDragEnd}"
+                @row-cell-edit="${this.handleRowCellEdit}"
                 @bar-click="${this.handleBarClick}"
                 @task-contextmenu="${this.handleBarContextMenu}"
               />

@@ -4,6 +4,10 @@ import {
   getGridCellValue,
   formatGridCellValue,
   calculateRowSummaryDates,
+  resolveColumnEditorType,
+  isGridCellEditable,
+  formatGridCellEditValue,
+  applyGridCellEdit,
 } from '../core/grid'
 import type { GanttColumn, GanttRow, GanttTask } from '../core/types'
 import { jaLocale, enLocale } from '../core/i18n'
@@ -303,4 +307,176 @@ describe('grid calculation & formatting', () => {
       expect(formatGridCellValue(customGetterCol, getterVal, rowWithCustom, rowWithCustom.tasks)).toBe('[ALICE]')
     })
   })
+
+  describe('inline cell editing helpers', () => {
+    it('resolveColumnEditorType resolves appropriate editor types based on column id and mode', () => {
+      expect(resolveColumnEditorType({ id: 'name' })).toBe('text')
+      expect(resolveColumnEditorType({ id: 'startDate' }, false, false)).toBe('date')
+      expect(resolveColumnEditorType({ id: 'startDate' }, true, false)).toBe('month')
+      expect(resolveColumnEditorType({ id: 'startDate' }, false, true)).toBe('datetime')
+      expect(resolveColumnEditorType({ id: 'startMonth' })).toBe('month')
+      expect(resolveColumnEditorType({ id: 'endDateTime' })).toBe('datetime')
+      expect(resolveColumnEditorType({ id: 'duration' })).toBe('number')
+      expect(resolveColumnEditorType({ id: 'progress' })).toBe('number')
+      expect(
+        resolveColumnEditorType({
+          id: 'status',
+          editorOptions: [{ label: 'Open', value: 'open' }],
+        }),
+      ).toBe('select')
+      expect(resolveColumnEditorType({ id: 'custom', editor: 'number' })).toBe('number')
+    })
+
+    it('isGridCellEditable checks gridEditable, column.editable, summary/parent rows, and task counts', () => {
+      const nameCol: GanttColumn = { id: 'name' }
+      const startCol: GanttColumn = { id: 'startDate' }
+      const wbsCol: GanttColumn = { id: 'wbs' }
+
+      // Default gridEditable = false -> false unless column.editable is explicitly set
+      expect(isGridCellEditable(nameCol, singleTaskRow, singleTaskRow.tasks, false, false)).toBe(false)
+      expect(
+        isGridCellEditable({ id: 'name', editable: true }, singleTaskRow, singleTaskRow.tasks, false, false),
+      ).toBe(true)
+
+      // When gridEditable = true:
+      expect(isGridCellEditable(nameCol, singleTaskRow, singleTaskRow.tasks, false, true)).toBe(true)
+      expect(isGridCellEditable(wbsCol, singleTaskRow, singleTaskRow.tasks, false, true)).toBe(false)
+      expect(isGridCellEditable(startCol, singleTaskRow, singleTaskRow.tasks, false, true)).toBe(true)
+
+      // Multi-task, empty-task, or summary/parent rows disable task-bound columns
+      expect(isGridCellEditable(startCol, multiTaskRow, multiTaskRow.tasks, false, true)).toBe(false)
+      expect(isGridCellEditable(startCol, emptyTaskRow, emptyTaskRow.tasks, false, true)).toBe(false)
+      expect(isGridCellEditable(startCol, singleTaskRow, singleTaskRow.tasks, true, true)).toBe(false)
+      expect(
+        isGridCellEditable(startCol, { ...singleTaskRow, isSummary: true }, singleTaskRow.tasks, false, true),
+      ).toBe(false)
+
+      // Name column remains editable on summary/parent rows and multi-task rows
+      expect(isGridCellEditable(nameCol, multiTaskRow, multiTaskRow.tasks, true, true)).toBe(true)
+
+      // Custom predicate function
+      const fnCol: GanttColumn = {
+        id: 'name',
+        editable: (row) => row.id === 'row-1',
+      }
+      expect(isGridCellEditable(fnCol, singleTaskRow, singleTaskRow.tasks, false, false)).toBe(true)
+      expect(isGridCellEditable(fnCol, multiTaskRow, multiTaskRow.tasks, false, true)).toBe(false)
+    })
+
+    it('formatGridCellEditValue formats values for input controls across modes', () => {
+      expect(
+        formatGridCellEditValue({ id: 'name' }, 'Row 1', singleTaskRow, singleTaskRow.tasks),
+      ).toBe('Row 1')
+      expect(
+        formatGridCellEditValue(
+          { id: 'startDate' },
+          new Date(2026, 9, 1),
+          singleTaskRow,
+          singleTaskRow.tasks,
+          false,
+          false,
+        ),
+      ).toBe('2026-10-01')
+      // Month mode: endDate stores 1st of next month (e.g. 2026-11-01 displays/edits as 2026-10)
+      expect(
+        formatGridCellEditValue(
+          { id: 'endDate' },
+          new Date(2026, 10, 1),
+          singleTaskRow,
+          singleTaskRow.tasks,
+          true,
+          false,
+        ),
+      ).toBe('2026-10')
+      expect(
+        formatGridCellEditValue(
+          { id: 'startDateTime' },
+          new Date(2026, 9, 1, 9, 30),
+          singleTaskRow,
+          singleTaskRow.tasks,
+          false,
+          true,
+        ),
+      ).toBe('2026-10-01T09:30')
+      expect(
+        formatGridCellEditValue({ id: 'duration' }, 5, singleTaskRow, singleTaskRow.tasks, false, false),
+      ).toBe('5')
+      expect(
+        formatGridCellEditValue({ id: 'progress' }, 75, singleTaskRow, singleTaskRow.tasks),
+      ).toBe('75')
+    })
+
+    it('applyGridCellEdit updates row name, task dates, duration, progress, and custom fields', () => {
+      const makeRow = (): GanttRow & { assignee?: string } => ({
+        id: 'r1',
+        name: 'Task 1',
+        assignee: 'Alice',
+        tasks: [
+          {
+            id: 't1',
+            name: 'Task 1',
+            start: new Date(2026, 9, 1),
+            end: new Date(2026, 9, 5),
+            progress: 40,
+          },
+        ],
+      })
+
+      // 1. Name edit (syncs single task name when matching)
+      const rName = makeRow()
+      const resName = applyGridCellEdit({ id: 'name' }, rName, 'Updated Name')
+      expect(resName.changed).toBe(true)
+      expect(rName.name).toBe('Updated Name')
+      expect(rName.tasks[0].name).toBe('Updated Name')
+
+      // 2. Start date edit
+      const rStart = makeRow()
+      const resStart = applyGridCellEdit({ id: 'startDate' }, rStart, '2026-10-02')
+      expect(resStart.changed).toBe(true)
+      expect(rStart.tasks[0].start).toEqual(new Date(2026, 9, 2))
+
+      // 3. End date edit in month mode (stores 1st of next month)
+      const rMonth = makeRow()
+      const resMonth = applyGridCellEdit({ id: 'endDate' }, rMonth, '2026-11', true, false)
+      expect(resMonth.changed).toBe(true)
+      expect(rMonth.tasks[0].end).toEqual(new Date(2026, 11, 1))
+
+      // 4. Duration edit recalculates end date
+      const rDur = makeRow()
+      const resDur = applyGridCellEdit({ id: 'duration' }, rDur, '10')
+      expect(resDur.changed).toBe(true)
+      expect(rDur.tasks[0].end).toEqual(new Date(2026, 9, 10))
+
+      // 5. Progress edit clamps to 0..100
+      const rProg = makeRow()
+      const resProg = applyGridCellEdit({ id: 'progress' }, rProg, '85')
+      expect(resProg.changed).toBe(true)
+      expect(rProg.tasks[0].progress).toBe(85)
+
+      const resClamp = applyGridCellEdit({ id: 'progress' }, rProg, '150')
+      expect(resClamp.changed).toBe(true)
+      expect(rProg.tasks[0].progress).toBe(100)
+
+      // 6. Custom field & valueSetter
+      const rCustom = makeRow()
+      const resField = applyGridCellEdit({ id: 'assignee', field: 'assignee' }, rCustom, 'Bob')
+      expect(resField.changed).toBe(true)
+      expect(rCustom.assignee).toBe('Bob')
+
+      const resSetter = applyGridCellEdit(
+        {
+          id: 'assignee',
+          field: 'assignee',
+          valueSetter: (row, val) => {
+            ;(row as any).assignee = String(val).toUpperCase()
+          },
+        },
+        rCustom,
+        'charlie',
+      )
+      expect(resSetter.changed).toBe(true)
+      expect(rCustom.assignee).toBe('CHARLIE')
+    })
+  })
 })
+

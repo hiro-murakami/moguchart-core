@@ -1128,6 +1128,39 @@ export type GanttBuiltinColumnId =
   | 'progress'
 
 /**
+ * インラインエディタの種類
+ */
+export type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
+
+/**
+ * セレクトボックス型エディタの選択肢定義
+ */
+export interface GanttColumnSelectOption {
+  /** 表示ラベル */
+  label: string
+  /** 設定される値 */
+  value: any
+}
+
+/**
+ * カスタムセルエディタ生成関数に渡されるコンテキスト
+ */
+export interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
+  /** 現在のセル値 */
+  value: any
+  /** 対象の行データ */
+  row: TRow
+  /** 対象行のタスク配列 */
+  tasks: TTask[]
+  /** カラム定義 */
+  column: GanttColumn<TRow, TTask>
+  /** 編集を確定して反映するコールバック */
+  commit: (newValue: any) => void
+  /** 編集をキャンセルして閉じるコールバック */
+  cancel: () => void
+}
+
+/**
  * マルチカラムデータグリッドのカラム定義
  */
 export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
@@ -1157,6 +1190,33 @@ export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
   /** HTML/DOM カスタムレンダラー (HTMLElement または HTML文字列を返す) */
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
+  /**
+   * セルのインライン編集を許可するかどうか、または行・タスクに応じた判定関数。
+   * 未指定時は標準カラム（'wbs' 以外）および field / valueSetter 指定のあるカスタムカラムで有効。
+   * ※ ただし日付・期間・進捗カラムは1行1タスクの通常行のみ編集可能（サマリー行・複数タスク行は編集不可）。
+   */
+  editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
+  /**
+   * インラインエディタの種類、またはカスタムエディタ生成関数。
+   * 未指定時はカラムIDから自動判定される。
+   */
+  editor?: GanttColumnEditorType | ((context: GanttCellEditorContext<TRow, TTask>) => HTMLElement)
+  /**
+   * editor: 'select' の場合の選択肢配列、または動的に選択肢を返す関数
+   */
+  editorOptions?: GanttColumnSelectOption[] | ((row: TRow, tasks: TTask[]) => GanttColumnSelectOption[])
+  /** 数値エディタ ('number') の最小値 */
+  editorMin?: number
+  /** 数値エディタ ('number') の最大値 */
+  editorMax?: number
+  /** 数値エディタ ('number') のステップ値 */
+  editorStep?: number
+  /**
+   * インライン編集確定時に行データを更新するカスタムセッター関数。
+   * 新しい行オブジェクトを返すか、引数 row（クローン済み）を直接書き換える。
+   * false を返した場合は編集をキャンセル（無効値として破棄）する。
+   */
+  valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
 }
 
 /**
@@ -1175,6 +1235,10 @@ export interface GanttChartOptionGrid {
   showBorders?: boolean
   /** セルのパディング (px)。デフォルト: 4 */
   cellPadding?: number
+  /** グリッドセルのインライン編集を有効にするか (デフォルト: false。true指定時に有効、ただし readOnly 時は無効) */
+  editable?: boolean
+  /** インライン編集を開始するトリガー ('dblclick' | 'click'。デフォルト: 'dblclick') */
+  editTrigger?: 'dblclick' | 'click'
 }
 
 /**
@@ -1192,4 +1256,35 @@ export interface ColumnResizeEventDetail {
   /** 更新後の全カラム定義配列 */
   columns: GanttColumn[]
 }
+
+/**
+ * グリッドセルのインライン編集確定イベントの詳細データ
+ */
+export interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
+  /** 編集された行ID */
+  rowId: string
+  /** 編集されたカラムID */
+  columnId: string
+  /** 編集されたカラム定義 */
+  column: GanttColumn<TRow, TTask>
+  /** 編集前のセル値 */
+  oldValue: any
+  /** 編集後の新しいセル値 */
+  newValue: any
+  /** 更新後の行データ */
+  row: TRow
+  /** 更新前の行データ */
+  previousRow: TRow
+  /** 更新対象の単一タスク（該当する場合） */
+  task?: TTask
+  /** 更新後の全行配列 */
+  rows: TRow[]
+}
+
+/**
+ * 行データ配列の変更イベント (rows-change) の詳細データ型
+ */
+export type RowsChangeEventDetail<TRow = GanttRow> = TRow[]
+
+
 

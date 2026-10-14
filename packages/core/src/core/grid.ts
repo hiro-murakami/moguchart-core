@@ -1,4 +1,10 @@
-import type { GanttColumn, GanttBuiltinColumnId, GanttRow, GanttTask } from './types'
+import type {
+  GanttColumn,
+  GanttBuiltinColumnId,
+  GanttColumnEditorType,
+  GanttRow,
+  GanttTask,
+} from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
 import { formatDuration } from './utils'
@@ -371,3 +377,455 @@ export function formatGridCellValue(
       return String(value)
   }
 }
+
+const TASK_BOUND_COLUMN_IDS = new Set<string>([
+  'startDate',
+  'endDate',
+  'startMonth',
+  'endMonth',
+  'startDateTime',
+  'endDateTime',
+  'duration',
+  'progress',
+])
+
+/**
+ * カラムと現在の表示モードから使用するエディタ種別を解決する
+ */
+export function resolveColumnEditorType(
+  column: GanttColumn,
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+): GanttColumnEditorType {
+  if (column.editor && typeof column.editor === 'string') {
+    return column.editor
+  }
+
+  switch (column.id) {
+    case 'startDate':
+    case 'endDate':
+      if (isMonthMode) return 'month'
+      if (isTimeMode) return 'datetime'
+      return 'date'
+    case 'startMonth':
+    case 'endMonth':
+      return 'month'
+    case 'startDateTime':
+    case 'endDateTime':
+      return 'datetime'
+    case 'duration':
+    case 'progress':
+      return 'number'
+    case 'name':
+      return 'text'
+    default:
+      if (
+        column.editorOptions &&
+        (typeof column.editorOptions === 'function' || column.editorOptions.length > 0)
+      ) {
+        return 'select'
+      }
+      return 'text'
+  }
+}
+
+/**
+ * 指定されたセルがインライン編集可能かどうかを判定する
+ */
+export function isGridCellEditable(
+  column: GanttColumn,
+  row: GanttRow,
+  tasks: GanttTask[],
+  hasChildren?: boolean,
+  gridEditable?: boolean,
+): boolean {
+  if (column.editable === false) {
+    return false
+  }
+  if (!gridEditable && column.editable === undefined) {
+    return false
+  }
+  if (typeof column.editable === 'function') {
+    return Boolean(column.editable(row, tasks))
+  }
+
+  if (column.id === 'wbs') {
+    return column.editable === true && Boolean(column.valueSetter)
+  }
+
+  if (TASK_BOUND_COLUMN_IDS.has(column.id)) {
+    if (column.valueSetter) {
+      return true
+    }
+    if ((row as any).isSummary || hasChildren || (tasks ?? []).some((t) => t.type === 'summary')) {
+      return false
+    }
+    const normalTasks = (tasks ?? []).filter((t) => t.type !== 'summary' && !(t as any).isSummary)
+    return normalTasks.length === 1
+  }
+
+  if (column.id === 'name') {
+    return true
+  }
+
+  if (column.valueSetter || column.field || typeof column.editor === 'function') {
+    return true
+  }
+
+  return false
+}
+
+function formatDateInputString(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function formatMonthInputString(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${yyyy}-${mm}`
+}
+
+function formatDateTimeInputString(d: Date): string {
+  const datePart = formatDateInputString(d)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${datePart}T${hh}:${min}`
+}
+
+function parseDateInputString(str: string, refDate?: Date | null): Date | null {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(str.trim())
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  const hours = refDate ? refDate.getHours() : 0
+  const minutes = refDate ? refDate.getMinutes() : 0
+  const seconds = refDate ? refDate.getSeconds() : 0
+  const ms = refDate ? refDate.getMilliseconds() : 0
+  const d = new Date(year, month, day, hours, minutes, seconds, ms)
+  if (Number.isNaN(d.getTime())) return null
+  return d
+}
+
+function parseMonthInputString(str: string, isEndMonth: boolean): Date | null {
+  const match = /^(\d{4})-(\d{1,2})$/.exec(str.trim())
+  if (!match) return null
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  // 終了月は翌月1日00:00として保持する規約
+  const d = isEndMonth ? new Date(year, monthIndex + 1, 1) : new Date(year, monthIndex, 1)
+  if (Number.isNaN(d.getTime())) return null
+  return d
+}
+
+function parseDateTimeInputString(str: string): Date | null {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(
+    str.trim(),
+  )
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  const hours = Number(match[4])
+  const minutes = Number(match[5])
+  const seconds = match[6] ? Number(match[6]) : 0
+  const d = new Date(year, month, day, hours, minutes, seconds)
+  if (Number.isNaN(d.getTime())) return null
+  return d
+}
+
+/**
+ * インライン編集用入力コントロールの初期値文字列を生成する
+ */
+export function formatGridCellEditValue(
+  column: GanttColumn,
+  value: any,
+  _row: GanttRow,
+  tasks: GanttTask[],
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+): string {
+  const editorType = resolveColumnEditorType(column, isMonthMode, isTimeMode)
+
+  if (column.id === 'duration') {
+    if (isTimeMode) {
+      const summary = calculateRowSummaryDates(tasks)
+      if (summary.start && summary.end) {
+        const hours = Math.max(0.5, Math.round((summary.durationMs / (1000 * 60 * 60)) * 100) / 100)
+        return String(hours)
+      }
+      return '1'
+    }
+    return typeof value === 'number' && value > 0 ? String(value) : '1'
+  }
+
+  if (column.id === 'progress') {
+    return typeof value === 'number' && !Number.isNaN(value)
+      ? String(Math.round(value * 10) / 10)
+      : '0'
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    if (editorType === 'month') {
+      const isEndCol = column.id === 'endMonth' || (column.id === 'endDate' && Boolean(isMonthMode))
+      const target = isEndCol
+        ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
+        : value
+      return formatMonthInputString(target)
+    }
+    if (editorType === 'datetime') {
+      return formatDateTimeInputString(value)
+    }
+    return formatDateInputString(value)
+  }
+
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  return String(value)
+}
+
+/**
+ * セルの編集結果を行データ（および単一タスク）に反映する
+ */
+export function applyGridCellEdit(
+  column: GanttColumn,
+  row: GanttRow,
+  rawInputValue: any,
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+  wbsCode?: string,
+): { changed: boolean; oldValue: any; newValue: any } {
+  const tasks = row.tasks ?? []
+  const normalTasks = tasks.filter((t) => t.type !== 'summary' && !(t as any).isSummary)
+  const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
+  const oldValue = getGridCellValue(column, row, normalTasks, wbsCode)
+  const editorType = resolveColumnEditorType(column, isMonthMode, isTimeMode)
+
+  if (column.valueSetter) {
+    let parsedCustomValue: any = rawInputValue
+    if (typeof rawInputValue === 'string') {
+      if (editorType === 'number') {
+        const n = Number(rawInputValue)
+        if (Number.isNaN(n)) {
+          return { changed: false, oldValue, newValue: oldValue }
+        }
+        parsedCustomValue = n
+      } else if (editorType === 'date') {
+        const d = parseDateInputString(rawInputValue, oldValue instanceof Date ? oldValue : null)
+        if (!d) return { changed: false, oldValue, newValue: oldValue }
+        parsedCustomValue = d
+      } else if (editorType === 'month') {
+        const d = parseMonthInputString(rawInputValue, false)
+        if (!d) return { changed: false, oldValue, newValue: oldValue }
+        parsedCustomValue = d
+      } else if (editorType === 'datetime') {
+        const d = parseDateTimeInputString(rawInputValue)
+        if (!d) return { changed: false, oldValue, newValue: oldValue }
+        parsedCustomValue = d
+      }
+    }
+    const setterResult = column.valueSetter(row, parsedCustomValue, normalTasks, column)
+    if (setterResult === false) {
+      return { changed: false, oldValue, newValue: oldValue }
+    }
+    if (setterResult && typeof setterResult === 'object') {
+      Object.assign(row, setterResult)
+    }
+    const newValue = getGridCellValue(column, row, normalTasks, wbsCode)
+    const isSame =
+      oldValue instanceof Date && newValue instanceof Date
+        ? oldValue.getTime() === newValue.getTime()
+        : oldValue === newValue
+    return { changed: !isSame, oldValue, newValue }
+  }
+
+  switch (column.id) {
+    case 'name': {
+      const nextName = String(rawInputValue ?? '').trim()
+      if (!nextName || nextName === row.name) {
+        return { changed: false, oldValue, newValue: row.name }
+      }
+      const prevRowName = row.name
+      row.name = nextName
+      if (singleTask && (!singleTask.name || singleTask.name === prevRowName)) {
+        singleTask.name = nextName
+      }
+      return { changed: true, oldValue: prevRowName, newValue: nextName }
+    }
+
+    case 'startDate':
+    case 'startMonth':
+    case 'startDateTime': {
+      if (!singleTask) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      let nextStart: Date | null = null
+      if (rawInputValue instanceof Date) {
+        nextStart = new Date(rawInputValue.getTime())
+      } else if (typeof rawInputValue === 'string') {
+        if (editorType === 'month') {
+          nextStart = parseMonthInputString(rawInputValue, false)
+        } else if (editorType === 'datetime') {
+          nextStart = parseDateTimeInputString(rawInputValue)
+        } else {
+          nextStart = parseDateInputString(rawInputValue, singleTask.start)
+        }
+      }
+      if (!nextStart || Number.isNaN(nextStart.getTime())) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      if (singleTask.start && singleTask.start.getTime() === nextStart.getTime()) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const prevStart = singleTask.start ? new Date(singleTask.start.getTime()) : null
+      singleTask.start = nextStart
+      // 開始日が終了日を超えた場合は終了日を開始日に合わせる（月モードの場合は翌月1日）
+      if (singleTask.end && nextStart.getTime() > singleTask.end.getTime()) {
+        if (editorType === 'month') {
+          singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 1)
+        } else if (editorType === 'datetime') {
+          singleTask.end = new Date(nextStart.getTime() + 60 * 60 * 1000)
+        } else {
+          singleTask.end = new Date(nextStart.getTime())
+        }
+      } else if (
+        editorType === 'month' &&
+        singleTask.end &&
+        nextStart.getTime() >= singleTask.end.getTime()
+      ) {
+        singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 1)
+      }
+      return { changed: true, oldValue: prevStart, newValue: nextStart }
+    }
+
+    case 'endDate':
+    case 'endMonth':
+    case 'endDateTime': {
+      if (!singleTask) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      let nextEnd: Date | null = null
+      if (rawInputValue instanceof Date) {
+        nextEnd = new Date(rawInputValue.getTime())
+      } else if (typeof rawInputValue === 'string') {
+        if (editorType === 'month') {
+          nextEnd = parseMonthInputString(rawInputValue, true)
+        } else if (editorType === 'datetime') {
+          nextEnd = parseDateTimeInputString(rawInputValue)
+        } else {
+          nextEnd = parseDateInputString(rawInputValue, singleTask.end)
+        }
+      }
+      if (!nextEnd || Number.isNaN(nextEnd.getTime())) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      if (singleTask.end && singleTask.end.getTime() === nextEnd.getTime()) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const prevEnd = singleTask.end ? new Date(singleTask.end.getTime()) : null
+      singleTask.end = nextEnd
+      // 終了日が開始日より前になった場合は開始日を終了日に合わせる
+      if (singleTask.start && nextEnd.getTime() < singleTask.start.getTime()) {
+        if (editorType === 'month') {
+          singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth() - 1, 1)
+        } else {
+          singleTask.start = new Date(nextEnd.getTime())
+        }
+      } else if (
+        editorType === 'month' &&
+        singleTask.start &&
+        nextEnd.getTime() <= singleTask.start.getTime()
+      ) {
+        singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth() - 1, 1)
+      }
+      return { changed: true, oldValue: prevEnd, newValue: nextEnd }
+    }
+
+    case 'duration': {
+      if (!singleTask || !singleTask.start) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      if (Number.isNaN(numVal) || numVal <= 0) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      if (isTimeMode) {
+        const prevHours =
+          Math.round(
+            ((singleTask.end.getTime() - singleTask.start.getTime()) / (1000 * 60 * 60)) * 100,
+          ) / 100
+        const nextHours = Math.max(0.25, numVal)
+        if (prevHours === nextHours) {
+          return { changed: false, oldValue: prevHours, newValue: nextHours }
+        }
+        singleTask.end = new Date(singleTask.start.getTime() + Math.round(nextHours * 3600000))
+        return { changed: true, oldValue: prevHours, newValue: nextHours }
+      } else {
+        const nextDays = Math.max(1, Math.round(numVal))
+        const prevDays = typeof oldValue === 'number' ? oldValue : 1
+        if (nextDays === prevDays) {
+          return { changed: false, oldValue: prevDays, newValue: nextDays }
+        }
+        const s = singleTask.start
+        const e = singleTask.end ?? s
+        singleTask.end = new Date(
+          s.getFullYear(),
+          s.getMonth(),
+          s.getDate() + (nextDays - 1),
+          e.getHours(),
+          e.getMinutes(),
+          e.getSeconds(),
+          e.getMilliseconds(),
+        )
+        return { changed: true, oldValue: prevDays, newValue: nextDays }
+      }
+    }
+
+    case 'progress': {
+      if (!singleTask) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      if (Number.isNaN(numVal)) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const clamped = Math.min(100, Math.max(0, Math.round(numVal * 10) / 10))
+      const prevProgress = singleTask.progress
+      if (prevProgress === clamped) {
+        return { changed: false, oldValue: prevProgress, newValue: clamped }
+      }
+      singleTask.progress = clamped
+      return { changed: true, oldValue: prevProgress, newValue: clamped }
+    }
+
+    default: {
+      if (column.field) {
+        let nextVal: any = rawInputValue
+        if (editorType === 'number' && typeof rawInputValue === 'string') {
+          if (rawInputValue.trim() === '') {
+            nextVal = undefined
+          } else {
+            const parsed = Number(rawInputValue)
+            if (Number.isNaN(parsed)) {
+              return { changed: false, oldValue, newValue: oldValue }
+            }
+            nextVal = parsed
+          }
+        }
+        const prevVal = (row as any)[column.field]
+        if (prevVal === nextVal) {
+          return { changed: false, oldValue: prevVal, newValue: nextVal }
+        }
+        ;(row as any)[column.field] = nextVal
+        return { changed: true, oldValue: prevVal, newValue: nextVal }
+      }
+      return { changed: false, oldValue, newValue: oldValue }
+    }
+  }
+}
+
