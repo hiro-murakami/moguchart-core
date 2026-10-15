@@ -51,8 +51,15 @@ export class GanttCalendarElement extends LitElement {
     }
   }
 
+  private get isGridEnabled(): boolean {
+    return (
+      (this.option?.grid?.enabled === true || (this.option?.grid?.columns !== undefined && this.option?.grid?.enabled !== false)) &&
+      (!!this.gridColumns || !!this.option?.grid?.columns)
+    )
+  }
+
   protected updated() {
-    // cornerContent が指定されている場合、label-placeholder に DOM 要素を注入する
+    // cornerContent が指定されている場合、corner-content-slot または label-placeholder に DOM 要素を注入する
     const placeholder = this.shadowRoot?.querySelector('.label-placeholder') as HTMLElement | null
     if (!placeholder) return
     // 既存の cornerContent 要素を削除（再レンダリング時の重複防止）
@@ -60,9 +67,10 @@ export class GanttCalendarElement extends LitElement {
     if (existing) existing.remove()
     if (this.cornerContent) {
       const content = this.cornerContent()
+      const targetSlot = (placeholder.querySelector('.corner-content-slot') as HTMLElement | null) ?? placeholder
       if (content instanceof HTMLElement) {
         content.classList.add('corner-content-root')
-        placeholder.appendChild(content)
+        targetSlot.appendChild(content)
       }
     }
 
@@ -136,25 +144,21 @@ export class GanttCalendarElement extends LitElement {
    * マルチカラムグリッドのヘッダーを描画する
    */
   private renderGridHeaders(colors: ReturnType<typeof getThemeColors>) {
-    if (this.cornerContent) return ''
-
-    const isGridEnabled =
-      (this.option.grid?.enabled === true || (this.option.grid?.columns && this.option.grid?.enabled !== false)) &&
-      (!!this.gridColumns || !!this.option.grid?.columns)
-    if (!isGridEnabled) return ''
+    if (!this.isGridEnabled) return ''
 
     const isMonthMode = this.option.calendar.pxPerMonth !== undefined
     const isTimeMode = !!this.option.calendar.showTime
     const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode, isTimeMode)
     const visibleColumns = columns.filter((c) => c.visible !== false)
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
+    const hasCornerTop = Boolean(this.cornerContent)
 
     return html`
       <div
         class="grid-header-container"
         style="
           display: flex;
-          height: 100%;
+          ${hasCornerTop ? 'flex: 1; min-height: 22px;' : 'height: 100%;'}
           width: ${totalWidth}px;
           min-width: 100%;
           transform: translateX(-${this.gridScrollLeft}px);
@@ -640,8 +644,16 @@ export class GanttCalendarElement extends LitElement {
       <div
         class="label-placeholder"
         style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option
-          .rowHeader?.backgroundColor ?? colors.rowHeaderBg};"
+          .rowHeader?.backgroundColor ?? colors.rowHeaderBg}; ${this.isGridEnabled && this.cornerContent
+          ? 'flex-direction: column; align-items: stretch; justify-content: flex-end; padding-right: 0;'
+          : ''}"
       >
+        ${this.isGridEnabled && this.cornerContent
+          ? html`<div
+              class="corner-content-slot"
+              style="display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; flex: 1; min-height: 22px; border-bottom: 1px solid ${colors.border}; box-sizing: border-box;"
+            ></div>`
+          : ''}
         ${this.renderGridHeaders(colors)}
       </div>
       <div class="calendar-group" style="width: ${totalWidth}px; overflow: hidden;">

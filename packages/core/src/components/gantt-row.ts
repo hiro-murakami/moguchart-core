@@ -1344,7 +1344,7 @@ export class GanttRowElement extends LitElement {
                                 : html`
                                     <div
                                       class="grid-cell-content"
-                                      style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                      style="${customContent !== null ? 'flex: 1; min-width: 0; height: 100%;' : ''} overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                                     >
                                       ${customContent !== null ? customContent : formatted}
                                     </div>

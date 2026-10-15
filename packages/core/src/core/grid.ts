@@ -461,7 +461,14 @@ export function isGridCellEditable(
       return false
     }
     const normalTasks = (tasks ?? []).filter((t) => t.type !== 'summary' && !(t as any).isSummary)
-    return normalTasks.length === 1
+    if (normalTasks.length !== 1) return false
+    const singleTask = normalTasks[0]
+    if (column.id === 'progress') {
+      if (singleTask.progressResizable === false) return false
+    } else {
+      if (singleTask.resizable === false || singleTask.movable === 'none') return false
+    }
+    return true
   }
 
   if (column.id === 'name') {

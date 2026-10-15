@@ -307,6 +307,7 @@ export class GanttChartElement extends LitElement {
   private _userResizedHeaderWidth: number | null = null
   private _lastExplicitOptionWidth: number | undefined = undefined
   private _userColumnWidths: Map<string, number> = new Map()
+  private _lastExplicitColumnWidths: Map<string, number | undefined> = new Map()
 
   public get effectiveGridColumns(): GanttColumn[] | undefined {
     const gridOpt = this.option?.grid
@@ -520,6 +521,23 @@ export class GanttChartElement extends LitElement {
     }
     if (changedProperties.has('option')) {
       this.setupCurrentTimeTimer()
+      this.currentGridColumns = null
+
+      if (this.option?.grid?.columns) {
+        for (const col of this.option.grid.columns) {
+          if (typeof col === 'object' && col !== null) {
+            const prevExplicit = this._lastExplicitColumnWidths.get(col.id)
+            if (col.width !== prevExplicit) {
+              this._lastExplicitColumnWidths.set(col.id, col.width)
+              if (typeof col.width === 'number') {
+                this._userColumnWidths.set(col.id, col.width)
+              } else {
+                this._userColumnWidths.delete(col.id)
+              }
+            }
+          }
+        }
+      }
 
       const optionWidth = this.option?.grid?.width ?? this.option?.rowHeader?.width
       const isExplicitWidthChange = optionWidth !== undefined && optionWidth !== this._lastExplicitOptionWidth
@@ -528,9 +546,9 @@ export class GanttChartElement extends LitElement {
       if (!this.isResizingHeader) {
         if (isExplicitWidthChange) {
           // 親コンポーネント等から明示的に width が変更された場合
-          this._userResizedHeaderWidth = optionWidth
           this.baseRowHeaderWidth = optionWidth
           this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+          this._userResizedHeaderWidth = this.currentRowHeaderWidth
         } else if (this._userResizedHeaderWidth !== null) {
           // ユーザーが手動リサイズ済みの場合はその値を維持する（option 参照更新で初期化しない）
           this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
