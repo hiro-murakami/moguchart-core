@@ -98,7 +98,7 @@ chartEnd.setDate(chartStart.getDate() + 60)
 let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
-let rowHeaderWidth = 200
+let rowHeaderWidth = 700
 let rowHeaderResizable = true
 let isReadOnly = false
 let tooltipDelay = 500
@@ -928,7 +928,15 @@ const renderApp = () => {
               </div>
               <div class="ctrl-card-body">
                 <label class="toggle-label">
-                  <input type="checkbox" .checked="${enableGrid}" @change="${(e: Event) => { enableGrid = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <input
+                    type="checkbox"
+                    .checked="${enableGrid}"
+                    @change="${(e: Event) => {
+                      enableGrid = (e.target as HTMLInputElement).checked
+                      rowHeaderWidth = enableGrid ? 700 : 200
+                      renderApp()
+                    }}"
+                  />
                   <span class="toggle-track"></span>
                   ${t.enableGrid}
                 </label>
