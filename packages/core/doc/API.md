@@ -171,6 +171,7 @@ Custom events dispatched by the component.
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header (or grid area) width is resized.                            |
 | `column-resize`          | `ColumnResizeEventDetail`         | Fired when a multi-column grid column width is resized by dragging.                  |
+| `cell-edit`              | `CellEditEventDetail`             | Fired when an inline cell edit in the multi-column grid is committed.                |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
@@ -220,6 +221,9 @@ Public methods that can be called on the component instance.
 | `resetScroll`             | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
 | `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
 | `scrollToTask`            | `(taskId: string) => void`                                                                  | Smoothly scrolls the chart to ensure the specified task is visible within the viewport (centered vertically, and adjusted horizontally with row header width and margin).                       |
+| `startCellEdit`           | `(rowId: string, columnId: string) => boolean`                                              | Programmatically starts inline editing for the specified grid cell. Returns `true` if editing started.                                                                                          |
+| `commitCellEdit`          | `(overrideValue?: any) => boolean`                                                          | Commits and closes the currently active inline cell edit. Returns `true` if a change was applied.                                                                                               |
+| `cancelCellEdit`          | `() => void`                                                                                | Cancels the currently active inline cell edit without saving changes.                                                                                                                           |
 
 ### Usage Examples
 
@@ -1385,18 +1389,44 @@ interface GanttChartOptionGrid {
   showBorders?: boolean
   /** Cell horizontal padding (px). Default: 4 */
   cellPadding?: number
+  /** Whether to enable inline cell editing across the grid (default: false) */
+  editable?: boolean
+  /** User action that triggers inline editing (default: 'dblclick') */
+  editTrigger?: 'dblclick' | 'click'
 }
 ```
 
 #### GanttColumn
 
-Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `duration`, `progress`) are supported alongside arbitrary custom columns.
+Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `progress`) are supported alongside arbitrary custom columns.
 
 ```typescript
+type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
+
+interface GanttColumnSelectOption {
+  label: string
+  value: any
+}
+
+interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
+  /** Current cell value */
+  value: any
+  /** Target row object */
+  row: TRow
+  /** Tasks belonging to the target row */
+  tasks: TTask[]
+  /** Column definition */
+  column: GanttColumn<TRow, TTask>
+  /** Callback to commit the edited value */
+  commit: (newValue: any) => void
+  /** Callback to cancel editing */
+  cancel: () => void
+}
+
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'duration' | 'progress' or custom string) */
+  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'progress' or custom string) */
   id: string
-  /** Header display title (defaults to locale dictionary or column id) */
+  /** Header display title (defaults to locale dictionary or column id; startDate/endDate automatically adapt to monthly/hourly view modes) */
   title?: string
   /** Column width in px */
   width?: number
@@ -1420,12 +1450,69 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
   /** Custom renderer function returning an HTMLElement or HTML string */
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
+  /**
+   * Whether inline editing is allowed for this column (or a predicate function per row).
+   * - When `grid.editable: true`, built-in columns (except `wbs`) and columns with `field` or `valueSetter` are editable by default (date, duration, and progress cells on summary rows are automatically non-editable).
+   */
+  editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
+  /**
+   * Built-in cell editor type or custom editor factory function.
+   * - If omitted, automatically inferred from column id ('name'->'text', 'startDate'/'endDate'->'date' | 'month' | 'datetime' depending on view mode, 'duration'/'progress'->'number').
+   */
+  editor?: GanttColumnEditorType | ((context: GanttCellEditorContext<TRow, TTask>) => HTMLElement)
+  /** Options list (or dynamic resolver per row) when `editor: 'select'` */
+  editorOptions?: GanttColumnSelectOption[] | ((row: TRow, tasks: TTask[]) => GanttColumnSelectOption[])
+  /** Minimum value when `editor: 'number'` */
+  editorMin?: number
+  /** Maximum value when `editor: 'number'` */
+  editorMax?: number
+  /** Step increment when `editor: 'number'` */
+  editorStep?: number
+  /**
+   * Custom setter function to update row/task data when editing is committed.
+   * - Returning an updated `TRow` replaces the row; returning `false` cancels the edit.
+   */
+  valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
+}
+```
+
+#### ColumnResizeEventDetail / CellEditEventDetail
+
+```typescript
+interface ColumnResizeEventDetail {
+  /** Resized column ID */
+  columnId: string
+  /** New column width in px */
+  width: number
+  /** Updated array of all column definitions */
+  columns: GanttColumn[]
+}
+
+interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
+  /** Edited row ID */
+  rowId: string
+  /** Edited column ID */
+  columnId: string
+  /** Column definition */
+  column: GanttColumn<TRow, TTask>
+  /** Value before editing */
+  oldValue: any
+  /** Committed new value */
+  newValue: any
+  /** Updated row data */
+  row: TRow
+  /** Snapshot of row data before editing */
+  previousRow: TRow
+  /** Target task (when editing task-linked columns) */
+  task?: TTask
+  /** Updated array of all rows */
+  rows: TRow[]
 }
 ```
 
 ### MoguchartLocale
 
-Allows customizing display strings for tooltips, the drag overlay, and date formatting. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
+Allows customizing display strings for tooltips, the drag overlay, date formatting, and grid column headers. Built-in locales `jaLocale` (Japanese, default) and `enLocale` (English) are provided.
 
 ```typescript
 interface MoguchartLocale {
@@ -1439,7 +1526,7 @@ interface MoguchartLocale {
   timeUnitDateFormat: (date: Date) => string
   /** Date-time format function (used when time is not 00:00) */
   dateTimeFormat: (date: Date) => string
-  /** Year-month format function (used in tooltips and drag overlays for monthly view) */
+  /** Year-month format function (used in tooltips, drag overlays, and grid for monthly view) */
   yearMonthFormat: (date: Date) => string
   /** Duration formatting */
   duration: {
@@ -1467,6 +1554,21 @@ interface MoguchartLocale {
     moveTo: (name: string) => string
     /** Multi-task move display (e.g., "Moving 3 tasks") */
     movingTasks: (count: number) => string
+  }
+  /** Multi-column grid localized strings */
+  grid?: {
+    columns: {
+      wbs: string // WBS column header (e.g., 'WBS')
+      name: string // Task name column header (e.g., 'Task Name')
+      startDate: string // Start date column header (e.g., 'Start')
+      endDate: string // End date column header (e.g., 'End')
+      startMonth?: string // Start month header in monthly view mode (e.g., 'Start Month')
+      endMonth?: string // End month header in monthly view mode (e.g., 'End Month')
+      startDateTime?: string // Start date-time header in hourly view mode (e.g., 'Start Time')
+      endDateTime?: string // End date-time header in hourly view mode (e.g., 'End Time')
+      duration: string // Duration column header (e.g., 'Duration')
+      progress: string // Progress column header (e.g., 'Progress')
+    }
   }
 }
 ```

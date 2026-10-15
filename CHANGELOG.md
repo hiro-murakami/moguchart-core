@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-10-12
+## [1.5.0] - 2026-10-15
 
 ### Added
 
@@ -14,21 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Built-in Standard Columns**:
     - `wbs`: WBS hierarchical numbering code (e.g. 1, 1.1, 1.2.1).
     - `name`: Task / row title with embedded hierarchical tree indentation and expand/collapse toggle.
-    - `startDate`: Task start date (automatically computes earliest start date for summary rows and multi-task rows).
-    - `endDate`: Task end date (automatically computes latest end date for summary rows and multi-task rows).
-    - `duration`: Duration / work span in calendar days.
+    - `startDate` / `startMonth` / `startDateTime`: Task start date, month, or date/time (automatically computes earliest start date for summary rows and multi-task rows).
+    - `endDate` / `endMonth` / `endDateTime`: Task end date, month, or date/time (automatically computes latest end date for summary rows and multi-task rows).
+    - `duration`: Duration / work span in calendar days (or formatted hours/minutes in hourly view mode).
     - `progress`: Task progress percentage (automatically computes duration-weighted average progress for summary rows and multi-task rows).
+  - **Automatic View-Mode Column Adaptation**:
+    - In Monthly mode (`pxPerMonth` specified), `startDate` / `endDate` headers automatically switch to `Start Month` / `End Month` (`開始月` / `終了月`) and format values as `YYYY/M`.
+    - In Hourly / Time mode (`showTime: true`), `startDate` / `endDate` headers automatically switch to `Start Date/Time` / `End Date/Time` (`開始日時` / `終了日時`), displaying timestamps and time-based duration spans.
+  - **Inline Cell Editing (`option.grid.editable`, `cell-edit`)**:
+    - Support interactive inline cell editing triggered by double-click or single-click (`editTrigger: 'dblclick' | 'click'`).
+    - Built-in editor types (`'text'`, `'number'`, `'date'`, `'datetime'`, `'month'`, `'select'`) as well as custom DOM editor factories (`editor: (context) => HTMLElement`).
+    - Configurable select options (`editorOptions`), numeric bounds (`editorMin`, `editorMax`, `editorStep`), per-row/task editability predicates (`editable`), and custom value setters (`valueSetter`).
+    - Dispatches `cell-edit` and `rows-change` custom events upon committing changes, with full Undo / Redo history integration (`command.type === 'cell-edit'`).
+    - Added programmatic editing control methods: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, and `cancelCellEdit()`.
   - **Custom Columns & Flexible Data Mapping**:
-    - Bind arbitrary row properties using `field`, or extract custom values using `valueGetter(row, tasks, wbsCode)`.
+    - Bind arbitrary row properties using `field`, or extract and update custom values using `valueGetter(row, tasks, wbsCode)` and `valueSetter(row, newValue, tasks, column)`.
     - Format text outputs with `formatter(value, row, tasks, locale)`, or render rich `HTMLElement` / HTML strings with `renderCell(value, row, tasks, locale)`.
   - **Interactive Column Drag Resizing (`column-resize`)**:
-    - Intuitive drag-to-resize handles on column headers. Fires `column-resize` custom events during and upon completing resize operations.
+    - Intuitive drag-to-resize handles on column headers. Fires `column-resize` custom events during and upon completing resize operations, preserving user-resized widths across row interactions and option updates.
   - **Splitter Resizing & Synchronized Independent Grid Horizontal Scrolling**:
     - Seamlessly works with the split pane resizer dividing the grid and timeline areas.
-    - When column widths exceed the grid area width, an independent horizontal scroll activates with pixel-perfect synchronization (`transform: translateX(-gridScrollLeft)`) across header and row cells without native scrollbar clutters.
-  - **Multi-language (i18n) Synchronization**:
+    - When column widths exceed the grid area width, independent horizontal scrolling activates via trackpad swipe, `Shift + wheel`, or vertical wheel scrolling over the grid header area, with pixel-perfect synchronization (`transform: translateX(-gridScrollLeft)`) across header and row cells.
+  - **React / Vue Wrapper & Exported Utility Enhancements**:
+    - Added `onColumnResize`, `onCellEdit`, and `onRowsChange` event props to `@mogura/moguchart-react`.
+    - Added `@column-resize`, `@cell-edit`, and `@rows-change` emits plus `startCellEdit`, `commitCellEdit`, and `cancelCellEdit` public methods to `@mogura/moguchart-vue`.
+    - Exported grid calculation and editing helper utilities (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`).
+  - **Multi-language (i18n) Synchronization & Complete Backward Compatibility**:
     - Built-in Japanese (`jaLocale`) and English (`enLocale`) column headers and duration units adapt automatically to the active chart locale.
-  - **Complete Backward Compatibility**:
     - When `option.grid` is omitted or disabled, the chart operates in classic single-header row name mode with zero breaking changes.
 
 ---

@@ -86,11 +86,12 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Helper functions for individual task variance (`calculateTaskDelay`) and project-wide statistics (`calculateProjectBaselineSummary`)
 - 📋 **Multi-Column Data Grid (WBS Table)**:
   - Display and interact with the row header area as a full-featured multi-column data table
-  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date (`startDate`), end date (`endDate`), duration (`duration`), progress (`progress`)
+  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
   - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
-  - Custom column definitions with `field`, `valueGetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes)
+  - **Inline Cell Editing** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, Undo/Redo history integration, and `cell-edit` events
+  - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes)
   - Column header drag-resizing with `column-resize` custom events
-  - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area
+  - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area (via trackpad swipe, Shift+wheel, or wheel over grid headers)
 - ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
@@ -802,31 +803,41 @@ const summary = calculateProjectBaselineSummary(rows)
 console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTasksCount}, Max delay: ${summary.maxDelayDays} days`)
 ```
 
-### Multi-Column Data Grid (WBS Table)
+### Multi-Column Data Grid (WBS Table & Inline Editing)
 
-Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns.
+Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns. Set `editable: true` to enable inline cell editing via double-click (or single-click).
+
+Depending on the active view mode, `startDate` and `endDate` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode).
 
 ```javascript
 const option = {
   // Data Grid configuration
   grid: {
     enabled: true, // Enable grid mode (default: true if columns is defined)
-    width: 600, // Total initial width of grid area (px)
+    width: 700, // Total initial width of grid area (px)
     splitterResizable: true, // Allow resizing grid area width via splitter (default: true)
     showBorders: true, // Display cell borders (default: true)
+    editable: true, // Enable inline cell editing (default: false)
+    editTrigger: 'dblclick', // Trigger to start editing ('dblclick' | 'click', default: 'dblclick')
     columns: [
       { id: 'wbs', width: 60 }, // WBS code (1, 1.1, 1.2, etc.)
-      { id: 'name', width: 220 }, // Task name (includes tree indent and collapse toggle)
-      { id: 'startDate', width: 95 }, // Start date
-      { id: 'endDate', width: 95 }, // End date
-      { id: 'duration', width: 70 }, // Duration (calendar days)
-      { id: 'progress', width: 70 }, // Progress (%)
+      { id: 'name', width: 220 }, // Task name (includes tree indent, collapse toggle, and text editing)
+      { id: 'startDate', width: 125 }, // Start date (adapts to date/month/datetime editor)
+      { id: 'endDate', width: 125 }, // End date (adapts to date/month/datetime editor)
+      { id: 'duration', width: 80 }, // Duration (numeric editor)
+      { id: 'progress', width: 70 }, // Progress (0–100% numeric editor)
       {
         id: 'assignee',
         title: 'Assignee',
         width: 100,
-        field: 'assignee', // binds to row.assignee
-        renderCell: (value, row) => {
+        field: 'assignee', // binds to row.assignee for reading & writing
+        editor: 'select', // 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select' or custom function
+        editorOptions: [
+          { label: 'Alice', value: 'Alice' },
+          { label: 'Bob', value: 'Bob' },
+          { label: 'Charlie', value: 'Charlie' },
+        ],
+        renderCell: (value) => {
           // Custom DOM element rendering
           const badge = document.createElement('span')
           badge.className = 'badge'
@@ -838,6 +849,12 @@ const option = {
   },
 }
 
+// Listen to inline cell edit commit events
+chart.addEventListener('cell-edit', (event) => {
+  const { rowId, columnId, oldValue, newValue, row, rows } = event.detail
+  console.log(`Row ${rowId} column ${columnId} updated:`, oldValue, '->', newValue)
+})
+
 // Listen to column resize events
 chart.addEventListener('column-resize', (event) => {
   const { columnId, width, previousWidth, isFinal } = event.detail
@@ -845,6 +862,11 @@ chart.addEventListener('column-resize', (event) => {
     console.log(`Column ${columnId} resized to ${width}px`)
   }
 })
+
+// Programmatic cell editing control
+chart.startCellEdit('row-1', 'name') // Start editing
+chart.commitCellEdit('Updated Task Name') // Commit edit
+chart.cancelCellEdit() // Cancel edit
 ```
 
 ### Public Methods

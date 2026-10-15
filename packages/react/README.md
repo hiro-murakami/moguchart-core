@@ -16,6 +16,7 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - ⚡ **Imperative API Access**: Directly access methods like `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` via `ref`
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
+- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---
@@ -145,6 +146,7 @@ The following methods can be invoked directly on `ref.current`:
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
 - **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `selectDependency(...)`, `clearDependencySelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
 - **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
@@ -322,6 +324,9 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onRowHeaderDblClick` | Fired when a row header is double-clicked (`contentTarget` exposes row name container) | `CustomEvent<RowHeaderDblClickEventDetail>` |
 | `onRowHeaderContextMenu` | Fired on row header right-click | `CustomEvent<RowHeaderContextMenuEventDetail>` |
 | `onRowHeaderResize` | Fired when a row header is resized | `CustomEvent<RowHeaderResizeEventDetail>` |
+| `onColumnResize` | Fired when a grid column is resized | `CustomEvent<ColumnResizeEventDetail>` |
+| `onCellEdit` | Fired when an inline grid cell edit is committed | `CustomEvent<CellEditEventDetail>` |
+| `onRowsChange` | Fired when row data changes | `CustomEvent<RowsChangeEventDetail>` |
 | `onRowReordered` | Fired when rows are reordered | `CustomEvent<RowReorderEventDetail>` |
 | `onRowSelectionChange` | Fired when row selection changes | `CustomEvent<RowSelectionChangeEventDetail>` |
 | `onRowToggleCollapse` | Fired when a row is expanded or collapsed (WBS) | `CustomEvent<RowToggleCollapseEventDetail>` |

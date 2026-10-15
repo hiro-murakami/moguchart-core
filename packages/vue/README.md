@@ -17,6 +17,7 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
 - 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips.
+- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`@cell-edit`, `@column-resize`).
 
 ---
 
@@ -189,6 +190,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
 - **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
@@ -371,6 +373,9 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@row-header-contextmenu` | Dispatched on right clicking a row header | `RowHeaderContextMenuEventDetail` |
 | `@row-reordered` | Dispatched when a row is reordered via drag-and-drop | `RowReorderEventDetail` |
 | `@row-header-resize` | Dispatched when row header width is resized | `RowHeaderResizeEventDetail` |
+| `@column-resize` | Dispatched when a multi-column grid column is resized | `ColumnResizeEventDetail` |
+| `@cell-edit` | Dispatched when an inline grid cell edit is committed | `CellEditEventDetail` |
+| `@rows-change` | Dispatched when row data changes | `RowsChangeEventDetail` |
 | `@row-selection-change` | Dispatched when row selection changes | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | Dispatched when task bar selection changes | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | Dispatched when a tree row is collapsed/expanded | `RowToggleCollapseEventDetail` |

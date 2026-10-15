@@ -17,6 +17,7 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
+- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示・列幅リサイズ・セル直接編集（`@cell-edit`, `@column-resize`）に対応
 
 ---
 
@@ -189,6 +190,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **依存関係操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **グリッド・インラインセル編集**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
 - **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
@@ -371,6 +373,9 @@ const handleExportExcel = async () => {
 | `@row-header-contextmenu` | 行ヘッダー右クリック時 | `RowHeaderContextMenuEventDetail` |
 | `@row-reordered` | 行のドラッグ＆ドロップ並び替え完了時 | `RowReorderEventDetail` |
 | `@row-header-resize` | 行ヘッダー幅のリサイズ完了時 | `RowHeaderResizeEventDetail` |
+| `@column-resize` | マルチカラムグリッドの列幅リサイズ完了時 | `ColumnResizeEventDetail` |
+| `@cell-edit` | マルチカラムグリッドのインラインセル編集確定時 | `CellEditEventDetail` |
+| `@rows-change` | 行データの変更時 | `RowsChangeEventDetail` |
 | `@row-selection-change` | 行の選択状態変更時 | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | タスクの選択状態変更時 | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | ツリー行の展開・折りたたみ時 | `RowToggleCollapseEventDetail` |

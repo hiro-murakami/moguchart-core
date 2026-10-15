@@ -171,6 +171,7 @@ interface GanttChartOption {
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダー（またはグリッド領域）の幅がリサイズされたときに発火します。                       |
 | `column-resize`          | `ColumnResizeEventDetail`         | マルチカラムグリッドのカラム幅がドラッグリサイズされたときに発火します。                     |
+| `cell-edit`              | `CellEditEventDetail`             | マルチカラムグリッドのインラインセル編集が確定されたときに発火します。                       |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
@@ -220,6 +221,9 @@ interface GanttChartOption {
 | `resetScroll`              | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
 | `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
 | `scrollToTask`             | `(taskId: string) => void`                                                                  | 指定したIDのタスクが表示範囲外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は画面中央付近、横方向は行ヘッダー幅とマージンを考慮してスクロール）。                                    |
+| `startCellEdit`            | `(rowId: string, columnId: string) => boolean`                                              | マルチカラムグリッドの指定セルのインライン編集をプログラムから開始します。編集可能な場合は `true` を返します。                                                                                              |
+| `commitCellEdit`           | `(overrideValue?: any) => boolean`                                                          | 現在編集中のセルの値を確定して閉じます。変更が適用された場合は `true` を返します。                                                                                                                          |
+| `cancelCellEdit`           | `() => void`                                                                                | 現在編集中のセルの変更を破棄して編集モードを終了します。                                                                                                                                                    |
 
 ### 使用例
 
@@ -1435,18 +1439,44 @@ interface GanttChartOptionGrid {
   showBorders?: boolean
   /** セルのパディング (px)。デフォルト: 4 */
   cellPadding?: number
+  /** グリッド全体のインライン編集を有効にするか (デフォルト: false) */
+  editable?: boolean
+  /** インライン編集を開始するトリガー操作 (デフォルト: 'dblclick') */
+  editTrigger?: 'dblclick' | 'click'
 }
 ```
 
 #### GanttColumn
 
-各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `duration`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
+各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
 
 ```typescript
+type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
+
+interface GanttColumnSelectOption {
+  label: string
+  value: any
+}
+
+interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
+  /** 現在のセル値 */
+  value: any
+  /** 対象行オブジェクト */
+  row: TRow
+  /** 対象行のタスク配列 */
+  tasks: TTask[]
+  /** カラム定義 */
+  column: GanttColumn<TRow, TTask>
+  /** 編集を確定するコールバック */
+  commit: (newValue: any) => void
+  /** 編集をキャンセルするコールバック */
+  cancel: () => void
+}
+
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'duration' | 'progress' またはカスタム文字列) */
+  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'progress' またはカスタム文字列) */
   id: string
-  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用) */
+  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用。startDate/endDate は月単位・時間単位モードに応じて自動切替) */
   title?: string
   /** 列幅 (px)。未指定時はデフォルト幅 */
   width?: number
@@ -1470,12 +1500,69 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   formatter?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => string
   /** HTML/DOM カスタムレンダラー (HTMLElement または HTML文字列を返す) */
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
+  /**
+   * セルのインライン編集を許可するかどうか（または行ごとの判定関数）
+   * - `grid.editable: true` の場合、組み込みカラム（`wbs` 除く）および `field` / `valueSetter` を持つカラムはデフォルトで編集可能（サマリータスク行の日付・期間・進捗は自動的に編集不可）
+   */
+  editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
+  /**
+   * セルエディタの種類またはカスタムエディタ生成関数
+   * - 未指定時はカラムIDに応じて自動推論 ('name'->'text', 'startDate'/'endDate'->表示モードに応じて 'date' | 'month' | 'datetime', 'duration'/'progress'->'number')
+   */
+  editor?: GanttColumnEditorType | ((context: GanttCellEditorContext<TRow, TTask>) => HTMLElement)
+  /** `editor: 'select'` 時の選択肢リスト（または行ごとの動的選択肢取得関数） */
+  editorOptions?: GanttColumnSelectOption[] | ((row: TRow, tasks: TTask[]) => GanttColumnSelectOption[])
+  /** `editor: 'number'` 時の最小値 */
+  editorMin?: number
+  /** `editor: 'number'` 時の最大値 */
+  editorMax?: number
+  /** `editor: 'number'` 時のステップ値 */
+  editorStep?: number
+  /**
+   * 編集確定時に行・タスクデータを更新するカスタムセッター関数
+   * - 更新後の `TRow` を返すとその行で置換されます。`false` を返すと編集をキャンセルします。
+   */
+  valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
+}
+```
+
+#### ColumnResizeEventDetail / CellEditEventDetail
+
+```typescript
+interface ColumnResizeEventDetail {
+  /** リサイズされたカラムID */
+  columnId: string
+  /** 新しいカラム幅 (px) */
+  width: number
+  /** 更新後の全カラム定義配列 */
+  columns: GanttColumn[]
+}
+
+interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
+  /** 編集された行ID */
+  rowId: string
+  /** 編集されたカラムID */
+  columnId: string
+  /** カラム定義 */
+  column: GanttColumn<TRow, TTask>
+  /** 変更前の値 */
+  oldValue: any
+  /** 変更後の新しい値 */
+  newValue: any
+  /** 更新後の行データ */
+  row: TRow
+  /** 更新前の行データ（スナップショット） */
+  previousRow: TRow
+  /** 更新対象のタスク（タスク連動カラム編集時） */
+  task?: TTask
+  /** 更新後の全行データ配列 */
+  rows: TRow[]
 }
 ```
 
 ### MoguchartLocale
 
-ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマットをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
+ツールチップ・ドラッグオーバーレイの表示文字列や日付フォーマット、グリッドカラム見出しをカスタマイズできます。`jaLocale`（日本語）と `enLocale`（英語）があらかじめ用意されています。
 
 ```typescript
 interface MoguchartLocale {
@@ -1484,7 +1571,7 @@ interface MoguchartLocale {
   dateFormat: (date: Date) => string // 日付のフォーマット関数
   timeUnitDateFormat: (date: Date) => string // 時間単位モードの日付フォーマット関数
   dateTimeFormat: (date: Date) => string // 日時のフォーマット関数
-  yearMonthFormat: (date: Date) => string // 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイで使用)
+  yearMonthFormat: (date: Date) => string // 年月のみのフォーマット関数 (月単位モードのツールチップ・ドラッグオーバーレイ・グリッドで使用)
   duration: {
     days: (n: number) => string // 日数のフォーマット
     hours: (n: number) => string // 時間のフォーマット
@@ -1499,6 +1586,20 @@ interface MoguchartLocale {
     noTitle: string // タイトル未設定時のフォールバック
     moveTo: (name: string) => string // 移動先の表示
     movingTasks: (count: number) => string // 複数タスク移動中の表示
+  }
+  grid?: {
+    columns: {
+      wbs: string // WBS番号列の見出し (例: 'WBS')
+      name: string // タスク名列の見出し (例: 'タスク名')
+      startDate: string // 開始日列の見出し (例: '開始日')
+      endDate: string // 終了日列の見出し (例: '終了日')
+      startMonth?: string // 月単位モード時の開始月見出し (例: '開始月')
+      endMonth?: string // 月単位モード時の終了月見出し (例: '終了月')
+      startDateTime?: string // 時間単位モード時の開始日時見出し (例: '開始日時')
+      endDateTime?: string // 時間単位モード時の終了日時見出し (例: '終了日時')
+      duration: string // 期間列の見出し (例: '期間')
+      progress: string // 進捗列の見出し (例: '進捗')
+    }
   }
 }
 ```

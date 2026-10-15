@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-10-12
+## [1.5.0] - 2026-10-15
 
 ### Added
 
@@ -14,22 +14,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **標準組み込みカラムプリセット**:
     - `wbs`: WBS階層コード（例: 1, 1.1, 1.2.1）
     - `name`: タスク名・行名（階層ツリーインデント＋展開・折りたたみボタン内包）
-    - `startDate`: タスク開始日（単一タスクは開始日、サマリー行・複数タスク行は最小開始日を自動集計）
-    - `endDate`: タスク終了日（単一タスクは終了日、サマリー行・複数タスク行は最大終了日を自動集計）
-    - `duration`: 期間・工数（カレンダー日数スパン）
+    - `startDate` / `startMonth` / `startDateTime`: タスク開始日・開始月・開始日時（単一タスクは開始日時、サマリー行・複数タスク行は最小開始日時を自動集計）
+    - `endDate` / `endMonth` / `endDateTime`: タスク終了日・終了月・終了日時（単一タスクは終了日時、サマリー行・複数タスク行は最大終了日時を自動集計）
+    - `duration`: 期間・工数（カレンダー日数スパン、時間単位モード時は時間・分フォーマット）
     - `progress`: 進捗率（サマリー行・複数タスク行は期間加重平均進捗率を自動算出）
+  - **表示モードに応じた自動カラム適応**:
+    - 月単位モード（`pxPerMonth` 指定時）では `startDate` / `endDate` のヘッダーが自動的に「開始月」「終了月」（`Start Month` / `End Month`）に切り替わり、`YYYY/M` 形式で表示
+    - 時間単位モード（`showTime: true` 時）では `startDate` / `endDate` のヘッダーが自動的に「開始日時」「終了日時」（`Start Date/Time` / `End Date/Time`）に切り替わり、時刻付き表示および時間単位の期間表示に連動
+  - **グリッドセルのインライン編集機能 (`option.grid.editable`, `cell-edit`)**:
+    - セルのダブルクリック（またはクリック：`editTrigger: 'dblclick' | 'click'`）による直感的なインライン編集に対応
+    - 組み込みエディタ種別（`text`, `number`, `date`, `datetime`, `month`, `select`）および独自の `HTMLElement` をマウントできるカスタムエディタ関数（`editor: (context) => HTMLElement`）をサポート
+    - セレクトボックス用選択肢（`editorOptions`）、数値入力の最小・最大・ステップ値（`editorMin`, `editorMax`, `editorStep`）、行・タスクごとの編集可否判定（`editable`）、カスタムセッター（`valueSetter`）に対応
+    - 編集確定時に `cell-edit` および `rows-change` イベントを発火し、操作履歴（Undo / Redo: `command.type === 'cell-edit'`）と完全連動
+    - プログラムからセル編集を制御するパブリックメソッド `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()` を追加
   - **カスタムカラム & 自由なデータマッピング**:
-    - `field` による任意オブジェクトプロパティのバインド、および `valueGetter(row, tasks, wbsCode)` による高度なカスタム値抽出に対応
-    - `formatter` による文字列整形、および `renderCell(value, row, tasks)` による `HTMLElement` / HTML 文字列のカスタムレンダリングに対応
+    - `field` による任意オブジェクトプロパティのバインド、および `valueGetter(row, tasks, wbsCode)` / `valueSetter(row, newValue, tasks, column)` による高度なカスタム値の取得・更新に対応
+    - `formatter` による文字列整形、および `renderCell(value, row, tasks, locale)` による `HTMLElement` / HTML 文字列のカスタムレンダリングに対応
   - **カラム幅のドラッグリサイズ (`column-resize`)**:
-    - カラムヘッダー右端のドラッグ操作により、各カラムの幅を直感的に個別リサイズ可能。リサイズ完了・移動時に `column-resize` カスタムイベントを発火
+    - カラムヘッダー右端のドラッグ操作により、各カラムの幅を直感的に個別リサイズ可能。リサイズ中・完了時に `column-resize` カスタムイベントを発火し、行クリックやオプション再設定時もリサイズ後の幅を保持
   - **スプリッターリサイズ ＆ グリッド内独立横スクロール同期**:
     - グリッド領域とタイムライン領域を仕切るスプリッターリサイズを完全サポート
-    - カラム合計幅が表示枠を超える場合、グリッド領域内での独立横スクロールに対応。ヘッダーセルと各行セルが1pxのズレもなく同期して横スクロール
-  - **多言語（i18n）自動連動**:
+    - カラム合計幅が表示枠を超える場合、トラックパッド横スワイプ、`Shift + ホイール`、またはグリッドヘッダー上のマウスホイール操作による独立横スクロールに対応。ヘッダーセルと各行セルが1pxのズレもなく同期して横スクロール
+  - **React / Vue ラッパーおよび公開ユーティリティの拡充**:
+    - `@mogura/moguchart-react` に `onColumnResize`, `onCellEdit`, `onRowsChange` イベント Props を追加
+    - `@mogura/moguchart-vue` に `@column-resize`, `@cell-edit`, `@rows-change` イベントおよび `startCellEdit`, `commitCellEdit`, `cancelCellEdit` 公開メソッドを追加
+    - グリッド計算・編集用ヘルパー関数（`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`）をエクスポート
+  - **多言語（i18n）自動連動 & 完全な後方互換性**:
     - 日本語（`jaLocale`）および英語（`enLocale`）の言語切り替えと標準カラム名・期間単位が自動連動
-  - **完全な後方互換性**:
     - `option.grid` 未指定時は、従来の単一ヘッダー表示（`row.name`）として完全互換動作
+
+---
 
 ## [1.4.0] - 2026-10-11
 
