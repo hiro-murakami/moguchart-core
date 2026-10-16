@@ -376,12 +376,33 @@ export class GanttRowElement extends LitElement {
     .grid-cell-editable {
       cursor: text;
       position: relative;
+      background-color: rgba(255, 255, 255, 0.45);
+    }
+    :host([theme='dark']) .grid-cell-editable {
+      background-color: rgba(255, 255, 255, 0.04);
     }
     .grid-cell-editable:hover {
-      background-color: rgba(59, 130, 246, 0.06);
+      background-color: rgba(59, 130, 246, 0.08);
     }
     :host([theme='dark']) .grid-cell-editable:hover {
-      background-color: rgba(96, 165, 250, 0.12);
+      background-color: rgba(96, 165, 250, 0.14);
+    }
+    .grid-cell-readonly {
+      background-color: rgba(15, 23, 42, 0.07);
+      cursor: default;
+    }
+    :host([theme='dark']) .grid-cell-readonly {
+      background-color: rgba(0, 0, 0, 0.35);
+    }
+    .grid-cell-readonly .grid-cell-content {
+      opacity: 0.55;
+    }
+    :host([isexporting]) .grid-cell-editable,
+    :host([isexporting]) .grid-cell-readonly {
+      background-color: transparent !important;
+    }
+    :host([isexporting]) .grid-cell-readonly .grid-cell-content {
+      opacity: 1 !important;
     }
     .grid-cell-editing {
       padding: 0 2px !important;
@@ -1234,6 +1255,9 @@ export class GanttRowElement extends LitElement {
                   const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
                   const gridEditable = this.option.grid?.editable === true
                   const editTrigger = this.option.grid?.editTrigger ?? 'dblclick'
+                  const isInlineEditEnabled =
+                    !this.option.readOnly &&
+                    (gridEditable || visibleColumns.some((c) => c.editable !== undefined && c.editable !== false))
 
                   return html`
                     <div
@@ -1265,11 +1289,12 @@ export class GanttRowElement extends LitElement {
                         const isEditable =
                           !this.option.readOnly &&
                           isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)
+                        const isReadOnlyCell = isInlineEditEnabled && !isEditable
                         const isEditing = this._editingColumnId === col.id
 
                         return html`
                           <div
-                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isEditing ? 'grid-cell-editing' : ''}"
+                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''}"
                             data-column-id="${col.id}"
                             style="
                             width: ${col.width}px;
