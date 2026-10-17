@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Configurable select options (`editorOptions`), numeric bounds (`editorMin`, `editorMax`, `editorStep`), per-row/task editability predicates (`editable`), and custom value setters (`valueSetter`).
     - Automatic linkage with single-task editability settings (`task.resizable === false` or `task.movable === 'none'` disables date/duration editing; `task.progressResizable === false` disables progress editing).
     - Visual distinction between editable cells (`.grid-cell-editable`: text cursor and hover highlight) and read-only cells (`.grid-cell-readonly`: dimmed background and semi-transparent text for summary/multi-task aggregated cells and WBS codes; automatically normalized during PNG/PDF export).
-    - Temporarily suppresses row drag-and-drop reordering while inline cell editing is active to allow smooth mouse drag text selection.
+    - Restricts row drag-and-drop reordering and row header tooltips in grid mode to the task name / tree cell (`.grid-cell-name`, `.grid-tree-cell`), and temporarily suppresses row reordering while inline cell editing is active to allow smooth mouse drag text selection.
     - Dispatches `cell-edit` and `rows-change` custom events upon committing changes, with full Undo / Redo history integration (`command.type === 'cell-edit'`).
     - Added programmatic editing control methods: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, and `cancelCellEdit()`.
   - **Custom Columns & Flexible Data Mapping**:

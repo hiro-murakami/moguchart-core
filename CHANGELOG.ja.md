@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - セレクトボックス用選択肢（`editorOptions`）、数値入力の最小・最大・ステップ値（`editorMin`, `editorMax`, `editorStep`）、行・タスクごとの編集可否判定（`editable`）、カスタムセッター（`valueSetter`）に対応
     - 単一タスクの `resizable`（`false` 時は日付・期間編集不可）、`movable`（`'none'` 時は日付・期間編集不可）、`progressResizable`（`false` 時は進捗率編集不可）の設定を考慮したセル編集可否判定に対応
     - **編集可能セルと読み取り専用セルの視覚的区別**: インライン編集有効時、編集可能なセル（`.grid-cell-editable`: テキストカーソル・ホバーハイライト）と編集不可のセル（`.grid-cell-readonly`: サマリー行・複数タスク行の集計セルやWBS番号セル等のグレーアウト背景・半透明表示）を視覚的に区別（画像・PDFエクスポート時は自動的に通常表示へ正規化）
-    - インライン編集中は行のドラッグ並び替えを一時的に無効化し、入力欄内でのドラッグによるテキスト選択操作がスムーズに行えるよう改善
+    - グリッド有効時は行のドラッグ並び替えおよび行ヘッダーツールチップの表示対象をタスク名（ツリー）セル（`.grid-cell-name`, `.grid-tree-cell`）に限定し、インライン編集中は行のドラッグ並び替えを一時的に無効化することで入力欄内でのテキスト選択操作がスムーズに行えるよう改善
     - 編集確定時に `cell-edit` および `rows-change` イベントを発火し、操作履歴（Undo / Redo: `command.type === 'cell-edit'`）と完全連動
     - プログラムからセル編集を制御するパブリックメソッド `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()` を追加
   - **`cornerContent` とグリッドヘッダーの2段レイアウト共存**:
