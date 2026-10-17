@@ -505,7 +505,7 @@ interface GanttChartOptionCustomRendering {
   tooltip?: (task: GanttTask) => string | unknown
   /** Function to render drag info overlay content. Can return a string or Lit TemplateResult. */
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
-  /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
+  /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult (when `option.grid` is enabled, renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row). */
   cornerContent?: () => string | unknown
   /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
@@ -1452,7 +1452,9 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
   /**
    * Whether inline editing is allowed for this column (or a predicate function per row).
-   * - When `grid.editable: true`, built-in columns (except `wbs`) and columns with `field` or `valueSetter` are editable by default (date, duration, and progress cells on summary rows are automatically non-editable).
+   * - When `grid.editable: true`, built-in columns (except `wbs`) and columns with `field` or `valueSetter` are editable by default (date, duration, and progress cells on summary rows and multi-task rows are automatically non-editable).
+   * - On single-task rows, date/duration columns also respect `task.resizable !== false` and `task.movable !== 'none'`, and the progress column respects `task.progressResizable !== false`.
+   * - Editable cells receive `.grid-cell-editable` and read-only cells receive `.grid-cell-readonly` for visual distinction.
    */
   editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
   /**
@@ -1484,8 +1486,12 @@ interface ColumnResizeEventDetail {
   columnId: string
   /** New column width in px */
   width: number
+  /** Previous column width in px (included on final commit) */
+  previousWidth?: number
   /** Updated array of all column definitions */
   columns: GanttColumn[]
+  /** Whether the drag resize operation is finalized (mouseup) */
+  isFinal?: boolean
 }
 
 interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
@@ -2151,6 +2157,15 @@ import {
   computeVisibleTreeRows,
   computeSummaryTask,
   canDropRow,
+  // Multi-Column Grid calculations & inline editing helpers
+  calculateRowSummaryDates,
+  normalizeGridColumns,
+  getGridCellValue,
+  formatGridCellValue,
+  resolveColumnEditorType,
+  isGridCellEditable,
+  formatGridCellEditValue,
+  applyGridCellEdit,
 } from '@mogura/moguchart-core'
 ```
 
@@ -2326,6 +2341,60 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`targetId`**: Candidate drop target row ID
 - **`rows`**: Complete array of row data
 - **Returns**: `true` if drop is permitted, `false` if circular reference would occur
+
+### Multi-Column Grid Helpers (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `isGridCellEditable`, `applyGridCellEdit`)
+
+Helper utilities for resolving, formatting, validating editability, and applying inline edits to Multi-Column Data Grid cells:
+
+```typescript
+// Aggregate earliest start, latest end, and calendar days across a task list
+function calculateRowSummaryDates(tasks: GanttTask[]): {
+  start: Date | null
+  end: Date | null
+  durationDays: number
+}
+
+// Normalize user column definitions with localized default titles, widths, and alignments
+function normalizeGridColumns<TRow = GanttRow, TTask = GanttTask>(
+  columns?: GanttColumn<TRow, TTask>[],
+  locale?: MoguchartLocale,
+  viewContext?: GridViewModeContext
+): GanttColumn<TRow, TTask>[]
+
+// Resolve raw cell value for a row and column
+function getGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  tasks: TTask[],
+  wbsCode?: string
+): any
+
+// Format a resolved cell value into a display string according to column and view mode
+function formatGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  value: any,
+  row: TRow,
+  tasks: TTask[],
+  locale?: MoguchartLocale,
+  viewContext?: GridViewModeContext
+): string
+
+// Determine whether a specific cell is editable (respecting summary/multi-task rules and task.movable / resizable / progressResizable)
+function isGridCellEditable<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  tasks: TTask[],
+  gridEditable?: boolean
+): boolean
+
+// Apply a committed inline edit value to a row/task and return the updated row and change status
+function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  rawInputValue: any,
+  viewContext?: GridViewModeContext
+): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
+```
 
 ---
 

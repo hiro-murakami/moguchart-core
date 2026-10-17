@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-10-15
+## [1.5.0] - 2026-10-17
 
 ### Added
 
@@ -19,19 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `duration`: 期間・工数（カレンダー日数スパン、時間単位モード時は時間・分フォーマット）
     - `progress`: 進捗率（サマリー行・複数タスク行は期間加重平均進捗率を自動算出）
   - **表示モードに応じた自動カラム適応**:
-    - 月単位モード（`pxPerMonth` 指定時）では `startDate` / `endDate` のヘッダーが自動的に「開始月」「終了月」（`Start Month` / `End Month`）に切り替わり、`YYYY/M` 形式で表示
+    - 月単位モード（`pxPerMonth` 指定時）では `startDate` / `endDate` のヘッダーが自動的に「開始月」「終了月」（`Start Month` / `End Month`）に切り替わり、`YYYY/M` 形式で表示（終了月は前月表記に自動調整）
     - 時間単位モード（`showTime: true` 時）では `startDate` / `endDate` のヘッダーが自動的に「開始日時」「終了日時」（`Start Date/Time` / `End Date/Time`）に切り替わり、時刻付き表示および時間単位の期間表示に連動
   - **グリッドセルのインライン編集機能 (`option.grid.editable`, `cell-edit`)**:
     - セルのダブルクリック（またはクリック：`editTrigger: 'dblclick' | 'click'`）による直感的なインライン編集に対応
     - 組み込みエディタ種別（`text`, `number`, `date`, `datetime`, `month`, `select`）および独自の `HTMLElement` をマウントできるカスタムエディタ関数（`editor: (context) => HTMLElement`）をサポート
     - セレクトボックス用選択肢（`editorOptions`）、数値入力の最小・最大・ステップ値（`editorMin`, `editorMax`, `editorStep`）、行・タスクごとの編集可否判定（`editable`）、カスタムセッター（`valueSetter`）に対応
+    - 単一タスクの `resizable`（`false` 時は日付・期間編集不可）、`movable`（`'none'` 時は日付・期間編集不可）、`progressResizable`（`false` 時は進捗率編集不可）の設定を考慮したセル編集可否判定に対応
+    - **編集可能セルと読み取り専用セルの視覚的区別**: インライン編集有効時、編集可能なセル（`.grid-cell-editable`: テキストカーソル・ホバーハイライト）と編集不可のセル（`.grid-cell-readonly`: サマリー行・複数タスク行の集計セルやWBS番号セル等のグレーアウト背景・半透明表示）を視覚的に区別（画像・PDFエクスポート時は自動的に通常表示へ正規化）
+    - インライン編集中は行のドラッグ並び替えを一時的に無効化し、入力欄内でのドラッグによるテキスト選択操作がスムーズに行えるよう改善
     - 編集確定時に `cell-edit` および `rows-change` イベントを発火し、操作履歴（Undo / Redo: `command.type === 'cell-edit'`）と完全連動
     - プログラムからセル編集を制御するパブリックメソッド `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()` を追加
+  - **`cornerContent` とグリッドヘッダーの2段レイアウト共存**:
+    - グリッド有効時に `customRendering.cornerContent` が指定されている場合、左上コーナー領域を上段（`cornerContent`）と下段（グリッドカラムヘッダー）の2段構成で同時表示するよう対応
   - **カスタムカラム & 自由なデータマッピング**:
     - `field` による任意オブジェクトプロパティのバインド、および `valueGetter(row, tasks, wbsCode)` / `valueSetter(row, newValue, tasks, column)` による高度なカスタム値の取得・更新に対応
     - `formatter` による文字列整形、および `renderCell(value, row, tasks, locale)` による `HTMLElement` / HTML 文字列のカスタムレンダリングに対応
   - **カラム幅のドラッグリサイズ (`column-resize`)**:
-    - カラムヘッダー右端のドラッグ操作により、各カラムの幅を直感的に個別リサイズ可能。リサイズ中・完了時に `column-resize` カスタムイベントを発火し、行クリックやオプション再設定時もリサイズ後の幅を保持
+    - カラムヘッダー右端のドラッグ操作により、各カラムの幅を直感的に個別リサイズ可能。リサイズ中・完了時に `column-resize` カスタムイベントを発火し、行クリックやオプション更新時もユーザーのリサイズ幅を保持しつつ、`option.grid.columns` からの明示的な列幅変更にも追従
   - **スプリッターリサイズ ＆ グリッド内独立横スクロール同期**:
     - グリッド領域とタイムライン領域を仕切るスプリッターリサイズを完全サポート
     - カラム合計幅が表示枠を超える場合、トラックパッド横スワイプ、`Shift + ホイール`、またはグリッドヘッダー上のマウスホイール操作による独立横スクロールに対応。ヘッダーセルと各行セルが1pxのズレもなく同期して横スクロール

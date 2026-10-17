@@ -192,7 +192,7 @@ export function BaselineGanttView() {
       pxPerDay: 40,
     },
     baseline: {
-      visible: true,          // ベースライン表示
+      enabled: true,          // ベースライン表示を有効化
       position: 'bottom',     // 'bottom' (下部) | 'top' (上部) | 'overlay' (重ねて表示)
       highlightDelay: true,   // 遅延タスクをハイライト強調
       delayColor: '#EF4444',  // 遅延強調アクセント色

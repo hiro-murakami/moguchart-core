@@ -88,8 +88,8 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Display and interact with the row header area as a full-featured multi-column data table
   - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
   - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
-  - **Inline Cell Editing** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, Undo/Redo history integration, and `cell-edit` events
-  - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes)
+  - **Inline Cell Editing** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
+  - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes) and 2-tier layout coexistence with `customRendering.cornerContent`
   - Column header drag-resizing with `column-resize` custom events
   - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area (via trackpad swipe, Shift+wheel, or wheel over grid headers)
 - ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
@@ -805,9 +805,9 @@ console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTas
 
 ### Multi-Column Data Grid (WBS Table & Inline Editing)
 
-Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns. Set `editable: true` to enable inline cell editing via double-click (or single-click).
+Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns. Set `editable: true` to enable inline cell editing via double-click (or single-click) (editable cells receive `.grid-cell-editable`, while read-only cells such as summary/multi-task aggregated cells and the `wbs` column receive `.grid-cell-readonly` for visual distinction; single-task date, duration, and progress cells also automatically respect `task.movable`, `task.resizable`, and `task.progressResizable`).
 
-Depending on the active view mode, `startDate` and `endDate` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode).
+Depending on the active view mode, `startDate` and `endDate` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode). When used together with `customRendering.cornerContent`, the top-left corner renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row.
 
 ```javascript
 const option = {
@@ -1082,7 +1082,7 @@ console.log('Row positions:', rowPositions)
 
 ### Utility Functions
 
-`@mogura/moguchart-core` exports various helper utilities for hierarchical WBS calculations, critical path detection, and progress aggregations:
+`@mogura/moguchart-core` exports various helper utilities for hierarchical WBS calculations, critical path detection, progress aggregations, baseline variance, and multi-column grid operations:
 
 ```typescript
 import {
@@ -1100,6 +1100,18 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // Baseline (plan vs actual) calculations
+  calculateTaskDelay,
+  calculateProjectBaselineSummary,
+  // Multi-Column Grid calculations & inline editing helpers
+  calculateRowSummaryDates,
+  normalizeGridColumns,
+  getGridCellValue,
+  formatGridCellValue,
+  resolveColumnEditorType,
+  isGridCellEditable,
+  formatGridCellEditValue,
+  applyGridCellEdit,
 } from '@mogura/moguchart-core'
 
 // 1. Calculate depth level for all rows
@@ -1117,6 +1129,8 @@ const summaryTask = computeSummaryTask(childTasks, 'project-1') // Min start, ma
 const isDropAllowed = canDropRow('source-row-id', 'target-row-id', rows) // boolean
 // 7. Find longest task dependency chains (critical path)
 const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
+// 8. Calculate earliest start, latest end, and calendar days across tasks in a row
+const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays }
 ```
 
 ### Keyboard Operations

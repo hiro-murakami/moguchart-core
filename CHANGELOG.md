@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-10-15
+## [1.5.0] - 2026-10-17
 
 ### Added
 
@@ -19,19 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `duration`: Duration / work span in calendar days (or formatted hours/minutes in hourly view mode).
     - `progress`: Task progress percentage (automatically computes duration-weighted average progress for summary rows and multi-task rows).
   - **Automatic View-Mode Column Adaptation**:
-    - In Monthly mode (`pxPerMonth` specified), `startDate` / `endDate` headers automatically switch to `Start Month` / `End Month` (`開始月` / `終了月`) and format values as `YYYY/M`.
+    - In Monthly mode (`pxPerMonth` specified), `startDate` / `endDate` headers automatically switch to `Start Month` / `End Month` (`開始月` / `終了月`) and format values as `YYYY/M` (automatically adjusting exclusive end boundary dates to display the previous month).
     - In Hourly / Time mode (`showTime: true`), `startDate` / `endDate` headers automatically switch to `Start Date/Time` / `End Date/Time` (`開始日時` / `終了日時`), displaying timestamps and time-based duration spans.
   - **Inline Cell Editing (`option.grid.editable`, `cell-edit`)**:
     - Support interactive inline cell editing triggered by double-click or single-click (`editTrigger: 'dblclick' | 'click'`).
     - Built-in editor types (`'text'`, `'number'`, `'date'`, `'datetime'`, `'month'`, `'select'`) as well as custom DOM editor factories (`editor: (context) => HTMLElement`).
     - Configurable select options (`editorOptions`), numeric bounds (`editorMin`, `editorMax`, `editorStep`), per-row/task editability predicates (`editable`), and custom value setters (`valueSetter`).
+    - Automatic linkage with single-task editability settings (`task.resizable === false` or `task.movable === 'none'` disables date/duration editing; `task.progressResizable === false` disables progress editing).
+    - Visual distinction between editable cells (`.grid-cell-editable`: text cursor and hover highlight) and read-only cells (`.grid-cell-readonly`: dimmed background and semi-transparent text for summary/multi-task aggregated cells and WBS codes; automatically normalized during PNG/PDF export).
+    - Temporarily suppresses row drag-and-drop reordering while inline cell editing is active to allow smooth mouse drag text selection.
     - Dispatches `cell-edit` and `rows-change` custom events upon committing changes, with full Undo / Redo history integration (`command.type === 'cell-edit'`).
     - Added programmatic editing control methods: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, and `cancelCellEdit()`.
   - **Custom Columns & Flexible Data Mapping**:
     - Bind arbitrary row properties using `field`, or extract and update custom values using `valueGetter(row, tasks, wbsCode)` and `valueSetter(row, newValue, tasks, column)`.
     - Format text outputs with `formatter(value, row, tasks, locale)`, or render rich `HTMLElement` / HTML strings with `renderCell(value, row, tasks, locale)`.
+  - **Two-Tier Corner Header Coexistence**:
+    - When both `option.grid` and `customRendering.cornerContent` are configured, the top-left corner automatically renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row.
   - **Interactive Column Drag Resizing (`column-resize`)**:
-    - Intuitive drag-to-resize handles on column headers. Fires `column-resize` custom events during and upon completing resize operations, preserving user-resized widths across row interactions and option updates.
+    - Intuitive drag-to-resize handles on column headers. Fires `column-resize` custom events during and upon completing resize operations, preserving user-resized widths across row interactions while also tracking programmatic `option.grid.columns` width updates.
   - **Splitter Resizing & Synchronized Independent Grid Horizontal Scrolling**:
     - Seamlessly works with the split pane resizer dividing the grid and timeline areas.
     - When column widths exceed the grid area width, independent horizontal scrolling activates via trackpad swipe, `Shift + wheel`, or vertical wheel scrolling over the grid header area, with pixel-perfect synchronization (`transform: translateX(-gridScrollLeft)`) across header and row cells.

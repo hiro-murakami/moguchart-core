@@ -105,7 +105,7 @@ interface GanttChartOption {
     tooltip?: (task: GanttTask) => string | unknown
     /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
-    /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+    /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます（`option.grid` 有効時は上段に cornerContent、下段にグリッドカラムヘッダーの2段構成で表示されます）。 */
     cornerContent?: () => string | unknown
     /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
     calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
@@ -505,7 +505,7 @@ interface GanttChartOptionCustomRendering {
   tooltip?: (task: GanttTask) => string | unknown
   /** ドラッグ中の情報オーバーレイのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
-  /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます。 */
+  /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます（`option.grid` 有効時は上段に cornerContent、下段にグリッドカラムヘッダーの2段構成で表示されます）。 */
   cornerContent?: () => string | unknown
   /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
@@ -1239,6 +1239,8 @@ interface TaskDeleteEventDetail {
 interface ZoomChangeEventDetail {
   pxPerDay: number // ズーム後の pxPerDay
   pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
+  zoomScale: number // 現在のズーム倍率 (1.0 = 100%)
+  zoomPercent: number // 現在のズームパーセンテージ (50〜200)
 }
 ```
 
@@ -1502,7 +1504,9 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
   /**
    * セルのインライン編集を許可するかどうか（または行ごとの判定関数）
-   * - `grid.editable: true` の場合、組み込みカラム（`wbs` 除く）および `field` / `valueSetter` を持つカラムはデフォルトで編集可能（サマリータスク行の日付・期間・進捗は自動的に編集不可）
+   * - `grid.editable: true` の場合、組み込みカラム（`wbs` 除く）および `field` / `valueSetter` を持つカラムはデフォルトで編集可能（サマリータスク行や複数タスク行の日付・期間・進捗は自動的に編集不可）
+   * - 単一タスク行の場合、日付・期間カラムは `task.resizable !== false` かつ `task.movable !== 'none'`、進捗カラムは `task.progressResizable !== false` の設定とも自動連動します
+   * - インライン編集有効時、編集可能セルには `.grid-cell-editable`、編集不可セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます
    */
   editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
   /**
@@ -1534,8 +1538,12 @@ interface ColumnResizeEventDetail {
   columnId: string
   /** 新しいカラム幅 (px) */
   width: number
+  /** リサイズ前のカラム幅 (px・確定時のみ) */
+  previousWidth?: number
   /** 更新後の全カラム定義配列 */
   columns: GanttColumn[]
+  /** ドラッグ完了による確定イベントかどうか */
+  isFinal?: boolean
 }
 
 interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
@@ -2180,6 +2188,15 @@ import {
   computeVisibleTreeRows,
   computeSummaryTask,
   canDropRow,
+  // マルチカラムグリッド計算・インライン編集ヘルパー
+  calculateRowSummaryDates,
+  normalizeGridColumns,
+  getGridCellValue,
+  formatGridCellValue,
+  resolveColumnEditorType,
+  isGridCellEditable,
+  formatGridCellEditValue,
+  applyGridCellEdit,
 } from '@mogura/moguchart-core'
 ```
 
@@ -2355,6 +2372,60 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`targetId`**: ドロップ先候補の行ID
 - **`rows`**: 全行データ配列
 - **戻り値**: ドロップ可能な場合は `true`、循環参照となる場合は `false`
+
+### マルチカラムグリッド用ヘルパー (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `isGridCellEditable`, `applyGridCellEdit`)
+
+マルチカラムデータグリッドの各セル値の解決・フォーマット・編集可否判定・編集結果の反映を行うヘルパー関数群です。
+
+```typescript
+// タスク配列から最小開始日・最大終了日・カレンダー期間日数を集計
+function calculateRowSummaryDates(tasks: GanttTask[]): {
+  start: Date | null
+  end: Date | null
+  durationDays: number
+}
+
+// カラム定義配列にロケールおよび表示モードに応じたデフォルトタイトル・幅・配置を補完
+function normalizeGridColumns<TRow = GanttRow, TTask = GanttTask>(
+  columns?: GanttColumn<TRow, TTask>[],
+  locale?: MoguchartLocale,
+  viewContext?: GridViewModeContext
+): GanttColumn<TRow, TTask>[]
+
+// 指定カラム・行の生のセル値を取得
+function getGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  tasks: TTask[],
+  wbsCode?: string
+): any
+
+// セル値をカラム定義・ロケール・表示モードに応じた表示文字列へフォーマット
+function formatGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  value: any,
+  row: TRow,
+  tasks: TTask[],
+  locale?: MoguchartLocale,
+  viewContext?: GridViewModeContext
+): string
+
+// 指定セルがインライン編集可能かどうかを判定（サマリー行・複数タスク行や task.movable / resizable / progressResizable も考慮）
+function isGridCellEditable<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  tasks: TTask[],
+  gridEditable?: boolean
+): boolean
+
+// インライン編集で入力された新しい値を行・タスクデータに適用し、変更有無と更新後の行データを返す
+function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  column: GanttColumn<TRow, TTask>,
+  row: TRow,
+  rawInputValue: any,
+  viewContext?: GridViewModeContext
+): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
+```
 
 ---
 

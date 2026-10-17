@@ -194,7 +194,7 @@ export function BaselineGanttView() {
       pxPerDay: 40,
     },
     baseline: {
-      visible: true,          // Enable baseline rendering
+      enabled: true,          // Enable baseline rendering
       position: 'bottom',     // 'bottom' | 'top' | 'overlay'
       highlightDelay: true,   // Visually highlight delayed tasks
       delayColor: '#EF4444',  // Custom accent color for delay indicators

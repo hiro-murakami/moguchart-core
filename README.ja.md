@@ -83,8 +83,8 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
   - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、進捗率 `progress`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
   - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出
-  - **インラインセル編集**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、Undo/Redo 履歴連動、`cell-edit` イベントに対応
-  - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）
+  - **インラインセル編集**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
+  - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）および `customRendering.cornerContent` との上下2段レイアウト共存
   - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）
   - グリッド領域とタイムライン領域のスプリッターリサイズ＆グリッド内独立横スクロール同期（トラックパッド横スワイプ、Shift+ホイール、ヘッダー上のホイールに対応）
 - ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・Undo/Redo・ズームショートカット
@@ -787,9 +787,9 @@ console.log(`計画タスク数: ${summary.totalBaselineTasks}, 遅延タスク�
 
 ### マルチカラムデータグリッド（WBSテーブル ＆ インライン編集）
 
-行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、進捗率、カスタム列を柔軟に構成できるほか、`editable: true` を設定することでセルのダブルクリック（またはクリック）によるインライン編集が可能です。
+行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、進捗率、カスタム列を柔軟に構成できるほか、`editable: true` を設定することでセルのダブルクリック（またはクリック）によるインライン編集が可能です（編集可能セルには `.grid-cell-editable`、サマリー行や複数タスク行の集計セル・`wbs` 列などの読み取り専用セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます。単一タスク行の日付・期間・進捗セルはタスクの `movable` / `resizable` / `progressResizable` 設定とも自動連動します）。
 
-表示モードに応じて、`startDate` / `endDate` の列タイトルや表示フォーマット・エディタ種別は自動的に切り替わります（月単位モード時は「開始月」「終了月」、時間単位モード時は「開始日時」「終了日時」）。
+表示モードに応じて、`startDate` / `endDate` の列タイトルや表示フォーマット・エディタ種別は自動的に切り替わります（月単位モード時は「開始月」「終了月」、時間単位モード時は「開始日時」「終了日時」）。また、`customRendering.cornerContent` と併用した場合は、左上コーナー領域の上段に `cornerContent`、下段にグリッドカラムヘッダーが2段構成で表示されます。
 
 ```javascript
 const option = {
@@ -1082,6 +1082,18 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
+  // 予実管理（ベースライン）計算
+  calculateTaskDelay,
+  calculateProjectBaselineSummary,
+  // マルチカラムグリッド計算・インライン編集ヘルパー
+  calculateRowSummaryDates,
+  normalizeGridColumns,
+  getGridCellValue,
+  formatGridCellValue,
+  resolveColumnEditorType,
+  isGridCellEditable,
+  formatGridCellEditValue,
+  applyGridCellEdit,
 } from '@mogura/moguchart-core'
 
 // 1. 各行のツリー階層レベル（深さ）の計算
@@ -1105,6 +1117,9 @@ const isSafe = canDropRow('source-row-id', 'target-row-id', rows) // boolean
 
 // 7. クリティカルパス（最長依存関係チェーン）の計算
 const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
+
+// 8. 行内のタスク配列から最小開始日・最大終了日・期間日数を算出
+const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays }
 ```
 
 ### キーボード操作
