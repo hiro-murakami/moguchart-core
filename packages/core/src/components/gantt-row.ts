@@ -448,6 +448,17 @@ export class GanttRowElement extends LitElement {
   `
 
   private handleDragStart(e: DragEvent) {
+    const isGridEnabled = Boolean(
+      this.option.grid?.enabled ?? (this.option.grid?.columns && this.option.grid.columns.length > 0),
+    )
+    if (isGridEnabled) {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest?.('.grid-cell-name, .grid-tree-cell')) {
+        e.preventDefault()
+        return
+      }
+    }
+
     // ドラッグ開始時にツールチップをクリア
     this.handleHeaderMouseLeave()
 
@@ -740,11 +751,15 @@ export class GanttRowElement extends LitElement {
   }
 
   private handleToggleMouseLeave(e: MouseEvent) {
-    // アイコンから離れて行ヘッダー内に留まっている場合はツールチップタイマーを再開
+    // アイコンから離れて行ヘッダー（またはグリッドのタスク名セル）内に留まっている場合はツールチップタイマーを再開
     const relatedTarget = e.relatedTarget as HTMLElement | null
-    const header = this.shadowRoot?.querySelector('.row-header') as HTMLElement | null
-    if (header && relatedTarget && header.contains(relatedTarget)) {
-      this.handleHeaderMouseEnter(e)
+    const targetContainer = (this.shadowRoot?.querySelector('.grid-cell-name, .grid-tree-cell') ??
+      this.shadowRoot?.querySelector('.row-header')) as HTMLElement | null
+    if (targetContainer && relatedTarget && targetContainer.contains(relatedTarget)) {
+      this.handleHeaderMouseEnter({
+        currentTarget: targetContainer,
+        target: relatedTarget,
+      } as unknown as MouseEvent)
     }
   }
 
@@ -1182,12 +1197,20 @@ export class GanttRowElement extends LitElement {
         }
 
         .row-header {
-          cursor: ${canReorder ? 'grab' : 'pointer'};
+          cursor: ${!isGridEnabled ? (canReorder ? 'grab' : 'pointer') : 'default'};
           border-right: 1px solid ${colors.border};
           border-bottom: 1px solid ${colors.border};
           box-sizing: border-box;
         }
         .row-header:active {
+          cursor: ${!isGridEnabled ? (canReorder ? 'grabbing' : 'pointer') : 'default'};
+        }
+        .grid-cell-name,
+        .grid-tree-cell {
+          cursor: ${canReorder ? 'grab' : 'pointer'};
+        }
+        .grid-cell-name:active,
+        .grid-tree-cell:active {
           cursor: ${canReorder ? 'grabbing' : 'pointer'};
         }
         .bars-container {
@@ -1230,14 +1253,14 @@ export class GanttRowElement extends LitElement {
         <div
           class="row-header"
           style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
-          draggable="${canReorder ? 'true' : 'false'}"
+          draggable="${!isGridEnabled && canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
           @dragend="${canReorder ? this.handleDragEnd : undefined}"
           @click="${this.handleHeaderClick}"
           @dblclick="${this.handleHeaderDblClick}"
           @contextmenu="${this.handleHeaderContextMenu}"
-          @mouseenter="${this.handleHeaderMouseEnter}"
-          @mouseleave="${this.handleHeaderMouseLeave}"
+          @mouseenter="${!isGridEnabled ? this.handleHeaderMouseEnter : undefined}"
+          @mouseleave="${!isGridEnabled ? this.handleHeaderMouseLeave : undefined}"
           @row-header-mouseleave="${this.handleHeaderMouseLeave}"
         >
           ${
@@ -1291,11 +1314,13 @@ export class GanttRowElement extends LitElement {
                           isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)
                         const isReadOnlyCell = isInlineEditEnabled && !isEditable
                         const isEditing = this._editingColumnId === col.id
+                        const isNameOrTreeCell = col.id === 'name' || Boolean(col.isTreeColumn)
 
                         return html`
                           <div
                             class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''}"
                             data-column-id="${col.id}"
+                            draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
                             style="
                             width: ${col.width}px;
                             min-width: ${col.minWidth ?? 40}px;
@@ -1313,6 +1338,8 @@ export class GanttRowElement extends LitElement {
                             text-overflow: ellipsis;
                             flex-shrink: 0;
                           "
+                            @mouseenter="${isNameOrTreeCell ? this.handleHeaderMouseEnter : undefined}"
+                            @mouseleave="${isNameOrTreeCell ? this.handleHeaderMouseLeave : undefined}"
                             @click="${(e: MouseEvent) => {
                               if (!isEditable || editTrigger !== 'click') return
                               const target = e.target as HTMLElement | null
