@@ -461,13 +461,18 @@ function renderTableRowCells(
             task?.dependencies ??
             (task as any)?.attribute?.dependencies
           if (Array.isArray(rawDeps) && rawDeps.length > 0) {
-            const depNos = rawDeps.map((depId) => {
+            const depNos = rawDeps.map((dep) => {
+              const depId =
+                typeof dep === 'object' && dep !== null && 'taskId' in dep ? (dep as any).taskId : dep
+              const depType =
+                typeof dep === 'object' && dep !== null && 'type' in dep ? (dep as any).type : undefined
               const foundNo = taskIdToNoMap.get(depId) ?? taskIdToNoMap.get(String(depId))
-              return foundNo != null ? String(foundNo) : String(depId)
+              const baseLabel = foundNo != null ? String(foundNo) : String(depId)
+              return depType && depType !== 'FS' ? `${baseLabel} (${depType})` : baseLabel
             })
             value = depNos.join(', ')
           } else if (rawDeps !== undefined && rawDeps !== null && rawDeps !== '') {
-            const foundNo = taskIdToNoMap.get(rawDeps) ?? taskIdToNoMap.get(String(rawDeps))
+            const foundNo = taskIdToNoMap.get(rawDeps as any) ?? taskIdToNoMap.get(String(rawDeps))
             value = foundNo != null ? String(foundNo) : String(rawDeps)
           } else {
             value = ''

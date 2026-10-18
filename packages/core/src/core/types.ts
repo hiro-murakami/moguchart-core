@@ -86,6 +86,39 @@ export interface GanttTaskBaseline {
 }
 
 /**
+ * 依存関係の種別
+ * - 'FS': Finish-to-Start（先行タスク終了後に後続タスク開始、デフォルト）
+ * - 'SS': Start-to-Start（先行タスク開始と同時に後続タスク開始）
+ * - 'FF': Finish-to-Finish（先行タスク終了と同時に後続タスク終了）
+ * - 'SF': Start-to-Finish（先行タスク開始後に後続タスク終了）
+ */
+export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+
+/**
+ * 拡張された依存関係リンク定義
+ */
+export interface GanttDependencyLink {
+  /** 先行タスク（依存元）のID */
+  taskId: string
+  /** 依存関係の種別 (デフォルト: 'FS') */
+  type?: DependencyType
+  /** ラグ（遅延）またはリード（前倒し）期間（分単位、デフォルト: 0） */
+  lag?: number
+}
+
+/**
+ * タスクの依存関係指定（タスクID文字列、または詳細オブジェクト）
+ */
+export type GanttDependency = string | GanttDependencyLink
+
+/**
+ * 自動スケジューリングの制約モード
+ * - 'push-only': 依存制約に違反（逆転）する場合のみ後続タスクを後ろへ押し出す（デフォルト）
+ * - 'strict': 先行タスクの移動量・ラグに合わせて後続タスクを常に厳密に追従させる
+ */
+export type AutoScheduleMode = 'push-only' | 'strict'
+
+/**
  * ガントチャート上の個々のタスクを表すインターフェース
  */
 export interface GanttTask {
@@ -103,8 +136,8 @@ export interface GanttTask {
   labelStyle?: string
   /** バーの塗りつぶしパターン */
   pattern?: GanttTaskPattern
-  /** 依存関係にあるタスクのID配列 */
-  dependencies?: string[]
+  /** 依存関係にある先行タスクの配列（タスクID文字列またはGanttDependencyLink） */
+  dependencies?: GanttDependency[]
   /**
    * ドラッグによる移動の許可設定
    * 'both': 縦横移動可能 (デフォルト)
@@ -413,6 +446,18 @@ export interface GanttChartOptionDependency {
   deletable?: boolean
   /** 線上に削除用「×」ボタンを表示するか (デフォルト: true) */
   showDeleteButton?: boolean
+  /** 先行タスクの変更時に後続タスクを自動的にカスケード移動するか (デフォルト: false) */
+  autoSchedule?: boolean
+  /**
+   * 自動スケジューリングの制約モード (デフォルト: 'push-only')
+   * - 'push-only': 依存制約に違反（逆転）する場合のみ後続タスクを後ろへ押し出す
+   * - 'strict': 先行タスクの移動量・ラグに合わせて後続タスクを常に厳密に追従させる
+   */
+  scheduleMode?: AutoScheduleMode
+  /**
+   * 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true)
+   */
+  respectMovable?: boolean
 }
 
 /**
@@ -983,6 +1028,8 @@ export interface DependencyCreateEventDetail {
   targetTaskId: string
   /** 接続先のエンドポイント（start=左端, end=右端） */
   targetEndpoint: DependencyEndpoint
+  /** 作成された依存関係の種別 ('FS' | 'SS' | 'FF' | 'SF') */
+  type?: DependencyType
 }
 
 /**

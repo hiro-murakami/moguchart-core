@@ -9,6 +9,7 @@ import type {
 } from '../../core/types'
 import type { GanttCommandType } from '../../core/history'
 import { calculateTaskLanes, getThemeColors, formatDuration, xToDate } from '../../core/utils'
+import { propagateAutoSchedule } from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import { DEFAULT_BAR_MARGIN } from '../../core/constants'
 
@@ -527,6 +528,16 @@ export class TaskDragController implements ReactiveController {
         newRows[sourceRowIndex] = sourceRow
         newRows[targetRowIndexInRows] = targetRow
 
+        if (this.host.option.dependency?.autoSchedule) {
+          const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
+            mode: this.host.option.dependency.scheduleMode,
+            respectMovable: this.host.option.dependency.respectMovable,
+          })
+          if (scheduleResult.hasChanges) {
+            newRows.splice(0, newRows.length, ...scheduleResult.rows)
+          }
+        }
+
         requestAnimationFrame(() => {
           this.host.applyRowsChangeWithCommand(previousRows, newRows, {
             type: 'task-move',
@@ -535,7 +546,7 @@ export class TaskDragController implements ReactiveController {
         })
       } else {
         // 同じ行内での水平移動のみ
-        const newRows = this.host.rows.map((row) => {
+        let newRows = this.host.rows.map((row) => {
           const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
           if (!hasSelectedTask) return row
 
@@ -571,6 +582,16 @@ export class TaskDragController implements ReactiveController {
             }),
           }
         })
+
+        if (this.host.option.dependency?.autoSchedule) {
+          const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
+            mode: this.host.option.dependency.scheduleMode,
+            respectMovable: this.host.option.dependency.respectMovable,
+          })
+          if (scheduleResult.hasChanges) {
+            newRows = scheduleResult.rows
+          }
+        }
 
         // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
         requestAnimationFrame(() => {
@@ -611,7 +632,7 @@ export class TaskDragController implements ReactiveController {
         })
       }
     } else {
-      const newRows = [...this.host.rows]
+      let newRows = [...this.host.rows]
       const sourceRow = { ...newRows[sourceRowIndex] }
       sourceRow.tasks = [...sourceRow.tasks]
       newRows[sourceRowIndex] = sourceRow
@@ -628,6 +649,16 @@ export class TaskDragController implements ReactiveController {
           ...taskToMove,
           start: newStart,
           end: newEnd,
+        }
+      }
+
+      if (this.host.option.dependency?.autoSchedule) {
+        const scheduleResult = propagateAutoSchedule(newRows, [id], {
+          mode: this.host.option.dependency.scheduleMode,
+          respectMovable: this.host.option.dependency.respectMovable,
+        })
+        if (scheduleResult.hasChanges) {
+          newRows = scheduleResult.rows
         }
       }
 

@@ -6,6 +6,7 @@ import type {
   GanttTaskMoveMode,
   TaskDeleteEventDetail,
 } from '../../core/types'
+import { propagateAutoSchedule } from '../../core/auto-schedule'
 
 export interface KeyboardControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption
@@ -328,7 +329,7 @@ export class KeyboardController implements ReactiveController {
     const moveStep = this.host.option.keyboard?.moveStep ?? this.host.option.snapDuration ?? 1440
     const moveMs = moveStep * 60 * 1000 * direction
 
-    const newRows = this.host.rows.map((row) => {
+    let newRows = this.host.rows.map((row) => {
       const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
       if (!hasSelectedTask) return row
 
@@ -344,6 +345,16 @@ export class KeyboardController implements ReactiveController {
         }),
       }
     })
+
+    if (this.host.option.dependency?.autoSchedule) {
+      const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
+        mode: this.host.option.dependency.scheduleMode,
+        respectMovable: this.host.option.dependency.respectMovable,
+      })
+      if (scheduleResult.hasChanges) {
+        newRows = scheduleResult.rows
+      }
+    }
 
     // 各選択タスクについて task-update イベントを発火
     for (const row of this.host.rows) {

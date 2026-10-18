@@ -288,6 +288,7 @@ export const GanttChart = defineComponent({
       hitTest: (...args: Parameters<GanttChartElement['hitTest']>) => elRef.value?.hitTest(...args),
       getRowPositions: (...args: Parameters<GanttChartElement['getRowPositions']>) => elRef.value?.getRowPositions(...args),
       triggerDependencyDelete: (...args: Parameters<GanttChartElement['triggerDependencyDelete']>) => elRef.value?.triggerDependencyDelete(...args),
+      autoSchedule: (...args: Parameters<GanttChartElement['autoSchedule']>) => elRef.value?.autoSchedule(...args),
       startCellEdit: (...args: Parameters<GanttChartElement['startCellEdit']>) => elRef.value?.startCellEdit(...args),
       commitCellEdit: (...args: Parameters<GanttChartElement['commitCellEdit']>) => elRef.value?.commitCellEdit(...args),
       cancelCellEdit: (...args: Parameters<GanttChartElement['cancelCellEdit']>) => elRef.value?.cancelCellEdit(...args),
@@ -339,6 +340,7 @@ export interface GanttChartPublicApi {
   hitTest: GanttChartElement['hitTest']
   getRowPositions: GanttChartElement['getRowPositions']
   triggerDependencyDelete: GanttChartElement['triggerDependencyDelete']
+  autoSchedule: GanttChartElement['autoSchedule']
   startCellEdit: GanttChartElement['startCellEdit']
   commitCellEdit: GanttChartElement['commitCellEdit']
   cancelCellEdit: GanttChartElement['cancelCellEdit']

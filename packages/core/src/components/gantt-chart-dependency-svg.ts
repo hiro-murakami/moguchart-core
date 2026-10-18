@@ -6,6 +6,7 @@ import type {
 } from '../core/types'
 import { buildOrthogonalPath } from './gantt-chart-dependency-path'
 import { computeCriticalPath } from '../core/critical-path'
+import { dependencyTypeToEndpoints, normalizeDependencyLink } from '../core/auto-schedule'
 import { DEFAULT_BAR_MARGIN } from '../core/constants'
 import type { ConnectorDragState } from './controllers/dependency-controller'
 
@@ -62,31 +63,46 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
 
   for (const [taskId, task] of taskCoords) {
     if (task.dependencies) {
-      for (const depId of task.dependencies) {
+      for (const rawDep of task.dependencies) {
+        const depLink = normalizeDependencyLink(rawDep)
+        const depId = depLink.taskId
+        const depType = depLink.type
+        const { sourceEndpoint, targetEndpoint } = dependencyTypeToEndpoints(depType)
+
         const depTask = taskCoords.get(depId)
         if (depTask) {
-          const startX = depTask.x + depTask.width
+          const startX = sourceEndpoint === 'start' ? depTask.x : depTask.x + depTask.width
           const startY = depTask.y + depTask.height / 2
-          const endX = task.x
+          const endX = targetEndpoint === 'end' ? task.x + task.width : task.x
           const endY = task.y + task.height / 2
 
           // 前進方向か（ターゲットタスクが開始タスクより右側にあるか）
           const isForward = startX < endX
-          // 矢印表示時は線の終端を矢印分だけ手前にする
-          const rawAdjustedEndX = showArrows ? endX - arrowSize : endX
-          // 前進方向の場合、パスの終端がstartXより左に行かないように制限する
-          const adjustedEndX = isForward ? Math.max(startX, rawAdjustedEndX) : rawAdjustedEndX
+          // 矢印表示時は線の終端を矢印分だけ手前にする（targetEndpoint === 'start' は左から右へ、'end' は右から左へ入る）
+          let adjustedEndX: number
+          if (targetEndpoint === 'end') {
+            const rawAdjustedEndX = showArrows ? endX + arrowSize : endX
+            adjustedEndX =
+              sourceEndpoint === 'start' && startX > endX
+                ? Math.min(startX, rawAdjustedEndX)
+                : rawAdjustedEndX
+          } else {
+            const rawAdjustedEndX = showArrows ? endX - arrowSize : endX
+            adjustedEndX =
+              sourceEndpoint === 'end' && isForward
+                ? Math.max(startX, rawAdjustedEndX)
+                : rawAdjustedEndX
+          }
 
           let pathD: string
           let hitPathD: string
-          let arrowPathD: string
 
           const barHeight = effectiveBarHeight
           const barMargin = option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
           const isSameRow = Math.abs(startY - endY) < 1
 
-          if (isSameRow && isForward) {
+          if (depType === 'FS' && isSameRow && isForward) {
             // 同じ行で前進方向（距離が近い場合も含む）、ループさせずに直線を引く
             pathD = adjustedEndX > startX ? `M ${startX} ${startY} L ${adjustedEndX} ${endY}` : ''
             hitPathD = endX > startX ? `M ${startX} ${startY} L ${endX} ${endY}` : ''
@@ -101,12 +117,28 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
               barHeight,
               barMargin,
               cornerRadius,
+              sourceEndpoint,
+              targetEndpoint,
             )
             pathD = paths.pathD
             hitPathD = paths.hitPathD
           } else {
             // ベジェ曲線
-            if (isForward) {
+            if (depType === 'SS') {
+              const offset = Math.max(20, Math.abs(startX - adjustedEndX) * 0.25 + 16)
+              const ctrlX = Math.min(startX, adjustedEndX) - offset
+              pathD = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${adjustedEndX} ${endY}`
+              hitPathD = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`
+            } else if (depType === 'FF') {
+              const offset = Math.max(20, Math.abs(startX - adjustedEndX) * 0.25 + 16)
+              const ctrlX = Math.max(startX, adjustedEndX) + offset
+              pathD = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${adjustedEndX} ${endY}`
+              hitPathD = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`
+            } else if (depType === 'SF') {
+              const offset = Math.max(16, Math.abs(startX - endX) * 0.2)
+              pathD = `M ${startX} ${startY} C ${startX - offset} ${startY}, ${adjustedEndX + offset} ${endY}, ${adjustedEndX} ${endY}`
+              hitPathD = `M ${startX} ${startY} C ${startX - offset} ${startY}, ${endX + offset} ${endY}, ${endX} ${endY}`
+            } else if (isForward) {
               // 前進方向: シンプルなベジェ曲線
               const midX = (startX + adjustedEndX) / 2
               pathD = `M ${startX} ${startY} C ${midX} ${startY} ${midX} ${endY} ${adjustedEndX} ${endY}`
@@ -124,14 +156,19 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
           }
 
           // 矢印用の直線パス（マーカーが正しい方向を向くように）
-          arrowPathD = showArrows ? `M ${adjustedEndX} ${endY} L ${endX} ${endY}` : ''
+          const arrowPathD = showArrows ? `M ${adjustedEndX} ${endY} L ${endX} ${endY}` : ''
 
           // 削除ボタンの表示位置（パスの中央付近）
+          const gap = Math.max(12, cornerRadius + 4)
           let btnX = (startX + adjustedEndX) / 2
           let btnY = (startY + endY) / 2
-          if (isSameRow && isForward) {
+          if (depType === 'SS') {
+            btnX = Math.min(startX, adjustedEndX) - gap
+          } else if (depType === 'FF') {
+            btnX = Math.max(startX, adjustedEndX) + gap
+          } else if (depType === 'FS' && isSameRow && isForward) {
             btnY = startY
-          } else if (!isForward) {
+          } else if (depType === 'FS' && !isForward) {
             const midY = (startY + endY) / 2
             btnY = Math.abs(startY - endY) < barHeight ? midY + barHeight + barMargin : midY
           }
@@ -143,7 +180,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
           const showDeleteBtn = canDelete && option.dependency?.showDeleteButton !== false
 
           lines.push(
-            svg`<g class="dependency-group ${isSelected ? 'selected' : ''}">
+            svg`<g class="dependency-group ${isSelected ? 'selected' : ''}" data-dependency-type="${depType}">
               ${!isReadOnly
                 ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
                     e.stopPropagation()

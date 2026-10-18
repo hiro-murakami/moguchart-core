@@ -24,7 +24,15 @@ import type {
   ZoomChangeEventDetail,
   GanttColumn,
   ColumnResizeEventDetail,
+  AutoScheduleMode,
+  DependencyType,
 } from '../core/types'
+import {
+  normalizeDependencyLink,
+  createDependencyEntry,
+  getDependencyTaskId,
+  propagateAutoSchedule,
+} from '../core/auto-schedule'
 import { CHROME_ZOOM_LEVELS } from '../core/constants'
 import type { ThemeColorPalette } from '../core/types'
 import type { MoguchartLocale } from '../core/i18n'
@@ -128,6 +136,55 @@ let weekTextAlign: 'left' | 'center' | 'right' = 'left'
 let weekFormat: (weekNumber: number, startDate: Date) => string = (_, startDate) => startDate.getDate().toString()
 let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
 let showConnectors = true
+let autoSchedule = true
+let scheduleMode: AutoScheduleMode = 'push-only'
+let selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
+
+const getSelectedDependencyInfo = () => {
+  if (!selectedDependency) return null
+  const { sourceTaskId, targetTaskId } = selectedDependency
+  let sourceTask: GanttTask | undefined
+  let targetTask: GanttTask | undefined
+  for (const row of rows) {
+    for (const task of row.tasks) {
+      if (task.id === sourceTaskId) sourceTask = task
+      if (task.id === targetTaskId) targetTask = task
+    }
+  }
+  if (!sourceTask || !targetTask || !targetTask.dependencies) return null
+  const rawDep = targetTask.dependencies.find((dep) => getDependencyTaskId(dep) === sourceTaskId)
+  if (!rawDep) return null
+  const link = normalizeDependencyLink(rawDep)
+  return { sourceTask, targetTask, link }
+}
+
+const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number) => {
+  if (!selectedDependency) return
+  const { sourceTaskId, targetTaskId } = selectedDependency
+  const updatedEntry = createDependencyEntry(sourceTaskId, newType, newLagMinutes)
+  let nextRows = rows.map((row) => ({
+    ...row,
+    tasks: row.tasks.map((task) => {
+      if (task.id === targetTaskId && task.dependencies) {
+        return {
+          ...task,
+          dependencies: task.dependencies.map((dep) =>
+            getDependencyTaskId(dep) === sourceTaskId ? updatedEntry : dep,
+          ),
+        }
+      }
+      return task
+    }),
+  }))
+
+  if (autoSchedule) {
+    nextRows = propagateAutoSchedule(nextRows, [sourceTaskId], {
+      mode: scheduleMode,
+    }).rows
+  }
+  rows = nextRows
+  renderApp()
+}
 let enableProgress = true
 let editableProgress = true
 let showProgressLabel = true
@@ -447,6 +504,8 @@ const renderApp = () => {
     dependency: {
       lineStyle: dependencyLineStyle,
       showConnectors,
+      autoSchedule,
+      scheduleMode,
     },
     zoom: {
       enabled: true,
@@ -1007,6 +1066,21 @@ const renderApp = () => {
                 ${t.showConnectors}
               </label>
               <label class="toggle-label">
+                <input type="checkbox" .checked="${autoSchedule}" @change="${(e: Event) => { autoSchedule = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${currentLang === 'ja' ? '自動スケジュール連動' : 'Auto Schedule'}
+              </label>
+              <span class="select-group" style="${!autoSchedule ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                ${currentLang === 'ja' ? '連動モード' : 'Schedule Mode'}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => { scheduleMode = (e.target as HTMLSelectElement).value as AutoScheduleMode; renderApp() }}"
+                >
+                  <option value="push-only" ?selected="${scheduleMode === 'push-only'}">Push Only</option>
+                  <option value="strict" ?selected="${scheduleMode === 'strict'}">Strict (ASAP)</option>
+                </select>
+              </span>
+              <label class="toggle-label">
                 <input type="checkbox" .checked="${enableProgress}" @change="${(e: Event) => { enableProgress = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.enableProgress}
@@ -1185,6 +1259,116 @@ const renderApp = () => {
 
       <div style="display: flex; gap: 16px; align-items: flex-start;">
         <div style="flex-grow: 1; min-width: 0;">
+          ${(() => {
+            const depInfo = getSelectedDependencyInfo()
+            if (!depInfo) return ''
+            const { sourceTask, targetTask, link } = depInfo
+            const unitMinutes = viewMode === 'hour' ? 60 : 1440
+            const unitLabel =
+              viewMode === 'hour'
+                ? currentLang === 'ja'
+                  ? '時間'
+                  : 'h'
+                : currentLang === 'ja'
+                  ? '日'
+                  : 'd'
+            const lagInUnit = Math.round((link.lag / unitMinutes) * 10) / 10
+            const depTypes: { type: DependencyType; label: string }[] = [
+              { type: 'FS', label: currentLang === 'ja' ? 'FS (終了→開始)' : 'FS (Finish→Start)' },
+              { type: 'SS', label: currentLang === 'ja' ? 'SS (開始→開始)' : 'SS (Start→Start)' },
+              { type: 'FF', label: currentLang === 'ja' ? 'FF (終了→終了)' : 'FF (Finish→Finish)' },
+              { type: 'SF', label: currentLang === 'ja' ? 'SF (開始→終了)' : 'SF (Start→Finish)' },
+            ]
+            return html`
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  flex-wrap: wrap;
+                  gap: 12px;
+                  margin-bottom: 10px;
+                  padding: 8px 14px;
+                  background: ${isDark ? '#1e293b' : '#eff6ff'};
+                  border: 1px solid ${isDark ? '#3b82f6' : '#93c5fd'};
+                  border-radius: 8px;
+                  font-size: 13px;
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                  <span>🔗 ${currentLang === 'ja' ? '選択中の依存関係:' : 'Selected Dependency:'}</span>
+                  <span style="padding: 2px 8px; border-radius: 4px; background: ${isDark ? '#334155' : '#dbeafe'};">
+                    ${sourceTask.name || sourceTask.id}
+                  </span>
+                  <span>➔</span>
+                  <span style="padding: 2px 8px; border-radius: 4px; background: ${isDark ? '#334155' : '#dbeafe'};">
+                    ${targetTask.name || targetTask.id}
+                  </span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 12px; color: ${c.textMuted};">
+                      ${currentLang === 'ja' ? '種別:' : 'Type:'}
+                    </span>
+                    <div class="seg-group">
+                      ${depTypes.map(
+                        (dt) => html`
+                          <label
+                            class="${link.type === dt.type ? 'active' : ''}"
+                            @click="${() => updateSelectedDependency(dt.type, link.lag)}"
+                          >
+                            ${dt.label}
+                          </label>
+                        `,
+                      )}
+                    </div>
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 12px; color: ${c.textMuted};">
+                      ${currentLang === 'ja' ? `ラグ (${unitLabel}):` : `Lag (${unitLabel}):`}
+                    </span>
+                    <button
+                      class="export-btn"
+                      style="background: #64748b; padding: 2px 8px; font-size: 12px;"
+                      @click="${() => updateSelectedDependency(link.type, link.lag - unitMinutes)}"
+                    >
+                      -1
+                    </button>
+                    <input
+                      type="number"
+                      step="1"
+                      .value="${String(lagInUnit)}"
+                      style="
+                        width: 56px;
+                        padding: 3px 6px;
+                        border: 1px solid ${c.selectBorder};
+                        border-radius: 4px;
+                        background: ${c.selectBg};
+                        color: ${c.text};
+                        font-size: 12px;
+                        text-align: center;
+                      "
+                      @change="${(e: Event) => {
+                        const val = Number((e.target as HTMLInputElement).value)
+                        if (!Number.isNaN(val)) {
+                          updateSelectedDependency(link.type, Math.round(val * unitMinutes))
+                        }
+                      }}"
+                    />
+                    <button
+                      class="export-btn"
+                      style="background: #64748b; padding: 2px 8px; font-size: 12px;"
+                      @click="${() => updateSelectedDependency(link.type, link.lag + unitMinutes)}"
+                    >
+                      +1
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `
+          })()}
           <gantt-chart
             style="height: 50vh;"
             .rows="${rows}"
@@ -1236,46 +1420,26 @@ const renderApp = () => {
               console.log('Row header context menu:', e.detail)
             }}"
             @dependency-create="${(e: CustomEvent) => {
-              const { sourceTaskId, targetTaskId } = e.detail
               console.log('Dependency created:', e.detail)
-              // dependencies配列にsourceTaskIdを追加（既存と重複しない場合のみ）
-              rows = rows.map((row) => ({
-                ...row,
-                tasks: row.tasks.map((task) => {
-                  if (task.id === targetTaskId) {
-                    const deps = task.dependencies ?? []
-                    if (!deps.includes(sourceTaskId)) {
-                      return { ...task, dependencies: [...deps, sourceTaskId] }
-                    }
-                  }
-                  return task
-                }),
-              }))
-              renderApp()
             }}"
             @dependency-click="${(e: CustomEvent) => {
               console.log('Dependency clicked:', e.detail)
             }}"
             @dependency-select="${(e: CustomEvent<DependencySelectEventDetail>) => {
               console.log('Dependency selected:', e.detail)
+              selectedDependency = e.detail.selected
+              renderApp()
             }}"
             @dependency-delete="${(e: CustomEvent<DependencyDeleteEventDetail>) => {
-              const { sourceTaskId, targetTaskId } = e.detail
               console.log('Dependency deleted:', e.detail)
-              // targetTaskId の dependencies から sourceTaskId を削除
-              rows = rows.map((row) => ({
-                ...row,
-                tasks: row.tasks.map((task) => {
-                  if (task.id === targetTaskId && task.dependencies) {
-                    return {
-                      ...task,
-                      dependencies: task.dependencies.filter((id) => id !== sourceTaskId),
-                    }
-                  }
-                  return task
-                }),
-              }))
-              renderApp()
+              if (
+                selectedDependency &&
+                selectedDependency.sourceTaskId === e.detail.sourceTaskId &&
+                selectedDependency.targetTaskId === e.detail.targetTaskId
+              ) {
+                selectedDependency = null
+                renderApp()
+              }
             }}"
             @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
               console.log('Task progress changed:', e.detail)

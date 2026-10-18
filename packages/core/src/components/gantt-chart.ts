@@ -20,11 +20,13 @@ import type {
   GanttColumn,
   ColumnResizeEventDetail,
   CellEditEventDetail,
+  GanttDependency,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
 import { normalizeGridColumns, applyGridCellEdit } from '../core/grid'
 import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
+import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule'
 import { LitElement, html, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
@@ -854,7 +856,7 @@ export class GanttChartElement extends LitElement {
         y: number
         width: number
         height: number
-        dependencies?: string[]
+        dependencies?: GanttDependency[]
         isSummary?: boolean
       }
     >()
@@ -1566,8 +1568,23 @@ export class GanttChartElement extends LitElement {
 
     if (!editResult.changed) return
 
-    const nextRows = [...this.rows]
+    let nextRows = [...this.rows]
     nextRows[rowIndex] = clonedRow
+
+    const editedNormalTasks = (clonedRow.tasks ?? []).filter(
+      (t) => t.type !== 'summary' && !(t as any).isSummary,
+    )
+    const editedSingleTask = editedNormalTasks.length === 1 ? editedNormalTasks[0] : undefined
+
+    if (this.option.dependency?.autoSchedule && editedSingleTask) {
+      const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
+        mode: this.option.dependency.scheduleMode,
+        respectMovable: this.option.dependency.respectMovable,
+      })
+      if (scheduleResult.hasChanges) {
+        nextRows = scheduleResult.rows
+      }
+    }
 
     this.applyRowsChangeWithCommand(previousRows, nextRows, {
       type: 'cell-edit',
@@ -1597,6 +1614,28 @@ export class GanttChartElement extends LitElement {
         composed: true,
       }),
     )
+  }
+
+  /**
+   * 依存関係に基づいて後続タスクの日程を自動的に再計算・カスケード更新する
+   * @param changedTaskIds 変更の起点となるタスクID配列（省略時は依存関係を持つ全タスクを対象に再計算）
+   * @param options 自動スケジューリング設定
+   * @returns 日時が更新されたタスクIDの配列
+   */
+  public autoSchedule(changedTaskIds?: string[], options?: AutoScheduleOptions): string[] {
+    const previousRows = this.rows
+    const scheduleResult = propagateAutoSchedule(this.rows, changedTaskIds, {
+      mode: options?.mode ?? this.option?.dependency?.scheduleMode,
+      respectMovable: options?.respectMovable ?? this.option?.dependency?.respectMovable,
+    })
+    if (!scheduleResult.hasChanges) {
+      return []
+    }
+    this.applyRowsChangeWithCommand(previousRows, scheduleResult.rows, {
+      type: 'custom',
+      description: '自動スケジューリング',
+    })
+    return scheduleResult.updatedTaskIds
   }
 
   /**

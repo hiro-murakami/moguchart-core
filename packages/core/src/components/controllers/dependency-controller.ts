@@ -12,6 +12,13 @@ import type {
   RowSelectionChangeEventDetail,
 } from '../../core/types'
 import type { GanttCommandType } from '../../core/history'
+import {
+  createDependencyEntry,
+  endpointsToDependencyType,
+  hasDependencyTarget,
+  propagateAutoSchedule,
+  removeDependencyTarget,
+} from '../../core/auto-schedule'
 
 export interface ConnectorDragState {
   sourceTaskId: string
@@ -114,7 +121,7 @@ export class DependencyController implements ReactiveController {
       }
     }
 
-    if (targetTask && targetTask.dependencies?.includes(sourceTaskId)) {
+    if (targetTask && hasDependencyTarget(targetTask.dependencies, sourceTaskId)) {
       const previousRows = this.host.rows
       const newRows = previousRows.map((row) => ({
         ...row,
@@ -122,7 +129,7 @@ export class DependencyController implements ReactiveController {
           if (t.id === targetTaskId && t.dependencies) {
             return {
               ...t,
-              dependencies: t.dependencies.filter((id) => id !== sourceTaskId),
+              dependencies: removeDependencyTarget(t.dependencies, sourceTaskId),
             }
           }
           return t
@@ -285,21 +292,33 @@ export class DependencyController implements ReactiveController {
           }
         }
 
+        const depType = endpointsToDependencyType(sourceEndpoint, targetEndpoint)
+        const depEntry = createDependencyEntry(sourceTaskId, depType)
         const currentDeps = targetTask?.dependencies ?? []
-        if (targetTask && !currentDeps.includes(sourceTaskId)) {
+        if (targetTask && !hasDependencyTarget(currentDeps, sourceTaskId)) {
           const previousRows = this.host.rows
-          const newRows = previousRows.map((row) => ({
+          let newRows = previousRows.map((row) => ({
             ...row,
             tasks: row.tasks.map((t) => {
               if (t.id === targetTaskId) {
                 return {
                   ...t,
-                  dependencies: [...(t.dependencies ?? []), sourceTaskId],
+                  dependencies: [...(t.dependencies ?? []), depEntry],
                 }
               }
               return t
             }),
           }))
+
+          if (this.host.option.dependency?.autoSchedule) {
+            const scheduleResult = propagateAutoSchedule(newRows, [sourceTaskId], {
+              mode: this.host.option.dependency.scheduleMode,
+              respectMovable: this.host.option.dependency.respectMovable,
+            })
+            if (scheduleResult.hasChanges) {
+              newRows = scheduleResult.rows
+            }
+          }
 
           this.host.applyRowsChangeWithCommand(previousRows, newRows, {
             type: 'dependency-create',
@@ -314,6 +333,7 @@ export class DependencyController implements ReactiveController {
               sourceEndpoint,
               targetTaskId,
               targetEndpoint,
+              type: depType,
             },
             bubbles: true,
             composed: true,

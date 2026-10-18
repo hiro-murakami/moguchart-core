@@ -1,4 +1,5 @@
-import type { GanttRow } from './types'
+import type { GanttDependencyLink, GanttRow } from './types'
+import { computeRequiredStartMs, normalizeDependencyLink } from './auto-schedule'
 
 /**
  * 依存関係グラフからクリティカルパス上のタスクIDの集合を計算する。
@@ -18,13 +19,16 @@ import type { GanttRow } from './types'
  */
 export function computeCriticalPath(rows: GanttRow[]): Set<string> {
   // 全タスクをフラットに収集
-  const taskMap = new Map<string, { start: number; end: number; duration: number; dependencies: string[] }>()
+  const taskMap = new Map<
+    string,
+    { start: number; end: number; duration: number; dependencies: Required<GanttDependencyLink>[] }
+  >()
   const successors = new Map<string, string[]>()
   const inDegree = new Map<string, number>()
 
   for (const row of rows) {
     for (const task of row.tasks) {
-      const deps = task.dependencies ?? []
+      const deps = (task.dependencies ?? []).map(normalizeDependencyLink)
       const startTime = task.start instanceof Date ? task.start.getTime() : new Date(task.start as any).getTime()
       const endTime = task.end instanceof Date ? task.end.getTime() : new Date(task.end as any).getTime()
 
@@ -47,7 +51,8 @@ export function computeCriticalPath(rows: GanttRow[]): Set<string> {
 
   for (const [taskId, task] of taskMap) {
     let validDepCount = 0
-    for (const depId of task.dependencies) {
+    for (const depLink of task.dependencies) {
+      const depId = depLink.taskId
       if (taskMap.has(depId)) {
         validDepCount++
         const succs = successors.get(depId) ?? []
@@ -100,7 +105,7 @@ export function computeCriticalPath(rows: GanttRow[]): Set<string> {
     const task = taskMap.get(id)
     if (!task) continue
 
-    const validDeps = task.dependencies.filter((depId) => ef.has(depId))
+    const validDeps = task.dependencies.filter((dep) => ef.has(dep.taskId))
 
     if (validDeps.length === 0) {
       // チェーンの起点: 自身の終了時刻がEF
@@ -111,9 +116,13 @@ export function computeCriticalPath(rows: GanttRow[]): Set<string> {
       let bestEF = -Infinity
       let bestPred: string | null = null
 
-      for (const depId of validDeps) {
+      for (const depLink of validDeps) {
+        const depId = depLink.taskId
         const depEF = ef.get(depId)!
-        const candidateEF = depEF + task.duration
+        const depTask = taskMap.get(depId)!
+        const depES = depEF - depTask.duration
+        const reqStart = computeRequiredStartMs(depES, depEF, task.duration, depLink.type, depLink.lag)
+        const candidateEF = reqStart + task.duration
         if (candidateEF > bestEF) {
           bestEF = candidateEF
           bestPred = depId

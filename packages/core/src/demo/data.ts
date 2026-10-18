@@ -114,7 +114,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     ],
   })
 
-  // ── Row 2: 暖色系 + Row1からの行間依存関係 ──
+  // ── Row 2: 暖色系 + Row1からの行間依存関係 (SS + ラグ / FS + ラグ) ──
   rows.push({
     id: 'row2',
     name: t.project(2),
@@ -125,6 +125,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 2),
         end: d(start, 8),
         style: `background-color: ${colors.orange};`,
+        dependencies: [{ taskId: 't1-1', type: 'SS', lag: 2 * 1440 }], // Row1企画開始の2日後に並行開始 (SS + 2日ラグ)
         progress: 90,
       },
       {
@@ -133,7 +134,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 9),
         end: d(start, 20),
         style: `background-color: ${colors.pink};`,
-        dependencies: ['t2-1', 't1-2'], // Row1の設計が完了後に着手（行間依存）
+        dependencies: ['t2-1', { taskId: 't1-2', type: 'SS', lag: 4 * 1440 }], // UI設計完了後(FS) & Row1設計開始の4日後(SS)
         progress: 45,
       },
       {
@@ -142,7 +143,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 21),
         end: d(start, 28),
         style: `background-color: ${colors.red};`,
-        dependencies: ['t2-2'],
+        dependencies: [{ taskId: 't2-2', type: 'FS', lag: 1440 }], // フロントエンド完了の1日後に着手 (FS + 1日ラグ)
         progress: 0,
       },
     ],
@@ -158,7 +159,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     ],
   })
 
-  // ── Row 3: 寒色系 + Row1,2からの合流依存 ──
+  // ── Row 3: 寒色系 + Row1,2からの合流依存 (FS + FF) ──
   rows.push({
     id: 'row3',
     name: t.project(3),
@@ -169,7 +170,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 5),
         end: d(start, 18),
         style: `background-color: ${colors.cyan};`,
-        dependencies: ['t1-1'], // Row1企画完了後に着手
+        dependencies: ['t1-1'], // Row1企画完了後に着手 (FS)
         progress: 60,
       },
       {
@@ -178,7 +179,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 21),
         end: d(start, 30),
         style: `background-color: ${colors.indigo};`,
-        dependencies: ['t3-1', 't2-2'], // バックエンド + フロントエンド両方完了後（合流依存）
+        dependencies: ['t3-1', 't2-2', { taskId: 't2-3', type: 'FF', lag: 2 * 1440 }], // FF + 2日ラグを含む合流依存
         progress: 10,
       },
     ],
@@ -228,7 +229,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     ],
   })
 
-  // ── Row 5: dots / checkerboard / grid パターン ──
+  // ── Row 5: dots / checkerboard / grid パターン (SF依存を含む) ──
   rows.push({
     id: 'row5',
     name: t.project(5),
@@ -240,6 +241,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 7),
         style: `background-color: ${colors.orange};`,
         pattern: { type: 'dots', color: 'rgba(255,255,255,0.5)' },
+        dependencies: [{ taskId: 't4-2', type: 'SF' }], // Row4試作開始に合わせて完了 (SF)
       },
       {
         id: 't5-2',
