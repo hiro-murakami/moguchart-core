@@ -204,7 +204,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                       onDependencyDelete(depId, taskId, e)
                     }}"
                   >
-                    <circle class="dependency-delete-btn-hit-area" r="14" cx="0" cy="0" />
+                    <circle class="dependency-delete-btn-hit-area" r="10" cx="0" cy="0" />
                     <circle class="dependency-delete-btn-circle" r="8" cx="0" cy="0" />
                     <line class="dependency-delete-btn-icon" x1="-3" y1="-3" x2="3" y2="3" />
                     <line class="dependency-delete-btn-icon" x1="3" y1="-3" x2="-3" y2="3" />

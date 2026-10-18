@@ -144,6 +144,46 @@ describe('utils', () => {
       expect(result.tasksWithLanes.find((t) => t.id === 'n1')?.lane).toBe(1)
       expect(result.tasksWithLanes.find((t) => t.id === 'n2')?.lane).toBe(2)
     })
+
+    it('assigns different lane when successor has FS dependency with lag 0 and touching dates', () => {
+      const task1: GanttTask = {
+        id: '1',
+        name: 'Predecessor',
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-05'),
+      }
+      const task2: GanttTask = {
+        id: '2',
+        name: 'Successor',
+        start: new Date('2024-01-05'),
+        end: new Date('2024-01-10'),
+        dependencies: ['1'], // FS with lag 0
+      }
+      const result = calculateTaskLanes([task1, task2])
+      expect(result.laneCount).toBe(2)
+      expect(result.tasksWithLanes.find((t) => t.id === '1')?.lane).toBe(0)
+      expect(result.tasksWithLanes.find((t) => t.id === '2')?.lane).toBe(1)
+    })
+
+    it('assigns same lane when successor has FS dependency with positive gap between dates', () => {
+      const task1: GanttTask = {
+        id: '1',
+        name: 'Predecessor',
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-05'),
+      }
+      const task2: GanttTask = {
+        id: '2',
+        name: 'Successor',
+        start: new Date('2024-01-06'),
+        end: new Date('2024-01-10'),
+        dependencies: [{ taskId: '1', type: 'FS', lag: 0 }],
+      }
+      const result = calculateTaskLanes([task1, task2])
+      expect(result.laneCount).toBe(1)
+      expect(result.tasksWithLanes.find((t) => t.id === '1')?.lane).toBe(0)
+      expect(result.tasksWithLanes.find((t) => t.id === '2')?.lane).toBe(0)
+    })
   })
 
   describe('getThemeColors', () => {

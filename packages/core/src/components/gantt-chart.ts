@@ -80,6 +80,7 @@ export class GanttChartElement extends LitElement {
   public set selectedDependency(val: { sourceTaskId: string; targetTaskId: string } | null) {
     if (this._dependencyController) {
       this._dependencyController.selectedDependency = val
+      this.requestUpdate()
     }
   }
   @property({ attribute: false })

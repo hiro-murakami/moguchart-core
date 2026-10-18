@@ -117,7 +117,7 @@ export const ganttChartStyles = css`
     stroke: transparent;
     fill: none;
     pointer-events: stroke;
-    cursor: pointer;
+    cursor: default;
   }
   .dependency-group:hover .dependency-line {
     stroke-width: 3;
@@ -157,11 +157,14 @@ export const ganttChartStyles = css`
   }
   .dependency-delete-btn-circle {
     fill: #ef4444;
-    transition: fill 0.15s ease, filter 0.15s ease;
+    transition: fill 0.15s ease, filter 0.15s ease, transform 0.15s ease;
   }
   .dependency-delete-btn:hover .dependency-delete-btn-circle {
     fill: #dc2626;
-    filter: drop-shadow(0 0 3px rgba(220, 38, 38, 0.8));
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.9));
   }
   .dependency-delete-btn-icon {
     stroke: #ffffff;

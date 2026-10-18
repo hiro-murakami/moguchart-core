@@ -139,6 +139,7 @@ let showConnectors = true
 let autoSchedule = true
 let scheduleMode: AutoScheduleMode = 'push-only'
 let selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
+let selectedDependencyPos: { x: number; y: number } | null = null
 
 const getSelectedDependencyInfo = () => {
   if (!selectedDependency) return null
@@ -161,6 +162,7 @@ const getSelectedDependencyInfo = () => {
 const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number) => {
   if (!selectedDependency) return
   const { sourceTaskId, targetTaskId } = selectedDependency
+  const previousRows = rows
   const updatedEntry = createDependencyEntry(sourceTaskId, newType, newLagMinutes)
   let nextRows = rows.map((row) => ({
     ...row,
@@ -179,11 +181,20 @@ const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number
 
   if (autoSchedule) {
     nextRows = propagateAutoSchedule(nextRows, [sourceTaskId], {
-      mode: scheduleMode,
+      mode: 'strict',
     }).rows
   }
-  rows = nextRows
-  renderApp()
+
+  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement | null
+  if (chart) {
+    chart.applyRowsChangeWithCommand(previousRows, nextRows, {
+      type: 'dependency-update',
+      description: '接続線の種別・ラグを変更',
+    })
+  } else {
+    rows = nextRows
+    renderApp()
+  }
 }
 let enableProgress = true
 let editableProgress = true
@@ -1261,92 +1272,183 @@ const renderApp = () => {
         <div style="flex-grow: 1; min-width: 0;">
           ${(() => {
             const depInfo = getSelectedDependencyInfo()
-            if (!depInfo) return ''
+            if (!depInfo || !selectedDependencyPos) return ''
             const { sourceTask, targetTask, link } = depInfo
-            const unitMinutes = viewMode === 'hour' ? 60 : 1440
-            const unitLabel =
-              viewMode === 'hour'
+            const stepMinutes = viewMode === 'month' ? 43200 : snapDuration
+            const isMonthUnit = viewMode === 'month'
+            const isDayUnit = !isMonthUnit && stepMinutes >= 1440 && stepMinutes % 1440 === 0
+            const isHourUnit = !isMonthUnit && !isDayUnit && stepMinutes >= 60 && stepMinutes % 60 === 0
+            const unitMinutes = isMonthUnit ? 43200 : isDayUnit ? 1440 : isHourUnit ? 60 : 1
+            const unitLabel = isMonthUnit
+              ? currentLang === 'ja'
+                ? 'ヶ月'
+                : 'mo'
+              : isDayUnit
                 ? currentLang === 'ja'
-                  ? '時間'
-                  : 'h'
-                : currentLang === 'ja'
                   ? '日'
                   : 'd'
-            const lagInUnit = Math.round((link.lag / unitMinutes) * 10) / 10
-            const depTypes: { type: DependencyType; label: string }[] = [
-              { type: 'FS', label: currentLang === 'ja' ? 'FS (終了→開始)' : 'FS (Finish→Start)' },
-              { type: 'SS', label: currentLang === 'ja' ? 'SS (開始→開始)' : 'SS (Start→Start)' },
-              { type: 'FF', label: currentLang === 'ja' ? 'FF (終了→終了)' : 'FF (Finish→Finish)' },
-              { type: 'SF', label: currentLang === 'ja' ? 'SF (開始→終了)' : 'SF (Start→Finish)' },
+                : isHourUnit
+                  ? currentLang === 'ja'
+                    ? '時間'
+                    : 'h'
+                  : currentLang === 'ja'
+                    ? '分'
+                    : 'min'
+            const stepInUnit = stepMinutes / unitMinutes
+            const lagInUnit = Math.round((link.lag / unitMinutes) * 100) / 100
+            const depTypes: { type: DependencyType; label: string; title: string }[] = [
+              {
+                type: 'FS',
+                label: 'FS',
+                title: currentLang === 'ja' ? '終了→開始 (Finish-to-Start)' : 'Finish-to-Start',
+              },
+              {
+                type: 'SS',
+                label: 'SS',
+                title: currentLang === 'ja' ? '開始→開始 (Start-to-Start)' : 'Start-to-Start',
+              },
+              {
+                type: 'FF',
+                label: 'FF',
+                title: currentLang === 'ja' ? '終了→終了 (Finish-to-Finish)' : 'Finish-to-Finish',
+              },
+              {
+                type: 'SF',
+                label: 'SF',
+                title: currentLang === 'ja' ? '開始→終了 (Start-to-Finish)' : 'Start-to-Finish',
+              },
             ]
+
+            const winW = typeof window !== 'undefined' ? window.innerWidth : 1200
+            const clampedX = Math.max(150, Math.min(winW - 150, selectedDependencyPos.x))
+            const placeBelow = selectedDependencyPos.y < 140
+            const posY = placeBelow ? selectedDependencyPos.y + 14 : selectedDependencyPos.y - 14
+
+            const ttBg = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'
+            const ttText = isDark ? '#0f172a' : 'white'
+            const ttMuted = isDark ? '#64748b' : '#cbd5e1'
+            const ttBorder = isDark ? 'rgba(203, 213, 225, 0.8)' : 'rgba(255, 255, 255, 0.2)'
+            const ttSegBg = isDark ? 'rgba(226, 232, 240, 0.85)' : 'rgba(255, 255, 255, 0.12)'
+            const ttSegText = isDark ? '#475569' : '#e2e8f0'
+            const ttBtnBg = isDark ? 'rgba(226, 232, 240, 0.9)' : 'rgba(255, 255, 255, 0.18)'
+            const ttInputBg = isDark ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.45)'
+            const ttInputBorder = isDark ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)'
+
             return html`
               <div
                 style="
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  flex-wrap: wrap;
-                  gap: 12px;
-                  margin-bottom: 10px;
-                  padding: 8px 14px;
-                  background: ${isDark ? '#1e293b' : '#eff6ff'};
-                  border: 1px solid ${isDark ? '#3b82f6' : '#93c5fd'};
-                  border-radius: 8px;
-                  font-size: 13px;
+                  position: fixed;
+                  left: ${clampedX}px;
+                  top: ${posY}px;
+                  transform: translate(-50%, ${placeBelow ? '0%' : '-100%'});
+                  z-index: 9999;
+                  background-color: ${ttBg};
+                  color: ${ttText};
+                  border: 1px solid ${ttBorder};
+                  border-radius: 6px;
+                  padding: 10px 12px;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                  font-size: 12px;
+                  min-width: 240px;
                 "
+                @click="${(e: Event) => e.stopPropagation()}"
               >
-                <div style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
-                  <span>🔗 ${currentLang === 'ja' ? '選択中の依存関係:' : 'Selected Dependency:'}</span>
-                  <span style="padding: 2px 8px; border-radius: 4px; background: ${isDark ? '#334155' : '#dbeafe'};">
-                    ${sourceTask.name || sourceTask.id}
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    font-weight: 600;
+                    padding-bottom: 6px;
+                    margin-bottom: 8px;
+                    border-bottom: 1px solid ${ttBorder};
+                  "
+                >
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    🔗 ${sourceTask.name || sourceTask.id} ➔ ${targetTask.name || targetTask.id}
                   </span>
-                  <span>➔</span>
-                  <span style="padding: 2px 8px; border-radius: 4px; background: ${isDark ? '#334155' : '#dbeafe'};">
-                    ${targetTask.name || targetTask.id}
-                  </span>
+                  <button
+                    style="
+                      background: transparent;
+                      border: none;
+                      color: ${ttMuted};
+                      cursor: pointer;
+                      font-size: 14px;
+                      line-height: 1;
+                      padding: 0 2px;
+                    "
+                    title="Close"
+                    @click="${() => {
+                      selectedDependency = null
+                      selectedDependencyPos = null
+                      const chart = document.getElementById('gantt-chart-instance') as GanttChartElement | null
+                      if (chart) {
+                        chart.selectedDependency = null
+                      }
+                      renderApp()
+                    }}"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 12px; color: ${c.textMuted};">
-                      ${currentLang === 'ja' ? '種別:' : 'Type:'}
-                    </span>
-                    <div class="seg-group">
-                      ${depTypes.map(
-                        (dt) => html`
-                          <label
-                            class="${link.type === dt.type ? 'active' : ''}"
-                            @click="${() => updateSelectedDependency(dt.type, link.lag)}"
-                          >
-                            ${dt.label}
-                          </label>
-                        `,
-                      )}
-                    </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
+                  <span style="color: ${ttMuted};">${currentLang === 'ja' ? '種別' : 'Type'}</span>
+                  <div style="display: inline-flex; background: ${ttSegBg}; border-radius: 6px; padding: 2px; gap: 2px;">
+                    ${depTypes.map(
+                      (dt) => html`
+                        <button
+                          title="${dt.title}"
+                          style="
+                            border: none;
+                            border-radius: 4px;
+                            padding: 3px 8px;
+                            font-size: 11px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            background: ${link.type === dt.type ? '#3b82f6' : 'transparent'};
+                            color: ${link.type === dt.type ? '#ffffff' : ttSegText};
+                          "
+                          @click="${() => updateSelectedDependency(dt.type, link.lag)}"
+                        >
+                          ${dt.label}
+                        </button>
+                      `,
+                    )}
                   </div>
+                </div>
 
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 12px; color: ${c.textMuted};">
-                      ${currentLang === 'ja' ? `ラグ (${unitLabel}):` : `Lag (${unitLabel}):`}
-                    </span>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span style="color: ${ttMuted};">
+                    ${currentLang === 'ja' ? `ラグ (${unitLabel})` : `Lag (${unitLabel})`}
+                  </span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
                     <button
-                      class="export-btn"
-                      style="background: #64748b; padding: 2px 8px; font-size: 12px;"
-                      @click="${() => updateSelectedDependency(link.type, link.lag - unitMinutes)}"
+                      style="
+                        background: ${ttBtnBg};
+                        color: ${ttText};
+                        border: none;
+                        border-radius: 4px;
+                        padding: 2px 7px;
+                        font-size: 11px;
+                        cursor: pointer;
+                      "
+                      @click="${() => updateSelectedDependency(link.type, link.lag - stepMinutes)}"
                     >
-                      -1
+                      -${stepInUnit}
                     </button>
                     <input
                       type="number"
-                      step="1"
+                      step="${stepInUnit}"
                       .value="${String(lagInUnit)}"
                       style="
-                        width: 56px;
-                        padding: 3px 6px;
-                        border: 1px solid ${c.selectBorder};
+                        width: 54px;
+                        padding: 2px 4px;
+                        border: 1px solid ${ttInputBorder};
                         border-radius: 4px;
-                        background: ${c.selectBg};
-                        color: ${c.text};
+                        background: ${ttInputBg};
+                        color: ${ttText};
                         font-size: 12px;
                         text-align: center;
                       "
@@ -1358,11 +1460,18 @@ const renderApp = () => {
                       }}"
                     />
                     <button
-                      class="export-btn"
-                      style="background: #64748b; padding: 2px 8px; font-size: 12px;"
-                      @click="${() => updateSelectedDependency(link.type, link.lag + unitMinutes)}"
+                      style="
+                        background: ${ttBtnBg};
+                        color: ${ttText};
+                        border: none;
+                        border-radius: 4px;
+                        padding: 2px 7px;
+                        font-size: 11px;
+                        cursor: pointer;
+                      "
+                      @click="${() => updateSelectedDependency(link.type, link.lag + stepMinutes)}"
                     >
-                      +1
+                      +${stepInUnit}
                     </button>
                   </div>
                 </div>
@@ -1424,10 +1533,26 @@ const renderApp = () => {
             }}"
             @dependency-click="${(e: CustomEvent) => {
               console.log('Dependency clicked:', e.detail)
+              if (e.detail?.sourceTaskId && e.detail?.targetTaskId) {
+                selectedDependency = {
+                  sourceTaskId: e.detail.sourceTaskId,
+                  targetTaskId: e.detail.targetTaskId,
+                }
+              }
+              if (e.detail?.event) {
+                selectedDependencyPos = {
+                  x: e.detail.event.clientX,
+                  y: e.detail.event.clientY,
+                }
+              }
+              renderApp()
             }}"
             @dependency-select="${(e: CustomEvent<DependencySelectEventDetail>) => {
               console.log('Dependency selected:', e.detail)
               selectedDependency = e.detail.selected
+              if (!e.detail.selected) {
+                selectedDependencyPos = null
+              }
               renderApp()
             }}"
             @dependency-delete="${(e: CustomEvent<DependencyDeleteEventDetail>) => {
@@ -1438,6 +1563,7 @@ const renderApp = () => {
                 selectedDependency.targetTaskId === e.detail.targetTaskId
               ) {
                 selectedDependency = null
+                selectedDependencyPos = null
                 renderApp()
               }
             }}"

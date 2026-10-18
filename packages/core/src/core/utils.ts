@@ -1,3 +1,4 @@
+import { normalizeDependencyLink } from './auto-schedule'
 import type { GanttRow, GanttTask, TaskWithLane, ThemeColorPalette } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
@@ -90,6 +91,33 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     return { tasksWithLanes: [], laneCount: 1 }
   }
 
+  const rowTaskMap = new Map<string, GanttTask>()
+  for (const t of tasks) {
+    rowTaskMap.set(t.id, t)
+  }
+
+  // 同一行の先行タスクと FS かつ lag === 0 で接続されており、
+  // かつ先行タスクの終了日時と後続タスクの開始日時が接している（隙間がない）場合、
+  // 同じレーンに配置すると接続線の長さが 0 になり選択できなくなるため、別レーンに配置する。
+  const getBlockedLanes = (
+    task: GanttTask,
+    assignedRelativeLaneMap: Map<string, number>,
+  ): Set<number> => {
+    const blocked = new Set<number>()
+    if (!task.dependencies) return blocked
+    for (const rawDep of task.dependencies) {
+      const link = normalizeDependencyLink(rawDep)
+      if (link.type === 'FS' && link.lag === 0) {
+        const pred = rowTaskMap.get(link.taskId)
+        const predLane = assignedRelativeLaneMap.get(link.taskId)
+        if (pred && predLane !== undefined && task.start.getTime() <= pred.end.getTime()) {
+          blocked.add(predLane)
+        }
+      }
+    }
+    return blocked
+  }
+
   const summaryTasks = tasks.filter((t) => t.type === 'summary')
   const normalTasks = tasks.filter((t) => t.type !== 'summary')
 
@@ -113,11 +141,13 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     // 通常タスクはレーン1以降に配置（通常タスク同士の重なり計算）
     const sortedNormalTasks = [...normalTasks].sort((a, b) => a.start.getTime() - b.start.getTime())
     const lanes: Date[] = []
+    const normalRelativeLaneMap = new Map<string, number>()
 
     for (const task of sortedNormalTasks) {
+      const blockedLanes = getBlockedLanes(task, normalRelativeLaneMap)
       let assignedLane = -1
       for (let i = 0; i < lanes.length; i++) {
-        if (task.start >= lanes[i]) {
+        if (task.start >= lanes[i] && !blockedLanes.has(i)) {
           lanes[i] = task.end
           assignedLane = i
           break
@@ -127,6 +157,7 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
         lanes.push(task.end)
         assignedLane = lanes.length - 1
       }
+      normalRelativeLaneMap.set(task.id, assignedLane)
       // サマリータスクがレーン0のため +1 オフセット
       taskLaneMap.set(task.id, assignedLane + 1)
     }
@@ -149,11 +180,12 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   const taskLaneMap = new Map<string, number>()
 
   for (const task of sortedTasks) {
+    const blockedLanes = getBlockedLanes(task, taskLaneMap)
     let assignedLane = -1
     // 既存のレーンに空きがあるか探す
     for (let i = 0; i < lanes.length; i++) {
       // このレーンの最後のタスク終了日よりも、現在のタスク開始日が後であれば配置可能
-      if (task.start >= lanes[i]) {
+      if (task.start >= lanes[i] && !blockedLanes.has(i)) {
         lanes[i] = task.end // レーンの終了日を更新
         assignedLane = i
         break
