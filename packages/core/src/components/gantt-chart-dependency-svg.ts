@@ -182,10 +182,23 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
           lines.push(
             svg`<g class="dependency-group ${isSelected ? 'selected' : ''}" data-dependency-type="${depType}">
               ${!isReadOnly
-                ? svg`<path class="dependency-hit-area" d="${hitPathD}" @click="${(e: MouseEvent) => {
-                    e.stopPropagation()
-                    onDependencyLineClick(e, taskId, depId)
-                  }}" />`
+                ? svg`<path
+                    class="dependency-hit-area"
+                    d="${hitPathD}"
+                    @click="${(e: MouseEvent) => {
+                      e.stopPropagation()
+                      onDependencyLineClick(e, taskId, depId)
+                    }}"
+                    @dblclick="${(e: MouseEvent) => {
+                      e.stopPropagation()
+                      onDependencyLineClick(e, taskId, depId)
+                    }}"
+                    @contextmenu="${(e: MouseEvent) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onDependencyLineClick(e, taskId, depId)
+                    }}"
+                  />`
                 : ''}
               <path class="dependency-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${pathD}" />
               ${showArrows
@@ -202,6 +215,11 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                       e.stopPropagation()
                       e.preventDefault()
                       onDependencyDelete(depId, taskId, e)
+                    }}"
+                    @contextmenu="${(e: MouseEvent) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onDependencyLineClick(e, taskId, depId)
                     }}"
                   >
                     <circle class="dependency-delete-btn-hit-area" r="10" cx="0" cy="0" />
