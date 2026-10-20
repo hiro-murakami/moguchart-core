@@ -63,17 +63,14 @@ export class MarqueeController implements ReactiveController {
     const target = e.target as HTMLElement | null
     if (!target) return
 
-    // タスクバー、各種ハンドル、コネクタ、マーカー、マイルストーン、ヘッダーリサイザー上での操作は除外
+    // タスクバー、各種ハンドル、コネクタ、マーカー、マイルストーン、ヘッダーリサイザー、行ヘッダー、カレンダー上での操作は除外
+    const excludedSelector =
+      '.bar, .task-group, .handle-left, .handle-right, .handle-progress, .connector-left, .connector-right, .marker-wrapper, .milestone-line, .header-resizer, .dependency-hit-area, .dependency-delete-btn, .row-header, gantt-calendar'
+    const path = typeof e.composedPath === 'function' ? e.composedPath() : []
     if (
-      target.closest(
-        '.bar, .task-group, .handle-left, .handle-right, .handle-progress, .connector-left, .connector-right, .marker-wrapper, .milestone-line, .header-resizer, .dependency-hit-area, .dependency-delete-btn',
-      )
+      target.closest(excludedSelector) ||
+      path.some((el) => el instanceof Element && el.matches(excludedSelector))
     ) {
-      return
-    }
-
-    // カレンダーヘッダー上での操作は除外
-    if (target.closest('gantt-calendar')) {
       return
     }
 
@@ -82,11 +79,12 @@ export class MarqueeController implements ReactiveController {
 
     const rect = container.getBoundingClientRect()
     const labelWidth = this.host.currentRowHeaderWidth
-    const contentX = e.clientX - rect.left + container.scrollLeft
+    const viewportX = e.clientX - rect.left
+    const contentX = viewportX + container.scrollLeft
     const contentY = e.clientY - rect.top + container.scrollTop - this.host.calendarHeight
 
-    // 行ヘッダー領域またはカレンダー領域でのクリックは除外
-    if (contentX < labelWidth || contentY < 0) {
+    // 行ヘッダー領域（sticky表示含む）またはカレンダー領域でのクリックは除外
+    if (viewportX < labelWidth || contentX < labelWidth || contentY < 0) {
       return
     }
 
@@ -123,6 +121,9 @@ export class MarqueeController implements ReactiveController {
     if (!this.isMarqueeActive) {
       this.isMarqueeActive = true
     }
+
+    e.preventDefault()
+    window.getSelection()?.removeAllRanges()
 
     const container = this.host.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
     if (!container) return

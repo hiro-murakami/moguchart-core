@@ -463,8 +463,8 @@ export class TaskDragController implements ReactiveController {
     }
 
     // ドロップ時の処理
-    const droppedMulti = this.draggingTaskIds.length >= 2
-    const droppedSameRow = this.multiDragSameRow
+    const droppedMulti = this.draggingTaskIds.length >= 2 || isMulti
+    const droppedSameRow = this.draggingTaskIds.length >= 2 ? this.multiDragSameRow : sameRow
     this.cleanupDragState()
 
     // キャンセル、チャート外、または行が存在しない場所でドロップされた場合は、タスク移動を適用しない

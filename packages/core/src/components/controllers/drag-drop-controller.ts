@@ -57,9 +57,13 @@ export class DragDropController implements ReactiveController {
   private taskDrag: TaskDragController
   private rowReorder: RowReorderController
 
-  constructor(host: DragDropControllerHost) {
-    this.taskDrag = new TaskDragController(host)
-    this.rowReorder = new RowReorderController(host)
+  constructor(
+    host: DragDropControllerHost,
+    taskDrag?: TaskDragController,
+    rowReorder?: RowReorderController,
+  ) {
+    this.taskDrag = taskDrag ?? new TaskDragController(host)
+    this.rowReorder = rowReorder ?? new RowReorderController(host)
     host.addController(this)
   }
 

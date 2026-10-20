@@ -331,6 +331,70 @@ describe('GanttBar Drag Cancel & Outside Behavior', () => {
     expect(rowsChangeSpy).not.toHaveBeenCalled()
   })
 
+  it('moves all selected tasks and preserves selection on multi-task drag drop', async () => {
+    ;(chart as any).selectedTasks = new Set(['task1', 'task2'])
+    await chart.updateComplete
+
+    const rows = chart.shadowRoot?.querySelectorAll('gantt-row')
+    expect(rows?.length).toBe(2)
+    await rows?.[0]?.updateComplete
+    await rows?.[1]?.updateComplete
+    const barEl1 = rows?.[0]?.shadowRoot?.querySelector('gantt-bar') as any
+    const barEl2 = rows?.[1]?.shadowRoot?.querySelector('gantt-bar') as any
+    await barEl1?.updateComplete
+    await barEl2?.updateComplete
+
+    expect(barEl1.multiDragActive).toBe(true)
+
+    const bar1 = barEl1?.shadowRoot?.querySelector('.bar') as HTMLElement
+    bar1.setPointerCapture = vi.fn()
+    bar1.releasePointerCapture = vi.fn()
+
+    // 1. task1 でドラッグ開始
+    bar1.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        clientX: 200,
+        clientY: 100,
+        pointerId: 1,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    // 2. ドラッグ移動（x=300, y=100 -> +100px = +2日）
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: 300,
+        clientY: 100,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+    await new Promise((r) => requestAnimationFrame(r))
+    await chart.updateComplete
+    await rows?.[1]?.updateComplete
+    await barEl2?.updateComplete
+
+    expect(barEl2.multiDragDx).toBe(100)
+
+    // 3. チャート内でドロップ
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        clientX: 300,
+        clientY: 100,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
+    await new Promise((r) => requestAnimationFrame(r))
+    await chart.updateComplete
+
+    // 複数選択が維持され、両方のタスクが+2日移動していること
+    expect((chart as any).selectedTasks.size).toBe(2)
+    expect(chart.rows[0].tasks[0].start).toEqual(new Date('2024-01-07T00:00:00'))
+    expect(chart.rows[1].tasks[0].start).toEqual(new Date('2024-01-14T00:00:00'))
+  })
+
   it('resets position and cancels drop when dragging to area where no rows exist (e.g. below all rows)', async () => {
     const rowEls = chart.shadowRoot?.querySelectorAll('gantt-row')
     expect(rowEls?.length).toBe(2)

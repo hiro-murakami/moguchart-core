@@ -119,20 +119,20 @@ export class GanttChartElement extends LitElement {
 
   // --- Drag & Drop Controller Delegation Properties ---
   public get draggingTask(): DraggingTaskState | null {
-    return this._dragDropController?.draggingTask ?? null
+    return this._taskDragController?.draggingTask ?? null
   }
   public set draggingTask(val: DraggingTaskState | null) {
-    if (this._dragDropController) {
-      this._dragDropController.draggingTask = val
+    if (this._taskDragController) {
+      this._taskDragController.draggingTask = val
     }
   }
 
   public get draggingTaskIds(): string[] {
-    return this._dragDropController?.draggingTaskIds ?? []
+    return this._taskDragController?.draggingTaskIds ?? []
   }
   public set draggingTaskIds(val: string[]) {
-    if (this._dragDropController) {
-      this._dragDropController.draggingTaskIds = val
+    if (this._taskDragController) {
+      this._taskDragController.draggingTaskIds = val
     }
   }
 
@@ -289,7 +289,11 @@ export class GanttChartElement extends LitElement {
   private _dragDropControllerInstance: DragDropController | null = null
   public get _dragDropController(): DragDropController {
     if (!this._dragDropControllerInstance) {
-      this._dragDropControllerInstance = new DragDropController(this)
+      this._dragDropControllerInstance = new DragDropController(
+        this,
+        this._taskDragController,
+        this._rowReorderController,
+      )
     }
     return this._dragDropControllerInstance
   }
@@ -2018,7 +2022,7 @@ export class GanttChartElement extends LitElement {
                 .draggingTaskIds="${this.draggingTaskIds}"
                 .multiDragDx="${this.multiDragDx}"
                 .multiDragDy="${this.multiDragDy}"
-                .multiDragSameRow="${this.multiDragSameRow}"
+                .multiDragSameRow="${this.multiDragSameRow || (this.selectedTasks.size >= 2 && this.isMultiDragSameRow())}"
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
                 .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"

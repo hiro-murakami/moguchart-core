@@ -270,6 +270,8 @@ export class GanttRowElement extends LitElement {
       left: 0;
       z-index: 100;
       overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .tree-indent-spacer {
       display: inline-block;
@@ -427,6 +429,8 @@ export class GanttRowElement extends LitElement {
       outline: none;
       margin: 0;
       color-scheme: light;
+      user-select: text;
+      -webkit-user-select: text;
     }
     :host([theme='dark']) .grid-cell-editor {
       background-color: var(--moguchart-editor-bg, #1e293b);
@@ -444,6 +448,8 @@ export class GanttRowElement extends LitElement {
       display: flex;
       align-items: center;
       min-width: 0;
+      user-select: text;
+      -webkit-user-select: text;
     }
   `
 
@@ -1493,7 +1499,9 @@ export class GanttRowElement extends LitElement {
               const isTaskSelected = this.selectedTaskIds.includes(task.id)
               const barMultiDragDx = isMultiDragging ? this.multiDragDx : 0
               const barMultiDragDy = isMultiDragging ? this.multiDragDy : 0
-              const isPrimaryDrag = isDragging && this.draggingTaskIds.length >= 2
+              const isPrimaryDrag =
+                (isDragging && this.draggingTaskIds.length >= 2) ||
+                (isTaskSelected && this.selectedTaskIds.length >= 2)
 
               return html`
                 <gantt-bar
