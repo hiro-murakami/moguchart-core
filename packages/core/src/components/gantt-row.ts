@@ -1321,6 +1321,14 @@ export class GanttRowElement extends LitElement {
                         const isReadOnlyCell = isInlineEditEnabled && !isEditable
                         const isEditing = this._editingColumnId === col.id
                         const isNameOrTreeCell = col.id === 'name' || Boolean(col.isTreeColumn)
+                        const cellPadding = this.option.grid?.cellPadding ?? 6
+                        const hasTreePrefix =
+                          Boolean(col.isTreeColumn) && treeEnabled && (this.level > 0 || this.hasChildren)
+                        const cellPaddingStyle = col.isTreeColumn
+                          ? isEditing
+                            ? `0 ${cellPadding}px 0 ${hasTreePrefix ? 0 : cellPadding}px`
+                            : '0'
+                          : `0 ${cellPadding}px`
 
                         return html`
                           <div
@@ -1337,7 +1345,7 @@ export class GanttRowElement extends LitElement {
                             justify-content: ${
                               col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'
                             };
-                            padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
+                            padding: ${cellPaddingStyle};
                             ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
                             overflow: hidden;
                             white-space: nowrap;
@@ -1402,7 +1410,13 @@ export class GanttRowElement extends LitElement {
                                 : html`
                                     <div
                                       class="grid-cell-content"
-                                      style="${customContent !== null ? 'flex: 1; min-width: 0; height: 100%;' : ''} overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                      style="${
+                                        customContent !== null
+                                          ? 'flex: 1; min-width: 0; height: 100%;'
+                                          : col.isTreeColumn
+                                            ? `padding: 0 ${cellPadding}px;`
+                                            : ''
+                                      } overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                                     >
                                       ${customContent !== null ? customContent : formatted}
                                     </div>

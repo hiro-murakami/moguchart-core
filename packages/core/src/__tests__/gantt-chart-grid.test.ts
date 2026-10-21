@@ -833,4 +833,18 @@ describe('GanttChartElement Multi-Column Grid Inline Editing', () => {
     expect(styleText).toContain('color-scheme: dark')
     expect(styleText).toContain('#1e293b')
   })
+
+  it('keeps tree column outer cell padding at 0 so tree-toggle-btn aligns with non-grid row header', async () => {
+    const rowElements = chart.shadowRoot?.querySelectorAll('gantt-row')
+    const parentRowEl = rowElements?.[0] as any
+    await parentRowEl.updateComplete
+
+    const nameCell = parentRowEl.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
+    expect(nameCell).toBeTruthy()
+    expect(nameCell.style.padding).toBe('0px')
+
+    const contentEl = nameCell.querySelector('.grid-cell-content') as HTMLElement
+    expect(contentEl).toBeTruthy()
+    expect(contentEl.style.padding).toBe('0px 6px')
+  })
 })
