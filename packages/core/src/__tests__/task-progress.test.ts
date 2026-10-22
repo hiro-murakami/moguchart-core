@@ -354,6 +354,15 @@ describe('Task Progress Management', () => {
       expect(handle.style.left).toBe('60%')
     })
 
+    it('restricts progress handle pointer-events to the bottom knob area only', () => {
+      const cssText = GanttBarElement.styles.toString()
+      const handleBlock = cssText.match(/\.handle-progress\s*\{([^}]*)\}/)?.[1] ?? ''
+      const knobBlock = cssText.match(/\.handle-progress-knob\s*\{([^}]*)\}/)?.[1] ?? ''
+
+      expect(handleBlock).toContain('pointer-events: none')
+      expect(knobBlock).toContain('pointer-events: auto')
+    })
+
     it('does not render progress handle in readOnly mode', async () => {
       bar.option = {
         ...defaultOption,

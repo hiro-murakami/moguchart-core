@@ -213,9 +213,8 @@ export class GanttBarElement extends LitElement {
       bottom: 0;
       width: 14px;
       margin-left: -7px;
-      cursor: ew-resize;
       z-index: 12;
-      pointer-events: auto;
+      pointer-events: none;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -248,8 +247,14 @@ export class GanttBarElement extends LitElement {
       border-radius: 2px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
       transition: transform 0.15s ease, background-color 0.15s ease;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: ew-resize;
       z-index: 1;
+    }
+    .handle-progress-knob::before {
+      content: '';
+      position: absolute;
+      inset: -2px -3px;
     }
     .handle-progress:hover .handle-progress-knob,
     .handle-progress.dragging .handle-progress-knob {
