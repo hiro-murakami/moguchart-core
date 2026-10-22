@@ -111,6 +111,18 @@ describe('GanttBar Connector', () => {
     expect(connLeft).toBeNull()
     expect(connRight).toBeNull()
   })
+
+  it('prioritizes resize handles over connectors in overlapping area via z-index', () => {
+    const cssText = GanttBarElement.styles.toString()
+    const handleMatch = cssText.match(/\.handle-left,\s*\.handle-right\s*\{[^}]*z-index:\s*(\d+)/)
+    const connectorMatch = cssText.match(/\.connector-left,\s*\.connector-right\s*\{[^}]*z-index:\s*(\d+)/)
+
+    expect(handleMatch).not.toBeNull()
+    expect(connectorMatch).not.toBeNull()
+    const handleZIndex = Number(handleMatch![1])
+    const connectorZIndex = Number(connectorMatch![1])
+    expect(handleZIndex).toBeGreaterThan(connectorZIndex)
+  })
 })
 
 describe('GanttChart Connector Drag with Summary Tasks', () => {

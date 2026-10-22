@@ -97,7 +97,7 @@ export class GanttBarElement extends LitElement {
       top: 0;
       bottom: 0;
       width: 10px;
-      z-index: 10;
+      z-index: 11;
     }
     .handle-left {
       left: 0px;
@@ -121,7 +121,7 @@ export class GanttBarElement extends LitElement {
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
       transform: translateY(-50%);
       cursor: crosshair;
-      z-index: 20;
+      z-index: 10;
       opacity: 0;
       transition: opacity 0.15s ease;
       pointer-events: auto;
