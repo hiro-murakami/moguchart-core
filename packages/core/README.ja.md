@@ -28,9 +28,11 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - ライト/ダーク/システムテーマの切り替え＋カスタムカラーテーマ
   - タスクバーの塗りつぶしパターン（ストライプ、ドット、チェッカーボードなど13種類）
   - CSSによるスタイリング
-- 🔗 **依存関係の対話的操作**:
-  - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で可視化
-  - 依存関係線のクリック選択とハイライト表示
+- 🔗 **依存関係の対話的操作 ＆ 自動スケジューリング**:
+  - 4種類の標準依存関係タイプ（`FS`: 終了-開始、`SS`: 開始-開始、`FF`: 終了-終了、`SF`: 開始-終了）およびラグ・リード期間（`lag`: 分単位）を `GanttDependencyLink` で指定可能（文字列タスクIDとも100%後方互換）
+  - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`）。ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
+  - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で左右端エンドポイントに応じて可視化
+  - 依存関係線のクリック選択・ハイライト表示に加え、ダブルクリック（`dblclick`）・右クリック（`contextmenu`）イベントにも対応
   - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
   - クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
 - 📅 **柔軟なカレンダー**:
@@ -511,13 +513,32 @@ gantt-chart {
 
 フォント倍率はカレンダーヘッダー（年月・週・日・時・バッジ）、行ヘッダー、WBSコードバッジ、ツリー開閉トグル、タスクバーラベル、進捗率ラベル、マーカー、ツールチップ、ドラッグ情報オーバーレイに自動反映されます。
 
-### 依存関係線の設定
+### 依存関係線の設定 ＆ 自動スケジューリング
 
-`dependency` オプションで依存関係線の表示や操作をカスタマイズできます。
-矢印の表示/非表示や大きさ、接続コネクター、最長チェーン（クリティカルパス）の自動検出ハイライトを制御できます。
-線のクリックによる選択（ハイライト表示）、選択時の削除「×」ボタン、`Delete` / `Backspace` キーによる直感的な削除に対応しています。
+`dependency` オプションで依存関係線の表示や操作、および先行タスク変更時の自動スケジューリング（カスケード移動）をカスタマイズできます。
+
+- `task.dependencies` の各要素には、シンプルなタスクID文字列（`'task-1'`：`FS` / ラグ `0` として扱われます）または拡張オブジェクト `GanttDependencyLink`（`{ taskId: 'task-1', type: 'FS' | 'SS' | 'FF' | 'SF', lag: 1440 }`、`lag` は分単位）を指定できます。
+- 線のクリック・ダブルクリック・右クリック（`dependency-click`）、選択（`dependency-select`）、選択時の削除「×」ボタンや `Delete` / `Backspace` キーによる直感的な削除に対応しています。
 
 ```javascript
+const rows = [
+  {
+    id: 'row-1',
+    name: 'バックエンド開発',
+    tasks: [
+      { id: 't-1', name: 'スキーマ設計', start: new Date('2026-04-01'), end: new Date('2026-04-05') },
+      {
+        id: 't-2',
+        name: 'API実装',
+        start: new Date('2026-04-06'),
+        end: new Date('2026-04-12'),
+        // タスクID文字列、または GanttDependencyLink ({ taskId, type: 'FS' | 'SS' | 'FF' | 'SF', lag }) を指定可能
+        dependencies: [{ taskId: 't-1', type: 'FS', lag: 1440 }], // +1日 (1440分) のラグ
+      },
+    ],
+  },
+]
+
 const option = {
   dependency: {
     lineStyle: 'orthogonal', // 接続線の形状 ('orthogonal': 角丸直角折れ線, 'curve': ベジェ曲線)
@@ -529,9 +550,15 @@ const option = {
     creatable: true, // コネクタからのドラッグによる依存関係作成を許可 (デフォルト: true)
     deletable: true, // 依存関係の削除を許可 (デフォルト: true)
     showDeleteButton: true, // 選択時の削除「×」ボタンを表示 (デフォルト: true)
+    autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
+    scheduleMode: 'push-only', // 'push-only' (制約違反時のみ押し出し) | 'strict' (常に厳密追従)
+    respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
   },
   // ...
 }
+
+// プログラムから全依存関係または指定タスク起点で自動スケジューリングを実行
+const updatedTaskIds = chart.autoSchedule()
 
 // 依存関係の選択・削除イベント
 chart.addEventListener('dependency-select', (e) => {
@@ -1032,12 +1059,16 @@ chart.addEventListener('history-change', (e) => {
 })
 ```
 
-#### 依存関係の削除 (triggerDependencyDelete)
+#### 依存関係の削除 ＆ 自動スケジューリング (`triggerDependencyDelete` / `autoSchedule`)
 
-プログラムから特定の依存関係線を削除できます。
+プログラムから特定の依存関係線を削除したり、依存関係に基づく後続タスクの自動スケジューリングを実行できます。
 
 ```javascript
 chart.triggerDependencyDelete('task-1', 'task-2')
+
+// 依存関係に基づき後続タスクの日程を一括再計算（更新されたタスクID配列を返す）
+const updatedIds = chart.autoSchedule()
+const cascadedFromTask1 = chart.autoSchedule(['task-1'], { mode: 'strict' })
 ```
 
 #### WBS・折りたたみ操作 (toggleRowCollapse / collapseAll / expandAll)
@@ -1077,6 +1108,16 @@ import {
   canDropRow,
   // クリティカルパス計算
   computeCriticalPath,
+  // 自動スケジューリング・依存関係ヘルパー
+  propagateAutoSchedule,
+  computeRequiredStartMs,
+  getDependencyTaskId,
+  normalizeDependencyLink,
+  endpointsToDependencyType,
+  dependencyTypeToEndpoints,
+  createDependencyEntry,
+  hasDependencyTarget,
+  removeDependencyTarget,
   // 進捗率計算
   clampProgress,
   calculateRowProgress,

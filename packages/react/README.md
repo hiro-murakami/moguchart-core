@@ -17,6 +17,7 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
 - 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
+- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`) and topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---
@@ -147,7 +148,7 @@ The following methods can be invoked directly on `ref.current`:
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
 - **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
-- **Dependency Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `selectDependency(...)`, `clearDependencySelection()`
+- **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
 - **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
 

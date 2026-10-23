@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-23
+
+### Added
+
+- **自動スケジューリング（Auto-Scheduling）＆ 拡張依存関係タイプ（`FS` / `SS` / `FF` / `SF`）・ラグ設定のサポート**:
+  - **拡張された依存関係リンク定義 (`GanttDependencyLink`)**:
+    - `task.dependencies`（`GanttDependency[]`）において、従来のタスクID文字列（`string`）との完全な後方互換性を保ちつつ、オブジェクト形式 `GanttDependencyLink`（`{ taskId: string, type?: 'FS' | 'SS' | 'FF' | 'SF', lag?: number }`）の指定に対応
+    - 4種類の標準依存関係タイプをサポート:
+      - `FS` (Finish-to-Start / 終了-開始、デフォルト): 先行タスク終了後に後続タスクを開始
+      - `SS` (Start-to-Start / 開始-開始): 先行タスク開始に合わせて後続タスクを開始
+      - `FF` (Finish-to-Finish / 終了-終了): 先行タスク終了に合わせて後続タスクを終了
+      - `SF` (Start-to-Finish / 開始-終了): 先行タスク開始に合わせて後続タスクを終了
+    - 分単位のラグ（遅延: 正の値）およびリード（前倒し: 負の値）期間（`lag`）の設定に対応
+  - **トポロジカルカスケード自動スケジューリングエンジン (`option.dependency.autoSchedule`)**:
+    - `option.dependency` に `autoSchedule?: boolean`（デフォルト: `false`）、`scheduleMode?: 'push-only' | 'strict'`（デフォルト: `'push-only'`）、`respectMovable?: boolean`（デフォルト: `true`）を追加
+    - 依存制約に違反（逆転）する場合のみ後続タスクを後ろへ押し出す `'push-only'` モードと、先行タスクの移動およびラグに常時厳密追従させる `'strict'` モードをサポート
+    - タスクバーのドラッグ移動・期間リサイズ、複数タスク一括移動、キーボード（`Shift + 矢印キー`）移動、マルチカラムグリッドのインラインセル編集（`startDate`, `endDate`, `duration`）のすべてと自動連動し、連鎖更新された全タスクの変更を単一の Undo / Redo 履歴コマンドとして記録
+    - プログラムから任意のタイミングで後続タスクの再計算を実行できるパブリックメソッド `chart.autoSchedule(changedTaskIds?, options?)` を `GanttChartElement` および `@mogura/moguchart-vue`（`GanttChartPublicApi`）に追加
+  - **エンドポイント連動の依存関係線描画・コネクタ作成・Excelエクスポート対応**:
+    - 直角折れ線（`'orthogonal'`）およびベジェ曲線（`'curve'`）のSVGパス計算において、`FS` / `SS` / `FF` / `SF` の各始点・終点（左端 `start` / 右端 `end`）に応じた正確なルートおよび矢印向きの描画に対応
+    - タスクバー左右端のコネクタドラッグによる依存関係作成時、接続元・接続先のエンドポイントから依存関係種別（`type: 'FS' | 'SS' | 'FF' | 'SF'`）を自動判定し、`DependencyCreateEventDetail.type` に格納
+    - クリティカルパス計算（`computeCriticalPath`）および Excel エクスポートプラグイン（`@mogura/moguchart-plugin-excel`）で `GanttDependencyLink` に対応（Excel 出力時は `FS` 以外の種別を `1 (SS)` のように表記）
+    - 操作履歴の `GanttCommandType` に `'dependency-update'` を追加
+    - 自動スケジューリングおよび依存関係操作用のユーティリティ関数（`propagateAutoSchedule`, `computeRequiredStartMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`）をエクスポート
+- **依存関係線の操作性向上 ＆ 同一行内タスクのレーン配置改善**:
+  - 依存関係線のヒット領域において、通常のクリック（`click`）に加えてダブルクリック（`dblclick`）および右クリック（`contextmenu`）での `dependency-click` イベント発火に対応（`e.detail.event.type` で判別可能）
+  - 同一行内で `FS`（`lag: 0`）の依存関係を持ち、先行タスクの終了日時と後続タスクの開始日時が接している（`pred.end === succ.start`）場合に、依存関係線が潰れて選択不能になるのを防ぐため自動的に別レーン（上下段）へ分離する改善（`calculateTaskLanes`）
+  - 依存関係線上のカーソル表示と削除「×」ボタンのヒット領域半径を調整
+
+### Fixed
+
+- **複数タスク一括ドラッグ移動の状態委譲 ＆ Shadow DOM 内での矩形範囲選択（Marquee Selection）の修正**:
+  - `GanttChartElement` と `DragDropController` 間で `TaskDragController` / `RowReorderController` のインスタンスを共有するよう修正し、複数選択したタスクのドラッグ＆ドロップ時に選択状態が維持され全選択タスクへ移動量が反映されるよう修正
+  - `MarqueeController` で `composedPath()` および固定行ヘッダー領域の座標判定を行うよう修正し、行ヘッダーやスプリッター操作時に誤って矩形選択が開始される問題や、矩形ドラッグ中に行ヘッダーのテキストが選択される問題を解消
+- **マルチカラムグリッド有効時のツリートグルボタン位置の整合性修正**:
+  - グリッド表示モード時における階層展開・折りたたみボタン（`.tree-toggle-btn`）の配置位置を非グリッド表示時と一致するよう修正
+- **タスクバーのリサイズハンドル優先度 ＆ 進捗操作ハンドルのヒット領域修正**:
+  - タスクバー端において期間リサイズハンドル（`.resize-handle`）と依存関係コネクタ（`.connector-handle`）が重なる領域で、期間リサイズ操作を優先するよう修正
+  - 進捗率ドラッグ操作ハンドルのヒット領域を下部の逆三角形ノブ部分のみに限定し、タスクバー本体のホバーやドラッグ時に意図せず進捗変更モードに入る問題を修正
+
+---
+
 ## [1.5.0] - 2026-10-17
 
 ### Added

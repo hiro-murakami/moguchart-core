@@ -179,7 +179,7 @@ interface GanttChartOption {
 | `task-contextmenu`       | `TaskContextMenuEventDetail`      | タスクバーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 | `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
-| `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリックしたときに発火します。                                                   |
+| `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリック、ダブルクリック、または右クリックしたときに発火します。                 |
 | `dependency-select`      | `DependencySelectEventDetail`     | 依存関係線が選択または選択解除されたときに発火します。                                       |
 | `dependency-delete`      | `DependencyDeleteEventDetail`     | 依存関係線が削除されたときに発火します（Deleteキー、×ボタン、メソッド等）。                  |
 | `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
@@ -209,6 +209,7 @@ interface GanttChartOption {
 | `zoomToFit`                | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
 | `resetZoom`                | `() => void`                                                                                | ズームを100%（標準倍率）にリセットします。                                                                                                                                                                  |
 | `triggerDependencyDelete`  | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | 指定した接続元・接続先タスク間の依存関係線を削除し、`dependency-delete` イベントおよび履歴コマンドを記録します。                                                                                            |
+| `autoSchedule`             | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                    | 依存関係制約およびラグに基づいて後続タスクの日程をトポロジカルソート順で再計算・カスケード更新します。変更があった場合は Undo / Redo 履歴コマンドを記録し、更新されたタスクID配列を返します。                |
 | `selectTask`               | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
 | `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
 | `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
@@ -444,9 +445,21 @@ interface GanttRow {
 }
 ```
 
-### GanttTask
+### GanttTask / GanttDependencyLink
 
 ```typescript
+type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+
+interface GanttDependencyLink {
+  taskId: string // 先行タスク（依存元）のID
+  type?: DependencyType // 依存関係の種別 ('FS' | 'SS' | 'FF' | 'SF'、デフォルト: 'FS')
+  lag?: number // ラグ（遅延）またはリード（前倒し）期間（分単位、デフォルト: 0）
+}
+
+type GanttDependency = string | GanttDependencyLink
+
+type AutoScheduleMode = 'push-only' | 'strict'
+
 interface GanttTask {
   id: string // タスクの一意なID
   name?: string // タスクの表示名
@@ -456,7 +469,7 @@ interface GanttTask {
   style?: string // バーのカスタムスタイル (CSS文字列)
   labelStyle?: string // バーのラベルのカスタムスタイル (CSS文字列)
   pattern?: GanttTaskPattern // バーの塗りつぶしパターン
-  dependencies?: string[] // 依存関係にあるタスクのID配列
+  dependencies?: GanttDependency[] // 依存関係にある先行タスクの配列（タスクID文字列または GanttDependencyLink）
   movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)
   resizable?: boolean // リサイズ可否 (未指定時はmovable設定に準拠)
   progress?: number // 進捗率 (0〜100 の数値)
@@ -1207,6 +1220,22 @@ interface GanttChartOptionDependency {
   showConnectors?: boolean
   /** クリティカルパスを表示するかどうか (デフォルト: false)。依存関係グラフの最長チェーンを自動計算し、該当するタスクバーと接続線をハイライト表示する */
   showCriticalPath?: boolean
+  /** 接続線の作成を許可するか (デフォルト: true) */
+  creatable?: boolean
+  /** 接続線の削除操作を許可するか (デフォルト: true) */
+  deletable?: boolean
+  /** 線上に削除用「×」ボタンを表示するか (デフォルト: true) */
+  showDeleteButton?: boolean
+  /** 先行タスクの変更時に後続タスクを自動的にカスケード移動するか (デフォルト: false) */
+  autoSchedule?: boolean
+  /**
+   * 自動スケジューリングの制約モード (デフォルト: 'push-only')
+   * - 'push-only': 依存制約に違反（逆転）する場合のみ後続タスクを後ろへ押し出す
+   * - 'strict': 先行タスクの移動量・ラグに合わせて後続タスクを常に厳密に追従させる
+   */
+  scheduleMode?: AutoScheduleMode
+  /** 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true) */
+  respectMovable?: boolean
 }
 ```
 
@@ -1220,6 +1249,7 @@ interface DependencyCreateEventDetail {
   sourceEndpoint: DependencyEndpoint // 接続元のエンドポイント（start=左端, end=右端）
   targetTaskId: string // 接続先のタスクID
   targetEndpoint: DependencyEndpoint // 接続先のエンドポイント（start=左端, end=右端）
+  type?: DependencyType // 作成された依存関係の種別 ('FS' | 'SS' | 'FF' | 'SF')
 }
 ```
 
@@ -2181,6 +2211,16 @@ import {
   calculateProjectBaselineSummary,
   // クリティカルパス計算
   computeCriticalPath,
+  // 自動スケジューリング・依存関係ヘルパー
+  propagateAutoSchedule,
+  computeRequiredStartMs,
+  getDependencyTaskId,
+  normalizeDependencyLink,
+  endpointsToDependencyType,
+  dependencyTypeToEndpoints,
+  createDependencyEntry,
+  hasDependencyTarget,
+  removeDependencyTarget,
   // WBS・階層計算
   computeRowLevels,
   computeRowWbsCodes,
@@ -2427,6 +2467,49 @@ function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends Gantt
 ): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
 ```
 
+### 自動スケジューリング・依存関係用ヘルパー (`propagateAutoSchedule`, `normalizeDependencyLink` など)
+
+トポロジカルソートに基づく後続タスクの自動スケジューリング計算、および `GanttDependency`（`string | GanttDependencyLink`）の正規化・操作を行うヘルパー関数群です。
+
+```typescript
+// 変更起点タスク（省略時は全依存タスク）からトポロジカル順で後続タスクの日程をカスケード更新
+function propagateAutoSchedule(
+  rows: GanttRow[],
+  changedTaskIds?: Iterable<string>,
+  options?: AutoScheduleOptions
+): AutoScheduleResult
+
+// 単一の先行タスク制約に基づき、後続タスクに要求される開始時刻（ミリ秒）を算出
+function computeRequiredStartMs(
+  predStartMs: number,
+  predEndMs: number,
+  succDurationMs: number,
+  type?: DependencyType,
+  lagMinutes?: number
+): number
+
+// 文字列または GanttDependencyLink から先行タスクIDを取得
+function getDependencyTaskId(dep: GanttDependency): string
+
+// 文字列または GanttDependencyLink を Required<GanttDependencyLink> ({ taskId, type, lag }) に正規化
+function normalizeDependencyLink(dep: GanttDependency): Required<GanttDependencyLink>
+
+// 接続元・接続先エンドポイント ('start' | 'end') と DependencyType ('FS' | 'SS' | 'FF' | 'SF') の相互変換
+function endpointsToDependencyType(
+  sourceEndpoint?: DependencyEndpoint | string | null,
+  targetEndpoint?: DependencyEndpoint | string | null
+): DependencyType
+function dependencyTypeToEndpoints(type?: DependencyType): {
+  sourceEndpoint: DependencyEndpoint
+  targetEndpoint: DependencyEndpoint
+}
+
+// 後方互換性を保ちつつ依存関係エントリを生成（FS かつ lag=0 の場合は文字列、それ以外は GanttDependencyLink）
+function createDependencyEntry(sourceTaskId: string, type?: DependencyType, lag?: number): GanttDependency
+function hasDependencyTarget(dependencies: GanttDependency[] | undefined, sourceTaskId: string): boolean
+function removeDependencyTarget(dependencies: GanttDependency[] | undefined, sourceTaskId: string): GanttDependency[]
+```
+
 ---
 
 ## ズーム機能 (Zoom Controls & Scaling)
@@ -2530,9 +2613,9 @@ chart.addEventListener('history-change', (e) => {
 
 ---
 
-## 依存関係線の対話的編集（選択・削除）
+## 依存関係線の対話的編集 ＆ 自動スケジューリング（Auto-Scheduling）
 
-タスク間の依存関係（矢印接続線）は、クリックによる選択、ハイライト表示、およびワンクリックまたはキーボードによる削除が可能です。
+タスク間の依存関係（矢印接続線）は、4種類の依存関係タイプ（`FS`, `SS`, `FF`, `SF`）およびラグ期間（`lag`: 分単位）、トポロジカルカスケード自動スケジューリング、クリック・ダブルクリック・右クリックによるイベント検知、ハイライト選択、およびワンクリックまたはキーボードによる削除に対応しています。
 
 ### 設定例
 
@@ -2546,6 +2629,9 @@ chart.option = {
     creatable: true, // コネクタからのドラッグによる依存関係作成を許可 (デフォルト: true)
     deletable: true, // 依存関係の削除を許可 (デフォルト: true)
     showDeleteButton: true, // 選択時の削除「×」ボタンを表示 (デフォルト: true)
+    autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
+    scheduleMode: 'push-only', // 'push-only' (デフォルト: 制約違反時のみ押し出し) | 'strict' (常時追従)
+    respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
   },
 }
 ```
@@ -2563,6 +2649,12 @@ chart.addEventListener('dependency-select', (e) => {
   }
 })
 
+// クリック・ダブルクリック・右クリック（contextmenu）イベント
+chart.addEventListener('dependency-click', (e) => {
+  const { sourceTaskId, targetTaskId, event } = e.detail
+  console.log(`依存関係 (${event.type}): ${sourceTaskId} -> ${targetTaskId}`)
+})
+
 // 削除イベント
 chart.addEventListener('dependency-delete', (e) => {
   const { sourceTaskId, targetTaskId } = e.detail
@@ -2571,4 +2663,7 @@ chart.addEventListener('dependency-delete', (e) => {
 
 // プログラムからの依存関係削除
 chart.triggerDependencyDelete('task-1', 'task-2')
+
+// プログラムからの自動スケジューリング一括再計算
+const updatedTaskIds = chart.autoSchedule()
 ```

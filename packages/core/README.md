@@ -29,9 +29,11 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Light / Dark / System theme switching + custom color palettes
   - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
   - Native CSS variable-driven styling
-- 🔗 **Interactive Dependencies**:
-  - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves
-  - Click-to-select dependency lines with dedicated highlight styling
+- 🔗 **Interactive Dependencies & Auto-Scheduling**:
+  - Support all 4 standard dependency relationships (`FS`: Finish-to-Start, `SS`: Start-to-Start, `FF`: Finish-to-Finish, `SF`: Start-to-Finish) and lag/lead time (`lag` in minutes) via `GanttDependencyLink` (with 100% backward compatibility for string task IDs)
+  - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`) across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
+  - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves routed accurately to left/right bar endpoints
+  - Click, double-click, and right-click (`contextmenu`) support on dependency lines with dedicated highlight styling
   - One-click deletion via on-line "×" button or `Delete` / `Backspace` key
   - Proximity connector toggle (`showConnectors`)
   - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
@@ -519,22 +521,45 @@ gantt-chart {
 
 Font scaling is automatically applied to calendar headers (year/month, weeks, days, hours, badges), row headers, WBS code badges, tree toggle icons, task bar labels, progress labels, markers, tooltips, and drag info overlays.
 
-### Dependency Line Settings
+### Dependency Line Settings & Auto-Scheduling
 
-Configure task dependency curves and interactive operations with the `dependency` option:
+Configure task dependency curves, interactive operations, and topological cascade auto-scheduling with the `dependency` option:
 
 - `lineStyle`: `'orthogonal'` (rounded segmented lines, default) or `'curve'` (Bezier curves).
 - `showArrows`: Toggle directional arrow heads (default: `true`).
 - `arrowSize`: Arrow dimensions in pixels (default: `8`).
 - `showConnectors`: Control whether circular connection handles appear on hover (default: `true`).
 - `showCriticalPath`: Automatically detect the longest chain (critical path) and highlight connected tasks and lines.
-- `creatable`: Allow creating links via connector drag (default: `true`).
+- `creatable`: Allow creating links via connector drag (default: `true`). Dragging between left/right connectors automatically infers `'FS' | 'SS' | 'FF' | 'SF'`.
 - `deletable`: Allow deleting links via keyboard or button (default: `true`).
 - `showDeleteButton`: Display "×" delete button on selected link (default: `true`).
+- `autoSchedule`: Automatically cascade date changes to successor tasks when a predecessor task is moved, resized, or edited (default: `false`).
+- `scheduleMode`: `'push-only'` (default: shifts successors forward only when constraints are violated) or `'strict'` (always shifts successors in lockstep with predecessor dates and lag).
+- `respectMovable`: Exclude tasks with `movable: 'none' | 'y'` from automatic cascade movement (default: `true`).
 
-Lines can be clicked to select (highlighted with distinct stroke & shadow), and deleted by clicking the "×" button or pressing `Delete` / `Backspace`.
+Each item in `task.dependencies` can be a simple task ID string (`'task-1'`, treated as `FS` with `0` lag) or a `GanttDependencyLink` object (`{ taskId: 'task-1', type: 'FS' | 'SS' | 'FF' | 'SF', lag: 1440 }`, where `lag` is in minutes).
+
+Lines can be clicked, double-clicked, or right-clicked (`dependency-click`), selected (`dependency-select`), and deleted by clicking the "×" button or pressing `Delete` / `Backspace`.
 
 ```javascript
+const rows = [
+  {
+    id: 'row-1',
+    name: 'Backend API',
+    tasks: [
+      { id: 't-1', name: 'Schema Design', start: new Date('2026-04-01'), end: new Date('2026-04-05') },
+      {
+        id: 't-2',
+        name: 'API Implementation',
+        start: new Date('2026-04-06'),
+        end: new Date('2026-04-12'),
+        // Supports string taskId or GanttDependencyLink ({ taskId, type: 'FS' | 'SS' | 'FF' | 'SF', lag })
+        dependencies: [{ taskId: 't-1', type: 'FS', lag: 1440 }], // +1 day (1440 min) lag
+      },
+    ],
+  },
+]
+
 const option = {
   dependency: {
     lineStyle: 'orthogonal',
@@ -546,9 +571,15 @@ const option = {
     creatable: true,
     deletable: true,
     showDeleteButton: true,
+    autoSchedule: true, // Enable topological cascade auto-scheduling
+    scheduleMode: 'push-only', // 'push-only' | 'strict'
+    respectMovable: true,
   },
   // ...
 }
+
+// Programmatically recalculate and cascade all dependencies
+const updatedTaskIds = chart.autoSchedule()
 
 // Dependency selection and deletion events
 chart.addEventListener('dependency-select', (e) => {
@@ -1050,12 +1081,16 @@ chart.addEventListener('history-change', (e) => {
 })
 ```
 
-#### Dependency Deletion (`triggerDependencyDelete`)
+#### Dependency Deletion & Auto-Scheduling (`triggerDependencyDelete`, `autoSchedule`)
 
-Programmatically remove a dependency connection between two tasks:
+Programmatically remove a dependency connection between two tasks or execute topological cascade auto-scheduling:
 
 ```javascript
 chart.triggerDependencyDelete('task-1', 'task-2')
+
+// Recalculate downstream schedules (returns array of updated task IDs)
+const updatedIds = chart.autoSchedule()
+const cascadedFromTask1 = chart.autoSchedule(['task-1'], { mode: 'strict' })
 ```
 
 #### WBS & Collapse Operations (`toggleRowCollapse`, `collapseAll`, `expandAll`)
@@ -1095,6 +1130,16 @@ import {
   canDropRow,
   // Critical path computation
   computeCriticalPath,
+  // Auto-scheduling & dependency helpers
+  propagateAutoSchedule,
+  computeRequiredStartMs,
+  getDependencyTaskId,
+  normalizeDependencyLink,
+  endpointsToDependencyType,
+  dependencyTypeToEndpoints,
+  createDependencyEntry,
+  hasDependencyTarget,
+  removeDependencyTarget,
   // Progress calculations
   clampProgress,
   calculateRowProgress,

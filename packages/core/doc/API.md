@@ -179,7 +179,7 @@ Custom events dispatched by the component.
 | `task-contextmenu`       | `TaskContextMenuEventDetail`      | Fired when a task bar is right-clicked. Use for implementing custom context menus.   |
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
 | `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
-| `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked.                                             |
+| `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked, double-clicked, or right-clicked.           |
 | `dependency-select`      | `DependencySelectEventDetail`     | Fired when a dependency line is selected or deselected.                              |
 | `dependency-delete`      | `DependencyDeleteEventDetail`     | Fired when a dependency line is deleted (via Delete key, button, or method).         |
 | `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
@@ -209,6 +209,7 @@ Public methods that can be called on the component instance.
 | `zoomToFit`               | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
 | `resetZoom`               | `() => void`                                                                                | Resets zoom back to 100% standard magnification.                                                                                                                                                |
 | `triggerDependencyDelete` | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | Programmatically deletes the dependency connection between two tasks, emitting `dependency-delete` and recording the undoable command.                                                         |
+| `autoSchedule`            | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                    | Recalculates and cascades successor task dates in topological order based on dependency constraints and lag. Records an undoable command if changes occur and returns updated task IDs.         |
 | `selectTask`              | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
 | `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
 | `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
@@ -444,9 +445,21 @@ interface GanttRow {
 }
 ```
 
-### GanttTask
+### GanttTask / GanttDependencyLink
 
 ```typescript
+type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+
+interface GanttDependencyLink {
+  taskId: string // Predecessor (source) task ID
+  type?: DependencyType // Dependency type ('FS' | 'SS' | 'FF' | 'SF', default: 'FS')
+  lag?: number // Lag (delay) or lead (negative) duration in minutes (default: 0)
+}
+
+type GanttDependency = string | GanttDependencyLink
+
+type AutoScheduleMode = 'push-only' | 'strict'
+
 interface GanttTask {
   id: string // Unique task ID
   name?: string // Task display name
@@ -456,7 +469,7 @@ interface GanttTask {
   style?: string // Custom bar style (CSS string)
   labelStyle?: string // Custom bar label style (CSS string)
   pattern?: GanttTaskPattern // Bar fill pattern
-  dependencies?: string[] // IDs of dependent tasks
+  dependencies?: GanttDependency[] // Predecessor task IDs or GanttDependencyLink objects
   movable?: 'both' | 'x' | 'y' | 'none' // Movement permission ('both': both axes, 'x': horizontal only, 'y': vertical only, 'none': disabled)
   resizable?: boolean // Whether resizing is allowed (defaults to movable setting when unset)
   progress?: number // Progress percentage (0 - 100)
@@ -1051,6 +1064,16 @@ interface GanttChartOptionDependency {
   deletable?: boolean
   /** Whether to show the delete "×" button on selected line (default: true) */
   showDeleteButton?: boolean
+  /** Whether to automatically cascade date updates to successor tasks when a predecessor changes (default: false) */
+  autoSchedule?: boolean
+  /**
+   * Auto-scheduling constraint mode (default: 'push-only')
+   * - 'push-only': Shifts successor tasks forward only when dependency constraints are violated
+   * - 'strict': Strictly aligns successor tasks with predecessor dates and lag in both directions
+   */
+  scheduleMode?: AutoScheduleMode
+  /** Whether auto-scheduling respects task.movable ('none' | 'y') and excludes locked tasks (default: true) */
+  respectMovable?: boolean
 }
 ```
 
@@ -1064,6 +1087,7 @@ interface DependencyCreateEventDetail {
   sourceEndpoint: DependencyEndpoint // Source endpoint (start=left edge, end=right edge)
   targetTaskId: string // Target task ID
   targetEndpoint: DependencyEndpoint // Target endpoint (start=left edge, end=right edge)
+  type?: DependencyType // Inferred dependency type ('FS' | 'SS' | 'FF' | 'SF')
 }
 ```
 
@@ -2150,6 +2174,16 @@ import {
   calculateProjectBaselineSummary,
   // Critical path computation
   computeCriticalPath,
+  // Auto-scheduling & dependency helpers
+  propagateAutoSchedule,
+  computeRequiredStartMs,
+  getDependencyTaskId,
+  normalizeDependencyLink,
+  endpointsToDependencyType,
+  dependencyTypeToEndpoints,
+  createDependencyEntry,
+  hasDependencyTarget,
+  removeDependencyTarget,
   // WBS & Hierarchy calculations
   computeRowLevels,
   computeRowWbsCodes,
@@ -2396,6 +2430,49 @@ function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends Gantt
 ): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
 ```
 
+### Auto-Scheduling & Dependency Helpers (`propagateAutoSchedule`, `normalizeDependencyLink`, etc.)
+
+Helper functions for calculating topological cascade schedules and manipulating `GanttDependency` (`string | GanttDependencyLink`) entries:
+
+```typescript
+// Cascade successor task dates in topological order from changedTaskIds (or all tasks if omitted)
+function propagateAutoSchedule(
+  rows: GanttRow[],
+  changedTaskIds?: Iterable<string>,
+  options?: AutoScheduleOptions
+): AutoScheduleResult
+
+// Compute required successor start timestamp (ms) from a single predecessor constraint
+function computeRequiredStartMs(
+  predStartMs: number,
+  predEndMs: number,
+  succDurationMs: number,
+  type?: DependencyType,
+  lagMinutes?: number
+): number
+
+// Extract predecessor taskId from a string or GanttDependencyLink
+function getDependencyTaskId(dep: GanttDependency): string
+
+// Normalize a string or GanttDependencyLink into Required<GanttDependencyLink> ({ taskId, type, lag })
+function normalizeDependencyLink(dep: GanttDependency): Required<GanttDependencyLink>
+
+// Map source/target endpoints ('start' | 'end') <-> DependencyType ('FS' | 'SS' | 'FF' | 'SF')
+function endpointsToDependencyType(
+  sourceEndpoint?: DependencyEndpoint | string | null,
+  targetEndpoint?: DependencyEndpoint | string | null
+): DependencyType
+function dependencyTypeToEndpoints(type?: DependencyType): {
+  sourceEndpoint: DependencyEndpoint
+  targetEndpoint: DependencyEndpoint
+}
+
+// Create a backward-compatible dependency entry (returns string for FS with 0 lag, or GanttDependencyLink otherwise)
+function createDependencyEntry(sourceTaskId: string, type?: DependencyType, lag?: number): GanttDependency
+function hasDependencyTarget(dependencies: GanttDependency[] | undefined, sourceTaskId: string): boolean
+function removeDependencyTarget(dependencies: GanttDependency[] | undefined, sourceTaskId: string): GanttDependency[]
+```
+
 ---
 
 ## Zoom Controls & Scaling
@@ -2499,9 +2576,9 @@ chart.addEventListener('history-change', (e) => {
 
 ---
 
-## Interactive Dependency Line Operations (Selection & Deletion)
+## Interactive Dependency Line Operations & Auto-Scheduling
 
-Task dependencies (arrows) can be selected by clicking, highlighted with distinct styling, and deleted via one-click button or keyboard.
+Task dependencies support all four relationship types (`FS`, `SS`, `FF`, `SF`) with lag/lead minutes (`lag`), topological cascade auto-scheduling, click/double-click/right-click interactions, highlight selection, and one-click or keyboard deletion.
 
 ### Configuration
 
@@ -2515,6 +2592,9 @@ chart.option = {
     creatable: true, // Allow creating links via connector drag (default: true)
     deletable: true, // Allow deleting links (default: true)
     showDeleteButton: true, // Show "×" delete button on selected link (default: true)
+    autoSchedule: true, // Automatically cascade date changes to successor tasks (default: false)
+    scheduleMode: 'push-only', // 'push-only' (default) | 'strict'
+    respectMovable: true, // Respect task.movable ('none' | 'y') during cascade (default: true)
   },
 }
 ```
@@ -2532,6 +2612,12 @@ chart.addEventListener('dependency-select', (e) => {
   }
 })
 
+// Click, double-click, and right-click (contextmenu) on a dependency line
+chart.addEventListener('dependency-click', (e) => {
+  const { sourceTaskId, targetTaskId, event } = e.detail
+  console.log(`Dependency ${event.type}: ${sourceTaskId} -> ${targetTaskId}`)
+})
+
 // Deletion event
 chart.addEventListener('dependency-delete', (e) => {
   const { sourceTaskId, targetTaskId } = e.detail
@@ -2540,4 +2626,7 @@ chart.addEventListener('dependency-delete', (e) => {
 
 // Programmatic deletion
 chart.triggerDependencyDelete('task-1', 'task-2')
+
+// Programmatic auto-scheduling recalculation
+const updatedTaskIds = chart.autoSchedule()
 ```

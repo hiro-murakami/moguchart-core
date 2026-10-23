@@ -7,3 +7,4 @@ allowBuilds:
 publicHoistPattern:
   - '*lit*'
 shamefullyHoist: true
+ignoreWorkspaceCycles: true

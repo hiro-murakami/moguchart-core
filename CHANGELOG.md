@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-23
+
+### Added
+
+- **Auto-Scheduling & Extended Dependency Types (`FS` / `SS` / `FF` / `SF`) with Lag**:
+  - **Extended Dependency Link Model (`GanttDependencyLink`)**:
+    - `task.dependencies` (`GanttDependency[]`) now supports rich `GanttDependencyLink` objects (`{ taskId: string, type?: 'FS' | 'SS' | 'FF' | 'SF', lag?: number }`) in addition to plain task ID strings (`string`), maintaining 100% backward compatibility.
+    - Support all four standard dependency relationships:
+      - `FS` (Finish-to-Start, default): Successor starts after predecessor finishes (`+ lag`).
+      - `SS` (Start-to-Start): Successor starts relative to predecessor start (`+ lag`).
+      - `FF` (Finish-to-Finish): Successor finishes relative to predecessor finish (`+ lag`).
+      - `SF` (Start-to-Finish): Successor finishes relative to predecessor start (`+ lag`).
+    - Support positive lag (delay) and negative lag (lead time) in minutes (`lag`).
+  - **Topological Cascade Auto-Scheduling Engine (`option.dependency.autoSchedule`)**:
+    - Added `autoSchedule?: boolean` (default: `false`), `scheduleMode?: 'push-only' | 'strict'` (default: `'push-only'`), and `respectMovable?: boolean` (default: `true`) to `option.dependency`.
+    - `'push-only'` mode shifts successor tasks forward only when a dependency constraint is violated, whereas `'strict'` mode locks successor dates strictly to predecessor dates plus lag.
+    - Automatically cascades schedule updates across downstream tasks during task bar drag/resize, multi-task batch move, keyboard `Shift + Arrow` movement, and inline grid cell editing (`startDate`, `endDate`, `duration`), recording all cascaded changes in a single atomic Undo / Redo command.
+    - Added programmatic `chart.autoSchedule(changedTaskIds?, options?)` public method on `GanttChartElement` and `@mogura/moguchart-vue` (`GanttChartPublicApi`).
+  - **Endpoint-Aware Dependency Rendering, Creation & Export**:
+    - Orthogonal (`'orthogonal'`) and Bezier (`'curve'`) SVG dependency path builders now route from and to the appropriate left (`start`) or right (`end`) task bar endpoints based on `FS`, `SS`, `FF`, and `SF` types.
+    - Dragging between left/right task bar connectors automatically infers the corresponding `type` (`'FS' | 'SS' | 'FF' | 'SF'`) and includes it in `DependencyCreateEventDetail.type`.
+    - Updated `computeCriticalPath` and `@mogura/moguchart-plugin-excel` to support `GanttDependencyLink` entries (formatting non-FS dependencies such as `1 (SS)` in Excel exports).
+    - Added `'dependency-update'` to `GanttCommandType` for Undo / Redo history tracking of dependency link edits.
+    - Exported auto-scheduling and dependency helper utilities (`propagateAutoSchedule`, `computeRequiredStartMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`).
+- **Dependency Line Interaction & Intra-Row Lane Layout Enhancements**:
+  - Supported `dblclick` and `contextmenu` (right-click) events on dependency line hit areas via `dependency-click` (inspect `e.detail.event.type` for `'click' | 'dblclick' | 'contextmenu'`).
+  - Improved `calculateTaskLanes` so intra-row successor tasks connected via `FS` (`lag: 0`) with touching boundary dates (`pred.end.getTime() === succ.start.getTime()`) are separated into distinct lanes, keeping the connecting dependency line visible and clickable.
+  - Refined cursor styles on dependency lines and adjusted delete button hit area radius.
+
+### Fixed
+
+- **Multi-Task Drag-and-Drop State Delegation & Marquee Selection in Shadow DOM**:
+  - Fixed controller instance sharing between `GanttChartElement` and `DragDropController` (`TaskDragController`, `RowReorderController`) so multi-task selection is preserved and movement is applied to all selected tasks upon drop.
+  - Updated `MarqueeController` to inspect `composedPath()` and sticky row header viewport bounds, preventing unintended marquee selection activation when dragging from row headers/splitters and suppressing text selection during marquee drag.
+- **Multi-Column Grid Tree Toggle Button Alignment**:
+  - Aligned the vertical and horizontal position of `.tree-toggle-btn` in multi-column grid mode with the classic non-grid row header.
+- **Task Bar Resize Handle Priority & Progress Knob Hit Area**:
+  - Prioritized task duration resize handles (`.resize-handle`) over dependency connector circles (`.connector-handle`) in overlapping edge regions.
+  - Restricted the progress resize handle hit area exclusively to the bottom triangular knob so hovering or dragging the main task bar body no longer triggers accidental progress changes.
+
+---
+
 ## [1.5.0] - 2026-10-17
 
 ### Added
