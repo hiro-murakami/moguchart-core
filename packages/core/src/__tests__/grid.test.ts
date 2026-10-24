@@ -62,7 +62,7 @@ describe('grid calculation & formatting', () => {
       const summary = calculateRowSummaryDates([sampleTasks[0]])
       expect(summary.start?.getTime()).toBe(sampleTasks[0].start.getTime())
       expect(summary.end?.getTime()).toBe(sampleTasks[0].end.getTime())
-      expect(summary.durationDays).toBe(5)
+      expect(summary.durationDays).toBe(4)
       expect(summary.durationMs).toBe(sampleTasks[0].end.getTime() - sampleTasks[0].start.getTime())
       expect(summary.progress).toBe(100)
     })
@@ -71,8 +71,8 @@ describe('grid calculation & formatting', () => {
       const summary = calculateRowSummaryDates(sampleTasks)
       expect(summary.start?.getTime()).toBe(new Date(2026, 9, 1).getTime())
       expect(summary.end?.getTime()).toBe(new Date(2026, 9, 20).getTime())
-      // span is Oct 1 to Oct 20 => 20 days
-      expect(summary.durationDays).toBe(20)
+      // span is Oct 1 to Oct 20 => 19 days
+      expect(summary.durationDays).toBe(19)
       expect(summary.durationMs).toBe(new Date(2026, 9, 20).getTime() - new Date(2026, 9, 1).getTime())
       // weighted progress: (100 * 4d + 50 * 9d) / 13d = 850 / 13 = 65.38... => 65.4
       expect(summary.progress).toBeCloseTo(65.4, 1)
@@ -171,10 +171,11 @@ describe('grid calculation & formatting', () => {
       expect(startVal).toEqual(sampleTasks[0].start)
       expect(endVal).toEqual(sampleTasks[0].end)
 
-      // Day mode (default)
+      // Day mode (default: endDate displays inclusive previous day when midnight)
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/1')
-      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/5')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, jaLocale)).toBe('2026/10/4')
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, enLocale)).toBe('10/1/2026')
+      expect(formatGridCellValue(endCol, endVal, singleTaskRow, singleTaskRow.tasks, enLocale)).toBe('10/4/2026')
 
       // Month mode (end date displays previous month)
       expect(formatGridCellValue(startCol, startVal, singleTaskRow, singleTaskRow.tasks, jaLocale, true)).toBe('2026/10')
@@ -249,11 +250,11 @@ describe('grid calculation & formatting', () => {
 
       const durVal = getGridCellValue(durCol, multiTaskRow, multiTaskRow.tasks)
       const progVal = getGridCellValue(progCol, multiTaskRow, multiTaskRow.tasks)
-      expect(durVal).toBe(20)
+      expect(durVal).toBe(19)
       expect(progVal).toBeCloseTo(65.4, 1)
 
-      expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, jaLocale)).toBe('20日')
-      expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, enLocale)).toBe('20 days')
+      expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, jaLocale)).toBe('19日')
+      expect(formatGridCellValue(durCol, durVal, multiTaskRow, multiTaskRow.tasks, enLocale)).toBe('19 days')
       expect(formatGridCellValue(progCol, progVal, multiTaskRow, multiTaskRow.tasks, jaLocale)).toBe('65%')
 
       // Empty task row
@@ -377,6 +378,17 @@ describe('grid calculation & formatting', () => {
           false,
         ),
       ).toBe('2026-10-01')
+      // Day mode: endDate stores exclusive next day 00:00 (e.g. 2026-10-05 displays/edits as 2026-10-04)
+      expect(
+        formatGridCellEditValue(
+          { id: 'endDate' },
+          new Date(2026, 9, 5),
+          singleTaskRow,
+          singleTaskRow.tasks,
+          false,
+          false,
+        ),
+      ).toBe('2026-10-04')
       // Month mode: endDate stores 1st of next month (e.g. 2026-11-01 displays/edits as 2026-10)
       expect(
         formatGridCellEditValue(
@@ -435,6 +447,12 @@ describe('grid calculation & formatting', () => {
       expect(resStart.changed).toBe(true)
       expect(rStart.tasks[0].start).toEqual(new Date(2026, 9, 2))
 
+      // 2b. End date edit in day mode (stores exclusive next day 00:00)
+      const rEndDay = makeRow()
+      const resEndDay = applyGridCellEdit({ id: 'endDate' }, rEndDay, '2026-10-08', false, false)
+      expect(resEndDay.changed).toBe(true)
+      expect(rEndDay.tasks[0].end).toEqual(new Date(2026, 9, 9))
+
       // 3. End date edit in month mode (stores 1st of next month)
       const rMonth = makeRow()
       const resMonth = applyGridCellEdit({ id: 'endDate' }, rMonth, '2026-11', true, false)
@@ -445,7 +463,7 @@ describe('grid calculation & formatting', () => {
       const rDur = makeRow()
       const resDur = applyGridCellEdit({ id: 'duration' }, rDur, '10')
       expect(resDur.changed).toBe(true)
-      expect(rDur.tasks[0].end).toEqual(new Date(2026, 9, 10))
+      expect(rDur.tasks[0].end).toEqual(new Date(2026, 9, 11))
 
       // 5. Progress edit clamps to 0..100
       const rProg = makeRow()

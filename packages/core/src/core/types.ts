@@ -119,6 +119,14 @@ export type GanttDependency = string | GanttDependencyLink
 export type AutoScheduleMode = 'push-only' | 'strict'
 
 /**
+ * 自動スケジューリングの稼働日（休日除外）計算モード
+ * - 'calendar': カレンダー通り（土日・祝日を含めて計算、デフォルト）
+ * - 'weekends': 営業日ベース（土日を非営業日として除外）
+ * - 'weekends-holidays': 営業日ベース（土日および祝日を非営業日として除外）
+ */
+export type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
+
+/**
  * ガントチャート上の個々のタスクを表すインターフェース
  */
 export interface GanttTask {
@@ -458,6 +466,17 @@ export interface GanttChartOptionDependency {
    * 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true)
    */
   respectMovable?: boolean
+  /**
+   * 自動スケジューリング時の稼働日（休日除外）計算モード (デフォルト: 'calendar')
+   * - 'calendar': カレンダー通り（土日・祝日を含めて計算）
+   * - 'weekends': 営業日ベース（土日を非営業日としてスキップし、稼働日数・ラグを維持）
+   * - 'weekends-holidays': 営業日ベース（土日および祝日を非営業日としてスキップし、稼働日数・ラグを維持）
+   */
+  calendarMode?: AutoScheduleCalendarMode
+  /**
+   * 自動スケジューリング時の祝日判定関数 (未指定時は option.calendar.isHoliday を使用)
+   */
+  isHoliday?: (date: Date) => boolean
 }
 
 /**

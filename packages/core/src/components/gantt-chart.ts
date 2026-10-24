@@ -1585,6 +1585,8 @@ export class GanttChartElement extends LitElement {
       const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
         mode: this.option.dependency.scheduleMode,
         respectMovable: this.option.dependency.respectMovable,
+        calendarMode: this.option.dependency.calendarMode,
+        isHoliday: this.option.dependency.isHoliday ?? this.option.calendar?.isHoliday,
       })
       if (scheduleResult.hasChanges) {
         nextRows = scheduleResult.rows
@@ -1632,6 +1634,11 @@ export class GanttChartElement extends LitElement {
     const scheduleResult = propagateAutoSchedule(this.rows, changedTaskIds, {
       mode: options?.mode ?? this.option?.dependency?.scheduleMode,
       respectMovable: options?.respectMovable ?? this.option?.dependency?.respectMovable,
+      calendarMode: options?.calendarMode ?? this.option?.dependency?.calendarMode,
+      isHoliday:
+        options?.isHoliday ??
+        this.option?.dependency?.isHoliday ??
+        this.option?.calendar?.isHoliday,
     })
     if (!scheduleResult.hasChanges) {
       return []

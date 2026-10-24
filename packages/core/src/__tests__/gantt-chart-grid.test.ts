@@ -264,8 +264,8 @@ describe('gantt-chart multi-column grid', () => {
     const rowShadow = rowEl?.shadowRoot
 
     expect(rowShadow?.querySelector('.grid-cell-startDate')?.textContent).toContain('2026/10/1')
-    expect(rowShadow?.querySelector('.grid-cell-endDate')?.textContent).toContain('2026/10/20')
-    expect(rowShadow?.querySelector('.grid-cell-duration')?.textContent).toContain('20日')
+    expect(rowShadow?.querySelector('.grid-cell-endDate')?.textContent).toContain('2026/10/19')
+    expect(rowShadow?.querySelector('.grid-cell-duration')?.textContent).toContain('19日')
     expect(rowShadow?.querySelector('.grid-cell-progress')?.textContent).toContain('64%')
   })
 

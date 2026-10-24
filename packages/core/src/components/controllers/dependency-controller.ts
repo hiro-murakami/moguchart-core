@@ -314,6 +314,9 @@ export class DependencyController implements ReactiveController {
             const scheduleResult = propagateAutoSchedule(newRows, [sourceTaskId], {
               mode: this.host.option.dependency.scheduleMode,
               respectMovable: this.host.option.dependency.respectMovable,
+              calendarMode: this.host.option.dependency.calendarMode,
+              isHoliday:
+                this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
             })
             if (scheduleResult.hasChanges) {
               newRows = scheduleResult.rows

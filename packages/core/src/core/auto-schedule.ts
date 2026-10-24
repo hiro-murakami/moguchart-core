@@ -1,4 +1,5 @@
 import type {
+  AutoScheduleCalendarMode,
   AutoScheduleMode,
   DependencyEndpoint,
   DependencyType,
@@ -22,6 +23,17 @@ export interface AutoScheduleOptions {
    * タスクの movable 設定 ('none' | 'y') を尊重して自動移動対象から除外するか (デフォルト: true)
    */
   respectMovable?: boolean
+  /**
+   * 稼働日（休日除外）計算モード (デフォルト: 'calendar')
+   * - 'calendar': カレンダー通り（土日・祝日を含めて計算）
+   * - 'weekends': 営業日ベース（土日を非営業日として除外）
+   * - 'weekends-holidays': 営業日ベース（土日および祝日を非営業日として除外）
+   */
+  calendarMode?: AutoScheduleCalendarMode
+  /**
+   * 祝日判定関数 ('weekends-holidays' モード時に使用)
+   */
+  isHoliday?: (date: Date) => boolean
 }
 
 /**
@@ -143,6 +155,170 @@ export function removeDependencyTarget(
 }
 
 /**
+ * ローカルタイムゾーンにおけるその日の開始時刻 (00:00:00.000) のミリ秒を取得する
+ */
+function getStartOfDayMs(ms: number): number {
+  const d = new Date(ms)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+/**
+ * ローカルタイムゾーンにおける翌日の開始時刻 (00:00:00.000) のミリ秒を取得する
+ */
+function getStartOfNextDayMs(dayStartMs: number): number {
+  const d = new Date(dayStartMs)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 1)
+  return d.getTime()
+}
+
+/**
+ * ローカルタイムゾーンにおける前日の開始時刻 (00:00:00.000) のミリ秒を取得する
+ */
+function getStartOfPrevDayMs(dayStartMs: number): number {
+  const d = new Date(dayStartMs)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - 1)
+  return d.getTime()
+}
+
+/**
+ * 稼働日計算モードと祝日判定関数から、非営業日判定関数を生成する
+ * ('calendar' の場合は null を返す)
+ */
+export function createNonWorkingDayChecker(
+  calendarMode: AutoScheduleCalendarMode = 'calendar',
+  isHoliday?: (date: Date) => boolean,
+): ((dayStartMs: number) => boolean) | null {
+  if (!calendarMode || calendarMode === 'calendar') return null
+  return (dayStartMs: number): boolean => {
+    const d = new Date(dayStartMs)
+    const dow = d.getDay()
+    if (dow === 0 || dow === 6) return true
+    if (calendarMode === 'weekends-holidays' && isHoliday) {
+      return !!isHoliday(d)
+    }
+    return false
+  }
+}
+
+/**
+ * 指定された期間 [startMs, endMs] に含まれる営業日ベースの所要時間（ミリ秒）を算出する。
+ * タスク全体が非営業日のみに配置されていた場合は、期間が0に潰れるのを防ぐため暦日期間を返す。
+ */
+export function computeWorkingDurationMs(
+  startMs: number,
+  endMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean,
+): number {
+  if (endMs <= startMs) return 0
+
+  let workingMs = 0
+  let dayStart = getStartOfDayMs(startMs)
+  let guard = 0
+
+  while (dayStart < endMs && guard < 10000) {
+    guard++
+    const dayEnd = getStartOfNextDayMs(dayStart)
+    if (!isNonWorkingDay(dayStart)) {
+      const segStart = Math.max(startMs, dayStart)
+      const segEnd = Math.min(endMs, dayEnd)
+      if (segEnd > segStart) {
+        workingMs += segEnd - segStart
+      }
+    }
+    dayStart = dayEnd
+  }
+
+  if (workingMs === 0 && endMs > startMs) {
+    return endMs - startMs
+  }
+  return workingMs
+}
+
+/**
+ * 指定時刻が非営業日に該当する場合、翌営業日の開始時刻 (00:00:00) へ進める
+ */
+export function snapToWorkingStartMs(
+  ms: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean,
+): number {
+  let cursor = ms
+  let dayStart = getStartOfDayMs(cursor)
+  let guard = 0
+  while (isNonWorkingDay(dayStart) && guard < 3660) {
+    guard++
+    dayStart = getStartOfNextDayMs(dayStart)
+    cursor = dayStart
+  }
+  return cursor
+}
+
+/**
+ * 基準時刻から営業日ベースで指定ミリ秒（正: 未来方向 / 負: 過去方向）を進めた時刻を算出する
+ */
+export function addWorkingTimeMs(
+  anchorMs: number,
+  deltaMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean,
+): number {
+  if (deltaMs === 0) return anchorMs
+
+  if (deltaMs > 0) {
+    let cursor = snapToWorkingStartMs(anchorMs, isNonWorkingDay)
+    let remaining = deltaMs
+    let guard = 0
+
+    while (remaining > 0 && guard < 10000) {
+      guard++
+      const dayStart = getStartOfDayMs(cursor)
+      const dayEnd = getStartOfNextDayMs(dayStart)
+      if (!isNonWorkingDay(dayStart)) {
+        const avail = dayEnd - cursor
+        if (remaining <= avail) {
+          return cursor + remaining
+        }
+        remaining -= avail
+      }
+      cursor = dayEnd
+    }
+    return cursor
+  }
+
+  // deltaMs < 0: 過去方向へ営業時間を遡る
+  let cursor = anchorMs
+  let remaining = -deltaMs
+  let guard = 0
+
+  while (remaining > 0 && guard < 10000) {
+    guard++
+    const dayStart = getStartOfDayMs(cursor)
+    if (cursor > dayStart) {
+      if (!isNonWorkingDay(dayStart)) {
+        const avail = cursor - dayStart
+        if (remaining <= avail) {
+          return cursor - remaining
+        }
+        remaining -= avail
+      }
+      cursor = dayStart
+    } else {
+      const prevDayStart = getStartOfPrevDayMs(dayStart)
+      if (!isNonWorkingDay(prevDayStart)) {
+        const avail = dayStart - prevDayStart
+        if (remaining <= avail) {
+          return dayStart - remaining
+        }
+        remaining -= avail
+      }
+      cursor = prevDayStart
+    }
+  }
+  return cursor
+}
+
+/**
  * 単一の先行タスク制約に基づき、後続タスクに要求される開始時刻（ミリ秒）を計算する
  */
 export function computeRequiredStartMs(
@@ -151,18 +327,57 @@ export function computeRequiredStartMs(
   succDurationMs: number,
   type: DependencyType = 'FS',
   lagMinutes = 0,
+  isNonWorkingDay?: ((dayStartMs: number) => boolean) | null,
 ): number {
   const lagMs = lagMinutes * 60 * 1000
+  if (!isNonWorkingDay) {
+    switch (type) {
+      case 'SS':
+        return predStartMs + lagMs
+      case 'FF':
+        return predEndMs + lagMs - succDurationMs
+      case 'SF':
+        return predStartMs + lagMs - succDurationMs
+      case 'FS':
+      default:
+        return predEndMs + lagMs
+    }
+  }
+
   switch (type) {
-    case 'SS':
-      return predStartMs + lagMs
-    case 'FF':
-      return predEndMs + lagMs - succDurationMs
-    case 'SF':
-      return predStartMs + lagMs - succDurationMs
+    case 'SS': {
+      const afterLag = addWorkingTimeMs(predStartMs, lagMs, isNonWorkingDay)
+      return snapToWorkingStartMs(afterLag, isNonWorkingDay)
+    }
+    case 'FF': {
+      const reqEndMs = addWorkingTimeMs(predEndMs, lagMs, isNonWorkingDay)
+      if (succDurationMs <= 0) {
+        return snapToWorkingStartMs(reqEndMs, isNonWorkingDay)
+      }
+      const candidateStartMs = addWorkingTimeMs(reqEndMs, -succDurationMs, isNonWorkingDay)
+      const candidateEndMs = addWorkingTimeMs(candidateStartMs, succDurationMs, isNonWorkingDay)
+      if (candidateEndMs < reqEndMs) {
+        return snapToWorkingStartMs(reqEndMs, isNonWorkingDay)
+      }
+      return candidateStartMs
+    }
+    case 'SF': {
+      const reqEndMs = addWorkingTimeMs(predStartMs, lagMs, isNonWorkingDay)
+      if (succDurationMs <= 0) {
+        return snapToWorkingStartMs(reqEndMs, isNonWorkingDay)
+      }
+      const candidateStartMs = addWorkingTimeMs(reqEndMs, -succDurationMs, isNonWorkingDay)
+      const candidateEndMs = addWorkingTimeMs(candidateStartMs, succDurationMs, isNonWorkingDay)
+      if (candidateEndMs < reqEndMs) {
+        return snapToWorkingStartMs(reqEndMs, isNonWorkingDay)
+      }
+      return candidateStartMs
+    }
     case 'FS':
-    default:
-      return predEndMs + lagMs
+    default: {
+      const afterLag = addWorkingTimeMs(predEndMs, lagMs, isNonWorkingDay)
+      return snapToWorkingStartMs(afterLag, isNonWorkingDay)
+    }
   }
 }
 
@@ -180,6 +395,7 @@ export function propagateAutoSchedule(
 ): AutoScheduleResult {
   const mode: AutoScheduleMode = options.mode ?? 'push-only'
   const respectMovable = options.respectMovable !== false
+  const isNonWorkingDay = createNonWorkingDayChecker(options.calendarMode, options.isHoliday)
 
   // 1. 全通常タスクのマップと依存グラフを構築
   const taskMap = new Map<
@@ -189,6 +405,7 @@ export function propagateAutoSchedule(
       startMs: number
       endMs: number
       durationMs: number
+      workingDurationMs: number
       links: Required<GanttDependencyLink>[]
     }
   >()
@@ -201,12 +418,17 @@ export function propagateAutoSchedule(
       const endMs = task.end instanceof Date ? task.end.getTime() : new Date(task.end as any).getTime()
       if (Number.isNaN(startMs) || Number.isNaN(endMs)) continue
 
+      const durationMs = Math.max(0, endMs - startMs)
+      const workingDurationMs = isNonWorkingDay
+        ? computeWorkingDurationMs(startMs, endMs, isNonWorkingDay)
+        : durationMs
       const links = (task.dependencies ?? []).map(normalizeDependencyLink)
       taskMap.set(task.id, {
         task,
         startMs,
         endMs,
-        durationMs: Math.max(0, endMs - startMs),
+        durationMs,
+        workingDurationMs,
         links,
       })
     }
@@ -314,6 +536,8 @@ export function propagateAutoSchedule(
       continue
     }
 
+    const effectiveDurationMs = isNonWorkingDay ? entry.workingDurationMs : entry.durationMs
+
     let maxRequiredStartMs = -Infinity
     for (const link of entry.links) {
       const pred = taskMap.get(link.taskId)
@@ -321,9 +545,10 @@ export function propagateAutoSchedule(
       const reqStartMs = computeRequiredStartMs(
         pred.startMs,
         pred.endMs,
-        entry.durationMs,
+        effectiveDurationMs,
         link.type,
         link.lag,
+        isNonWorkingDay,
       )
       if (reqStartMs > maxRequiredStartMs) {
         maxRequiredStartMs = reqStartMs
@@ -332,17 +557,33 @@ export function propagateAutoSchedule(
 
     if (maxRequiredStartMs === -Infinity) continue
 
-    const targetStartMs =
+    const rawTargetStartMs =
       mode === 'strict' ? maxRequiredStartMs : Math.max(entry.startMs, maxRequiredStartMs)
 
-    if (targetStartMs !== entry.startMs) {
-      const targetEndMs = targetStartMs + entry.durationMs
-      entry.startMs = targetStartMs
-      entry.endMs = targetEndMs
-      updatedDates.set(taskId, {
-        start: new Date(targetStartMs),
-        end: new Date(targetEndMs),
-      })
+    if (!isNonWorkingDay) {
+      if (rawTargetStartMs !== entry.startMs) {
+        const targetEndMs = rawTargetStartMs + entry.durationMs
+        entry.startMs = rawTargetStartMs
+        entry.endMs = targetEndMs
+        updatedDates.set(taskId, {
+          start: new Date(rawTargetStartMs),
+          end: new Date(targetEndMs),
+        })
+      }
+    } else if (mode === 'strict' || rawTargetStartMs > entry.startMs) {
+      const targetStartMs = snapToWorkingStartMs(rawTargetStartMs, isNonWorkingDay)
+      const targetEndMs =
+        effectiveDurationMs > 0
+          ? addWorkingTimeMs(targetStartMs, effectiveDurationMs, isNonWorkingDay)
+          : targetStartMs
+      if (targetStartMs !== entry.startMs || targetEndMs !== entry.endMs) {
+        entry.startMs = targetStartMs
+        entry.endMs = targetEndMs
+        updatedDates.set(taskId, {
+          start: new Date(targetStartMs),
+          end: new Date(targetEndMs),
+        })
+      }
     }
   }
 

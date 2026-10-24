@@ -251,6 +251,78 @@ describe('propagateAutoSchedule', () => {
 
     expect(() => propagateAutoSchedule(rows, ['A'])).not.toThrow()
   })
+
+  it('calendarMode: weekends で土日をスキップし、後続タスクの営業日数を維持して伸縮する', () => {
+    // 2026-10-16 は金曜日、10-17(土)、10-18(日)、10-19(月)
+    // タスクA: 10/14(水)〜10/17(土) (水・木・金の3営業日、終了時刻は土曜0:00)
+    // タスクB: 元々 10/14(水)〜10/16(金) (水・木の2営業日) -> FS(lag=0) でAの後に移動すると
+    // 土日をスキップして 10/19(月)〜10/21(水) (月・火の2営業日) になるべき
+    // タスクC: 元々 10/15(木)〜10/20(火) (木・金・[土日]・月の3営業日) -> FS(lag=0) でBの後に移動すると
+    // 10/21(水)〜10/24(土) (水・木・金の3営業日＝暦日3日間に短縮) になるべき
+    const rows: GanttRow[] = [
+      {
+        id: 'r1',
+        name: 'Row 1',
+        tasks: [
+          { id: 'A', name: 'A', start: d(2026, 10, 14), end: d(2026, 10, 17) },
+          { id: 'B', name: 'B', start: d(2026, 10, 14), end: d(2026, 10, 16), dependencies: ['A'] },
+          { id: 'C', name: 'C', start: d(2026, 10, 15), end: d(2026, 10, 20), dependencies: ['B'] },
+        ],
+      },
+    ]
+
+    const result = propagateAutoSchedule(rows, ['A'], {
+      mode: 'strict',
+      calendarMode: 'weekends',
+    })
+
+    expect(result.hasChanges).toBe(true)
+    const tasks = result.rows[0].tasks
+    // B: 10/19(月)〜10/21(水) (2営業日)
+    expect(tasks[1].start).toEqual(d(2026, 10, 19))
+    expect(tasks[1].end).toEqual(d(2026, 10, 21))
+    // C: 10/21(水)〜10/24(土) (水・木・金の3営業日)
+    expect(tasks[2].start).toEqual(d(2026, 10, 21))
+    expect(tasks[2].end).toEqual(d(2026, 10, 24))
+  })
+
+  it('calendarMode: weekends-holidays で土日・祝日をスキップし、ラグも営業日としてカウントする', () => {
+    // 2026-10-16(金)、10-17(土)、10-18(日)、10-19(月: 仮の祝日とする)、10-20(火)、10-21(水)
+    const isHoliday = (date: Date) =>
+      date.getFullYear() === 2026 && date.getMonth() === 9 && date.getDate() === 19
+
+    const rows: GanttRow[] = [
+      {
+        id: 'r1',
+        name: 'Row 1',
+        tasks: [
+          // A: 10/15(木)〜10/16(金) (木曜1営業日)
+          { id: 'A', name: 'A', start: d(2026, 10, 15), end: d(2026, 10, 16) },
+          // B: 2営業日のタスク (元: 10/13(火)〜10/15(木))、Aに対して FS + ラグ1営業日 (1440分)
+          // A終了(10/16金 0:00) + ラグ1営業日(10/16金) -> 10/17(土)・10/18(日)・10/19(月祝)をスキップし、
+          // 10/20(火)開始、2営業日分(火・水)で 10/22(木)終了になるべき
+          {
+            id: 'B',
+            name: 'B',
+            start: d(2026, 10, 13),
+            end: d(2026, 10, 15),
+            dependencies: [{ taskId: 'A', type: 'FS', lag: 1440 }],
+          },
+        ],
+      },
+    ]
+
+    const result = propagateAutoSchedule(rows, ['A'], {
+      mode: 'strict',
+      calendarMode: 'weekends-holidays',
+      isHoliday,
+    })
+
+    expect(result.hasChanges).toBe(true)
+    const taskB = result.rows[0].tasks[1]
+    expect(taskB.start).toEqual(d(2026, 10, 20))
+    expect(taskB.end).toEqual(d(2026, 10, 22))
+  })
 })
 
 describe('GanttChartElement auto-schedule & advanced dependency integration', () => {

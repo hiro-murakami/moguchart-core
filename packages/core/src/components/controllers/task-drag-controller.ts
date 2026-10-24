@@ -532,6 +532,9 @@ export class TaskDragController implements ReactiveController {
           const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
             mode: this.host.option.dependency.scheduleMode,
             respectMovable: this.host.option.dependency.respectMovable,
+            calendarMode: this.host.option.dependency.calendarMode,
+            isHoliday:
+              this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
           })
           if (scheduleResult.hasChanges) {
             newRows.splice(0, newRows.length, ...scheduleResult.rows)
@@ -587,6 +590,9 @@ export class TaskDragController implements ReactiveController {
           const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
             mode: this.host.option.dependency.scheduleMode,
             respectMovable: this.host.option.dependency.respectMovable,
+            calendarMode: this.host.option.dependency.calendarMode,
+            isHoliday:
+              this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
           })
           if (scheduleResult.hasChanges) {
             newRows = scheduleResult.rows
@@ -656,6 +662,9 @@ export class TaskDragController implements ReactiveController {
         const scheduleResult = propagateAutoSchedule(newRows, [id], {
           mode: this.host.option.dependency.scheduleMode,
           respectMovable: this.host.option.dependency.respectMovable,
+          calendarMode: this.host.option.dependency.calendarMode,
+          isHoliday:
+            this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
         })
         if (scheduleResult.hasChanges) {
           newRows = scheduleResult.rows

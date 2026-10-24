@@ -90,12 +90,12 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   const startDate = new Date(minStart)
   const endDate = new Date(maxEnd)
 
-  // カレンダー日数スパン (開始日から終了日までの日数、端数切り上げ)
+  // カレンダー日数スパン (開始日から終了日までの日数)
   const msPerDay = 1000 * 60 * 60 * 24
   // 日付境界を考慮した実日数計算
   const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime()
   const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime()
-  const durationDays = Math.max(1, Math.round((endDay - startDay) / msPerDay) + 1)
+  const durationDays = Math.max(1, Math.round((endDay - startDay) / msPerDay))
   const durationMs = Math.max(0, maxEnd - minStart)
 
   const calculatedProgress =
@@ -331,6 +331,18 @@ export function formatGridCellValue(
           const h = value.getHours().toString().padStart(2, '0')
           const m = value.getMinutes().toString().padStart(2, '0')
           return `${dateStr} ${h}:${m}`
+        }
+        if (column.id === 'endDate') {
+          const summary = calculateRowSummaryDates(tasks)
+          if (
+            value.getHours() === 0 &&
+            value.getMinutes() === 0 &&
+            (!summary.start || summary.start.getTime() < value.getTime())
+          ) {
+            return currentLocale.dateFormat(
+              new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
+            )
+          }
         }
         return currentLocale.dateFormat(value)
       }
@@ -586,6 +598,18 @@ export function formatGridCellEditValue(
     if (editorType === 'datetime') {
       return formatDateTimeInputString(value)
     }
+    if (editorType === 'date' && column.id === 'endDate') {
+      const summary = calculateRowSummaryDates(tasks)
+      if (
+        value.getHours() === 0 &&
+        value.getMinutes() === 0 &&
+        (!summary.start || summary.start.getTime() < value.getTime())
+      ) {
+        return formatDateInputString(
+          new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
+        )
+      }
+    }
     return formatDateInputString(value)
   }
 
@@ -691,12 +715,18 @@ export function applyGridCellEdit(
       }
       const prevStart = singleTask.start ? new Date(singleTask.start.getTime()) : null
       singleTask.start = nextStart
-      // 開始日が終了日を超えた場合は終了日を開始日に合わせる（月モードの場合は翌月1日）
+      // 開始日が終了日を超えた場合は終了日を開始日に合わせる（月モードの場合は翌月1日、日モードの場合は翌日0時）
       if (singleTask.end && nextStart.getTime() > singleTask.end.getTime()) {
         if (editorType === 'month') {
           singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 1)
         } else if (editorType === 'datetime') {
           singleTask.end = new Date(nextStart.getTime() + 60 * 60 * 1000)
+        } else if (
+          editorType === 'date' &&
+          singleTask.end.getHours() === 0 &&
+          singleTask.end.getMinutes() === 0
+        ) {
+          singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth(), nextStart.getDate() + 1)
         } else {
           singleTask.end = new Date(nextStart.getTime())
         }
@@ -706,6 +736,14 @@ export function applyGridCellEdit(
         nextStart.getTime() >= singleTask.end.getTime()
       ) {
         singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, 1)
+      } else if (
+        editorType === 'date' &&
+        singleTask.end &&
+        singleTask.end.getHours() === 0 &&
+        singleTask.end.getMinutes() === 0 &&
+        nextStart.getTime() >= singleTask.end.getTime()
+      ) {
+        singleTask.end = new Date(nextStart.getFullYear(), nextStart.getMonth(), nextStart.getDate() + 1)
       }
       return { changed: true, oldValue: prevStart, newValue: nextStart }
     }
@@ -725,7 +763,18 @@ export function applyGridCellEdit(
         } else if (editorType === 'datetime') {
           nextEnd = parseDateTimeInputString(rawInputValue)
         } else {
-          nextEnd = parseDateInputString(rawInputValue, singleTask.end)
+          const parsed = parseDateInputString(rawInputValue, singleTask.end)
+          if (parsed) {
+            if (
+              column.id === 'endDate' &&
+              (!singleTask.end ||
+                (singleTask.end.getHours() === 0 && singleTask.end.getMinutes() === 0))
+            ) {
+              nextEnd = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate() + 1)
+            } else {
+              nextEnd = parsed
+            }
+          }
         }
       }
       if (!nextEnd || Number.isNaN(nextEnd.getTime())) {
@@ -740,6 +789,12 @@ export function applyGridCellEdit(
       if (singleTask.start && nextEnd.getTime() < singleTask.start.getTime()) {
         if (editorType === 'month') {
           singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth() - 1, 1)
+        } else if (
+          editorType === 'date' &&
+          nextEnd.getHours() === 0 &&
+          nextEnd.getMinutes() === 0
+        ) {
+          singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth(), nextEnd.getDate() - 1)
         } else {
           singleTask.start = new Date(nextEnd.getTime())
         }
@@ -749,6 +804,14 @@ export function applyGridCellEdit(
         nextEnd.getTime() <= singleTask.start.getTime()
       ) {
         singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth() - 1, 1)
+      } else if (
+        editorType === 'date' &&
+        singleTask.start &&
+        nextEnd.getHours() === 0 &&
+        nextEnd.getMinutes() === 0 &&
+        nextEnd.getTime() <= singleTask.start.getTime()
+      ) {
+        singleTask.start = new Date(nextEnd.getFullYear(), nextEnd.getMonth(), nextEnd.getDate() - 1)
       }
       return { changed: true, oldValue: prevEnd, newValue: nextEnd }
     }
@@ -783,7 +846,7 @@ export function applyGridCellEdit(
         singleTask.end = new Date(
           s.getFullYear(),
           s.getMonth(),
-          s.getDate() + (nextDays - 1),
+          s.getDate() + nextDays,
           e.getHours(),
           e.getMinutes(),
           e.getSeconds(),
