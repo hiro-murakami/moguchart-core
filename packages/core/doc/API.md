@@ -482,14 +482,10 @@ interface AutoScheduleOptions {
 interface AutoScheduleResult {
   /** Updated rows array (same reference as input if no tasks changed) */
   rows: GanttRow[]
-  /** Whether any task dates were modified */
-  changed: boolean
   /** Array of task IDs whose schedules were updated */
   updatedTaskIds: string[]
-  /** Map of task states prior to scheduling (for Undo / Redo recording) */
-  previousTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
-  /** Map of task states after scheduling (for Undo / Redo recording) */
-  nextTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+  /** Whether one or more tasks were updated */
+  hasChanges: boolean
 }
 
 interface GanttTask {
@@ -2414,58 +2410,82 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: Complete array of row data
 - **Returns**: `true` if drop is permitted, `false` if circular reference would occur
 
-### Multi-Column Grid Helpers (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `isGridCellEditable`, `applyGridCellEdit`)
+### Multi-Column Grid Helpers (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
 
 Helper utilities for resolving, formatting, validating editability, and applying inline edits to Multi-Column Data Grid cells:
 
 ```typescript
-// Aggregate earliest start, latest end, and calendar days across a task list
+// Aggregate earliest start, latest end, calendar days, duration (ms), and weighted progress across a task list
 function calculateRowSummaryDates(tasks: GanttTask[]): {
   start: Date | null
   end: Date | null
   durationDays: number
+  durationMs: number
+  progress: number | undefined
 }
 
 // Normalize user column definitions with localized default titles, widths, and alignments
-function normalizeGridColumns<TRow = GanttRow, TTask = GanttTask>(
-  columns?: GanttColumn<TRow, TTask>[],
+function normalizeGridColumns(
+  columns?: GanttColumn[],
   locale?: MoguchartLocale,
-  viewContext?: GridViewModeContext
-): GanttColumn<TRow, TTask>[]
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): GanttColumn[]
 
 // Resolve raw cell value for a row and column
-function getGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
-  tasks: TTask[],
+function getGridCellValue(
+  column: GanttColumn,
+  row: GanttRow,
+  tasks: GanttTask[],
   wbsCode?: string
 ): any
 
 // Format a resolved cell value into a display string according to column and view mode
-function formatGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
+function formatGridCellValue(
+  column: GanttColumn,
   value: any,
-  row: TRow,
-  tasks: TTask[],
+  row: GanttRow,
+  tasks: GanttTask[],
   locale?: MoguchartLocale,
-  viewContext?: GridViewModeContext
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
 ): string
 
+// Resolve the effective inline editor control type for a column according to view mode
+function resolveColumnEditorType(
+  column: GanttColumn,
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): GanttColumnEditorType
+
 // Determine whether a specific cell is editable (respecting summary/multi-task rules and task.movable / resizable / progressResizable)
-function isGridCellEditable<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
-  tasks: TTask[],
+function isGridCellEditable(
+  column: GanttColumn,
+  row: GanttRow,
+  tasks: GanttTask[],
+  hasChildren?: boolean,
   gridEditable?: boolean
 ): boolean
 
-// Apply a committed inline edit value to a row/task and return the updated row and change status
-function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
+// Format the initial input string value for an inline cell editor control
+function formatGridCellEditValue(
+  column: GanttColumn,
+  value: any,
+  row: GanttRow,
+  tasks: GanttTask[],
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): string
+
+// Apply a committed inline edit value to a row/task and return the change status and old/new values
+function applyGridCellEdit(
+  column: GanttColumn,
+  row: GanttRow,
   rawInputValue: any,
-  viewContext?: GridViewModeContext
-): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+  wbsCode?: string
+): { changed: boolean; oldValue: any; newValue: any }
 ```
 
 ### Auto-Scheduling & Dependency Helpers (`propagateAutoSchedule`, `normalizeDependencyLink`, etc.)

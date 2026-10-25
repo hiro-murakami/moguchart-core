@@ -1182,8 +1182,8 @@ const summaryTask = computeSummaryTask(childTasks, 'project-1') // Min start, ma
 const isDropAllowed = canDropRow('source-row-id', 'target-row-id', rows) // boolean
 // 7. Find longest task dependency chains (critical path)
 const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
-// 8. Calculate earliest start, latest end, and calendar days across tasks in a row
-const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays }
+// 8. Calculate earliest start, latest end, calendar days, duration (ms), and weighted progress across tasks in a row
+const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays, durationMs, progress }
 ```
 
 ### Keyboard Operations

@@ -482,14 +482,10 @@ interface AutoScheduleOptions {
 interface AutoScheduleResult {
   /** 更新後の行データ配列（変更がない場合は元の配列と同一参照） */
   rows: GanttRow[]
-  /** 変更が発生したかどうか */
-  changed: boolean
-  /** 日程が更新されたタスクIDの配列 */
+  /** 自動スケジューリングによって日時が更新されたタスクIDの配列 */
   updatedTaskIds: string[]
-  /** Undo / Redo 記録用の変更前タスク状態マップ */
-  previousTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
-  /** Undo / Redo 記録用の変更後タスク状態マップ */
-  nextTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+  /** 1つ以上のタスクが更新されたかどうか */
+  hasChanges: boolean
 }
 
 interface GanttTask {
@@ -2393,58 +2389,82 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: 全行データ配列
 - **戻り値**: ドロップ可能な場合は `true`、循環参照となる場合は `false`
 
-### マルチカラムグリッド用ヘルパー (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `isGridCellEditable`, `applyGridCellEdit`)
+### マルチカラムグリッド用ヘルパー (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
 
 マルチカラムデータグリッドの各セル値の解決・フォーマット・編集可否判定・編集結果の反映を行うヘルパー関数群です。
 
 ```typescript
-// タスク配列から最小開始日・最大終了日・カレンダー期間日数を集計
+// タスク配列から最小開始日・最大終了日・カレンダー期間日数・期間（ミリ秒）・加重平均進捗率を集計
 function calculateRowSummaryDates(tasks: GanttTask[]): {
   start: Date | null
   end: Date | null
   durationDays: number
+  durationMs: number
+  progress: number | undefined
 }
 
 // カラム定義配列にロケールおよび表示モードに応じたデフォルトタイトル・幅・配置を補完
-function normalizeGridColumns<TRow = GanttRow, TTask = GanttTask>(
-  columns?: GanttColumn<TRow, TTask>[],
+function normalizeGridColumns(
+  columns?: GanttColumn[],
   locale?: MoguchartLocale,
-  viewContext?: GridViewModeContext
-): GanttColumn<TRow, TTask>[]
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): GanttColumn[]
 
 // 指定カラム・行の生のセル値を取得
-function getGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
-  tasks: TTask[],
+function getGridCellValue(
+  column: GanttColumn,
+  row: GanttRow,
+  tasks: GanttTask[],
   wbsCode?: string
 ): any
 
 // セル値をカラム定義・ロケール・表示モードに応じた表示文字列へフォーマット
-function formatGridCellValue<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
+function formatGridCellValue(
+  column: GanttColumn,
   value: any,
-  row: TRow,
-  tasks: TTask[],
+  row: GanttRow,
+  tasks: GanttTask[],
   locale?: MoguchartLocale,
-  viewContext?: GridViewModeContext
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
 ): string
 
+// カラム定義と表示モードに応じた実効インライン編集コントロール種別を取得
+function resolveColumnEditorType(
+  column: GanttColumn,
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): GanttColumnEditorType
+
 // 指定セルがインライン編集可能かどうかを判定（サマリー行・複数タスク行や task.movable / resizable / progressResizable も考慮）
-function isGridCellEditable<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
-  tasks: TTask[],
+function isGridCellEditable(
+  column: GanttColumn,
+  row: GanttRow,
+  tasks: GanttTask[],
+  hasChildren?: boolean,
   gridEditable?: boolean
 ): boolean
 
-// インライン編集で入力された新しい値を行・タスクデータに適用し、変更有無と更新後の行データを返す
-function applyGridCellEdit<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
-  column: GanttColumn<TRow, TTask>,
-  row: TRow,
+// インライン編集用入力コントロールの初期値文字列を生成
+function formatGridCellEditValue(
+  column: GanttColumn,
+  value: any,
+  row: GanttRow,
+  tasks: GanttTask[],
+  isMonthMode?: boolean,
+  isTimeMode?: boolean
+): string
+
+// インライン編集で入力された新しい値を行・タスクデータに適用し、変更有無と変更前後の値を返す
+function applyGridCellEdit(
+  column: GanttColumn,
+  row: GanttRow,
   rawInputValue: any,
-  viewContext?: GridViewModeContext
-): { changed: boolean; updatedRow: TRow; oldValue: any; newValue: any }
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+  wbsCode?: string
+): { changed: boolean; oldValue: any; newValue: any }
 ```
 
 ### 自動スケジューリング・依存関係用ヘルパー (`propagateAutoSchedule`, `normalizeDependencyLink` など)

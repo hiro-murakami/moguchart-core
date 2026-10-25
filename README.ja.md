@@ -1165,8 +1165,8 @@ const isSafe = canDropRow('source-row-id', 'target-row-id', rows) // boolean
 // 7. クリティカルパス（最長依存関係チェーン）の計算
 const criticalTaskIds = computeCriticalPath(allTasks) // Set<string>
 
-// 8. 行内のタスク配列から最小開始日・最大終了日・期間日数を算出
-const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays }
+// 8. 行内のタスク配列から最小開始日・最大終了日・期間日数・期間（ミリ秒）・加重平均進捗率を算出
+const summaryDates = calculateRowSummaryDates(rows[0].tasks) // { start, end, durationDays, durationMs, progress }
 ```
 
 ### キーボード操作
