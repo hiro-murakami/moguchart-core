@@ -460,6 +460,38 @@ type GanttDependency = string | GanttDependencyLink
 
 type AutoScheduleMode = 'push-only' | 'strict'
 
+/**
+ * Working-day calculation mode for auto-scheduling
+ * - 'calendar': Treat all calendar days (including weekends & holidays) as working days (default)
+ * - 'weekends': Exclude Saturdays and Sundays as non-working days (preserves working duration & lag, snapping landing dates to the next working day)
+ * - 'weekends-holidays': Exclude Saturdays, Sundays, and custom holidays (via isHoliday) as non-working days
+ */
+type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
+
+interface AutoScheduleOptions {
+  /** Scheduling constraint mode (default: 'push-only') */
+  mode?: AutoScheduleMode
+  /** Whether to exclude tasks with movable === 'none' or 'y' from automatic movement (default: true) */
+  respectMovable?: boolean
+  /** Working-day / non-working-day calculation mode (default: 'calendar') */
+  calendarMode?: AutoScheduleCalendarMode
+  /** Holiday predicate function used when calendarMode === 'weekends-holidays' */
+  isHoliday?: (date: Date) => boolean
+}
+
+interface AutoScheduleResult {
+  /** Updated rows array (same reference as input if no tasks changed) */
+  rows: GanttRow[]
+  /** Whether any task dates were modified */
+  changed: boolean
+  /** Array of task IDs whose schedules were updated */
+  updatedTaskIds: string[]
+  /** Map of task states prior to scheduling (for Undo / Redo recording) */
+  previousTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+  /** Map of task states after scheduling (for Undo / Redo recording) */
+  nextTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+}
+
 interface GanttTask {
   id: string // Unique task ID
   name?: string // Task display name
@@ -1074,6 +1106,18 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** Whether auto-scheduling respects task.movable ('none' | 'y') and excludes locked tasks (default: true) */
   respectMovable?: boolean
+  /**
+   * Working-day calculation mode during auto-scheduling (default: 'calendar')
+   * - 'calendar': Treat all calendar days as working days
+   * - 'weekends': Skip Saturdays and Sundays (preserves working duration & lag, snapping landing dates to the next working day)
+   * - 'weekends-holidays': Skip Saturdays, Sundays, and holidays (via isHoliday or option.calendar.isHoliday)
+   */
+  calendarMode?: AutoScheduleCalendarMode
+  /**
+   * Custom holiday predicate used when calendarMode === 'weekends-holidays'.
+   * Falls back to option.calendar.isHoliday when omitted.
+   */
+  isHoliday?: (date: Date) => boolean
 }
 ```
 
@@ -1097,7 +1141,7 @@ interface DependencyCreateEventDetail {
 interface DependencyClickEventDetail {
   sourceTaskId: string // Source (dependency) task ID
   targetTaskId: string // Target (dependent) task ID
-  event: MouseEvent // Original mouse event
+  event: MouseEvent // Original mouse event ('click' | 'dblclick' | 'contextmenu')
 }
 ```
 
@@ -1213,16 +1257,6 @@ interface HistoryChangeEventDetail {
   canRedo: boolean // Whether redo is available
   historyLength: number // Current history stack depth
   currentIndex: number // Current history pointer index
-}
-```
-
-### DependencyClickEventDetail
-
-```typescript
-interface DependencyClickEventDetail {
-  sourceTaskId: string // Source (dependency) task ID
-  targetTaskId: string // Target (dependent) task ID
-  event: MouseEvent // Original mouse event
 }
 ```
 
@@ -2177,6 +2211,10 @@ import {
   // Auto-scheduling & dependency helpers
   propagateAutoSchedule,
   computeRequiredStartMs,
+  createNonWorkingDayChecker,
+  computeWorkingDurationMs,
+  snapToWorkingStartMs,
+  addWorkingTimeMs,
   getDependencyTaskId,
   normalizeDependencyLink,
   endpointsToDependencyType,
@@ -2448,7 +2486,34 @@ function computeRequiredStartMs(
   predEndMs: number,
   succDurationMs: number,
   type?: DependencyType,
-  lagMinutes?: number
+  lagMinutes?: number,
+  isNonWorkingDay?: ((dayStartMs: number) => boolean) | null
+): number
+
+// Create a non-working day predicate from calendarMode and isHoliday (returns null when calendarMode === 'calendar')
+function createNonWorkingDayChecker(
+  calendarMode?: AutoScheduleCalendarMode,
+  isHoliday?: (date: Date) => boolean
+): ((dayStartMs: number) => boolean) | null
+
+// Compute effective working duration (ms) between startMs and endMs excluding non-working days
+function computeWorkingDurationMs(
+  startMs: number,
+  endMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
+): number
+
+// Snap a timestamp forward to the start (00:00) of the next working day if it falls on a non-working day
+function snapToWorkingStartMs(
+  ms: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
+): number
+
+// Add or subtract working time (ms) from anchorMs while skipping non-working days
+function addWorkingTimeMs(
+  anchorMs: number,
+  deltaMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
 ): number
 
 // Extract predecessor taskId from a string or GanttDependencyLink
@@ -2595,6 +2660,8 @@ chart.option = {
     autoSchedule: true, // Automatically cascade date changes to successor tasks (default: false)
     scheduleMode: 'push-only', // 'push-only' (default) | 'strict'
     respectMovable: true, // Respect task.movable ('none' | 'y') during cascade (default: true)
+    calendarMode: 'weekends-holidays', // 'calendar' (default) | 'weekends' | 'weekends-holidays'
+    // isHoliday: (date) => false, // Custom holiday checker (falls back to option.calendar.isHoliday)
   },
 }
 ```

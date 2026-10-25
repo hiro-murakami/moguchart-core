@@ -30,7 +30,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - CSSによるスタイリング
 - 🔗 **依存関係の対話的操作 ＆ 自動スケジューリング**:
   - 4種類の標準依存関係タイプ（`FS`: 終了-開始、`SS`: 開始-開始、`FF`: 終了-終了、`SF`: 開始-終了）およびラグ・リード期間（`lag`: 分単位）を `GanttDependencyLink` で指定可能（文字列タスクIDとも100%後方互換）
-  - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`）。ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
+  - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`, `calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`, `isHoliday`）。営業日ベース（土日除外・土日祝日除外）での非稼働日スキップと実稼働期間・ラグ維持、ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
   - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で左右端エンドポイントに応じて可視化
   - 依存関係線のクリック選択・ハイライト表示に加え、ダブルクリック（`dblclick`）・右クリック（`contextmenu`）イベントにも対応
   - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
@@ -128,7 +128,7 @@ pnpm add @mogura/moguchart-vue @mogura/moguchart-core
 
 ## React での使用例（公式ラッパー）
 
-[`@mogura/moguchart-react`](./packages/react/README.ja.md) を使用すると、React の合成イベントや Props、`ref` を通じた命令的メソッド呼び出しが完全に型安全に動作します：
+[`@mogura/moguchart-react`](../react/README.ja.md) を使用すると、React の合成イベントや Props、`ref` を通じた命令的メソッド呼び出しが完全に型安全に動作します：
 
 ```tsx
 import React, { useRef } from 'react'
@@ -204,7 +204,7 @@ export default function App() {
 
 ## Vue 3 での使用例（公式ラッパー）
 
-[`@mogura/moguchart-vue`](./packages/vue/README.ja.md) を使用すると、Composition API（`<script setup>`）でリアクティブな Props や Vue 標準のイベントハンドリング（`@task-update` 等）を直感的に扱えます：
+[`@mogura/moguchart-vue`](../vue/README.ja.md) を使用すると、Composition API（`<script setup>`）でリアクティブな Props や Vue 標準のイベントハンドリング（`@task-update` 等）を直感的に扱えます：
 
 ```vue
 <script setup lang="ts">
@@ -553,6 +553,8 @@ const option = {
     autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
     scheduleMode: 'push-only', // 'push-only' (制約違反時のみ押し出し) | 'strict' (常に厳密追従)
     respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
+    calendarMode: 'weekends-holidays', // 'calendar' (暦日, デフォルト) | 'weekends' (土日除外) | 'weekends-holidays' (土日・祝日除外)
+    // isHoliday: (date) => false, // 祝日判定関数（省略時は option.calendar.isHoliday を使用）
   },
   // ...
 }
@@ -1111,6 +1113,10 @@ import {
   // 自動スケジューリング・依存関係ヘルパー
   propagateAutoSchedule,
   computeRequiredStartMs,
+  createNonWorkingDayChecker,
+  computeWorkingDurationMs,
+  snapToWorkingStartMs,
+  addWorkingTimeMs,
   getDependencyTaskId,
   normalizeDependencyLink,
   endpointsToDependencyType,
@@ -1201,9 +1207,9 @@ const option = {
 
 ## 更新履歴
 
-変更履歴の詳細は [CHANGELOG.ja.md](CHANGELOG.ja.md)（[英語版: CHANGELOG.md](CHANGELOG.md)）をご覧ください。
+変更履歴の詳細は [CHANGELOG.ja.md](../../CHANGELOG.ja.md)（[英語版: CHANGELOG.md](../../CHANGELOG.md)）をご覧ください。
 
 ## ライセンス
 
-MIT
+[MIT License](./LICENSE)
 

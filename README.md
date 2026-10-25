@@ -31,7 +31,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Native CSS variable-driven styling
 - 🔗 **Interactive Dependencies & Auto-Scheduling**:
   - Support all 4 standard dependency relationships (`FS`: Finish-to-Start, `SS`: Start-to-Start, `FF`: Finish-to-Finish, `SF`: Start-to-Finish) and lag/lead time (`lag` in minutes) via `GanttDependencyLink` (with 100% backward compatibility for string task IDs)
-  - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`) across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
+  - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`, `calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`, `isHoliday`) with working-day/holiday skipping and working-duration/lag preservation across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
   - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves routed accurately to left/right bar endpoints
   - Click, double-click, and right-click (`contextmenu`) support on dependency lines with dedicated highlight styling
   - One-click deletion via on-line "×" button or `Delete` / `Backspace` key
@@ -127,7 +127,7 @@ pnpm add @mogura/moguchart-vue @mogura/moguchart-core
 
 ## API Reference
 
-For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.md)](./doc/API.md) or the [Japanese API Reference (API.ja.md)](./doc/API.ja.md).
+For exhaustive configuration properties, methods, and event signatures, refer to the [API Reference (API.md)](./packages/core/doc/API.md) or the [Japanese API Reference (API.ja.md)](./packages/core/doc/API.ja.md).
 
 ---
 
@@ -536,6 +536,8 @@ Configure task dependency curves, interactive operations, and topological cascad
 - `autoSchedule`: Automatically cascade date changes to successor tasks when a predecessor task is moved, resized, or edited (default: `false`).
 - `scheduleMode`: `'push-only'` (default: shifts successors forward only when constraints are violated) or `'strict'` (always shifts successors in lockstep with predecessor dates and lag).
 - `respectMovable`: Exclude tasks with `movable: 'none' | 'y'` from automatic cascade movement (default: `true`).
+- `calendarMode`: `'calendar'` (default: calendar days), `'weekends'` (skip Saturdays/Sundays and preserve working days/lag), or `'weekends-holidays'` (skip weekends and holidays).
+- `isHoliday`: Custom holiday predicate `(date: Date) => boolean` used when `calendarMode === 'weekends-holidays'` (falls back to `option.calendar.isHoliday`).
 
 Each item in `task.dependencies` can be a simple task ID string (`'task-1'`, treated as `FS` with `0` lag) or a `GanttDependencyLink` object (`{ taskId: 'task-1', type: 'FS' | 'SS' | 'FF' | 'SF', lag: 1440 }`, where `lag` is in minutes).
 
@@ -574,6 +576,8 @@ const option = {
     autoSchedule: true, // Enable topological cascade auto-scheduling
     scheduleMode: 'push-only', // 'push-only' | 'strict'
     respectMovable: true,
+    calendarMode: 'weekends-holidays', // 'calendar' | 'weekends' | 'weekends-holidays'
+    // isHoliday: (date) => false, // Optional holiday checker (falls back to option.calendar.isHoliday)
   },
   // ...
 }
@@ -1133,6 +1137,10 @@ import {
   // Auto-scheduling & dependency helpers
   propagateAutoSchedule,
   computeRequiredStartMs,
+  createNonWorkingDayChecker,
+  computeWorkingDurationMs,
+  snapToWorkingStartMs,
+  addWorkingTimeMs,
   getDependencyTaskId,
   normalizeDependencyLink,
   endpointsToDependencyType,
@@ -1215,8 +1223,8 @@ const option = {
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) ([日本語版: CHANGELOG.ja.md](CHANGELOG.ja.md)) for release history and migration details.
+See [CHANGELOG.md](./CHANGELOG.md) ([日本語版: CHANGELOG.ja.md](./CHANGELOG.ja.md)) for release history and migration details.
 
 ## License
 
-[MIT License](LICENSE)
+[MIT License](./LICENSE)

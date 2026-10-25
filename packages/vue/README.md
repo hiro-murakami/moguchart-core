@@ -18,7 +18,7 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips.
 - 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`@cell-edit`, `@column-resize`).
-- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`) and topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
+- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
 
 ---
 
@@ -381,7 +381,7 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@bar-selection-change` | Dispatched when task bar selection changes | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | Dispatched when a tree row is collapsed/expanded | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | Dispatched when a dependency link is drawn | `DependencyCreateEventDetail` |
-| `@dependency-click` | Dispatched when a dependency line is clicked | `DependencyClickEventDetail` |
+| `@dependency-click` | Dispatched when a dependency line is clicked, double-clicked, or right-clicked | `DependencyClickEventDetail` |
 | `@dependency-select` | Dispatched when a dependency line is selected (highlighted / delete button shown) | `DependencySelectEventDetail` |
 | `@dependency-delete` | Dispatched when a dependency link is deleted | `DependencyDeleteEventDetail` |
 | `@zoom-change` | Dispatched when zoom level changes | `ZoomChangeEventDetail` |

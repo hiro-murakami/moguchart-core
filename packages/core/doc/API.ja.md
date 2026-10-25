@@ -460,6 +460,38 @@ type GanttDependency = string | GanttDependencyLink
 
 type AutoScheduleMode = 'push-only' | 'strict'
 
+/**
+ * 自動スケジューリングにおける稼働日計算モード
+ * - 'calendar': カレンダー通り（土日・祝日も稼働日として計算、デフォルト）
+ * - 'weekends': 土日を非稼働日として除外（営業日ベースで期間・ラグを維持し、着地日が土日の場合は翌営業日へスキップ）
+ * - 'weekends-holidays': 土日および祝日（isHoliday）を非稼働日として除外
+ */
+type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
+
+interface AutoScheduleOptions {
+  /** スケジューリング制約モード (デフォルト: 'push-only') */
+  mode?: AutoScheduleMode
+  /** movable === 'none' または 'y' のタスクを自動移動対象から除外するか (デフォルト: true) */
+  respectMovable?: boolean
+  /** 稼働日・非稼働日（土日・祝日）の計算モード (デフォルト: 'calendar') */
+  calendarMode?: AutoScheduleCalendarMode
+  /** 祝日判定関数（calendarMode === 'weekends-holidays' 時に使用） */
+  isHoliday?: (date: Date) => boolean
+}
+
+interface AutoScheduleResult {
+  /** 更新後の行データ配列（変更がない場合は元の配列と同一参照） */
+  rows: GanttRow[]
+  /** 変更が発生したかどうか */
+  changed: boolean
+  /** 日程が更新されたタスクIDの配列 */
+  updatedTaskIds: string[]
+  /** Undo / Redo 記録用の変更前タスク状態マップ */
+  previousTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+  /** Undo / Redo 記録用の変更後タスク状態マップ */
+  nextTaskStates: Map<string, { rowId: string; start: Date; end: Date }>
+}
+
 interface GanttTask {
   id: string // タスクの一意なID
   name?: string // タスクの表示名
@@ -585,95 +617,6 @@ interface CalendarHourCellContext {
   hour: number // 時間 (0-23)
   width: number // セルの幅 (px)
   date: Date // 対応する日付
-}
-```
-
-### GanttChartOptionDependency
-
-```typescript
-interface GanttChartOptionDependency {
-  /** 依存関係の線のスタイル。
-   * - 'curve': ベジェ曲線
-   * - 'orthogonal': 直角折れ線（角が丸くなる）
-   */
-  lineStyle?: DependencyLineStyle
-  /** orthogonalスタイル時の角丸半径 (px)。デフォルト: 8 */
-  cornerRadius?: number
-  /** 接続ポイント（丸印）を表示するかどうか (デフォルト: true) */
-  showConnectors?: boolean
-  /** クリティカルパスを表示するかどうか (デフォルト: false)。依存関係グラフの最長チェーンを自動計算し、該当するタスクバーと接続線をハイライト表示する */
-  showCriticalPath?: boolean
-  /** 接続線の作成を許可するか (デフォルト: true) */
-  creatable?: boolean
-  /** 接続線の削除操作を許可するか (デフォルト: true) */
-  deletable?: boolean
-  /** 線上に削除用「×」ボタンを表示するか (デフォルト: true) */
-  showDeleteButton?: boolean
-}
-```
-
-> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。
-
-### DependencyCreateEventDetail
-
-```typescript
-interface DependencyCreateEventDetail {
-  sourceTaskId: string // 接続元のタスクID
-  sourceEndpoint: DependencyEndpoint // 接続元のエンドポイント（start=左端, end=右端）
-  targetTaskId: string // 接続先のタスクID
-  targetEndpoint: DependencyEndpoint // 接続先のエンドポイント（start=左端, end=右端）
-}
-```
-
-### DependencyClickEventDetail
-
-```typescript
-interface DependencyClickEventDetail {
-  sourceTaskId: string // 接続元（依存元）のタスクID
-  targetTaskId: string // 接続先（依存を持つ側）のタスクID
-  event: MouseEvent // 元のマウスイベント
-}
-```
-
-### DependencySelectEventDetail
-
-```typescript
-interface DependencySelectEventDetail {
-  /** 選択された依存関係。選択解除時は null */
-  selected: {
-    sourceTaskId: string
-    targetTaskId: string
-  } | null
-}
-```
-
-### DependencyDeleteEventDetail
-
-```typescript
-interface DependencyDeleteEventDetail {
-  sourceTaskId: string // 接続元（依存元）のタスクID
-  targetTaskId: string // 接続先（依存を持つ側）のタスクID
-  originalEvent?: Event // 元のイベント（Deleteキー時は KeyboardEvent、×ボタンクリック時は MouseEvent など）
-}
-```
-
-### TaskDeleteEventDetail
-
-```typescript
-interface TaskDeleteEventDetail {
-  taskIds: string[] // 削除対象のタスクID配列
-  event: KeyboardEvent // 元のキーボードイベント
-}
-```
-
-### ZoomChangeEventDetail
-
-```typescript
-interface ZoomChangeEventDetail {
-  pxPerDay: number // ズーム後の pxPerDay
-  pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
-  zoomScale: number // ズーム倍率 (1.0 = 100%)
-  zoomPercent: number // ズームパーセンテージ (50〜200)
 }
 ```
 
@@ -1236,6 +1179,18 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true) */
   respectMovable?: boolean
+  /**
+   * 自動スケジューリング時の稼働日計算モード (デフォルト: 'calendar')
+   * - 'calendar': カレンダー通り（土日・祝日も稼働日として計算）
+   * - 'weekends': 土日を非稼働日として除外（営業日ベースで期間・ラグを維持し、着地日が土日の場合は翌営業日へスキップ）
+   * - 'weekends-holidays': 土日および祝日（isHoliday または option.calendar.isHoliday）を非稼働日として除外
+   */
+  calendarMode?: AutoScheduleCalendarMode
+  /**
+   * calendarMode === 'weekends-holidays' 時に使用するカスタム祝日判定関数。
+   * 未指定時は option.calendar.isHoliday にフォールバックします。
+   */
+  isHoliday?: (date: Date) => boolean
 }
 ```
 
@@ -1253,6 +1208,38 @@ interface DependencyCreateEventDetail {
 }
 ```
 
+### DependencyClickEventDetail
+
+```typescript
+interface DependencyClickEventDetail {
+  sourceTaskId: string // 接続元（依存元）のタスクID
+  targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  event: MouseEvent // 元のマウスイベント ('click' | 'dblclick' | 'contextmenu')
+}
+```
+
+### DependencySelectEventDetail
+
+```typescript
+interface DependencySelectEventDetail {
+  /** 選択された依存関係。選択解除時は null */
+  selected: {
+    sourceTaskId: string
+    targetTaskId: string
+  } | null
+}
+```
+
+### DependencyDeleteEventDetail
+
+```typescript
+interface DependencyDeleteEventDetail {
+  sourceTaskId: string // 接続元（依存元）のタスクID
+  targetTaskId: string // 接続先（依存を持つ側）のタスクID
+  originalEvent?: Event // 元のイベント（Deleteキー時は KeyboardEvent、×ボタンクリック時は MouseEvent など）
+}
+```
+
 ### TaskDeleteEventDetail
 
 ```typescript
@@ -1262,7 +1249,6 @@ interface TaskDeleteEventDetail {
 }
 ```
 
-
 ### ZoomChangeEventDetail
 
 ```typescript
@@ -1271,16 +1257,6 @@ interface ZoomChangeEventDetail {
   pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
   zoomScale: number // 現在のズーム倍率 (1.0 = 100%)
   zoomPercent: number // 現在のズームパーセンテージ (50〜200)
-}
-```
-
-### DependencyClickEventDetail
-
-```typescript
-interface DependencyClickEventDetail {
-  sourceTaskId: string // 接続元（依存元）のタスクID
-  targetTaskId: string // 接続先（依存を持つ側）のタスクID
-  event: MouseEvent // 元のマウスイベント
 }
 ```
 
@@ -2214,6 +2190,10 @@ import {
   // 自動スケジューリング・依存関係ヘルパー
   propagateAutoSchedule,
   computeRequiredStartMs,
+  createNonWorkingDayChecker,
+  computeWorkingDurationMs,
+  snapToWorkingStartMs,
+  addWorkingTimeMs,
   getDependencyTaskId,
   normalizeDependencyLink,
   endpointsToDependencyType,
@@ -2485,7 +2465,34 @@ function computeRequiredStartMs(
   predEndMs: number,
   succDurationMs: number,
   type?: DependencyType,
-  lagMinutes?: number
+  lagMinutes?: number,
+  isNonWorkingDay?: ((dayStartMs: number) => boolean) | null
+): number
+
+// calendarMode と isHoliday から非稼働日判定関数を生成（calendarMode === 'calendar' 時は null）
+function createNonWorkingDayChecker(
+  calendarMode?: AutoScheduleCalendarMode,
+  isHoliday?: (date: Date) => boolean
+): ((dayStartMs: number) => boolean) | null
+
+// 非稼働日を除外した実稼働期間（ミリ秒）を算出
+function computeWorkingDurationMs(
+  startMs: number,
+  endMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
+): number
+
+// 指定時刻が非稼働日にあたる場合、翌営業日の開始（00:00）へスナップした時刻（ミリ秒）を返す
+function snapToWorkingStartMs(
+  ms: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
+): number
+
+// 基準時刻に対して非稼働日をスキップしながら稼働時間（正または負のミリ秒）を加算・減算
+function addWorkingTimeMs(
+  anchorMs: number,
+  deltaMs: number,
+  isNonWorkingDay: (dayStartMs: number) => boolean
 ): number
 
 // 文字列または GanttDependencyLink から先行タスクIDを取得
@@ -2632,6 +2639,8 @@ chart.option = {
     autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
     scheduleMode: 'push-only', // 'push-only' (デフォルト: 制約違反時のみ押し出し) | 'strict' (常時追従)
     respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
+    calendarMode: 'weekends-holidays', // 'calendar' (デフォルト) | 'weekends' | 'weekends-holidays'
+    // isHoliday: (date) => false, // 祝日判定関数（省略時は option.calendar.isHoliday を使用）
   },
 }
 ```

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] - 2026-10-23
+## [1.6.0] - 2026-10-24
 
 ### Added
 
@@ -19,8 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - `SF` (Start-to-Finish): Successor finishes relative to predecessor start (`+ lag`).
     - Support positive lag (delay) and negative lag (lead time) in minutes (`lag`).
   - **Topological Cascade Auto-Scheduling Engine (`option.dependency.autoSchedule`)**:
-    - Added `autoSchedule?: boolean` (default: `false`), `scheduleMode?: 'push-only' | 'strict'` (default: `'push-only'`), and `respectMovable?: boolean` (default: `true`) to `option.dependency`.
+    - Added `autoSchedule?: boolean` (default: `false`), `scheduleMode?: 'push-only' | 'strict'` (default: `'push-only'`), `respectMovable?: boolean` (default: `true`), `calendarMode?: 'calendar' | 'weekends' | 'weekends-holidays'` (default: `'calendar'`), and `isHoliday?: (date: Date) => boolean` (falls back to `option.calendar.isHoliday`) to `option.dependency`.
     - `'push-only'` mode shifts successor tasks forward only when a dependency constraint is violated, whereas `'strict'` mode locks successor dates strictly to predecessor dates plus lag.
+    - **Working-Day & Holiday-Aware Scheduling (`calendarMode`)**: When set to `'weekends'` (skip Saturdays and Sundays) or `'weekends-holidays'` (skip weekends and holidays), successor start dates automatically snap forward to the next working day, while both task working durations and dependency lag/lead times (`lag`) are calculated and preserved in working days.
     - Automatically cascades schedule updates across downstream tasks during task bar drag/resize, multi-task batch move, keyboard `Shift + Arrow` movement, and inline grid cell editing (`startDate`, `endDate`, `duration`), recording all cascaded changes in a single atomic Undo / Redo command.
     - Added programmatic `chart.autoSchedule(changedTaskIds?, options?)` public method on `GanttChartElement` and `@mogura/moguchart-vue` (`GanttChartPublicApi`).
   - **Endpoint-Aware Dependency Rendering, Creation & Export**:
@@ -28,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Dragging between left/right task bar connectors automatically infers the corresponding `type` (`'FS' | 'SS' | 'FF' | 'SF'`) and includes it in `DependencyCreateEventDetail.type`.
     - Updated `computeCriticalPath` and `@mogura/moguchart-plugin-excel` to support `GanttDependencyLink` entries (formatting non-FS dependencies such as `1 (SS)` in Excel exports).
     - Added `'dependency-update'` to `GanttCommandType` for Undo / Redo history tracking of dependency link edits.
-    - Exported auto-scheduling and dependency helper utilities (`propagateAutoSchedule`, `computeRequiredStartMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`).
+    - Exported auto-scheduling, working-day calculation, and dependency helper utilities (`propagateAutoSchedule`, `computeRequiredStartMs`, `createNonWorkingDayChecker`, `computeWorkingDurationMs`, `snapToWorkingStartMs`, `addWorkingTimeMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`).
 - **Dependency Line Interaction & Intra-Row Lane Layout Enhancements**:
   - Supported `dblclick` and `contextmenu` (right-click) events on dependency line hit areas via `dependency-click` (inspect `e.detail.event.type` for `'click' | 'dblclick' | 'contextmenu'`).
   - Improved `calculateTaskLanes` so intra-row successor tasks connected via `FS` (`lag: 0`) with touching boundary dates (`pred.end.getTime() === succ.start.getTime()`) are separated into distinct lanes, keeping the connecting dependency line visible and clickable.
@@ -36,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Multi-Column Grid Exclusive Midnight (`00:00`) End Date Display, Duration Count & Inline Editing**:
+  - Fixed `calculateRowSummaryDates`, `formatGridCellValue`, `formatGridCellEditValue`, and `applyGridCellEdit` so day-mode tasks stored with exclusive midnight end timestamps (next day `00:00`) display inclusive calendar end dates (previous day) and accurate `durationDays` counts, while preserving exclusive midnight semantics when inline editing `endDate` or `duration`.
 - **Multi-Task Drag-and-Drop State Delegation & Marquee Selection in Shadow DOM**:
   - Fixed controller instance sharing between `GanttChartElement` and `DragDropController` (`TaskDragController`, `RowReorderController`) so multi-task selection is preserved and movement is applied to all selected tasks upon drop.
   - Updated `MarqueeController` to inspect `composedPath()` and sticky row header viewport bounds, preventing unintended marquee selection activation when dragging from row headers/splitters and suppressing text selection during marquee drag.

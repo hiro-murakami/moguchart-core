@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] - 2026-10-23
+## [1.6.0] - 2026-10-24
 
 ### Added
 
@@ -19,8 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - `SF` (Start-to-Finish / 開始-終了): 先行タスク開始に合わせて後続タスクを終了
     - 分単位のラグ（遅延: 正の値）およびリード（前倒し: 負の値）期間（`lag`）の設定に対応
   - **トポロジカルカスケード自動スケジューリングエンジン (`option.dependency.autoSchedule`)**:
-    - `option.dependency` に `autoSchedule?: boolean`（デフォルト: `false`）、`scheduleMode?: 'push-only' | 'strict'`（デフォルト: `'push-only'`）、`respectMovable?: boolean`（デフォルト: `true`）を追加
+    - `option.dependency` に `autoSchedule?: boolean`（デフォルト: `false`）、`scheduleMode?: 'push-only' | 'strict'`（デフォルト: `'push-only'`）、`respectMovable?: boolean`（デフォルト: `true`）、`calendarMode?: 'calendar' | 'weekends' | 'weekends-holidays'`（デフォルト: `'calendar'`）、`isHoliday?: (date: Date) => boolean`（未指定時は `option.calendar.isHoliday` にフォールバック）を追加
     - 依存制約に違反（逆転）する場合のみ後続タスクを後ろへ押し出す `'push-only'` モードと、先行タスクの移動およびラグに常時厳密追従させる `'strict'` モードをサポート
+    - **営業日ベース（土日除外・土日祝日除外）の稼働日・ラグ計算 (`calendarMode`)**: `'weekends'`（土日除外）または `'weekends-holidays'`（土日・祝日除外）を指定した場合、後続タスクの着地日が非稼働日にあたる際に翌営業日へ自動スキップし、各タスクの実稼働日数（営業日数）および依存関係のラグ・リード期間（`lag`）を営業日ベースで維持したまま期間を自動伸縮
     - タスクバーのドラッグ移動・期間リサイズ、複数タスク一括移動、キーボード（`Shift + 矢印キー`）移動、マルチカラムグリッドのインラインセル編集（`startDate`, `endDate`, `duration`）のすべてと自動連動し、連鎖更新された全タスクの変更を単一の Undo / Redo 履歴コマンドとして記録
     - プログラムから任意のタイミングで後続タスクの再計算を実行できるパブリックメソッド `chart.autoSchedule(changedTaskIds?, options?)` を `GanttChartElement` および `@mogura/moguchart-vue`（`GanttChartPublicApi`）に追加
   - **エンドポイント連動の依存関係線描画・コネクタ作成・Excelエクスポート対応**:
@@ -28,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - タスクバー左右端のコネクタドラッグによる依存関係作成時、接続元・接続先のエンドポイントから依存関係種別（`type: 'FS' | 'SS' | 'FF' | 'SF'`）を自動判定し、`DependencyCreateEventDetail.type` に格納
     - クリティカルパス計算（`computeCriticalPath`）および Excel エクスポートプラグイン（`@mogura/moguchart-plugin-excel`）で `GanttDependencyLink` に対応（Excel 出力時は `FS` 以外の種別を `1 (SS)` のように表記）
     - 操作履歴の `GanttCommandType` に `'dependency-update'` を追加
-    - 自動スケジューリングおよび依存関係操作用のユーティリティ関数（`propagateAutoSchedule`, `computeRequiredStartMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`）をエクスポート
+    - 自動スケジューリング・営業日計算および依存関係操作用のユーティリティ関数（`propagateAutoSchedule`, `computeRequiredStartMs`, `createNonWorkingDayChecker`, `computeWorkingDurationMs`, `snapToWorkingStartMs`, `addWorkingTimeMs`, `getDependencyTaskId`, `normalizeDependencyLink`, `endpointsToDependencyType`, `dependencyTypeToEndpoints`, `createDependencyEntry`, `hasDependencyTarget`, `removeDependencyTarget`）をエクスポート
 - **依存関係線の操作性向上 ＆ 同一行内タスクのレーン配置改善**:
   - 依存関係線のヒット領域において、通常のクリック（`click`）に加えてダブルクリック（`dblclick`）および右クリック（`contextmenu`）での `dependency-click` イベント発火に対応（`e.detail.event.type` で判別可能）
   - 同一行内で `FS`（`lag: 0`）の依存関係を持ち、先行タスクの終了日時と後続タスクの開始日時が接している（`pred.end === succ.start`）場合に、依存関係線が潰れて選択不能になるのを防ぐため自動的に別レーン（上下段）へ分離する改善（`calculateTaskLanes`）
@@ -36,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **マルチカラムグリッドにおける排他的終了日時（翌日 `00:00`）タスクの表示・期間日数集計・インライン編集の修正**:
+  - 日単位モードで終了日時が翌日 `00:00`（排他的終了境界）として保持されているタスクについて、`calculateRowSummaryDates` の期間日数（`durationDays`）計算、`formatGridCellValue` / `formatGridCellEditValue` の「終了日」表示（前日表記への補正）、および `applyGridCellEdit` での「終了日」「期間」インライン編集時に排他的終了日時のセマンティクスが正確に維持されるよう修正
 - **複数タスク一括ドラッグ移動の状態委譲 ＆ Shadow DOM 内での矩形範囲選択（Marquee Selection）の修正**:
   - `GanttChartElement` と `DragDropController` 間で `TaskDragController` / `RowReorderController` のインスタンスを共有するよう修正し、複数選択したタスクのドラッグ＆ドロップ時に選択状態が維持され全選択タスクへ移動量が反映されるよう修正
   - `MarqueeController` で `composedPath()` および固定行ヘッダー領域の座標判定を行うよう修正し、行ヘッダーやスプリッター操作時に誤って矩形選択が開始される問題や、矩形ドラッグ中に行ヘッダーのテキストが選択される問題を解消

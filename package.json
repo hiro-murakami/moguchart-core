@@ -6,7 +6,7 @@
   "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "pnpm --filter @mogura/moguchart-core dev",
-    "sync:docs": "cp README.md README.ja.md CHANGELOG.md CHANGELOG.ja.md LICENSE packages/core/ && cp LICENSE packages/plugin-export/ && cp LICENSE packages/plugin-excel/ && cp LICENSE packages/react/ && cp LICENSE packages/vue/",
+    "sync:docs": "cp README.md README.ja.md CHANGELOG.md CHANGELOG.ja.md LICENSE packages/core/ && node -e \"const fs=require('fs');for(const f of['packages/core/README.md','packages/core/README.ja.md']){fs.writeFileSync(f,fs.readFileSync(f,'utf8').replaceAll('./packages/core/doc/','./doc/').replaceAll('./packages/react/','../react/').replaceAll('./packages/vue/','../vue/').replaceAll('(./CHANGELOG.md)','(../../CHANGELOG.md)').replaceAll('(./CHANGELOG.ja.md)','(../../CHANGELOG.ja.md)'))}\" && cp LICENSE packages/plugin-export/ && cp LICENSE packages/plugin-excel/ && cp LICENSE packages/react/ && cp LICENSE packages/vue/",
     "build": "pnpm sync:docs && pnpm build:core && pnpm build:export && pnpm build:excel && pnpm build:react && pnpm build:vue",
     "build:core": "pnpm --filter @mogura/moguchart-core build",
     "build:export": "pnpm --filter @mogura/moguchart-plugin-export build",

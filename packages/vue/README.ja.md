@@ -18,7 +18,7 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
 - 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示・列幅リサイズ・セル直接編集（`@cell-edit`, `@column-resize`）に対応
-- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日ベース（土日・祝日除外 `calendarMode`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 
 ---
 
@@ -381,7 +381,7 @@ const handleExportExcel = async () => {
 | `@bar-selection-change` | タスクの選択状態変更時 | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | ツリー行の展開・折りたたみ時 | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | 依存関係コネクタの接続完了時 | `DependencyCreateEventDetail` |
-| `@dependency-click` | 依存関係線のクリック時 | `DependencyClickEventDetail` |
+| `@dependency-click` | 依存関係線のクリック・ダブルクリック・右クリック時 | `DependencyClickEventDetail` |
 | `@dependency-select` | 依存関係線の選択状態変更時（ハイライト・削除ボタン表示） | `DependencySelectEventDetail` |
 | `@dependency-delete` | 依存関係線の削除時 | `DependencyDeleteEventDetail` |
 | `@zoom-change` | ズーム倍率変更時 | `ZoomChangeEventDetail` |

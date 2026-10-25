@@ -17,7 +17,7 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
 - 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
-- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`) and topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
+- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---
@@ -332,7 +332,7 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onRowSelectionChange` | Fired when row selection changes | `CustomEvent<RowSelectionChangeEventDetail>` |
 | `onRowToggleCollapse` | Fired when a row is expanded or collapsed (WBS) | `CustomEvent<RowToggleCollapseEventDetail>` |
 | `onDependencyCreate` | Fired when a dependency link is created | `CustomEvent<DependencyCreateEventDetail>` |
-| `onDependencyClick` | Fired when a dependency link is clicked | `CustomEvent<DependencyClickEventDetail>` |
+| `onDependencyClick` | Fired when a dependency link is clicked, double-clicked, or right-clicked | `CustomEvent<DependencyClickEventDetail>` |
 | `onDependencySelect` | Fired when dependency selection changes (highlight / delete button shown) | `CustomEvent<DependencySelectEventDetail>` |
 | `onDependencyDelete` | Fired when a dependency link is deleted | `CustomEvent<DependencyDeleteEventDetail>` |
 | `onMarkerDblClick` | Fired when a marker is double-clicked | `CustomEvent<MarkerDblClickEventDetail>` |

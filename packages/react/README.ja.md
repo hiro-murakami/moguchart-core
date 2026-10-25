@@ -4,6 +4,8 @@
 
 Lit 公式の `@lit/react` をベースに設計されており、Web Components の高いパフォーマンスとフレームワーク非依存の柔軟性を保ちつつ、React アプリケーションで型安全かつ直感的にガントチャートを扱うことができます。
 
+[English Documentation](./README.md)
+
 ---
 
 ## 特徴
@@ -15,7 +17,7 @@ Lit 公式の `@lit/react` をベースに設計されており、Web Components
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
 - 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示・列幅リサイズ・セル直接編集（`onCellEdit`, `onColumnResize`）に対応
-- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日ベース（土日・祝日除外 `calendarMode`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 - 📦 **Re-export**: `@mogura/moguchart-core` の型定義や定数をすべて再エクスポートしているため、本パッケージのみのインストールで開発可能
 
 ---
@@ -330,7 +332,7 @@ React では標準のイベント Props としてキャメルケース（`onTask
 | `onRowSelectionChange` | 行選択状態の変更時 | `CustomEvent<RowSelectionChangeEventDetail>` |
 | `onRowToggleCollapse` | 行の開閉時（WBS） | `CustomEvent<RowToggleCollapseEventDetail>` |
 | `onDependencyCreate` | 依存関係（リンク）作成時 | `CustomEvent<DependencyCreateEventDetail>` |
-| `onDependencyClick` | 依存関係クリック時 | `CustomEvent<DependencyClickEventDetail>` |
+| `onDependencyClick` | 依存関係クリック・ダブルクリック・右クリック時 | `CustomEvent<DependencyClickEventDetail>` |
 | `onDependencySelect` | 依存関係の選択状態変更時（ハイライト・削除ボタン表示） | `CustomEvent<DependencySelectEventDetail>` |
 | `onDependencyDelete` | 依存関係削除時 | `CustomEvent<DependencyDeleteEventDetail>` |
 | `onMarkerDblClick` | マーカーダブルクリック時 | `CustomEvent<MarkerDblClickEventDetail>` |
