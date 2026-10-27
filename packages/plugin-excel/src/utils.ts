@@ -188,7 +188,8 @@ export function extractTaskBarColor(
   themeArgb = 'FF3B82F6'
 ): string {
   const isSummary = isParent || task?.type === 'summary'
-  const fallbackColor = isSummary ? 'FF334155' : themeArgb
+  const isMilestone = task?.type === 'milestone'
+  const fallbackColor = isSummary ? 'FF334155' : isMilestone ? 'FF8B5CF6' : themeArgb
 
   if (!task) return fallbackColor
 

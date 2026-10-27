@@ -922,15 +922,28 @@ export class GanttMinimapElement extends LitElement {
         const miniW = Math.max(taskW * scaleX, 1.5)
         const miniH = Math.max(barHeight * scaleY, 1.5)
 
+        const isMilestone = task.type === 'milestone'
         const defaultColor =
           task.type === 'summary'
             ? (this.option?.tree?.summaryColor ?? '#334155')
-            : (colors.minimapTask ?? '#3b82f6')
+            : isMilestone
+              ? (this.option?.bar?.milestoneColor ?? '#8b5cf6')
+              : (colors.minimapTask ?? '#3b82f6')
         const taskColor = extractTaskColor(task.style, defaultColor)
         ctx.fillStyle = taskColor
 
-        // タスク矩形描画
-        if (miniW > 3 && miniH > 3) {
+        // タスク描画（マイルストーンはひし形、通常タスクは矩形）
+        if (isMilestone) {
+          const r = Math.max(2, miniH / 2)
+          const cy = miniY + miniH / 2
+          ctx.beginPath()
+          ctx.moveTo(miniX, cy - r)
+          ctx.lineTo(miniX + r, cy)
+          ctx.lineTo(miniX, cy + r)
+          ctx.lineTo(miniX - r, cy)
+          ctx.closePath()
+          ctx.fill()
+        } else if (miniW > 3 && miniH > 3) {
           ctx.beginPath()
           if (typeof ctx.roundRect === 'function') {
             ctx.roundRect(miniX, miniY, miniW, miniH, 1)

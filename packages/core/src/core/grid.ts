@@ -7,7 +7,14 @@ import type {
 } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
-import { formatDuration } from './utils'
+import {
+  addWorkingDays,
+  countWorkingDays,
+  createNonWorkingDayChecker,
+  snapToWorkingStartMs,
+  type AutoScheduleOptions,
+} from './auto-schedule'
+import { formatDuration, isMilestoneTask } from './utils'
 
 /**
  * 組み込みカラムのデフォルト仕様定義
@@ -30,6 +37,7 @@ export const DEFAULT_GRID_COLUMN_CONFIGS: Record<
   startDateTime: { width: 130, minWidth: 80, align: 'center' },
   endDateTime: { width: 130, minWidth: 80, align: 'center' },
   duration: { width: 80, minWidth: 50, align: 'right' },
+  workingDays: { width: 80, minWidth: 50, align: 'right' },
   progress: { width: 80, minWidth: 50, align: 'right' },
 }
 
@@ -95,8 +103,12 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   // 日付境界を考慮した実日数計算
   const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime()
   const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime()
-  const durationDays = Math.max(1, Math.round((endDay - startDay) / msPerDay))
-  const durationMs = Math.max(0, maxEnd - minStart)
+  const allMilestones = tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))
+  const durationDays =
+    allMilestones && endDay <= startDay
+      ? 0
+      : Math.max(1, Math.round((endDay - startDay) / msPerDay))
+  const durationMs = allMilestones && maxEnd <= minStart ? 0 : Math.max(0, maxEnd - minStart)
 
   const calculatedProgress =
     hasAnyProgress && totalDurationMs > 0
@@ -143,6 +155,7 @@ export function normalizeGridColumns(
     startDateTime: currentLocale.grid?.columns.startDateTime ?? '開始日時',
     endDateTime: currentLocale.grid?.columns.endDateTime ?? '終了日時',
     duration: currentLocale.grid?.columns.duration ?? '期間',
+    workingDays: currentLocale.grid?.columns.workingDays ?? '稼働日',
     progress: currentLocale.grid?.columns.progress ?? '進捗率',
   }
 
@@ -256,6 +269,7 @@ export function getGridCellValue(
   row: GanttRow,
   tasks: GanttTask[],
   wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions,
 ): any {
   if (column.valueGetter) {
     return column.valueGetter(row, tasks, wbsCode)
@@ -278,6 +292,10 @@ export function getGridCellValue(
       return summary.end
     case 'duration':
       return summary.durationDays
+    case 'workingDays':
+      if (!summary.start || !summary.end) return 0
+      if (tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))) return 0
+      return countWorkingDays(summary.start, summary.end, calendarOptions)
     case 'progress':
       return summary.progress
     default:
@@ -369,6 +387,9 @@ export function formatGridCellValue(
       }
       return ''
     case 'duration':
+      if (tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))) {
+        return currentLocale.duration.days(0)
+      }
       if (isTimeMode) {
         const summary = calculateRowSummaryDates(tasks)
         if (summary.start && summary.end) {
@@ -380,7 +401,18 @@ export function formatGridCellValue(
         return currentLocale.duration.days(value)
       }
       return '-'
+    case 'workingDays':
+      if (tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))) {
+        return currentLocale.duration.days(0)
+      }
+      if (typeof value === 'number' && value > 0) {
+        return currentLocale.duration.days(value)
+      }
+      return '-'
     case 'progress':
+      if (tasks.length > 0 && tasks.every((t) => isMilestoneTask(t)) && value === undefined) {
+        return '-'
+      }
       if (typeof value === 'number' && !Number.isNaN(value)) {
         return `${Math.round(value)}%`
       }
@@ -398,6 +430,7 @@ const TASK_BOUND_COLUMN_IDS = new Set<string>([
   'startDateTime',
   'endDateTime',
   'duration',
+  'workingDays',
   'progress',
 ])
 
@@ -426,6 +459,7 @@ export function resolveColumnEditorType(
     case 'endDateTime':
       return 'datetime'
     case 'duration':
+    case 'workingDays':
     case 'progress':
       return 'number'
     case 'name':
@@ -475,6 +509,13 @@ export function isGridCellEditable(
     const normalTasks = (tasks ?? []).filter((t) => t.type !== 'summary' && !(t as any).isSummary)
     if (normalTasks.length !== 1) return false
     const singleTask = normalTasks[0]
+    if (isMilestoneTask(singleTask)) {
+      if (column.id === 'duration' || column.id === 'workingDays' || column.id === 'progress') {
+        return false
+      }
+      if (singleTask.movable === 'none') return false
+      return true
+    }
     if (column.id === 'progress') {
       if (singleTask.progressResizable === false) return false
     } else {
@@ -581,6 +622,10 @@ export function formatGridCellEditValue(
     return typeof value === 'number' && value > 0 ? String(value) : '1'
   }
 
+  if (column.id === 'workingDays') {
+    return typeof value === 'number' && value > 0 ? String(value) : '1'
+  }
+
   if (column.id === 'progress') {
     return typeof value === 'number' && !Number.isNaN(value)
       ? String(Math.round(value * 10) / 10)
@@ -630,11 +675,12 @@ export function applyGridCellEdit(
   isMonthMode?: boolean,
   isTimeMode?: boolean,
   wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions,
 ): { changed: boolean; oldValue: any; newValue: any } {
   const tasks = row.tasks ?? []
   const normalTasks = tasks.filter((t) => t.type !== 'summary' && !(t as any).isSummary)
   const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
-  const oldValue = getGridCellValue(column, row, normalTasks, wbsCode)
+  const oldValue = getGridCellValue(column, row, normalTasks, wbsCode, calendarOptions)
   const editorType = resolveColumnEditorType(column, isMonthMode, isTimeMode)
 
   if (column.valueSetter) {
@@ -667,7 +713,7 @@ export function applyGridCellEdit(
     if (setterResult && typeof setterResult === 'object') {
       Object.assign(row, setterResult)
     }
-    const newValue = getGridCellValue(column, row, normalTasks, wbsCode)
+    const newValue = getGridCellValue(column, row, normalTasks, wbsCode, calendarOptions)
     const isSame =
       oldValue instanceof Date && newValue instanceof Date
         ? oldValue.getTime() === newValue.getTime()
@@ -715,6 +761,10 @@ export function applyGridCellEdit(
       }
       const prevStart = singleTask.start ? new Date(singleTask.start.getTime()) : null
       singleTask.start = nextStart
+      if (isMilestoneTask(singleTask)) {
+        singleTask.end = new Date(nextStart.getTime())
+        return { changed: true, oldValue: prevStart, newValue: nextStart }
+      }
       // 開始日が終了日を超えた場合は終了日を開始日に合わせる（月モードの場合は翌月1日、日モードの場合は翌日0時）
       if (singleTask.end && nextStart.getTime() > singleTask.end.getTime()) {
         if (editorType === 'month') {
@@ -759,13 +809,15 @@ export function applyGridCellEdit(
         nextEnd = new Date(rawInputValue.getTime())
       } else if (typeof rawInputValue === 'string') {
         if (editorType === 'month') {
-          nextEnd = parseMonthInputString(rawInputValue, true)
+          nextEnd = parseMonthInputString(rawInputValue, !isMilestoneTask(singleTask))
         } else if (editorType === 'datetime') {
           nextEnd = parseDateTimeInputString(rawInputValue)
         } else {
           const parsed = parseDateInputString(rawInputValue, singleTask.end)
           if (parsed) {
-            if (
+            if (isMilestoneTask(singleTask)) {
+              nextEnd = parsed
+            } else if (
               column.id === 'endDate' &&
               (!singleTask.end ||
                 (singleTask.end.getHours() === 0 && singleTask.end.getMinutes() === 0))
@@ -785,6 +837,10 @@ export function applyGridCellEdit(
       }
       const prevEnd = singleTask.end ? new Date(singleTask.end.getTime()) : null
       singleTask.end = nextEnd
+      if (isMilestoneTask(singleTask)) {
+        singleTask.start = new Date(nextEnd.getTime())
+        return { changed: true, oldValue: prevEnd, newValue: nextEnd }
+      }
       // 終了日が開始日より前になった場合は開始日を終了日に合わせる
       if (singleTask.start && nextEnd.getTime() < singleTask.start.getTime()) {
         if (editorType === 'month') {
@@ -817,7 +873,7 @@ export function applyGridCellEdit(
     }
 
     case 'duration': {
-      if (!singleTask || !singleTask.start) {
+      if (!singleTask || !singleTask.start || isMilestoneTask(singleTask)) {
         return { changed: false, oldValue, newValue: oldValue }
       }
       const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
@@ -854,6 +910,41 @@ export function applyGridCellEdit(
         )
         return { changed: true, oldValue: prevDays, newValue: nextDays }
       }
+    }
+
+    case 'workingDays': {
+      if (!singleTask || !singleTask.start || isMilestoneTask(singleTask)) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      if (Number.isNaN(numVal) || numVal <= 0) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const nextWorkingDays = Math.max(1, Math.round(numVal))
+      const prevWorkingDays = typeof oldValue === 'number' ? oldValue : 1
+      if (nextWorkingDays === prevWorkingDays) {
+        return { changed: false, oldValue: prevWorkingDays, newValue: nextWorkingDays }
+      }
+      const effectiveMode =
+        calendarOptions?.calendarMode ??
+        (calendarOptions?.isHoliday ? 'weekends-holidays' : 'weekends')
+      const checker = createNonWorkingDayChecker(
+        effectiveMode,
+        calendarOptions?.isHoliday,
+        calendarOptions?.nonWorkingDays,
+        calendarOptions?.nonWorkingDates,
+      )
+      if (checker) {
+        const snappedStartMs = snapToWorkingStartMs(singleTask.start.getTime(), checker)
+        if (snappedStartMs !== singleTask.start.getTime()) {
+          singleTask.start = new Date(snappedStartMs)
+        }
+      }
+      singleTask.end = addWorkingDays(singleTask.start, nextWorkingDays, {
+        ...calendarOptions,
+        calendarMode: effectiveMode,
+      })
+      return { changed: true, oldValue: prevWorkingDays, newValue: nextWorkingDays }
     }
 
     case 'progress': {

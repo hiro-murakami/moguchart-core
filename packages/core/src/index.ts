@@ -18,6 +18,7 @@ export {
   calculateTaskDelay,
   calculateProjectBaselineSummary,
   getThemeColors,
+  isMilestoneTask,
 } from './core/utils'
 export { computeCriticalPath } from './core/critical-path'
 export * from './core/auto-schedule'

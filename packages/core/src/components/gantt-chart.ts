@@ -863,6 +863,7 @@ export class GanttChartElement extends LitElement {
         height: number
         dependencies?: GanttDependency[]
         isSummary?: boolean
+        isMilestone?: boolean
       }
     >()
 
@@ -872,9 +873,12 @@ export class GanttChartElement extends LitElement {
       const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
 
       tasksWithLanes.forEach((task: any) => {
-        const x = this.getDateX(task.start) + labelWidth
+        const isMilestone = task.type === 'milestone'
+        const rawX = this.getDateX(task.start) + labelWidth
         const endX = this.getDateX(task.end) + labelWidth
-        const width = endX - x
+        const diamondSize = Math.max(12, Math.round(barHeight * 0.72))
+        const x = isMilestone ? rawX - diamondSize / 2 : rawX
+        const width = isMilestone ? diamondSize : endX - rawX
         const y = top + task.lane * (barHeight + barMargin) + barMargin
         taskCoords.set(task.id, {
           x,
@@ -883,6 +887,7 @@ export class GanttChartElement extends LitElement {
           height: barHeight,
           dependencies: task.dependencies,
           isSummary: task.type === 'summary',
+          isMilestone,
         })
       })
 
@@ -1562,6 +1567,14 @@ export class GanttChartElement extends LitElement {
         dependencies: t.dependencies ? [...t.dependencies] : undefined,
       })),
     }
+    const calendarOptions = {
+      calendarMode: this.option.calendar?.calendarMode ?? this.option.dependency?.calendarMode,
+      isHoliday: this.option.dependency?.isHoliday ?? this.option.calendar?.isHoliday,
+      nonWorkingDays:
+        this.option.dependency?.nonWorkingDays ?? this.option.calendar?.nonWorkingDays,
+      nonWorkingDates:
+        this.option.dependency?.nonWorkingDates ?? this.option.calendar?.nonWorkingDates,
+    }
     const editResult = applyGridCellEdit(
       col,
       clonedRow,
@@ -1569,6 +1582,7 @@ export class GanttChartElement extends LitElement {
       isMonthMode,
       isTimeMode,
       wbsCode,
+      calendarOptions,
     )
 
     if (!editResult.changed) return
@@ -1585,8 +1599,12 @@ export class GanttChartElement extends LitElement {
       const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
         mode: this.option.dependency.scheduleMode,
         respectMovable: this.option.dependency.respectMovable,
-        calendarMode: this.option.dependency.calendarMode,
+        calendarMode: this.option.dependency.calendarMode ?? this.option.calendar?.calendarMode,
         isHoliday: this.option.dependency.isHoliday ?? this.option.calendar?.isHoliday,
+        nonWorkingDays:
+          this.option.dependency.nonWorkingDays ?? this.option.calendar?.nonWorkingDays,
+        nonWorkingDates:
+          this.option.dependency.nonWorkingDates ?? this.option.calendar?.nonWorkingDates,
       })
       if (scheduleResult.hasChanges) {
         nextRows = scheduleResult.rows
@@ -1634,11 +1652,22 @@ export class GanttChartElement extends LitElement {
     const scheduleResult = propagateAutoSchedule(this.rows, changedTaskIds, {
       mode: options?.mode ?? this.option?.dependency?.scheduleMode,
       respectMovable: options?.respectMovable ?? this.option?.dependency?.respectMovable,
-      calendarMode: options?.calendarMode ?? this.option?.dependency?.calendarMode,
+      calendarMode:
+        options?.calendarMode ??
+        this.option?.dependency?.calendarMode ??
+        this.option?.calendar?.calendarMode,
       isHoliday:
         options?.isHoliday ??
         this.option?.dependency?.isHoliday ??
         this.option?.calendar?.isHoliday,
+      nonWorkingDays:
+        options?.nonWorkingDays ??
+        this.option?.dependency?.nonWorkingDays ??
+        this.option?.calendar?.nonWorkingDays,
+      nonWorkingDates:
+        options?.nonWorkingDates ??
+        this.option?.dependency?.nonWorkingDates ??
+        this.option?.calendar?.nonWorkingDates,
     })
     if (!scheduleResult.hasChanges) {
       return []

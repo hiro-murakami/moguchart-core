@@ -576,6 +576,22 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     ],
   })
   rows.push({
+    id: 'wbs-ms1',
+    name: t.wbsMilestone1,
+    parentId: 'wbs-phase1',
+    tasks: [
+      {
+        id: 't-wbs-ms1',
+        name: t.wbsMilestone1,
+        type: 'milestone',
+        start: d(start, 16),
+        end: d(start, 16),
+        style: `background-color: ${colors.purple};`,
+        dependencies: ['t-wbs-2'],
+      },
+    ],
+  })
+  rows.push({
     id: 'wbs-phase2',
     name: t.wbsPhase2,
     parentId: 'wbs-root',
@@ -592,7 +608,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         start: d(start, 16),
         end: d(start, 24),
         style: `background-color: ${colors.orange};`,
-        dependencies: ['t-wbs-2'],
+        dependencies: ['t-wbs-ms1'],
         progress: 40,
       },
     ],
@@ -610,6 +626,22 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.pink};`,
         dependencies: ['t-wbs-3'],
         progress: 10,
+      },
+    ],
+  })
+  rows.push({
+    id: 'wbs-ms2',
+    name: t.wbsMilestone2,
+    parentId: 'wbs-phase2',
+    tasks: [
+      {
+        id: 't-wbs-ms2',
+        name: t.wbsMilestone2,
+        type: 'milestone',
+        start: d(start, 30),
+        end: d(start, 30),
+        style: `background-color: ${colors.green};`,
+        dependencies: ['t-wbs-4'],
       },
     ],
   })
@@ -1435,6 +1467,14 @@ export const generateUnassignedTasks = (t: DemoTexts): GanttTask[] => [
     end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
     style: 'background-color: #3b82f6;',
     labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
+  },
+  {
+    id: 'new-milestone',
+    name: t.milestoneTemplate,
+    type: 'milestone',
+    start: new Date(),
+    end: new Date(),
+    style: 'background-color: #f59e0b;',
   },
 ]
 

@@ -11,6 +11,7 @@ import type {
 } from '../core/types'
 import { jaLocale } from '../core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
+import { createCustomHolidayResolver } from '../core/auto-schedule'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
 import { normalizeGridColumns } from '../core/grid'
 import dayjs from 'dayjs'
@@ -743,57 +744,74 @@ export class GanttCalendarElement extends LitElement {
             })()
           : ''}
         ${this.option.calendar.showDays !== false
-          ? html`<div class="days-container" style="${this.option.calendar.showTime ? '' : backgroundStyle}">
-              ${this.option.calendar.showTime
-                ? showTimeDays.map((seg, segIndex) => {
-                    const backgroundColor = getCalendarColor(seg.date, colors, this.option.calendar.isHoliday)
-                    const isLastSeg = segIndex === showTimeDays.length - 1
-                    const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
-                    const defaultLabel = (this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)
-                    const isHolidayDay = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(seg.date) : false
-                    return html`
-                      <div
-                        class="day-cell"
-                        style="width: ${seg.widthPx}px; border-right: ${isLastSeg
-                          ? 'none'
-                          : `1px solid ${dateBorderColor}`}; ${backgroundColor
-                          ? `background-color: ${backgroundColor};`
-                          : ''} font-size: calc(12px * var(--moguchart-font-scale, 1)); font-weight: 700; justify-content: flex-start; padding-left: 4px;"
-                        data-calendar-day="${seg.date.toISOString()}"
-                        data-calendar-day-width="${seg.widthPx}"
-                        data-calendar-day-saturday="${seg.date.getDay() === 6}"
-                        data-calendar-day-sunday="${seg.date.getDay() === 0}"
-                        data-calendar-day-holiday="${isHolidayDay}"
-                        data-calendar-day-label="${defaultLabel}"
-                      >
-                        ${this.calendarDayContent ? '' : defaultLabel}
-                      </div>
-                    `
-                  })
-                : days.map((day, index) => {
-                    let width = this.option.calendar.pxPerDay
-                    if (index + 1 > this.totalDays) {
-                      width = (this.totalDays - index) * this.option.calendar.pxPerDay
-                    }
-                    const backgroundColor = getCalendarColor(day, colors, this.option.calendar.isHoliday)
-                    const defaultLabel = String(day.getDate())
-                    const isHolidayDay = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(day) : false
-                    return html`
-                      <div
-                        class="day-cell"
-                        style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
-                        data-calendar-day="${day.toISOString()}"
-                        data-calendar-day-width="${width}"
-                        data-calendar-day-saturday="${day.getDay() === 6}"
-                        data-calendar-day-sunday="${day.getDay() === 0}"
-                        data-calendar-day-holiday="${isHolidayDay}"
-                        data-calendar-day-label="${defaultLabel}"
-                      >
-                        ${this.calendarDayContent ? '' : defaultLabel}
-                      </div>
-                    `
-                  })}
-            </div>`
+          ? (() => {
+              const holidayResolver = createCustomHolidayResolver({
+                isHoliday: this.option.calendar.isHoliday,
+                nonWorkingDays: this.option.calendar.nonWorkingDays,
+                nonWorkingDates: this.option.calendar.nonWorkingDates,
+              })
+              return html`<div class="days-container" style="${this.option.calendar.showTime ? '' : backgroundStyle}">
+                ${this.option.calendar.showTime
+                  ? showTimeDays.map((seg, segIndex) => {
+                      const backgroundColor = getCalendarColor(
+                        seg.date,
+                        colors,
+                        this.option.calendar.isHoliday,
+                        this.option.calendar,
+                      )
+                      const isLastSeg = segIndex === showTimeDays.length - 1
+                      const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+                      const defaultLabel = (this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)
+                      const isHolidayDay = holidayResolver.isHolidayDate(seg.date)
+                      return html`
+                        <div
+                          class="day-cell"
+                          style="width: ${seg.widthPx}px; border-right: ${isLastSeg
+                            ? 'none'
+                            : `1px solid ${dateBorderColor}`}; ${backgroundColor
+                            ? `background-color: ${backgroundColor};`
+                            : ''} font-size: calc(12px * var(--moguchart-font-scale, 1)); font-weight: 700; justify-content: flex-start; padding-left: 4px;"
+                          data-calendar-day="${seg.date.toISOString()}"
+                          data-calendar-day-width="${seg.widthPx}"
+                          data-calendar-day-saturday="${seg.date.getDay() === 6}"
+                          data-calendar-day-sunday="${seg.date.getDay() === 0}"
+                          data-calendar-day-holiday="${isHolidayDay}"
+                          data-calendar-day-label="${defaultLabel}"
+                        >
+                          ${this.calendarDayContent ? '' : defaultLabel}
+                        </div>
+                      `
+                    })
+                  : days.map((day, index) => {
+                      let width = this.option.calendar.pxPerDay
+                      if (index + 1 > this.totalDays) {
+                        width = (this.totalDays - index) * this.option.calendar.pxPerDay
+                      }
+                      const backgroundColor = getCalendarColor(
+                        day,
+                        colors,
+                        this.option.calendar.isHoliday,
+                        this.option.calendar,
+                      )
+                      const defaultLabel = String(day.getDate())
+                      const isHolidayDay = holidayResolver.isHolidayDate(day)
+                      return html`
+                        <div
+                          class="day-cell"
+                          style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                          data-calendar-day="${day.toISOString()}"
+                          data-calendar-day-width="${width}"
+                          data-calendar-day-saturday="${day.getDay() === 6}"
+                          data-calendar-day-sunday="${day.getDay() === 0}"
+                          data-calendar-day-holiday="${isHolidayDay}"
+                          data-calendar-day-label="${defaultLabel}"
+                        >
+                          ${this.calendarDayContent ? '' : defaultLabel}
+                        </div>
+                      `
+                    })}
+              </div>`
+            })()
           : ''}
         ${this.option.calendar.showTime
           ? html`

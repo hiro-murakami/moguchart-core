@@ -5,12 +5,13 @@ import type {
   DependencyType,
   GanttDependency,
   GanttDependencyLink,
+  GanttNonWorkingDateInput,
   GanttRow,
   GanttTask,
 } from './types'
 
 /**
- * 自動スケジューリング実行オプション
+ * 自動スケジューリングおよび稼働日計算オプション
  */
 export interface AutoScheduleOptions {
   /**
@@ -26,14 +27,22 @@ export interface AutoScheduleOptions {
   /**
    * 稼働日（休日除外）計算モード (デフォルト: 'calendar')
    * - 'calendar': カレンダー通り（土日・祝日を含めて計算）
-   * - 'weekends': 営業日ベース（土日を非営業日として除外）
-   * - 'weekends-holidays': 営業日ベース（土日および祝日を非営業日として除外）
+   * - 'weekends': 営業日ベース（非営業曜日・カスタム休日を除外）
+   * - 'weekends-holidays': 営業日ベース（非営業曜日・カスタム休日および祝日を除外）
    */
   calendarMode?: AutoScheduleCalendarMode
   /**
    * 祝日判定関数 ('weekends-holidays' モード時に使用)
    */
   isHoliday?: (date: Date) => boolean
+  /**
+   * 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。デフォルト: [0, 6])
+   */
+  nonWorkingDays?: number[]
+  /**
+   * 日付単位のカスタム休日（単一日または期間）の配列
+   */
+  nonWorkingDates?: GanttNonWorkingDateInput[]
 }
 
 /**
@@ -184,23 +193,296 @@ function getStartOfPrevDayMs(dayStartMs: number): number {
 }
 
 /**
- * 稼働日計算モードと祝日判定関数から、非営業日判定関数を生成する
+ * Date オブジェクトまたは日付文字列 ('YYYY-MM-DD' / 'YYYY/MM/DD') を
+ * ローカルタイムゾーンの 00:00:00.000 のミリ秒に変換する
+ */
+export function parseLocalDateToStartOfDayMs(input: Date | string | undefined | null): number | null {
+  if (!input) return null
+  if (input instanceof Date) {
+    const t = input.getTime()
+    if (Number.isNaN(t)) return null
+    const d = new Date(t)
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+  if (typeof input === 'string') {
+    const trimmed = input.trim()
+    const match = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+    if (match) {
+      const year = Number(match[1])
+      const month = Number(match[2]) - 1
+      const day = Number(match[3])
+      const d = new Date(year, month, day, 0, 0, 0, 0)
+      if (!Number.isNaN(d.getTime())) {
+        return d.getTime()
+      }
+    }
+    const parsed = new Date(trimmed)
+    if (!Number.isNaN(parsed.getTime())) {
+      parsed.setHours(0, 0, 0, 0)
+      return parsed.getTime()
+    }
+  }
+  return null
+}
+
+export interface NormalizedNonWorkingDateMeta {
+  name?: string
+  color?: string
+}
+
+export interface NormalizedNonWorkingDates {
+  singleDates: Map<number, NormalizedNonWorkingDateMeta>
+  ranges: Array<{
+    startMs: number
+    endMs: number
+    name?: string
+    color?: string
+  }>
+}
+
+/**
+ * nonWorkingDates 配列を高速判定用のデータ構造に正規化する
+ */
+export function normalizeNonWorkingDates(
+  inputs?: GanttNonWorkingDateInput[],
+): NormalizedNonWorkingDates {
+  const singleDates = new Map<number, NormalizedNonWorkingDateMeta>()
+  const ranges: Array<{ startMs: number; endMs: number; name?: string; color?: string }> = []
+
+  if (!Array.isArray(inputs) || inputs.length === 0) {
+    return { singleDates, ranges }
+  }
+
+  for (const item of inputs) {
+    if (!item) continue
+    if (item instanceof Date || typeof item === 'string') {
+      const ms = parseLocalDateToStartOfDayMs(item)
+      if (ms !== null && !singleDates.has(ms)) {
+        singleDates.set(ms, {})
+      }
+      continue
+    }
+    if (typeof item === 'object') {
+      if (item.date !== undefined) {
+        const ms = parseLocalDateToStartOfDayMs(item.date)
+        if (ms !== null) {
+          singleDates.set(ms, { name: item.name, color: item.color })
+        }
+      }
+      if (item.start !== undefined || item.end !== undefined) {
+        const sMs = item.start !== undefined ? parseLocalDateToStartOfDayMs(item.start) : null
+        const eMs = item.end !== undefined ? parseLocalDateToStartOfDayMs(item.end) : null
+        if (sMs !== null && eMs !== null) {
+          ranges.push({
+            startMs: Math.min(sMs, eMs),
+            endMs: Math.max(sMs, eMs),
+            name: item.name,
+            color: item.color,
+          })
+        } else if (sMs !== null) {
+          singleDates.set(sMs, { name: item.name, color: item.color })
+        } else if (eMs !== null) {
+          singleDates.set(eMs, { name: item.name, color: item.color })
+        }
+      }
+    }
+  }
+
+  return { singleDates, ranges }
+}
+
+/**
+ * 指定日の 00:00:00 ミリ秒が正規化済み nonWorkingDates に一致するか判定し、メタ情報を返す
+ */
+export function matchNonWorkingDateEntry(
+  dayStartMs: number,
+  normalized: NormalizedNonWorkingDates,
+): NormalizedNonWorkingDateMeta | null {
+  const targetMs = getStartOfDayMs(dayStartMs)
+  const single = normalized.singleDates.get(targetMs)
+  if (single) return single
+  for (const r of normalized.ranges) {
+    if (targetMs >= r.startMs && targetMs <= r.endMs) {
+      return { name: r.name, color: r.color }
+    }
+  }
+  return null
+}
+
+export interface CustomHolidayResolverOptions {
+  isHoliday?: (date: Date) => boolean
+  nonWorkingDays?: number[]
+  nonWorkingDates?: GanttNonWorkingDateInput[]
+}
+
+export interface CustomHolidayResolver {
+  /** 指定日が nonWorkingDates または isHoliday に該当するかどうか */
+  isHolidayDate: (date: Date) => boolean
+  /** 指定日が nonWorkingDates に該当するか（メタ情報付き） */
+  getCustomDateMeta: (date: Date) => NormalizedNonWorkingDateMeta | null
+  /** 指定日の曜日が nonWorkingDays (未指定時は [0, 6]) に含まれるかどうか */
+  isNonWorkingDayOfWeek: (date: Date) => boolean
+  /** カスタム nonWorkingDays が明示指定されているかどうか */
+  hasCustomNonWorkingDays: boolean
+}
+
+/**
+ * カレンダー描画・行背景・稼働日計算で共通利用する休日リゾルバーを生成する
+ */
+export function createCustomHolidayResolver(
+  options?: CustomHolidayResolverOptions,
+): CustomHolidayResolver {
+  const hasCustomNonWorkingDays = Array.isArray(options?.nonWorkingDays)
+  const restDaysSet = new Set<number>(hasCustomNonWorkingDays ? options!.nonWorkingDays! : [0, 6])
+  const normalizedDates = normalizeNonWorkingDates(options?.nonWorkingDates)
+  const hasCustomDates =
+    normalizedDates.singleDates.size > 0 || normalizedDates.ranges.length > 0
+  const isHolidayFn = options?.isHoliday
+
+  const getCustomDateMeta = (date: Date): NormalizedNonWorkingDateMeta | null => {
+    if (!hasCustomDates) return null
+    return matchNonWorkingDateEntry(date.getTime(), normalizedDates)
+  }
+
+  const isHolidayDate = (date: Date): boolean => {
+    if (hasCustomDates && matchNonWorkingDateEntry(date.getTime(), normalizedDates) !== null) {
+      return true
+    }
+    return isHolidayFn ? !!isHolidayFn(date) : false
+  }
+
+  const isNonWorkingDayOfWeek = (date: Date): boolean => {
+    return restDaysSet.has(date.getDay())
+  }
+
+  return {
+    isHolidayDate,
+    getCustomDateMeta,
+    isNonWorkingDayOfWeek,
+    hasCustomNonWorkingDays,
+  }
+}
+
+/**
+ * 稼働日計算モードと祝日・カスタム休日設定から、非営業日判定関数を生成する
  * ('calendar' の場合は null を返す)
  */
 export function createNonWorkingDayChecker(
   calendarMode: AutoScheduleCalendarMode = 'calendar',
   isHoliday?: (date: Date) => boolean,
+  nonWorkingDays?: number[],
+  nonWorkingDates?: GanttNonWorkingDateInput[],
 ): ((dayStartMs: number) => boolean) | null {
   if (!calendarMode || calendarMode === 'calendar') return null
+  const restDaysSet = new Set<number>(Array.isArray(nonWorkingDays) ? nonWorkingDays : [0, 6])
+  const normalizedDates = normalizeNonWorkingDates(nonWorkingDates)
+  const hasCustomDates =
+    normalizedDates.singleDates.size > 0 || normalizedDates.ranges.length > 0
+
   return (dayStartMs: number): boolean => {
-    const d = new Date(dayStartMs)
+    const normalizedDayMs = getStartOfDayMs(dayStartMs)
+    const d = new Date(normalizedDayMs)
     const dow = d.getDay()
-    if (dow === 0 || dow === 6) return true
+    if (restDaysSet.has(dow)) return true
+    if (hasCustomDates && matchNonWorkingDateEntry(normalizedDayMs, normalizedDates) !== null) {
+      return true
+    }
     if (calendarMode === 'weekends-holidays' && isHoliday) {
       return !!isHoliday(d)
     }
     return false
   }
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+/**
+ * 指定された期間 [start, end) に含まれる稼働日数（営業日数）を算出する公開ユーティリティ関数。
+ * options.calendarMode が未指定の場合は、isHoliday の有無に応じて 'weekends-holidays' または 'weekends' として計算する。
+ * options.calendarMode === 'calendar' が明示された場合は暦日数を返す。
+ */
+export function countWorkingDays(
+  start: Date,
+  end: Date,
+  options?: AutoScheduleOptions,
+): number {
+  const startMs = start instanceof Date ? start.getTime() : new Date(start as any).getTime()
+  const endMs = end instanceof Date ? end.getTime() : new Date(end as any).getTime()
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
+    return 0
+  }
+
+  const effectiveMode: AutoScheduleCalendarMode =
+    options?.calendarMode ?? (options?.isHoliday ? 'weekends-holidays' : 'weekends')
+
+  if (effectiveMode === 'calendar') {
+    return Math.max(1, Math.round((endMs - startMs) / MS_PER_DAY))
+  }
+
+  const isNonWorkingDay = createNonWorkingDayChecker(
+    effectiveMode,
+    options?.isHoliday,
+    options?.nonWorkingDays,
+    options?.nonWorkingDates,
+  )
+  if (!isNonWorkingDay) {
+    return Math.max(1, Math.round((endMs - startMs) / MS_PER_DAY))
+  }
+
+  let workingMs = 0
+  let dayStart = getStartOfDayMs(startMs)
+  let guard = 0
+
+  while (dayStart < endMs && guard < 10000) {
+    guard++
+    const dayEnd = getStartOfNextDayMs(dayStart)
+    if (!isNonWorkingDay(dayStart)) {
+      const segStart = Math.max(startMs, dayStart)
+      const segEnd = Math.min(endMs, dayEnd)
+      if (segEnd > segStart) {
+        workingMs += segEnd - segStart
+      }
+    }
+    dayStart = dayEnd
+  }
+
+  return Math.max(0, Math.round((workingMs / MS_PER_DAY) * 100) / 100)
+}
+
+/**
+ * 開始日時から指定した稼働日数（workingDays）を進めた終了日時（または開始日時）を算出する公開ユーティリティ関数。
+ * options.calendarMode が未指定の場合は、isHoliday の有無に応じて 'weekends-holidays' または 'weekends' として計算する。
+ */
+export function addWorkingDays(
+  start: Date,
+  workingDays: number,
+  options?: AutoScheduleOptions,
+): Date {
+  const startMs = start instanceof Date ? start.getTime() : new Date(start as any).getTime()
+  if (Number.isNaN(startMs) || workingDays === 0) {
+    return new Date(startMs)
+  }
+
+  const effectiveMode: AutoScheduleCalendarMode =
+    options?.calendarMode ?? (options?.isHoliday ? 'weekends-holidays' : 'weekends')
+
+  const deltaMs = workingDays * MS_PER_DAY
+  if (effectiveMode === 'calendar') {
+    return new Date(startMs + deltaMs)
+  }
+
+  const isNonWorkingDay = createNonWorkingDayChecker(
+    effectiveMode,
+    options?.isHoliday,
+    options?.nonWorkingDays,
+    options?.nonWorkingDates,
+  )
+  if (!isNonWorkingDay) {
+    return new Date(startMs + deltaMs)
+  }
+
+  return new Date(addWorkingTimeMs(startMs, deltaMs, isNonWorkingDay))
 }
 
 /**
@@ -395,7 +677,12 @@ export function propagateAutoSchedule(
 ): AutoScheduleResult {
   const mode: AutoScheduleMode = options.mode ?? 'push-only'
   const respectMovable = options.respectMovable !== false
-  const isNonWorkingDay = createNonWorkingDayChecker(options.calendarMode, options.isHoliday)
+  const isNonWorkingDay = createNonWorkingDayChecker(
+    options.calendarMode,
+    options.isHoliday,
+    options.nonWorkingDays,
+    options.nonWorkingDates,
+  )
 
   // 1. 全通常タスクのマップと依存グラフを構築
   const taskMap = new Map<

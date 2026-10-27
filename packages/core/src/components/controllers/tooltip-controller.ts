@@ -1,8 +1,9 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import { html, render } from 'lit'
+import { countWorkingDays } from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import type { BarHoverEventDetail, GanttChartOption } from '../../core/types'
-import { calculateTaskDelay } from '../../core/utils'
+import { calculateTaskDelay, isMilestoneTask } from '../../core/utils'
 
 export type TooltipState = BarHoverEventDetail & {
   visible: boolean
@@ -113,10 +114,16 @@ export class TooltipController implements ReactiveController {
     } else {
       const locale = this.host.option.locale ?? jaLocale
       const isMonthlyMode = !!this.host.option.calendar.pxPerMonth
-      const duration = Math.round(
-        (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
-      )
-      const hasProgress = typeof this.tooltip.task.progress === 'number' && !Number.isNaN(this.tooltip.task.progress)
+      const isMilestone = isMilestoneTask(this.tooltip.task)
+      const duration = isMilestone
+        ? 0
+        : Math.round(
+            (this.tooltip.task.end.getTime() - this.tooltip.task.start.getTime()) / (1000 * 60 * 60 * 24),
+          )
+      const hasProgress =
+        !isMilestone &&
+        typeof this.tooltip.task.progress === 'number' &&
+        !Number.isNaN(this.tooltip.task.progress)
       const progressRow = hasProgress
         ? html`<div class="tooltip-row">
             ${locale.tooltip.progress
@@ -182,14 +189,18 @@ export class TooltipController implements ReactiveController {
 
       if (isMonthlyMode) {
         const endForDisplay = new Date(this.tooltip.task.end)
-        endForDisplay.setMonth(endForDisplay.getMonth() - 1)
+        if (!isMilestone) {
+          endForDisplay.setMonth(endForDisplay.getMonth() - 1)
+        }
         render(
           html`
             <div style="font-weight: bold;">${this.tooltip.task.name}</div>
             <div class="tooltip-row">
-              ${locale.yearMonthFormat(this.tooltip.task.start)} - ${locale.yearMonthFormat(endForDisplay)}
+              ${isMilestone
+                ? locale.yearMonthFormat(this.tooltip.task.start)
+                : `${locale.yearMonthFormat(this.tooltip.task.start)} - ${locale.yearMonthFormat(endForDisplay)}`}
             </div>
-            <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+            ${isMilestone ? '' : html`<div class="tooltip-row">${locale.tooltip.duration(duration)}</div>`}
             ${progressRow}
             ${baselineRow}
           `,
@@ -200,19 +211,51 @@ export class TooltipController implements ReactiveController {
         const endForDisplay = new Date(this.tooltip.task.end)
         if (
           !isHourlyMode &&
+          !isMilestone &&
           this.tooltip.task.start.getTime() < this.tooltip.task.end.getTime() &&
           endForDisplay.getHours() === 0 &&
           endForDisplay.getMinutes() === 0
         ) {
           endForDisplay.setDate(endForDisplay.getDate() - 1)
         }
+
+        const calendarMode =
+          this.host.option.calendar?.calendarMode ?? this.host.option.dependency?.calendarMode
+        let durationText = locale.tooltip.duration(duration)
+        if (
+          !isHourlyMode &&
+          !isMilestone &&
+          (calendarMode === 'weekends' || calendarMode === 'weekends-holidays')
+        ) {
+          const workingDaysCount = countWorkingDays(
+            this.tooltip.task.start,
+            this.tooltip.task.end,
+            {
+              calendarMode,
+              isHoliday:
+                this.host.option.dependency?.isHoliday ?? this.host.option.calendar?.isHoliday,
+              nonWorkingDays:
+                this.host.option.dependency?.nonWorkingDays ??
+                this.host.option.calendar?.nonWorkingDays,
+              nonWorkingDates:
+                this.host.option.dependency?.nonWorkingDates ??
+                this.host.option.calendar?.nonWorkingDates,
+            },
+          )
+          durationText = locale.tooltip.workingDays
+            ? locale.tooltip.workingDays(duration, workingDaysCount)
+            : `${locale.tooltip.duration(duration)} (稼働${workingDaysCount}日)`
+        }
+
         render(
           html`
             <div style="font-weight: bold;">${this.tooltip.task.name}</div>
             <div class="tooltip-row">
-              ${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(endForDisplay)}
+              ${isMilestone
+                ? locale.dateFormat(this.tooltip.task.start)
+                : `${locale.dateFormat(this.tooltip.task.start)} - ${locale.dateFormat(endForDisplay)}`}
             </div>
-            <div class="tooltip-row">${locale.tooltip.duration(duration)}</div>
+            ${isMilestone ? '' : html`<div class="tooltip-row">${durationText}</div>`}
             ${progressRow}
             ${baselineRow}
           `,

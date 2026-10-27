@@ -26,7 +26,10 @@ import type {
   ColumnResizeEventDetail,
   AutoScheduleMode,
   DependencyType,
+  GanttBarLabelPosition,
+  GanttNonWorkingDateInput,
 } from '../core/types'
+import { isMilestoneTask } from '../core/utils'
 import {
   normalizeDependencyLink,
   createDependencyEntry,
@@ -106,7 +109,8 @@ chartEnd.setDate(chartStart.getDate() + 60)
 let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
-let rowHeaderWidth = 700
+let barLabelPosition: GanttBarLabelPosition = 'inside'
+let rowHeaderWidth = 760
 let rowHeaderResizable = true
 let isReadOnly = false
 let tooltipDelay = 500
@@ -138,6 +142,24 @@ let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
 let showConnectors = true
 let autoSchedule = true
 let scheduleMode: AutoScheduleMode = 'push-only'
+let calendarMode: 'calendar' | 'weekends' | 'weekends-holidays' = 'weekends-holidays'
+let nonWorkingDays: number[] = [0, 6]
+let enableCustomNonWorkingDates = true
+let preserveWorkingDaysOnDrag = true
+let showWorkingDaysColumn = true
+
+const getActiveNonWorkingDates = (): GanttNonWorkingDateInput[] => {
+  if (!enableCustomNonWorkingDates) return []
+  return [
+    new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 3),
+    {
+      start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 10),
+      end: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 11),
+      name: currentLang === 'ja' ? '計画メンテ休業' : 'Maintenance Break',
+      color: 'rgba(245, 158, 11, 0.16)',
+    },
+  ]
+}
 let selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
 let selectedDependencyPos: { x: number; y: number } | null = null
 
@@ -182,6 +204,10 @@ const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number
   if (autoSchedule) {
     nextRows = propagateAutoSchedule(nextRows, [sourceTaskId], {
       mode: 'strict',
+      calendarMode,
+      isHoliday,
+      nonWorkingDays,
+      nonWorkingDates: getActiveNonWorkingDates(),
     }).rows
   }
 
@@ -205,13 +231,21 @@ let enableBaseline = true
 let enableGrid = true
 let enableGridEdit = true
 let demoGridColumns: GanttColumn[] = [
-  { id: 'wbs', width: 60 },
-  { id: 'name', width: 220 },
-  { id: 'startDate', width: 125 },
-  { id: 'endDate', width: 125 },
-  { id: 'duration', width: 80 },
-  { id: 'progress', width: 70 },
+  { id: 'wbs', width: 55 },
+  { id: 'name', width: 205 },
+  { id: 'startDate', width: 120 },
+  { id: 'endDate', width: 120 },
+  { id: 'duration', width: 70 },
+  { id: 'workingDays', width: 75 },
+  { id: 'progress', width: 65 },
 ]
+
+const getActiveGridColumns = (): GanttColumn[] => {
+  if (showWorkingDaysColumn) {
+    return demoGridColumns
+  }
+  return demoGridColumns.filter((col) => col.id !== 'workingDays')
+}
 let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'
 let highlightDelay = true
 let isExporting = false
@@ -335,11 +369,13 @@ const renderApp = () => {
     customTheme.holiday = 'transparent'
   }
 
+  const activeNonWorkingDates = getActiveNonWorkingDates()
   const option: GanttChartOption = {
     bar: {
       height: barHeight,
       margin: barMargin,
       cornerRadius: barCornerRadius,
+      labelPosition: barLabelPosition,
     },
     rowHeader: {
       width: rowHeaderWidth,
@@ -353,6 +389,8 @@ const renderApp = () => {
       pxPerDay,
       pxPerMonth,
       isHoliday,
+      nonWorkingDays,
+      nonWorkingDates: activeNonWorkingDates,
       showTime,
       showMonths,
       showDays,
@@ -417,7 +455,7 @@ const renderApp = () => {
     grid: {
       enabled: enableGrid,
       editable: enableGridEdit,
-      columns: demoGridColumns,
+      columns: getActiveGridColumns(),
     },
     tree: {
       enabled: true,
@@ -517,6 +555,11 @@ const renderApp = () => {
       showConnectors,
       autoSchedule,
       scheduleMode,
+      calendarMode,
+      isHoliday,
+      nonWorkingDays,
+      nonWorkingDates: activeNonWorkingDates,
+      preserveWorkingDaysOnDrag,
     },
     zoom: {
       enabled: true,
@@ -922,6 +965,28 @@ const renderApp = () => {
                   ${currentLang === 'ja' ? '直線' : 'Orthogonal'}
                 </label>
               </div>
+
+              <span style="width: 1px; height: 20px; background: ${c.cardBorder}; margin: 0 4px;"></span>
+
+              <span style="font-weight: 600; font-size: 13px; color: ${c.textMuted};">🏷️ ${t.labelPosition}</span>
+              <div class="seg-group">
+                <label class="${barLabelPosition === 'inside' ? 'active' : ''}">
+                  <input type="radio" name="barLabelPos" value="inside" .checked="${barLabelPosition === 'inside'}" @change="${() => { barLabelPosition = 'inside'; renderApp() }}" />
+                  ${t.labelInside}
+                </label>
+                <label class="${barLabelPosition === 'auto' ? 'active' : ''}">
+                  <input type="radio" name="barLabelPos" value="auto" .checked="${barLabelPosition === 'auto'}" @change="${() => { barLabelPosition = 'auto'; renderApp() }}" />
+                  ${t.labelAuto}
+                </label>
+                <label class="${barLabelPosition === 'right' ? 'active' : ''}">
+                  <input type="radio" name="barLabelPos" value="right" .checked="${barLabelPosition === 'right'}" @change="${() => { barLabelPosition = 'right'; renderApp() }}" />
+                  ${t.labelRight}
+                </label>
+                <label class="${barLabelPosition === 'left' ? 'active' : ''}">
+                  <input type="radio" name="barLabelPos" value="left" .checked="${barLabelPosition === 'left'}" @change="${() => { barLabelPosition = 'left'; renderApp() }}" />
+                  ${t.labelLeft}
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -967,6 +1032,69 @@ const renderApp = () => {
                   <span class="toggle-track"></span>
                   ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
                 </label>
+                <div style="width: 100%; border-top: 1px dashed ${c.cardBorder}; margin: 2px 0;"></div>
+                <span class="select-group">
+                  ${t.calendarModeLabel}
+                  <select
+                    class="mini-select"
+                    @change="${(e: Event) => {
+                      calendarMode = (e.target as HTMLSelectElement).value as 'calendar' | 'weekends' | 'weekends-holidays'
+                      renderApp()
+                    }}"
+                  >
+                    <option value="calendar" ?selected="${calendarMode === 'calendar'}">${t.calendarModeCalendar}</option>
+                    <option value="weekends" ?selected="${calendarMode === 'weekends'}">${t.calendarModeWeekends}</option>
+                    <option value="weekends-holidays" ?selected="${calendarMode === 'weekends-holidays'}">${t.calendarModeHolidays}</option>
+                  </select>
+                </span>
+                <span class="select-group" style="flex-wrap: wrap;">
+                  ${t.nonWorkingDaysLabel}
+                  <span style="display: inline-flex; gap: 3px;">
+                    ${t.dayNames.map(
+                      (dayLabel: string, dayIdx: number) => {
+                        const isChecked = nonWorkingDays.includes(dayIdx)
+                        return html`
+                          <button
+                            type="button"
+                            style="
+                              padding: 2px 7px;
+                              font-size: 11px;
+                              font-weight: 600;
+                              border-radius: 5px;
+                              cursor: pointer;
+                              border: 1px solid ${isChecked ? c.accent : c.selectBorder};
+                              background: ${isChecked ? c.accent : c.selectBg};
+                              color: ${isChecked ? '#ffffff' : c.text};
+                              transition: all 0.15s;
+                            "
+                            @click="${() => {
+                              if (nonWorkingDays.includes(dayIdx)) {
+                                nonWorkingDays = nonWorkingDays.filter((d) => d !== dayIdx)
+                              } else {
+                                nonWorkingDays = [...nonWorkingDays, dayIdx].sort((a, b) => a - b)
+                              }
+                              renderApp()
+                            }}"
+                          >
+                            ${dayLabel.replace('曜', '')}
+                          </button>
+                        `
+                      },
+                    )}
+                  </span>
+                </span>
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    .checked="${enableCustomNonWorkingDates}"
+                    @change="${(e: Event) => {
+                      enableCustomNonWorkingDates = (e.target as HTMLInputElement).checked
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  ${t.enableCustomNonWorkingDates}
+                </label>
                 ${viewMode === 'week'
                   ? html`
                       <span class="select-group">
@@ -1003,7 +1131,7 @@ const renderApp = () => {
                     .checked="${enableGrid}"
                     @change="${(e: Event) => {
                       enableGrid = (e.target as HTMLInputElement).checked
-                      rowHeaderWidth = enableGrid ? 700 : 200
+                      rowHeaderWidth = enableGrid ? 760 : 200
                       renderApp()
                     }}"
                   />
@@ -1014,6 +1142,19 @@ const renderApp = () => {
                   <input type="checkbox" .checked="${enableGridEdit}" @change="${(e: Event) => { enableGridEdit = (e.target as HTMLInputElement).checked; renderApp() }}" />
                   <span class="toggle-track"></span>
                   ${t.enableGridEdit}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input
+                    type="checkbox"
+                    .checked="${showWorkingDaysColumn}"
+                    @change="${(e: Event) => {
+                      showWorkingDaysColumn = (e.target as HTMLInputElement).checked
+                      rowHeaderWidth = showWorkingDaysColumn ? 760 : 685
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  ${t.showWorkingDaysColumn}
                 </label>
               </div>
             </div>
@@ -1091,6 +1232,11 @@ const renderApp = () => {
                   <option value="strict" ?selected="${scheduleMode === 'strict'}">Strict (ASAP)</option>
                 </select>
               </span>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${preserveWorkingDaysOnDrag}" @change="${(e: Event) => { preserveWorkingDaysOnDrag = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.preserveWorkingDaysOnDrag}
+              </label>
               <label class="toggle-label">
                 <input type="checkbox" .checked="${enableProgress}" @change="${(e: Event) => { enableProgress = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
@@ -1638,17 +1784,23 @@ const renderApp = () => {
                             <div
                               style="
                                 height: 16px;
-                                width: 100%;
+                                width: ${isMilestoneTask(task) ? '16px' : '100%'};
                                 border-radius: 2px;
                                 margin-bottom: 8px;
+                                transform: ${isMilestoneTask(task) ? 'rotate(45deg)' : 'none'};
+                                margin-left: ${isMilestoneTask(task) ? '4px' : '0'};
                                 ${task.style || ''};
                                 ${getPatternStyle(task.pattern)};
                               "
                             ></div>
-                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${task.name}</div>
+                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">
+                              ${isMilestoneTask(task) ? `◆ ${task.name}` : task.name}
+                            </div>
                             <div style="font-size: 12px; opacity: 0.7;">
                               ${t.duration}
-                              ${dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
+                              ${isMilestoneTask(task)
+                                ? 0
+                                : dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
                               ${viewMode === 'day' ? t.daysUnit : t.hoursUnit}
                             </div>
                           </div>
@@ -1734,7 +1886,7 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
       newStart.setMinutes(snappedMinutes, 0, 0)
     }
 
-    const newEnd = new Date(newStart.getTime() + duration)
+    const newEnd = isMilestoneTask(task) ? new Date(newStart) : new Date(newStart.getTime() + duration)
 
     const newTask: GanttTask = {
       ...task,

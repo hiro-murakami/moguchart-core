@@ -8,8 +8,21 @@ import type {
   TaskUpdateEventDetail,
 } from '../../core/types'
 import type { GanttCommandType } from '../../core/history'
-import { calculateTaskLanes, getThemeColors, formatDuration, xToDate } from '../../core/utils'
-import { propagateAutoSchedule } from '../../core/auto-schedule'
+import {
+  calculateTaskLanes,
+  getThemeColors,
+  formatDuration,
+  xToDate,
+  isMilestoneTask,
+} from '../../core/utils'
+import {
+  addWorkingTimeMs,
+  computeWorkingDurationMs,
+  createNonWorkingDayChecker,
+  propagateAutoSchedule,
+  snapToWorkingStartMs,
+  type AutoScheduleOptions,
+} from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import { DEFAULT_BAR_MARGIN } from '../../core/constants'
 
@@ -89,6 +102,75 @@ export class TaskDragController implements ReactiveController {
 
   hostConnected(): void {}
   hostDisconnected(): void {}
+
+  private getAutoScheduleOptions(): AutoScheduleOptions {
+    return {
+      mode: this.host.option?.dependency?.scheduleMode,
+      respectMovable: this.host.option?.dependency?.respectMovable,
+      calendarMode:
+        this.host.option?.dependency?.calendarMode ?? this.host.option?.calendar?.calendarMode,
+      isHoliday:
+        this.host.option?.dependency?.isHoliday ?? this.host.option?.calendar?.isHoliday,
+      nonWorkingDays:
+        this.host.option?.dependency?.nonWorkingDays ??
+        this.host.option?.calendar?.nonWorkingDays,
+      nonWorkingDates:
+        this.host.option?.dependency?.nonWorkingDates ??
+        this.host.option?.calendar?.nonWorkingDates,
+    }
+  }
+
+  private applyPreserveWorkingDaysOnMove(
+    origStart: Date,
+    origEnd: Date,
+    movedStart: Date,
+    movedEnd: Date,
+    task?: GanttTask,
+  ): { start: Date; end: Date } {
+    if (isMilestoneTask(task) || origEnd.getTime() <= origStart.getTime()) {
+      return { start: movedStart, end: movedEnd }
+    }
+    const preserve =
+      this.host.option?.dependency?.preserveWorkingDaysOnDrag ??
+      this.host.option?.calendar?.preserveWorkingDaysOnDrag ??
+      false
+    if (!preserve) {
+      return { start: movedStart, end: movedEnd }
+    }
+
+    const opts = this.getAutoScheduleOptions()
+    const effectiveMode =
+      opts.calendarMode && opts.calendarMode !== 'calendar'
+        ? opts.calendarMode
+        : opts.isHoliday
+          ? 'weekends-holidays'
+          : 'weekends'
+    const checker = createNonWorkingDayChecker(
+      effectiveMode,
+      opts.isHoliday,
+      opts.nonWorkingDays,
+      opts.nonWorkingDates,
+    )
+    if (!checker) {
+      return { start: movedStart, end: movedEnd }
+    }
+
+    const workingDurationMs = computeWorkingDurationMs(
+      origStart.getTime(),
+      origEnd.getTime(),
+      checker,
+    )
+    const snappedStartMs = snapToWorkingStartMs(movedStart.getTime(), checker)
+    const adjustedEndMs =
+      workingDurationMs > 0
+        ? addWorkingTimeMs(snappedStartMs, workingDurationMs, checker)
+        : snappedStartMs
+
+    return {
+      start: new Date(snappedStartMs),
+      end: new Date(adjustedEndMs),
+    }
+  }
 
   public isMultiDrag(taskId: string): boolean {
     return this.host.selectedTasks.size >= 2 && this.host.selectedTasks.has(taskId)
@@ -180,9 +262,9 @@ export class TaskDragController implements ReactiveController {
             ${this.dragOverlayInfo.name || locale.dragOverlay.noTitle}
           </div>
           <div class="drag-info-sub">
-            ${startLabel} -
-            ${endLabel}
-            (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.host.option.locale)})
+            ${this.dragOverlayInfo.currentStart.getTime() === this.dragOverlayInfo.currentEnd.getTime()
+              ? startLabel
+              : html`${startLabel} - ${endLabel} (${formatDuration(this.dragOverlayInfo.currentStart, this.dragOverlayInfo.currentEnd, this.host.option.locale)})`}
           </div>
           ${targetRow
             ? html`<div class="drag-info-sub" style="margin-top: 4px; border-top: 1px solid ${colors.dragOverlayDivider}; padding-top: 4px; width: 100%;">${(this.host.option.locale ?? jaLocale).dragOverlay.moveTo(targetRow.name)}</div>`
@@ -309,6 +391,18 @@ export class TaskDragController implements ReactiveController {
     })
 
     if (sourceRowIndex === -1 || !taskToMove) return
+
+    if (dx !== undefined) {
+      const preserved = this.applyPreserveWorkingDaysOnMove(
+        start,
+        end,
+        newStart,
+        newEnd,
+        taskToMove,
+      )
+      newStart = preserved.start
+      newEnd = preserved.end
+    }
 
     const { layouts: rowLayouts } = this.host.calculateLayout()
     const sourceRowIndexInDisplay = this.host.displayRows.findIndex((r) => r.id === this.host.rows[sourceRowIndex].id)
@@ -519,7 +613,8 @@ export class TaskDragController implements ReactiveController {
               ne.setDate(1)
               ne.setHours(0, 0, 0, 0)
             }
-            movedTasks.push({ ...t, start: ns, end: ne })
+            const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
+            movedTasks.push({ ...t, start: preserved.start, end: preserved.end })
             return false
           }
           return true
@@ -529,13 +624,11 @@ export class TaskDragController implements ReactiveController {
         newRows[targetRowIndexInRows] = targetRow
 
         if (this.host.option.dependency?.autoSchedule) {
-          const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
-            mode: this.host.option.dependency.scheduleMode,
-            respectMovable: this.host.option.dependency.respectMovable,
-            calendarMode: this.host.option.dependency.calendarMode,
-            isHoliday:
-              this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
-          })
+          const scheduleResult = propagateAutoSchedule(
+            newRows,
+            this.host.selectedTasks,
+            this.getAutoScheduleOptions(),
+          )
           if (scheduleResult.hasChanges) {
             newRows.splice(0, newRows.length, ...scheduleResult.rows)
           }
@@ -577,23 +670,22 @@ export class TaskDragController implements ReactiveController {
                 ne.setDate(1)
                 ne.setHours(0, 0, 0, 0)
               }
+              const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
               return {
                 ...t,
-                start: ns,
-                end: ne,
+                start: preserved.start,
+                end: preserved.end,
               }
             }),
           }
         })
 
         if (this.host.option.dependency?.autoSchedule) {
-          const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
-            mode: this.host.option.dependency.scheduleMode,
-            respectMovable: this.host.option.dependency.respectMovable,
-            calendarMode: this.host.option.dependency.calendarMode,
-            isHoliday:
-              this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
-          })
+          const scheduleResult = propagateAutoSchedule(
+            newRows,
+            this.host.selectedTasks,
+            this.getAutoScheduleOptions(),
+          )
           if (scheduleResult.hasChanges) {
             newRows = scheduleResult.rows
           }
@@ -659,13 +751,11 @@ export class TaskDragController implements ReactiveController {
       }
 
       if (this.host.option.dependency?.autoSchedule) {
-        const scheduleResult = propagateAutoSchedule(newRows, [id], {
-          mode: this.host.option.dependency.scheduleMode,
-          respectMovable: this.host.option.dependency.respectMovable,
-          calendarMode: this.host.option.dependency.calendarMode,
-          isHoliday:
-            this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
-        })
+        const scheduleResult = propagateAutoSchedule(
+          newRows,
+          [id],
+          this.getAutoScheduleOptions(),
+        )
         if (scheduleResult.hasChanges) {
           newRows = scheduleResult.rows
         }

@@ -1,9 +1,27 @@
 import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import type { GanttTask, GanttChartOption, DependencyEndpoint, TaskProgressChangeEventDetail } from '../core/types'
+import type {
+  GanttTask,
+  GanttChartOption,
+  GanttBarLabelPosition,
+  DependencyEndpoint,
+  TaskProgressChangeEventDetail,
+} from '../core/types'
 import { getPatternStyle } from '../core/patterns'
-import { dateToX, xToDate, clampProgress, calculateTaskDelay } from '../core/utils'
+import { dateToX, xToDate, clampProgress, calculateTaskDelay, isMilestoneTask } from '../core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
+
+/**
+ * タスク名ラベルの推定描画幅 (px) を算出する ('auto' 配置モードの判定用)
+ */
+export function estimateTaskLabelWidth(text: string, fontScale = 1): number {
+  if (!text) return 0
+  let width = 0
+  for (const ch of text) {
+    width += ch.charCodeAt(0) > 255 ? 12.5 : 7.5
+  }
+  return Math.ceil(width * fontScale) + 14
+}
 
 @customElement('gantt-bar')
 export class GanttBarElement extends LitElement {
@@ -74,6 +92,21 @@ export class GanttBarElement extends LitElement {
         6px 55%,
         0% 100%
       );
+    }
+    .bar.milestone-bar {
+      background-color: var(--moguchart-milestone-bar-color, #8b5cf6);
+      transform: rotate(45deg) scale(0.76);
+      border-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+    :host([selected]) .bar.milestone-bar {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+    :host([focused]) .bar.milestone-bar {
+      outline: 2px dashed #3b82f6;
+      outline-offset: 2px;
     }
     :host([selected]) .bar {
       outline: 2px solid #3b82f6;
@@ -168,6 +201,33 @@ export class GanttBarElement extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: calc(100% - 12px);
+    }
+    .bar-label.pos-right {
+      left: calc(100% + 6px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: inherit;
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .bar-label.pos-left {
+      left: auto;
+      right: calc(100% + 6px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: inherit;
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .task-group.milestone-task-group .bar-label.pos-right {
+      left: calc(100% + 6px);
+      font-weight: 600;
+    }
+    .task-group.milestone-task-group .bar-label.pos-left {
+      right: calc(100% + 6px);
+      font-weight: 600;
     }
     :host([isexporting]) .bar,
     :host([isexporting]) .bar * {
@@ -1060,8 +1120,9 @@ export class GanttBarElement extends LitElement {
 
     const rect = taskGroup.getBoundingClientRect()
     const localX = e.clientX - rect.left
-    const nearLeft = localX <= this._connectorEdgeThreshold
-    const nearRight = localX >= rect.width - this._connectorEdgeThreshold
+    const isMilestone = isMilestoneTask(this.task)
+    const nearLeft = isMilestone || localX <= this._connectorEdgeThreshold
+    const nearRight = isMilestone || localX >= rect.width - this._connectorEdgeThreshold
 
     const connLeft = this.shadowRoot?.querySelector('.connector-left')
     const connRight = this.shadowRoot?.querySelector('.connector-right')
@@ -1192,8 +1253,11 @@ export class GanttBarElement extends LitElement {
 
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
-    const x = this.getX(this.task.start)
-    const width = this.getX(this.task.end) - x
+    const isMilestone = isMilestoneTask(this.task)
+    const diamondSize = Math.max(12, Math.round(barHeight * 0.72))
+    const rawX = this.getX(this.task.start)
+    const x = isMilestone ? rawX - diamondSize / 2 : rawX
+    const width = isMilestone ? diamondSize : this.getX(this.task.end) - rawX
     const y = this.lane * (barHeight + barMargin) + barMargin
 
     // 起点座標を計算（バーの左端 or 右端の中央）
@@ -1345,8 +1409,9 @@ export class GanttBarElement extends LitElement {
   render() {
     if (!this.task || !this.option) return html``
 
-    const x = this.getX(this.task.start)
-    const width = this.getX(this.task.end) - x
+    const isMilestone = isMilestoneTask(this.task)
+    const rawX = this.getX(this.task.start)
+    const rawWidth = this.getX(this.task.end) - rawX
     const barHeight = this.option.bar?.height ?? DEFAULT_BAR_HEIGHT
     const barMargin = this.option.bar?.margin ?? DEFAULT_BAR_MARGIN
     const barCornerRadius = this.option.bar?.cornerRadius ?? DEFAULT_BAR_CORNER_RADIUS
@@ -1358,7 +1423,7 @@ export class GanttBarElement extends LitElement {
     const resizable = this.task.resizable
     const canMove = !isReadOnly && movable !== 'none' && !isSummary
 
-    let canResize = !isReadOnly && !isSummary
+    let canResize = !isReadOnly && !isSummary && !isMilestone
     if (canResize) {
       if (resizable !== undefined) {
         canResize = resizable
@@ -1402,6 +1467,24 @@ export class GanttBarElement extends LitElement {
       }
     }
 
+    const diamondSize = Math.max(12, Math.round(actualBarHeight * 0.72))
+    const x = isMilestone ? rawX - diamondSize / 2 : rawX
+    const width = isMilestone ? diamondSize : rawWidth
+    const groupTop = isMilestone ? actualBarY + (actualBarHeight - diamondSize) / 2 : actualBarY
+    const groupHeight = isMilestone ? diamondSize : actualBarHeight
+    const milestoneColor = this.option.bar?.milestoneColor ?? '#8b5cf6'
+
+    const rawBarLabelPos: GanttBarLabelPosition =
+      this.task.labelPosition ??
+      (isMilestone ? 'right' : (this.option.bar?.labelPosition ?? 'inside'))
+    const effectiveBarLabelPos: 'inside' | 'right' | 'left' =
+      rawBarLabelPos === 'auto'
+        ? isMilestone ||
+          width < estimateTaskLabelWidth(this.task.name ?? '', this.option.fontScale ?? 1)
+          ? 'right'
+          : 'inside'
+        : rawBarLabelPos
+
     const bx = hasValidBaseline ? this.getX(baselineData!.start) : 0
     const bwidth = hasValidBaseline ? Math.max(1, this.getX(baselineData!.end) - bx) : 0
     const baselineColor =
@@ -1417,10 +1500,11 @@ export class GanttBarElement extends LitElement {
     const isDelayed = delayInfo?.isDelayed && (this.option.baseline?.highlightDelay !== false)
     const delayColor = this.option.baseline?.delayColor ?? '#ef4444'
 
-    const isProgressFeatureEnabled = this.option.progress?.enabled !== false
+    const isProgressFeatureEnabled = this.option.progress?.enabled !== false && !isMilestone
     const isProgressEditable =
       isProgressFeatureEnabled &&
       !isSummary &&
+      !isMilestone &&
       (this.task.progressResizable !== undefined
         ? this.task.progressResizable
         : !isReadOnly && (this.option.progress?.editable ?? false))
@@ -1490,12 +1574,12 @@ export class GanttBarElement extends LitElement {
           `
         : ''}
       <div
-        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isFiltered ? 'filtered-out' : ''}"
+        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isMilestone ? 'milestone-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isFiltered ? 'filtered-out' : ''}"
         style="
           left: ${x}px;
-          top: ${actualBarY}px;
+          top: ${groupTop}px;
           width: ${width}px;
-          height: ${actualBarHeight}px;
+          height: ${groupHeight}px;
           ${isDelayed ? `--moguchart-delay-color: ${delayColor};` : ''}
         "
         @mouseenter="${this.onMouseEnter}"
@@ -1505,8 +1589,10 @@ export class GanttBarElement extends LitElement {
         @contextmenu="${this.onContextMenu}"
       >
         <div
-          class="bar ${isSummary ? 'summary-bar' : ''}"
-          style="border-radius: ${isSummary ? 0 : barCornerRadius}px; ${this.task.style || ''}; ${getPatternStyle(
+          class="bar ${isSummary ? 'summary-bar' : ''} ${isMilestone ? 'milestone-bar' : ''}"
+          style="border-radius: ${isSummary ? 0 : isMilestone ? 2 : barCornerRadius}px; ${isMilestone
+            ? `background-color: ${milestoneColor};`
+            : ''} ${this.task.style || ''}; ${getPatternStyle(
             this.task.pattern,
           )}; ${!canMove ? 'cursor: pointer;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
@@ -1522,7 +1608,10 @@ export class GanttBarElement extends LitElement {
           ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
         </div>
         ${!this.option.customRendering?.barContent && this.task.name
-          ? html`<div class="bar-label" style="${this.task.labelStyle || ''}; ${isFiltered ? 'opacity: 0.2;' : ''}">${this.task.name}</div>`
+          ? html`<div
+              class="bar-label pos-${effectiveBarLabelPos}"
+              style="${this.task.labelStyle || ''}; ${isFiltered ? 'opacity: 0.2;' : ''}"
+            >${this.task.name}</div>`
           : ''}
         ${showProgressLabel && progressLabelText
           ? html`<div class="progress-label pos-${labelPosition}" style="${isFiltered ? 'opacity: 0.2;' : ''}">${progressLabelText}</div>`

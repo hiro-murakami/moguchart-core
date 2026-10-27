@@ -31,6 +31,8 @@ export interface MoguchartLocale {
   tooltip: {
     /** 所要日数の表示 (例: 5 → "所要日数: 5日" / "Duration: 5 days") */
     duration: (days: number) => string
+    /** 稼働日を含めた所要日数の表示 (例: (5, 3) → "所要日数: 5日 (稼働3日)") */
+    workingDays?: (days: number, workingDays: number) => string
     /** 進捗率の表示 (例: 75 → "進捗: 75%" / "Progress: 75%") (オプション) */
     progress?: (percent: number) => string
     /** ベースラインの表示 (例: "計画: 2024/1/1 - 2024/1/10 (10日)") */
@@ -63,6 +65,7 @@ export interface MoguchartLocale {
       startDateTime?: string
       endDateTime?: string
       duration: string
+      workingDays?: string
       progress: string
     }
   }
@@ -93,6 +96,7 @@ export const jaLocale: MoguchartLocale = {
   },
   tooltip: {
     duration: (days) => `所要日数: ${days}日`,
+    workingDays: (days, workingDays) => `所要日数: ${days}日 (稼働${workingDays}日)`,
     progress: (percent) => `進捗: ${percent}%`,
     baseline: (startStr, endStr, days) => `計画: ${startStr} - ${endStr} (${days}日)`,
     delay: (days) => `+${days}日遅れ`,
@@ -115,6 +119,7 @@ export const jaLocale: MoguchartLocale = {
       startDateTime: '開始日時',
       endDateTime: '終了日時',
       duration: '期間',
+      workingDays: '稼働日',
       progress: '進捗率',
     },
   },
@@ -147,6 +152,8 @@ export const enLocale: MoguchartLocale = {
   },
   tooltip: {
     duration: (days) => `Duration: ${days} day${days !== 1 ? 's' : ''}`,
+    workingDays: (days, workingDays) =>
+      `Duration: ${days} day${days !== 1 ? 's' : ''} (${workingDays} working day${workingDays !== 1 ? 's' : ''})`,
     progress: (percent) => `Progress: ${percent}%`,
     baseline: (startStr, endStr, days) => `Baseline: ${startStr} - ${endStr} (${days}d)`,
     delay: (days) => `+${days}d delay`,
@@ -169,6 +176,7 @@ export const enLocale: MoguchartLocale = {
       startDateTime: 'Start Date/Time',
       endDateTime: 'End Date/Time',
       duration: 'Duration',
+      workingDays: 'Working Days',
       progress: 'Progress',
     },
   },

@@ -439,11 +439,15 @@ function renderTableRowCells(
           break
         case 'duration':
           if (task?.start && task?.end) {
-            const diff = new Date(task.end).getTime() - new Date(task.start).getTime()
-            if (scale === 'hour') {
-              value = Math.max(0.1, Math.round((diff / (1000 * 60 * 60)) * 10) / 10)
+            if (task.type === 'milestone') {
+              value = 0
             } else {
-              value = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)))
+              const diff = new Date(task.end).getTime() - new Date(task.start).getTime()
+              if (scale === 'hour') {
+                value = Math.max(0.1, Math.round((diff / (1000 * 60 * 60)) * 10) / 10)
+              } else {
+                value = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)))
+              }
             }
           } else {
             value = ''
@@ -568,8 +572,12 @@ function renderTimelineTaskBar(
       }
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
 
-      // 該当タスクの最初の描画セルに進捗率をコントラスト文字色で記載（視認性向上）
-      if (!progressRendered && typeof task.progress === 'number' && task.progress > 0) {
+      if (task.type === 'milestone' && !progressRendered) {
+        cell.value = '◆'
+        cell.font = { size: 9, bold: true, color: { argb: textArgb } }
+        progressRendered = true
+      } else if (!progressRendered && typeof task.progress === 'number' && task.progress > 0) {
+        // 該当タスクの最初の描画セルに進捗率をコントラスト文字色で記載（視認性向上）
         cell.value = `${task.progress}%`
         cell.font = { size: 8, bold: true, color: { argb: textArgb } }
         progressRendered = true

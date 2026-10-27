@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
+import { createCustomHolidayResolver } from '../core/auto-schedule'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
 import type { GanttChartOption, ChartBackgroundCellContext } from '../core/types'
 
@@ -15,13 +16,16 @@ export class GanttRowBackgroundElement extends LitElement {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
   }
 
-  // dayセルのキャッシュ（start/end/pxPerDay/pxPerMonth/theme が変わらない限り再利用）
+  // dayセルのキャッシュ（start/end/pxPerDay/pxPerMonth/theme/休日設定が変わらない限り再利用）
   private _cachedCells: { width: number; color: string; date: Date }[] | null = null
   private _cachedCellsStartTime = 0
   private _cachedCellsEndTime = 0
   private _cachedCellsPxPerDay = 0
   private _cachedCellsPxPerMonth: number | undefined = undefined
   private _cachedCellsTheme = ''
+  private _cachedIsHoliday: ((date: Date) => boolean) | undefined = undefined
+  private _cachedNonWorkingDays: number[] | undefined = undefined
+  private _cachedNonWorkingDates: unknown = undefined
 
   static styles = css`
     :host {
@@ -55,13 +59,19 @@ export class GanttRowBackgroundElement extends LitElement {
       endTime !== this._cachedCellsEndTime ||
       pxPerDay !== this._cachedCellsPxPerDay ||
       pxPerMonth !== this._cachedCellsPxPerMonth ||
-      this.theme !== this._cachedCellsTheme
+      this.theme !== this._cachedCellsTheme ||
+      this.option.calendar.isHoliday !== this._cachedIsHoliday ||
+      this.option.calendar.nonWorkingDays !== this._cachedNonWorkingDays ||
+      this.option.calendar.nonWorkingDates !== this._cachedNonWorkingDates
     ) {
       this._cachedCellsStartTime = startTime
       this._cachedCellsEndTime = endTime
       this._cachedCellsPxPerDay = pxPerDay
       this._cachedCellsPxPerMonth = pxPerMonth
       this._cachedCellsTheme = this.theme
+      this._cachedIsHoliday = this.option.calendar.isHoliday
+      this._cachedNonWorkingDays = this.option.calendar.nonWorkingDays
+      this._cachedNonWorkingDates = this.option.calendar.nonWorkingDates
 
       const days = Array.from(
         { length: Math.ceil(this.totalDays) },
@@ -73,7 +83,12 @@ export class GanttRowBackgroundElement extends LitElement {
       )
 
       this._cachedCells = days.map((day) => {
-        const color = getCalendarColor(day, colors, this.option.calendar.isHoliday)
+        const color = getCalendarColor(
+          day,
+          colors,
+          this.option.calendar.isHoliday,
+          this.option.calendar,
+        )
         const nextDay = new Date(day)
         nextDay.setDate(day.getDate() + 1)
         const d1 = dateToX(day, this.option.calendar.start, pxPerDay, pxPerMonth)
@@ -85,10 +100,15 @@ export class GanttRowBackgroundElement extends LitElement {
     const chartBackgroundRenderer = this.option.customRendering?.chartBackground
 
     if (chartBackgroundRenderer) {
+      const holidayResolver = createCustomHolidayResolver({
+        isHoliday: this.option.calendar.isHoliday,
+        nonWorkingDays: this.option.calendar.nonWorkingDays,
+        nonWorkingDates: this.option.calendar.nonWorkingDates,
+      })
       return html`
         ${this._cachedCells!.map(({ width, color, date }, index) => {
           const dayOfWeek = date.getDay()
-          const isHoliday = this.option.calendar.isHoliday ? this.option.calendar.isHoliday(date) : false
+          const isHoliday = holidayResolver.isHolidayDate(date)
           const context: ChartBackgroundCellContext = {
             date,
             width,

@@ -37,6 +37,19 @@ export interface DemoTexts {
   enableBaseline: string
   enableGrid: string
   enableGridEdit: string
+  showWorkingDaysColumn: string
+  labelPosition: string
+  labelInside: string
+  labelRight: string
+  labelLeft: string
+  labelAuto: string
+  calendarModeLabel: string
+  calendarModeCalendar: string
+  calendarModeWeekends: string
+  calendarModeHolidays: string
+  nonWorkingDaysLabel: string
+  enableCustomNonWorkingDates: string
+  preserveWorkingDaysOnDrag: string
   baselinePosition: string
   highlightDelay: string
   collapseAll: string
@@ -111,9 +124,12 @@ export interface DemoTexts {
   wbsPhase1: string
   wbsTask1: string
   wbsTask2: string
+  wbsMilestone1: string
   wbsPhase2: string
   wbsTask3: string
   wbsTask4: string
+  wbsMilestone2: string
+  milestoneTemplate: string
   // 単一タスク（1行1タスク）ショーケース用テキスト
   singleTask1: string
   singleTask2: string
@@ -166,6 +182,19 @@ export const jaTexts: DemoTexts = {
   enableBaseline: '予実管理（ベースライン）を表示',
   enableGrid: 'マルチカラムグリッドを表示',
   enableGridEdit: 'インライン編集を有効化 (ダブルクリック)',
+  showWorkingDaysColumn: '稼働日数カラムを表示',
+  labelPosition: 'ラベル配置:',
+  labelInside: '内部 (Inside)',
+  labelRight: '右 (Right)',
+  labelLeft: '左 (Left)',
+  labelAuto: '自動 (Auto)',
+  calendarModeLabel: '稼働日モード:',
+  calendarModeCalendar: '暦日 (すべて稼働)',
+  calendarModeWeekends: '土日除外',
+  calendarModeHolidays: '土日祝・定休日除外',
+  nonWorkingDaysLabel: '定休日(曜日):',
+  enableCustomNonWorkingDates: '特定日・期間の休業日を適用',
+  preserveWorkingDaysOnDrag: 'ドラッグ移動時に稼働日数を維持',
   baselinePosition: '配置位置:',
   highlightDelay: '遅延タスクをハイライト',
   collapseAll: '折りたたみ',
@@ -302,9 +331,12 @@ export const jaTexts: DemoTexts = {
   wbsPhase1: 'フェーズ1: 企画・要件定義',
   wbsTask1: '市場調査 & ヒアリング',
   wbsTask2: '要件定義書作成',
+  wbsMilestone1: '要件承認 (マイルストーン)',
   wbsPhase2: 'フェーズ2: UI/UX設計 & プロトタイプ',
   wbsTask3: '画面設計・ワイヤーフレーム',
   wbsTask4: 'プロトタイプ検証',
+  wbsMilestone2: 'リリース判定 (マイルストーン)',
+  milestoneTemplate: 'マイルストーン',
   singleTask1: 'インフラ設計・クラウド環境構築',
   singleTask2: 'セキュリティ脆弱性診断',
   singleTask3: '運用マニュアル・手順書作成',
@@ -355,6 +387,19 @@ export const enTexts: DemoTexts = {
   enableBaseline: 'Show Baseline (Plan vs Actual)',
   enableGrid: 'Show Multi-Column Grid',
   enableGridEdit: 'Enable Inline Editing (DblClick)',
+  showWorkingDaysColumn: 'Show Working Days Column',
+  labelPosition: 'Label Pos:',
+  labelInside: 'Inside',
+  labelRight: 'Right',
+  labelLeft: 'Left',
+  labelAuto: 'Auto',
+  calendarModeLabel: 'Calendar Mode:',
+  calendarModeCalendar: 'Calendar (All Days)',
+  calendarModeWeekends: 'Skip Weekends',
+  calendarModeHolidays: 'Skip Weekends & Holidays',
+  nonWorkingDaysLabel: 'Non-Working Days:',
+  enableCustomNonWorkingDates: 'Apply Custom Holiday Dates',
+  preserveWorkingDaysOnDrag: 'Preserve Working Days on Drag',
   baselinePosition: 'Position:',
   highlightDelay: 'Highlight Delayed Tasks',
   collapseAll: 'Collapse',
@@ -491,9 +536,12 @@ export const enTexts: DemoTexts = {
   wbsPhase1: 'Phase 1: Planning & Requirements',
   wbsTask1: 'Market Research & User Interviews',
   wbsTask2: 'Requirements Specification',
+  wbsMilestone1: 'Requirements Sign-off (Milestone)',
   wbsPhase2: 'Phase 2: UI/UX Design & Prototype',
   wbsTask3: 'Wireframing & Screen Design',
   wbsTask4: 'Prototype Usability Testing',
+  wbsMilestone2: 'Go-Live Approval (Milestone)',
+  milestoneTemplate: 'Milestone',
   singleTask1: 'Cloud Infrastructure Setup',
   singleTask2: 'Security Vulnerability Assessment',
   singleTask3: 'Operations Manual Documentation',

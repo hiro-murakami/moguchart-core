@@ -817,7 +817,13 @@ export class GanttRowElement extends LitElement {
       this.commitCellEdit()
     }
 
-    const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+    const cellValue = getGridCellValue(
+      col,
+      this.row,
+      this.row.tasks,
+      this.wbsCode,
+      this.gridCalendarOptions,
+    )
     this._editingValue = formatGridCellEditValue(col, cellValue, this.row, this.row.tasks, isMonthMode, isTimeMode)
     this._editingColumnId = columnId
     this.handleHeaderMouseLeave()
@@ -859,6 +865,17 @@ export class GanttRowElement extends LitElement {
 
     this._isCommittingEdit = false
     return true
+  }
+
+  private get gridCalendarOptions() {
+    return {
+      calendarMode: this.option?.calendar?.calendarMode ?? this.option?.dependency?.calendarMode,
+      isHoliday: this.option?.dependency?.isHoliday ?? this.option?.calendar?.isHoliday,
+      nonWorkingDays:
+        this.option?.dependency?.nonWorkingDays ?? this.option?.calendar?.nonWorkingDays,
+      nonWorkingDates:
+        this.option?.dependency?.nonWorkingDates ?? this.option?.calendar?.nonWorkingDates,
+    }
   }
 
   public cancelCellEdit(): void {
@@ -931,9 +948,11 @@ export class GanttRowElement extends LitElement {
           ? isTimeMode
             ? 0.5
             : 1
-          : col.id === 'progress'
-            ? 0
-            : undefined
+          : col.id === 'workingDays'
+            ? 1
+            : col.id === 'progress'
+              ? 0
+              : undefined
     const maxVal = col.editorMax !== undefined ? col.editorMax : col.id === 'progress' ? 100 : undefined
     const stepVal =
       col.editorStep !== undefined
@@ -942,9 +961,11 @@ export class GanttRowElement extends LitElement {
           ? isTimeMode
             ? 0.5
             : 1
-          : col.id === 'progress'
+          : col.id === 'workingDays'
             ? 1
-            : undefined
+            : col.id === 'progress'
+              ? 1
+              : undefined
 
     return html`
       <input
@@ -983,7 +1004,13 @@ export class GanttRowElement extends LitElement {
         )
         const col = columns.find((c) => c.id === this._editingColumnId)
         if (col && typeof col.editor === 'function') {
-          const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+          const cellValue = getGridCellValue(
+            col,
+            this.row,
+            this.row.tasks,
+            this.wbsCode,
+            this.gridCalendarOptions,
+          )
           const customEl = col.editor({
             column: col,
             row: this.row,
@@ -1301,7 +1328,13 @@ export class GanttRowElement extends LitElement {
                     "
                     >
                       ${visibleColumns.map((col) => {
-                        const cellValue = getGridCellValue(col, this.row, this.row.tasks, this.wbsCode)
+                        const cellValue = getGridCellValue(
+                          col,
+                          this.row,
+                          this.row.tasks,
+                          this.wbsCode,
+                          this.gridCalendarOptions,
+                        )
                         const formatted = formatGridCellValue(
                           col,
                           cellValue,

@@ -1,8 +1,25 @@
-import { normalizeDependencyLink } from './auto-schedule'
-import type { GanttRow, GanttTask, TaskWithLane, ThemeColorPalette } from './types'
+import {
+  matchNonWorkingDateEntry,
+  normalizeDependencyLink,
+  normalizeNonWorkingDates,
+} from './auto-schedule'
+import type {
+  GanttNonWorkingDateInput,
+  GanttRow,
+  GanttTask,
+  TaskWithLane,
+  ThemeColorPalette,
+} from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
 import { THEME_COLORS } from './theme'
+
+/**
+ * 指定されたタスクがマイルストーンタスク (type === 'milestone') かどうかを判定します。
+ */
+export function isMilestoneTask(task?: GanttTask | null): boolean {
+  return task?.type === 'milestone'
+}
 
 /**
  * 指定された日付のチャート上のX座標（ピクセル）を計算します。
@@ -141,20 +158,26 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     // 通常タスクはレーン1以降に配置（通常タスク同士の重なり計算）
     const sortedNormalTasks = [...normalTasks].sort((a, b) => a.start.getTime() - b.start.getTime())
     const lanes: Date[] = []
+    const laneLastWasPoint: boolean[] = []
     const normalRelativeLaneMap = new Map<string, number>()
 
     for (const task of sortedNormalTasks) {
       const blockedLanes = getBlockedLanes(task, normalRelativeLaneMap)
+      const isPoint = isMilestoneTask(task) || task.end.getTime() <= task.start.getTime()
       let assignedLane = -1
       for (let i = 0; i < lanes.length; i++) {
-        if (task.start >= lanes[i] && !blockedLanes.has(i)) {
+        const canPlace =
+          laneLastWasPoint[i] && isPoint ? task.start > lanes[i] : task.start >= lanes[i]
+        if (canPlace && !blockedLanes.has(i)) {
           lanes[i] = task.end
+          laneLastWasPoint[i] = isPoint
           assignedLane = i
           break
         }
       }
       if (assignedLane === -1) {
         lanes.push(task.end)
+        laneLastWasPoint.push(isPoint)
         assignedLane = lanes.length - 1
       }
       normalRelativeLaneMap.set(task.id, assignedLane)
@@ -177,16 +200,21 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   // 各レーンの「最後尾のタスクの終了日時」を保持する配列
   // インデックスがレーン番号に対応します
   const lanes: Date[] = []
+  const laneLastWasPoint: boolean[] = []
   const taskLaneMap = new Map<string, number>()
 
   for (const task of sortedTasks) {
     const blockedLanes = getBlockedLanes(task, taskLaneMap)
+    const isPoint = isMilestoneTask(task) || task.end.getTime() <= task.start.getTime()
     let assignedLane = -1
     // 既存のレーンに空きがあるか探す
     for (let i = 0; i < lanes.length; i++) {
       // このレーンの最後のタスク終了日よりも、現在のタスク開始日が後であれば配置可能
-      if (task.start >= lanes[i] && !blockedLanes.has(i)) {
+      const canPlace =
+        laneLastWasPoint[i] && isPoint ? task.start > lanes[i] : task.start >= lanes[i]
+      if (canPlace && !blockedLanes.has(i)) {
         lanes[i] = task.end // レーンの終了日を更新
+        laneLastWasPoint[i] = isPoint
         assignedLane = i
         break
       }
@@ -194,6 +222,7 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
     // 空きがなければ新しいレーンを作成
     if (assignedLane === -1) {
       lanes.push(task.end)
+      laneLastWasPoint.push(isPoint)
       assignedLane = lanes.length - 1
     }
     taskLaneMap.set(task.id, assignedLane)
@@ -225,18 +254,33 @@ export const getThemeColors = (
   return { ...base, ...customTheme }
 }
 
+export interface CalendarColorHolidayOptions {
+  nonWorkingDays?: number[]
+  nonWorkingDates?: GanttNonWorkingDateInput[]
+}
+
 /**
- * 指定された日付に対応する背景色（休日、土日など）を取得します。
+ * 指定された日付に対応する背景色（休日、土日、カスタム定休日・休日など）を取得します。
  * @param date 対象の日付
  * @param colors カラーパレット
  * @param isHoliday 祝日判定関数 (オプション)。指定がない場合は祝日判定を行いません。
+ * @param calendarOptions カスタム非営業曜日・カスタム休日設定 (オプション)
  * @returns 背景色のCSSカラー文字列。平日の場合は空文字を返すことがあります。
  */
 export const getCalendarColor = (
   date: Date,
   colors: ThemeColorPalette,
   isHoliday?: (date: Date) => boolean,
+  calendarOptions?: CalendarColorHolidayOptions,
 ): string => {
+  if (calendarOptions?.nonWorkingDates && calendarOptions.nonWorkingDates.length > 0) {
+    const normalized = normalizeNonWorkingDates(calendarOptions.nonWorkingDates)
+    const matched = matchNonWorkingDateEntry(date.getTime(), normalized)
+    if (matched) {
+      return matched.color || colors.holiday
+    }
+  }
+
   const dayOfWeek = date.getDay()
   const isHolidayDay = isHoliday ? isHoliday(date) : false
 
@@ -253,6 +297,17 @@ export const getCalendarColor = (
     colors.friday ?? '',
     colors.saturday,
   ]
+
+  if (Array.isArray(calendarOptions?.nonWorkingDays)) {
+    if (calendarOptions.nonWorkingDays.includes(dayOfWeek)) {
+      if (dayOfWeek === 0) return colors.sunday
+      if (dayOfWeek === 6) return colors.saturday
+      return weekColors[dayOfWeek] || colors.holiday
+    }
+    // nonWorkingDaysに含まれない曜日は営業日扱い（平日カスタム色がある場合のみ適用）
+    return dayOfWeek >= 1 && dayOfWeek <= 5 ? weekColors[dayOfWeek] : ''
+  }
+
   return weekColors[dayOfWeek]
 }
 
