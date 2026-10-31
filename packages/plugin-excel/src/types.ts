@@ -1,4 +1,4 @@
-import type { GanttRow, GanttTask } from '@mogura/moguchart-core'
+import type { GanttHolidayChecker, GanttRow, GanttTask } from '@mogura/moguchart-core'
 import type { ExcelLocaleDefinition } from './i18n'
 
 export type { ExcelLocaleDefinition }
@@ -60,8 +60,8 @@ export interface ExportExcelOptions {
   highlightToday?: boolean
   /** ヘッダーやアクセントのテーマカラー (CSS HEXカラー。デフォルト: '#3B82F6') */
   themeColor?: string
-  /** 祝祭日判定関数 (trueを返すと祝祭日として扱われます。未指定時はchart.option.calendar.isHolidayを自動参照) */
-  isHoliday?: (date: Date) => boolean
+  /** 祝祭日・休日判定関数 (true またはオブジェクトを返すと祝祭日として扱われます。未指定時はchart.option.calendar.isHolidayを自動参照) */
+  isHoliday?: GanttHolidayChecker
   /** 祝祭日列の背景色 (CSS HEXカラー。デフォルト: '#FEE2E2') */
   holidayColor?: string
   /** タイムラインの表示開始日 (指定しない場合は全タスクの最小開始日または現在日) */
@@ -102,8 +102,8 @@ export interface ExcelPluginConfig {
   includeWeekends?: boolean
   /** テーマカラー */
   themeColor?: string
-  /** デフォルトの祝祭日判定関数 */
-  isHoliday?: (date: Date) => boolean
+  /** デフォルトの祝祭日・休日判定関数 */
+  isHoliday?: GanttHolidayChecker
   /** デフォルトの祝祭日背景色 */
   holidayColor?: string
 }

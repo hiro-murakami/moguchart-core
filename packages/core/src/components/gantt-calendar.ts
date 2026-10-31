@@ -748,7 +748,6 @@ export class GanttCalendarElement extends LitElement {
               const holidayResolver = createCustomHolidayResolver({
                 isHoliday: this.option.calendar.isHoliday,
                 nonWorkingDays: this.option.calendar.nonWorkingDays,
-                nonWorkingDates: this.option.calendar.nonWorkingDates,
               })
               return html`<div class="days-container" style="${this.option.calendar.showTime ? '' : backgroundStyle}">
                 ${this.option.calendar.showTime

@@ -932,7 +932,6 @@ export function applyGridCellEdit(
         effectiveMode,
         calendarOptions?.isHoliday,
         calendarOptions?.nonWorkingDays,
-        calendarOptions?.nonWorkingDates,
       )
       if (checker) {
         const snappedStartMs = snapToWorkingStartMs(singleTask.start.getTime(), checker)

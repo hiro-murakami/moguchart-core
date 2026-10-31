@@ -136,15 +136,9 @@ export type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holid
 export type GanttBarLabelPosition = 'inside' | 'right' | 'left' | 'auto'
 
 /**
- * 日付単位のカスタム休日（会社休日・特別休業日・連休期間）のオブジェクト定義
+ * 休日判定関数が返すカスタムメタ情報
  */
-export interface GanttNonWorkingDateObject {
-  /** 単一日の指定 (Date または 'YYYY-MM-DD' / 'YYYY/MM/DD') */
-  date?: Date | string
-  /** 期間指定の開始日（含む）(Date または 'YYYY-MM-DD' / 'YYYY/MM/DD') */
-  start?: Date | string
-  /** 期間指定の終了日（含む）(Date または 'YYYY-MM-DD' / 'YYYY/MM/DD') */
-  end?: Date | string
+export interface GanttHolidayMeta {
   /** 休日の名称・ラベル（任意） */
   name?: string
   /** カレンダー・行背景の個別カスタム背景色（未指定時は theme.holiday 色を使用） */
@@ -152,9 +146,14 @@ export interface GanttNonWorkingDateObject {
 }
 
 /**
- * 日付単位のカスタム休日指定（Dateオブジェクト、日付文字列、またはオブジェクト形式）
+ * 休日判定関数の戻り値型（true またはメタ情報オブジェクトを返すと休日として扱われる）
  */
-export type GanttNonWorkingDateInput = Date | string | GanttNonWorkingDateObject
+export type GanttHolidayResult = boolean | GanttHolidayMeta | null | undefined
+
+/**
+ * 休日判定関数の型定義
+ */
+export type GanttHolidayChecker = (date: Date) => GanttHolidayResult
 
 /**
  * ガントチャート上の個々のタスクを表すインターフェース
@@ -304,8 +303,8 @@ export interface GanttChartOptionCalendar {
   monthFormat?: string
   /** 行の背景を表示するかどうか */
   showRowBackground?: boolean
-  /** 祝日判定ロジック (trueを返すと祝日として扱われる) */
-  isHoliday?: (date: Date) => boolean
+  /** 祝日・休日判定ロジック (true または { name, color } を返すと休日として扱われる) */
+  isHoliday?: GanttHolidayChecker
   /** 時間単位のグリッドを表示するかどうか */
   showTime?: boolean
   /** 年月を表示するかどうか */
@@ -337,18 +336,13 @@ export interface GanttChartOptionCalendar {
   /** カーソル縦罫線の色 (CSS color string)。デフォルト: 現在時刻線と同色 */
   cursorLineColor?: string
   /**
-   * チャート全体の稼働日（休日除外）計算モード (未指定時は option.dependency.calendarMode または 'calendar')
+   * チャート全体の稼働日（休日除外）計算モード (デフォルト: 'calendar')
    */
   calendarMode?: AutoScheduleCalendarMode
   /**
    * 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。デフォルト: [0, 6])
    */
   nonWorkingDays?: number[]
-  /**
-   * 日付単位のカスタム休日（会社創立記念日・夏季休暇・年末年始などの単一日または期間）の配列。
-   * Dateオブジェクト、'YYYY-MM-DD' / 'YYYY/MM/DD' 文字列、または { date, start, end, name, color } を指定可能。
-   */
-  nonWorkingDates?: GanttNonWorkingDateInput[]
   /**
    * タスクバーのドラッグ移動時に元の稼働日数を維持して終了日を伸縮させるか (デフォルト: false)
    */
@@ -519,29 +513,6 @@ export interface GanttChartOptionDependency {
    * 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true)
    */
   respectMovable?: boolean
-  /**
-   * 自動スケジューリング時の稼働日（休日除外）計算モード (デフォルト: 'calendar')
-   * - 'calendar': カレンダー通り（土日・祝日を含めて計算）
-   * - 'weekends': 営業日ベース（土日を非営業日としてスキップし、稼働日数・ラグを維持）
-   * - 'weekends-holidays': 営業日ベース（土日および祝日を非営業日としてスキップし、稼働日数・ラグを維持）
-   */
-  calendarMode?: AutoScheduleCalendarMode
-  /**
-   * 自動スケジューリング時の祝日判定関数 (未指定時は option.calendar.isHoliday を使用)
-   */
-  isHoliday?: (date: Date) => boolean
-  /**
-   * 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。未指定時は option.calendar.nonWorkingDays または [0, 6])
-   */
-  nonWorkingDays?: number[]
-  /**
-   * 日付単位のカスタム休日配列 (未指定時は option.calendar.nonWorkingDates を使用)
-   */
-  nonWorkingDates?: GanttNonWorkingDateInput[]
-  /**
-   * タスクバーのドラッグ移動時に元の稼働日数を維持して終了日を伸縮させるか (未指定時は option.calendar.preserveWorkingDaysOnDrag)
-   */
-  preserveWorkingDaysOnDrag?: boolean
 }
 
 /**

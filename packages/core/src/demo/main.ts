@@ -27,7 +27,7 @@ import type {
   AutoScheduleMode,
   DependencyType,
   GanttBarLabelPosition,
-  GanttNonWorkingDateInput,
+  GanttHolidayChecker,
 } from '../core/types'
 import { isMilestoneTask } from '../core/utils'
 import {
@@ -148,17 +148,49 @@ let enableCustomNonWorkingDates = true
 let preserveWorkingDaysOnDrag = true
 let showWorkingDaysColumn = true
 
-const getActiveNonWorkingDates = (): GanttNonWorkingDateInput[] => {
-  if (!enableCustomNonWorkingDates) return []
-  return [
-    new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 3),
-    {
-      start: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 10),
-      end: new Date(chartStart.getFullYear(), chartStart.getMonth(), chartStart.getDate() + 11),
-      name: currentLang === 'ja' ? '計画メンテ休業' : 'Maintenance Break',
-      color: 'rgba(245, 158, 11, 0.16)',
-    },
-  ]
+const getActiveHolidayChecker = (): GanttHolidayChecker => {
+  const customSingleMs = new Date(
+    chartStart.getFullYear(),
+    chartStart.getMonth(),
+    chartStart.getDate() + 3,
+    0,
+    0,
+    0,
+    0,
+  ).getTime()
+  const maintStartMs = new Date(
+    chartStart.getFullYear(),
+    chartStart.getMonth(),
+    chartStart.getDate() + 10,
+    0,
+    0,
+    0,
+    0,
+  ).getTime()
+  const maintEndMs = new Date(
+    chartStart.getFullYear(),
+    chartStart.getMonth(),
+    chartStart.getDate() + 11,
+    0,
+    0,
+    0,
+    0,
+  ).getTime()
+  const maintName = currentLang === 'ja' ? '計画メンテ休業' : 'Maintenance Break'
+
+  return (date: Date) => {
+    if (enableCustomNonWorkingDates) {
+      const dayMs = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+      if (dayMs === customSingleMs) return true
+      if (dayMs >= maintStartMs && dayMs <= maintEndMs) {
+        return {
+          name: maintName,
+          color: 'rgba(245, 158, 11, 0.16)',
+        }
+      }
+    }
+    return isHoliday(date)
+  }
 }
 let selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
 let selectedDependencyPos: { x: number; y: number } | null = null
@@ -205,9 +237,8 @@ const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number
     nextRows = propagateAutoSchedule(nextRows, [sourceTaskId], {
       mode: 'strict',
       calendarMode,
-      isHoliday,
+      isHoliday: getActiveHolidayChecker(),
       nonWorkingDays,
-      nonWorkingDates: getActiveNonWorkingDates(),
     }).rows
   }
 
@@ -369,7 +400,7 @@ const renderApp = () => {
     customTheme.holiday = 'transparent'
   }
 
-  const activeNonWorkingDates = getActiveNonWorkingDates()
+  const activeIsHoliday = getActiveHolidayChecker()
   const option: GanttChartOption = {
     bar: {
       height: barHeight,
@@ -388,9 +419,10 @@ const renderApp = () => {
       end: chartEnd,
       pxPerDay,
       pxPerMonth,
-      isHoliday,
+      isHoliday: activeIsHoliday,
+      calendarMode,
       nonWorkingDays,
-      nonWorkingDates: activeNonWorkingDates,
+      preserveWorkingDaysOnDrag,
       showTime,
       showMonths,
       showDays,
@@ -555,11 +587,6 @@ const renderApp = () => {
       showConnectors,
       autoSchedule,
       scheduleMode,
-      calendarMode,
-      isHoliday,
-      nonWorkingDays,
-      nonWorkingDates: activeNonWorkingDates,
-      preserveWorkingDaysOnDrag,
     },
     zoom: {
       enabled: true,

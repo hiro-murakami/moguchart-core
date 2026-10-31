@@ -200,33 +200,36 @@ describe('v1.7.0 New Features', () => {
   })
 
   // =========================================================================
-  // Phase 2: Working Days & Custom Holidays (nonWorkingDays & nonWorkingDates)
+  // Phase 2: Working Days & Custom Holidays (nonWorkingDays & isHoliday)
   // =========================================================================
   describe('Phase 2: Working Days & Custom Holidays', () => {
-    it('counts and adds working days with default weekends, custom nonWorkingDays, and nonWorkingDates', () => {
+    it('counts and adds working days with default weekends, custom nonWorkingDays, and isHoliday', () => {
       // 2025-05-01 (Thu) to 2025-05-08 (Thu) -> 7 calendar days
       // Default weekends (Sat May 3, Sun May 4) -> 5 working days
       const start = new Date(2025, 4, 1)
       const end = new Date(2025, 4, 8)
       expect(countWorkingDays(start, end)).toBe(5)
 
-      // Custom nonWorkingDates: 2025-05-05 (Mon) and range 2025-05-06..2025-05-07 (Tue..Wed)
+      // Custom holidays via isHoliday: 2025-05-05 (Mon) and range 2025-05-06..2025-05-07 (Tue..Wed)
+      const isGoldenWeekHoliday = (d: Date) => {
+        if (d.getFullYear() === 2025 && d.getMonth() === 4) {
+          if (d.getDate() === 5) return true
+          if (d.getDate() === 6 || d.getDate() === 7) {
+            return { name: 'GW振替', color: '#fef08a' }
+          }
+        }
+        return false
+      }
       const workingWithGoldenWeek = countWorkingDays(start, end, {
-        nonWorkingDates: [
-          '2025-05-05',
-          { start: '2025-05-06', end: '2025-05-07', name: 'GW振替', color: '#fef08a' },
-        ],
+        isHoliday: isGoldenWeekHoliday,
       })
       // Only May 1 (Thu) and May 2 (Fri) are working days -> 2 working days
       expect(workingWithGoldenWeek).toBe(2)
 
-      // addWorkingDays with custom nonWorkingDates:
+      // addWorkingDays with custom isHoliday:
       // Starting May 1 (Thu), adding 3 working days should skip May 3-7 and end on May 9 00:00 (meaning May 1, May 2, May 8)
       const computedEnd = addWorkingDays(start, 3, {
-        nonWorkingDates: [
-          '2025-05-05',
-          { start: '2025-05-06', end: '2025-05-07' },
-        ],
+        isHoliday: isGoldenWeekHoliday,
       })
       expect(computedEnd).toEqual(new Date(2025, 4, 9))
 
@@ -248,14 +251,18 @@ describe('v1.7.0 New Features', () => {
 
     it('resolves custom holiday colors and weekday colors via getCalendarColor and createCustomHolidayResolver', () => {
       const colors = getThemeColors('light')
+      const isHoliday = (d: Date) => {
+        if (d.getFullYear() === 2025 && d.getMonth() === 4) {
+          const day = d.getDate()
+          if (day === 1 || day === 2) return true
+          if (day === 8) return { name: '創立記念日', color: '#fde047' }
+          if (day === 12 || day === 13) return { name: '特別休業', color: '#fbcfe8' }
+        }
+        return false
+      }
       const calendarOptions = {
         nonWorkingDays: [0, 3, 6], // Sun, Wed, Sat
-        nonWorkingDates: [
-          '2025-05-01', // single string date
-          new Date(2025, 4, 2), // Date object
-          { date: '2025/05/08', name: '創立記念日', color: '#fde047' },
-          { start: '2025-05-12', end: '2025-05-13', name: '特別休業', color: '#fbcfe8' },
-        ],
+        isHoliday,
       }
 
       const resolver = createCustomHolidayResolver(calendarOptions)
@@ -266,15 +273,15 @@ describe('v1.7.0 New Features', () => {
       expect(resolver.isHolidayDate(new Date(2025, 4, 13))).toBe(true)
       expect(resolver.isHolidayDate(new Date(2025, 4, 14))).toBe(false)
 
-      // Custom color on nonWorkingDates
-      expect(getCalendarColor(new Date(2025, 4, 8), colors, undefined, calendarOptions)).toBe('#fde047')
-      expect(getCalendarColor(new Date(2025, 4, 12), colors, undefined, calendarOptions)).toBe('#fbcfe8')
-      // Fallback to theme.holiday when color is omitted on nonWorkingDates
-      expect(getCalendarColor(new Date(2025, 4, 1), colors, undefined, calendarOptions)).toBe(colors.holiday)
+      // Custom color on isHoliday
+      expect(getCalendarColor(new Date(2025, 4, 8), colors, isHoliday, calendarOptions)).toBe('#fde047')
+      expect(getCalendarColor(new Date(2025, 4, 12), colors, isHoliday, calendarOptions)).toBe('#fbcfe8')
+      // Fallback to theme.holiday when color is omitted on isHoliday
+      expect(getCalendarColor(new Date(2025, 4, 1), colors, isHoliday, calendarOptions)).toBe(colors.holiday)
       // Wednesday (2025-05-07 is Wednesday) in nonWorkingDays -> falls back to colors.holiday
-      expect(getCalendarColor(new Date(2025, 4, 7), colors, undefined, calendarOptions)).toBe(colors.holiday)
+      expect(getCalendarColor(new Date(2025, 4, 7), colors, isHoliday, calendarOptions)).toBe(colors.holiday)
       // Friday (2025-05-09 is Friday) -> normal weekday ('')
-      expect(getCalendarColor(new Date(2025, 4, 9), colors, undefined, calendarOptions)).toBe('')
+      expect(getCalendarColor(new Date(2025, 4, 9), colors, isHoliday, calendarOptions)).toBe('')
     })
 
     it('supports built-in workingDays column in grid (display & inline edit)', () => {
@@ -285,7 +292,7 @@ describe('v1.7.0 New Features', () => {
       expect(colsJa[1].align).toBe('right')
 
       // Task from 2025-05-01 (Thu) to 2025-05-07 (Wed) -> 6 calendar days (Thu, Fri, Sat, Sun, Mon, Tue)
-      // With 2025-05-05 (Mon) as custom holiday -> 3 working days (Thu, Fri, Tue)
+      // With 2025-05-05 (Mon) as holiday -> 3 working days (Thu, Fri, Tue)
       const row: GanttRow = {
         id: 'r1',
         name: 'Impl',
@@ -300,7 +307,7 @@ describe('v1.7.0 New Features', () => {
       }
       const calOpts = {
         calendarMode: 'weekends-holidays' as const,
-        nonWorkingDates: ['2025-05-05'],
+        isHoliday: (d: Date) => d.getFullYear() === 2025 && d.getMonth() === 4 && d.getDate() === 5,
       }
       const wdCol = colsJa[1]
       const val = getGridCellValue(wdCol, row, row.tasks, undefined, calOpts)
@@ -315,7 +322,7 @@ describe('v1.7.0 New Features', () => {
       expect(row.tasks[0].end).toEqual(new Date(2025, 4, 8))
     })
 
-    it('propagates auto-schedule respecting nonWorkingDays and nonWorkingDates', () => {
+    it('propagates auto-schedule respecting nonWorkingDays and isHoliday', () => {
       const rows: GanttRow[] = [
         {
           id: 'r1',
@@ -344,10 +351,10 @@ describe('v1.7.0 New Features', () => {
         },
       ]
 
-      // Suppose Sat(3), Sun(4) are weekend and Mon(5) is in nonWorkingDates
+      // Suppose Sat(3), Sun(4) are weekend and Mon(5) is a holiday
       const result = propagateAutoSchedule(rows, ['t1'], {
-        calendarMode: 'weekends',
-        nonWorkingDates: ['2025-05-05'],
+        calendarMode: 'weekends-holidays',
+        isHoliday: (d: Date) => d.getFullYear() === 2025 && d.getMonth() === 4 && d.getDate() === 5,
       })
       expect(result.hasChanges).toBe(true)
       const updatedT2 = result.rows[1].tasks[0]
@@ -365,7 +372,7 @@ describe('v1.7.0 New Features', () => {
           end: new Date(2025, 4, 31),
           pxPerDay,
           calendarMode: 'weekends-holidays',
-          nonWorkingDates: ['2025-05-05'], // Mon is holiday
+          isHoliday: (d: Date) => d.getFullYear() === 2025 && d.getMonth() === 4 && d.getDate() === 5, // Mon is holiday
           preserveWorkingDaysOnDrag: true,
         },
       }

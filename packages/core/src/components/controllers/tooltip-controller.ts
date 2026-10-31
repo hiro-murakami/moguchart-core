@@ -219,8 +219,7 @@ export class TooltipController implements ReactiveController {
           endForDisplay.setDate(endForDisplay.getDate() - 1)
         }
 
-        const calendarMode =
-          this.host.option.calendar?.calendarMode ?? this.host.option.dependency?.calendarMode
+        const calendarMode = this.host.option.calendar?.calendarMode
         let durationText = locale.tooltip.duration(duration)
         if (
           !isHourlyMode &&
@@ -232,14 +231,8 @@ export class TooltipController implements ReactiveController {
             this.tooltip.task.end,
             {
               calendarMode,
-              isHoliday:
-                this.host.option.dependency?.isHoliday ?? this.host.option.calendar?.isHoliday,
-              nonWorkingDays:
-                this.host.option.dependency?.nonWorkingDays ??
-                this.host.option.calendar?.nonWorkingDays,
-              nonWorkingDates:
-                this.host.option.dependency?.nonWorkingDates ??
-                this.host.option.calendar?.nonWorkingDates,
+              isHoliday: this.host.option.calendar?.isHoliday,
+              nonWorkingDays: this.host.option.calendar?.nonWorkingDays,
             },
           )
           durationText = locale.tooltip.workingDays

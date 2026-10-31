@@ -107,16 +107,9 @@ export class TaskDragController implements ReactiveController {
     return {
       mode: this.host.option?.dependency?.scheduleMode,
       respectMovable: this.host.option?.dependency?.respectMovable,
-      calendarMode:
-        this.host.option?.dependency?.calendarMode ?? this.host.option?.calendar?.calendarMode,
-      isHoliday:
-        this.host.option?.dependency?.isHoliday ?? this.host.option?.calendar?.isHoliday,
-      nonWorkingDays:
-        this.host.option?.dependency?.nonWorkingDays ??
-        this.host.option?.calendar?.nonWorkingDays,
-      nonWorkingDates:
-        this.host.option?.dependency?.nonWorkingDates ??
-        this.host.option?.calendar?.nonWorkingDates,
+      calendarMode: this.host.option?.calendar?.calendarMode,
+      isHoliday: this.host.option?.calendar?.isHoliday,
+      nonWorkingDays: this.host.option?.calendar?.nonWorkingDays,
     }
   }
 
@@ -130,10 +123,7 @@ export class TaskDragController implements ReactiveController {
     if (isMilestoneTask(task) || origEnd.getTime() <= origStart.getTime()) {
       return { start: movedStart, end: movedEnd }
     }
-    const preserve =
-      this.host.option?.dependency?.preserveWorkingDaysOnDrag ??
-      this.host.option?.calendar?.preserveWorkingDaysOnDrag ??
-      false
+    const preserve = this.host.option?.calendar?.preserveWorkingDaysOnDrag ?? false
     if (!preserve) {
       return { start: movedStart, end: movedEnd }
     }
@@ -149,7 +139,6 @@ export class TaskDragController implements ReactiveController {
       effectiveMode,
       opts.isHoliday,
       opts.nonWorkingDays,
-      opts.nonWorkingDates,
     )
     if (!checker) {
       return { start: movedStart, end: movedEnd }

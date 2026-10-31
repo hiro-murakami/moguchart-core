@@ -869,12 +869,9 @@ export class GanttRowElement extends LitElement {
 
   private get gridCalendarOptions() {
     return {
-      calendarMode: this.option?.calendar?.calendarMode ?? this.option?.dependency?.calendarMode,
-      isHoliday: this.option?.dependency?.isHoliday ?? this.option?.calendar?.isHoliday,
-      nonWorkingDays:
-        this.option?.dependency?.nonWorkingDays ?? this.option?.calendar?.nonWorkingDays,
-      nonWorkingDates:
-        this.option?.dependency?.nonWorkingDates ?? this.option?.calendar?.nonWorkingDates,
+      calendarMode: this.option?.calendar?.calendarMode,
+      isHoliday: this.option?.calendar?.isHoliday,
+      nonWorkingDays: this.option?.calendar?.nonWorkingDays,
     }
   }
 

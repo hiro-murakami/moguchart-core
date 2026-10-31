@@ -350,16 +350,9 @@ export class KeyboardController implements ReactiveController {
       const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
         mode: this.host.option.dependency.scheduleMode,
         respectMovable: this.host.option.dependency.respectMovable,
-        calendarMode:
-          this.host.option.dependency.calendarMode ?? this.host.option.calendar?.calendarMode,
-        isHoliday:
-          this.host.option.dependency.isHoliday ?? this.host.option.calendar?.isHoliday,
-        nonWorkingDays:
-          this.host.option.dependency.nonWorkingDays ??
-          this.host.option.calendar?.nonWorkingDays,
-        nonWorkingDates:
-          this.host.option.dependency.nonWorkingDates ??
-          this.host.option.calendar?.nonWorkingDates,
+        calendarMode: this.host.option.calendar?.calendarMode,
+        isHoliday: this.host.option.calendar?.isHoliday,
+        nonWorkingDays: this.host.option.calendar?.nonWorkingDays,
       })
       if (scheduleResult.hasChanges) {
         newRows = scheduleResult.rows

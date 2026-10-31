@@ -1,10 +1,9 @@
 import {
-  matchNonWorkingDateEntry,
   normalizeDependencyLink,
-  normalizeNonWorkingDates,
+  resolveHolidayMeta,
 } from './auto-schedule'
 import type {
-  GanttNonWorkingDateInput,
+  GanttHolidayChecker,
   GanttRow,
   GanttTask,
   TaskWithLane,
@@ -256,37 +255,28 @@ export const getThemeColors = (
 
 export interface CalendarColorHolidayOptions {
   nonWorkingDays?: number[]
-  nonWorkingDates?: GanttNonWorkingDateInput[]
 }
 
 /**
- * 指定された日付に対応する背景色（休日、土日、カスタム定休日・休日など）を取得します。
+ * 指定された日付に対応する背景色（休日、土日、カスタム定休日など）を取得します。
  * @param date 対象の日付
  * @param colors カラーパレット
- * @param isHoliday 祝日判定関数 (オプション)。指定がない場合は祝日判定を行いません。
- * @param calendarOptions カスタム非営業曜日・カスタム休日設定 (オプション)
+ * @param isHoliday 祝日・休日判定関数 (オプション)。指定がない場合は祝日判定を行いません。
+ * @param calendarOptions カスタム非営業曜日設定 (オプション)
  * @returns 背景色のCSSカラー文字列。平日の場合は空文字を返すことがあります。
  */
 export const getCalendarColor = (
   date: Date,
   colors: ThemeColorPalette,
-  isHoliday?: (date: Date) => boolean,
+  isHoliday?: GanttHolidayChecker,
   calendarOptions?: CalendarColorHolidayOptions,
 ): string => {
-  if (calendarOptions?.nonWorkingDates && calendarOptions.nonWorkingDates.length > 0) {
-    const normalized = normalizeNonWorkingDates(calendarOptions.nonWorkingDates)
-    const matched = matchNonWorkingDateEntry(date.getTime(), normalized)
-    if (matched) {
-      return matched.color || colors.holiday
-    }
+  const holidayMeta = isHoliday ? resolveHolidayMeta(isHoliday(date)) : null
+  if (holidayMeta) {
+    return holidayMeta.color || colors.holiday
   }
 
   const dayOfWeek = date.getDay()
-  const isHolidayDay = isHoliday ? isHoliday(date) : false
-
-  if (isHolidayDay) {
-    return colors.holiday
-  }
   // 曜日ごとの色定義テーブル (0: 日曜, ..., 6: 土曜)
   const weekColors = [
     colors.sunday,

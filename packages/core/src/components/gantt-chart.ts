@@ -1568,12 +1568,9 @@ export class GanttChartElement extends LitElement {
       })),
     }
     const calendarOptions = {
-      calendarMode: this.option.calendar?.calendarMode ?? this.option.dependency?.calendarMode,
-      isHoliday: this.option.dependency?.isHoliday ?? this.option.calendar?.isHoliday,
-      nonWorkingDays:
-        this.option.dependency?.nonWorkingDays ?? this.option.calendar?.nonWorkingDays,
-      nonWorkingDates:
-        this.option.dependency?.nonWorkingDates ?? this.option.calendar?.nonWorkingDates,
+      calendarMode: this.option.calendar?.calendarMode,
+      isHoliday: this.option.calendar?.isHoliday,
+      nonWorkingDays: this.option.calendar?.nonWorkingDays,
     }
     const editResult = applyGridCellEdit(
       col,
@@ -1599,12 +1596,9 @@ export class GanttChartElement extends LitElement {
       const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
         mode: this.option.dependency.scheduleMode,
         respectMovable: this.option.dependency.respectMovable,
-        calendarMode: this.option.dependency.calendarMode ?? this.option.calendar?.calendarMode,
-        isHoliday: this.option.dependency.isHoliday ?? this.option.calendar?.isHoliday,
-        nonWorkingDays:
-          this.option.dependency.nonWorkingDays ?? this.option.calendar?.nonWorkingDays,
-        nonWorkingDates:
-          this.option.dependency.nonWorkingDates ?? this.option.calendar?.nonWorkingDates,
+        calendarMode: this.option.calendar?.calendarMode,
+        isHoliday: this.option.calendar?.isHoliday,
+        nonWorkingDays: this.option.calendar?.nonWorkingDays,
       })
       if (scheduleResult.hasChanges) {
         nextRows = scheduleResult.rows
@@ -1652,22 +1646,9 @@ export class GanttChartElement extends LitElement {
     const scheduleResult = propagateAutoSchedule(this.rows, changedTaskIds, {
       mode: options?.mode ?? this.option?.dependency?.scheduleMode,
       respectMovable: options?.respectMovable ?? this.option?.dependency?.respectMovable,
-      calendarMode:
-        options?.calendarMode ??
-        this.option?.dependency?.calendarMode ??
-        this.option?.calendar?.calendarMode,
-      isHoliday:
-        options?.isHoliday ??
-        this.option?.dependency?.isHoliday ??
-        this.option?.calendar?.isHoliday,
-      nonWorkingDays:
-        options?.nonWorkingDays ??
-        this.option?.dependency?.nonWorkingDays ??
-        this.option?.calendar?.nonWorkingDays,
-      nonWorkingDates:
-        options?.nonWorkingDates ??
-        this.option?.dependency?.nonWorkingDates ??
-        this.option?.calendar?.nonWorkingDates,
+      calendarMode: options?.calendarMode ?? this.option?.calendar?.calendarMode,
+      isHoliday: options?.isHoliday ?? this.option?.calendar?.isHoliday,
+      nonWorkingDays: options?.nonWorkingDays ?? this.option?.calendar?.nonWorkingDays,
     })
     if (!scheduleResult.hasChanges) {
       return []

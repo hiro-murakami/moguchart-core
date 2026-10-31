@@ -1,4 +1,4 @@
-import type { GanttChartElement, GanttRow } from '@mogura/moguchart-core'
+import type { GanttChartElement, GanttHolidayChecker, GanttRow } from '@mogura/moguchart-core'
 import type { ExcelLocale, ExcelTimelineScale, ExportExcelOptions } from './types'
 import { resolveExcelLocale, jaLocale, enLocale } from './i18n'
 
@@ -486,7 +486,7 @@ export function generateTimelineList(
   includeWeekends = true,
   columnWidth?: number,
   columnsPerUnit = 1,
-  isHoliday?: (date: Date) => boolean,
+  isHoliday?: GanttHolidayChecker,
   locale: ExcelLocale = 'ja'
 ): TimelineItem[] {
   const items: TimelineItem[] = []
@@ -592,7 +592,7 @@ export function generateTimelineList(
       const hStart = new Date(cur)
       const dayOfWeek = hStart.getDay()
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-      const isHolidayDay = isHoliday ? isHoliday(hStart) : false
+      const isHolidayDay = isHoliday ? Boolean(isHoliday(hStart)) : false
 
       if (includeWeekends || !isWeekend) {
         const year = hStart.getFullYear()
@@ -656,7 +656,7 @@ export function generateTimelineList(
   while (cur.getTime() <= endTime) {
     const dayOfWeek = cur.getDay()
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-    const isHolidayDay = isHoliday ? isHoliday(cur) : false
+    const isHolidayDay = isHoliday ? Boolean(isHoliday(cur)) : false
 
     if (includeWeekends || !isWeekend) {
       const year = cur.getFullYear()
