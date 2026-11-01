@@ -8,6 +8,7 @@ import type {
   TaskUpdateEventDetail,
 } from '../../core/types'
 import type { GanttCommandType } from '../../core/history'
+import type { PluginManager } from '../../core/plugin'
 import {
   calculateTaskLanes,
   getThemeColors,
@@ -77,6 +78,8 @@ export interface TaskDragControllerHost extends ReactiveControllerHost, HTMLElem
     newRows: GanttRow[],
     commandInfo: { type: GanttCommandType; description: string },
   ): void
+  pluginManager?: PluginManager
+  maybeAutoExtendCalendar?(minDate: Date, maxDate: Date, isDragging: boolean): void
   clearTooltip?(): void
 }
 
@@ -321,6 +324,31 @@ export class TaskDragController implements ReactiveController {
     }
   }
 
+  private restoreBarDOMPosition(taskId: string, origStart: Date, origEnd: Date): void {
+    const rows = this.host.shadowRoot?.querySelectorAll('gantt-row')
+    if (!rows) return
+    for (const row of rows) {
+      const bars = (row as any).shadowRoot?.querySelectorAll('gantt-bar')
+      if (!bars) continue
+      for (const bar of bars) {
+        if ((bar as any).task?.id === taskId) {
+          const tg = (bar as any).shadowRoot?.querySelector('.task-group') as HTMLElement | null
+          if (tg) {
+            const origX = this.host.getDateX(origStart)
+            const origW = Math.max(0, this.host.getDateX(origEnd) - origX)
+            tg.style.transform = ''
+            if (!isMilestoneTask((bar as any).task)) {
+              tg.style.left = `${origX}px`
+              tg.style.width = `${origW}px`
+            }
+          }
+          ;(bar as any).requestUpdate?.()
+          return
+        }
+      }
+    }
+  }
+
   public handleTaskUpdate(e: CustomEvent<TaskUpdateEventDetail & { mode?: GanttTaskMoveMode }>): void {
     e.stopPropagation()
     const { id, start, end, dx, isDragging, mode } = e.detail
@@ -429,22 +457,24 @@ export class TaskDragController implements ReactiveController {
     // 外部に通知するイベントに複数選択情報を含める
     const selectedIds = isMulti ? [...this.host.selectedTasks] : undefined
 
-    this.host.dispatchEvent(
-      new CustomEvent('task-update', {
-        detail: {
-          ...e.detail,
-          dy,
-          start: newStart,
-          end: newEnd,
-          targetRowId,
-          selectedTaskIds: selectedIds,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+    const eventDetail: TaskUpdateEventDetail = {
+      ...e.detail,
+      dy,
+      start: newStart,
+      end: newEnd,
+      targetRowId,
+      selectedTaskIds: selectedIds,
+    }
 
     if (isDragging) {
+      this.host.dispatchEvent(
+        new CustomEvent('task-update', {
+          detail: eventDetail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+
       this.host.clearTooltip?.()
 
       if (e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
@@ -459,6 +489,9 @@ export class TaskDragController implements ReactiveController {
         this.host.requestUpdate()
         return
       }
+
+      // 未来方向へのドラッグ中にカレンダー終端へ近づいた場合の自動期間拡張
+      this.host.maybeAutoExtendCalendar?.(newStart, newEnd, true)
 
       // draggingTaskの更新は、IDが変わった時やドラッグ開始時のみ行う
       // 座標が変わるたびに更新すると全行の再レンダリングが走ってしまうため
@@ -548,102 +581,64 @@ export class TaskDragController implements ReactiveController {
     // ドロップ時の処理
     const droppedMulti = this.draggingTaskIds.length >= 2 || isMulti
     const droppedSameRow = this.draggingTaskIds.length >= 2 ? this.multiDragSameRow : sameRow
+    const capturedTaskToMove = taskToMove
     this.cleanupDragState()
 
     // キャンセル、チャート外、または行が存在しない場所でドロップされた場合は、タスク移動を適用しない
     if (e.detail.isCancel || e.detail.isOutside || (allowCrossRowMove && targetRowIndex === -1)) {
+      this.host.dispatchEvent(
+        new CustomEvent('task-update', {
+          detail: eventDetail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
       return
     }
 
-    // targetRowIndex は displayRows のインデックスなので、this.host.rows のインデックスに変換
-    let targetRowIndexInRows = -1
-    if (targetRowIndex !== -1) {
-      const targetRow = this.host.displayRows[targetRowIndex]
-      targetRowIndexInRows = this.host.rows.findIndex((r) => r.id === targetRow.id)
-    }
+    const commitDrop = () => {
+      this.host.dispatchEvent(
+        new CustomEvent('task-update', {
+          detail: eventDetail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
 
-    const previousRows = this.host.rows
+      // targetRowIndex は displayRows のインデックスなので、this.host.rows のインデックスに変換
+      let targetRowIndexInRows = -1
+      if (targetRowIndex !== -1) {
+        const targetRow = this.host.displayRows[targetRowIndex]
+        targetRowIndexInRows = this.host.rows.findIndex((r) => r.id === targetRow.id)
+      }
 
-    // 複数バー移動のドロップ処理
-    if (droppedMulti && dx !== undefined) {
-      const pxPerDay = this.host.effectivePxPerDay
-      const pxPerMonth = this.host.effectivePxPerMonth
+      const previousRows = this.host.rows
 
-      // 同一行の複数バーが別の行にドロップされた場合の行移動処理
-      const needsRowMove = droppedSameRow && targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows
+      // 複数バー移動のドロップ処理
+      if (droppedMulti && dx !== undefined) {
+        const pxPerDay = this.host.effectivePxPerDay
+        const pxPerMonth = this.host.effectivePxPerMonth
+        let minDroppedStart = newStart
+        let maxDroppedEnd = newEnd
 
-      if (needsRowMove) {
-        // 全選択タスクをソース行から取り出してターゲット行に移動
-        const newRows = [...this.host.rows]
-        const sourceRow = { ...newRows[sourceRowIndex] }
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        sourceRow.tasks = [...sourceRow.tasks]
-        targetRow.tasks = [...targetRow.tasks]
+        // 同一行の複数バーが別の行にドロップされた場合の行移動処理
+        const needsRowMove = droppedSameRow && targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows
 
-        const movedTasks: GanttTask[] = []
-        sourceRow.tasks = sourceRow.tasks.filter((t) => {
-          if (this.host.selectedTasks.has(t.id)) {
-            const tStartX = this.host.getDateX(t.start)
-            const tEndX = this.host.getDateX(t.end)
-            const ns = xToDate(tStartX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-            const ne = xToDate(tEndX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-            if (this.host.option.calendar.pxPerMonth) {
-              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-              ns.setDate(1)
-              ns.setHours(0, 0, 0, 0)
-              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-              ne.setDate(1)
-              ne.setHours(0, 0, 0, 0)
-            } else if (this.host.option.snapDuration && this.host.option.snapDuration >= 43200) {
-              if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-              ns.setDate(1)
-              ns.setHours(0, 0, 0, 0)
-              if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-              ne.setDate(1)
-              ne.setHours(0, 0, 0, 0)
-            }
-            const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
-            movedTasks.push({ ...t, start: preserved.start, end: preserved.end })
-            return false
-          }
-          return true
-        })
-        targetRow.tasks.push(...movedTasks)
-        newRows[sourceRowIndex] = sourceRow
-        newRows[targetRowIndexInRows] = targetRow
+        if (needsRowMove) {
+          // 全選択タスクをソース行から取り出してターゲット行に移動
+          const newRows = [...this.host.rows]
+          const sourceRow = { ...newRows[sourceRowIndex] }
+          const targetRow = { ...newRows[targetRowIndexInRows] }
+          sourceRow.tasks = [...sourceRow.tasks]
+          targetRow.tasks = [...targetRow.tasks]
 
-        if (this.host.option.dependency?.autoSchedule) {
-          const scheduleResult = propagateAutoSchedule(
-            newRows,
-            this.host.selectedTasks,
-            this.getAutoScheduleOptions(),
-          )
-          if (scheduleResult.hasChanges) {
-            newRows.splice(0, newRows.length, ...scheduleResult.rows)
-          }
-        }
-
-        requestAnimationFrame(() => {
-          this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'task-move',
-            description: '複数タスクの移動',
-          })
-        })
-      } else {
-        // 同じ行内での水平移動のみ
-        let newRows = this.host.rows.map((row) => {
-          const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
-          if (!hasSelectedTask) return row
-
-          return {
-            ...row,
-            tasks: row.tasks.map((t) => {
-              if (!this.host.selectedTasks.has(t.id)) return t
+          const movedTasks: GanttTask[] = []
+          sourceRow.tasks = sourceRow.tasks.filter((t) => {
+            if (this.host.selectedTasks.has(t.id)) {
               const tStartX = this.host.getDateX(t.start)
               const tEndX = this.host.getDateX(t.end)
               const ns = xToDate(tStartX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
               const ne = xToDate(tEndX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-              // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
               if (this.host.option.calendar.pxPerMonth) {
                 if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
                 ns.setDate(1)
@@ -660,19 +655,159 @@ export class TaskDragController implements ReactiveController {
                 ne.setHours(0, 0, 0, 0)
               }
               const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
-              return {
-                ...t,
-                start: preserved.start,
-                end: preserved.end,
-              }
-            }),
+              if (preserved.start < minDroppedStart) minDroppedStart = preserved.start
+              if (preserved.end > maxDroppedEnd) maxDroppedEnd = preserved.end
+              movedTasks.push({ ...t, start: preserved.start, end: preserved.end })
+              return false
+            }
+            return true
+          })
+          targetRow.tasks.push(...movedTasks)
+          newRows[sourceRowIndex] = sourceRow
+          newRows[targetRowIndexInRows] = targetRow
+
+          if (this.host.option.dependency?.autoSchedule) {
+            const scheduleResult = propagateAutoSchedule(
+              newRows,
+              this.host.selectedTasks,
+              this.getAutoScheduleOptions(),
+            )
+            if (scheduleResult.hasChanges) {
+              newRows.splice(0, newRows.length, ...scheduleResult.rows)
+            }
           }
-        })
+
+          this.host.maybeAutoExtendCalendar?.(minDroppedStart, maxDroppedEnd, false)
+
+          requestAnimationFrame(() => {
+            this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+              type: 'task-move',
+              description: '複数タスクの移動',
+            })
+            this.host.pluginManager?.executeAfterTaskUpdate(eventDetail)
+          })
+        } else {
+          // 同じ行内での水平移動のみ
+          let newRows = this.host.rows.map((row) => {
+            const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
+            if (!hasSelectedTask) return row
+
+            return {
+              ...row,
+              tasks: row.tasks.map((t) => {
+                if (!this.host.selectedTasks.has(t.id)) return t
+                const tStartX = this.host.getDateX(t.start)
+                const tEndX = this.host.getDateX(t.end)
+                const ns = xToDate(tStartX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
+                const ne = xToDate(tEndX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
+                // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
+                if (this.host.option.calendar.pxPerMonth) {
+                  if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+                  ns.setDate(1)
+                  ns.setHours(0, 0, 0, 0)
+                  if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+                  ne.setDate(1)
+                  ne.setHours(0, 0, 0, 0)
+                } else if (this.host.option.snapDuration && this.host.option.snapDuration >= 43200) {
+                  if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+                  ns.setDate(1)
+                  ns.setHours(0, 0, 0, 0)
+                  if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+                  ne.setDate(1)
+                  ne.setHours(0, 0, 0, 0)
+                }
+                const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
+                if (preserved.start < minDroppedStart) minDroppedStart = preserved.start
+                if (preserved.end > maxDroppedEnd) maxDroppedEnd = preserved.end
+                return {
+                  ...t,
+                  start: preserved.start,
+                  end: preserved.end,
+                }
+              }),
+            }
+          })
+
+          if (this.host.option.dependency?.autoSchedule) {
+            const scheduleResult = propagateAutoSchedule(
+              newRows,
+              this.host.selectedTasks,
+              this.getAutoScheduleOptions(),
+            )
+            if (scheduleResult.hasChanges) {
+              newRows = scheduleResult.rows
+            }
+          }
+
+          this.host.maybeAutoExtendCalendar?.(minDroppedStart, maxDroppedEnd, false)
+
+          // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
+          requestAnimationFrame(() => {
+            this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+              type: 'task-move',
+              description: '複数タスクの移動',
+            })
+            this.host.pluginManager?.executeAfterTaskUpdate(eventDetail)
+          })
+        }
+        return
+      }
+
+      this.host.maybeAutoExtendCalendar?.(newStart, newEnd, false)
+
+      if (mode === 'copy') {
+        if (targetRowIndexInRows !== -1) {
+          const newRows = [...this.host.rows]
+          const targetRow = { ...newRows[targetRowIndexInRows] }
+          targetRow.tasks = [...targetRow.tasks]
+
+          // 新しいIDを生成
+          const newId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+          const newTask = {
+            ...capturedTaskToMove,
+            id: newId,
+            start: newStart,
+            end: newEnd,
+            dependencies: [],
+          }
+
+          targetRow.tasks.push(newTask)
+          newRows[targetRowIndexInRows] = targetRow
+
+          requestAnimationFrame(() => {
+            this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+              type: 'custom',
+              description: 'タスクの複製',
+            })
+            this.host.pluginManager?.executeAfterTaskUpdate(eventDetail)
+          })
+        }
+      } else {
+        let newRows = [...this.host.rows]
+        const sourceRow = { ...newRows[sourceRowIndex] }
+        sourceRow.tasks = [...sourceRow.tasks]
+        newRows[sourceRowIndex] = sourceRow
+
+        if (targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows) {
+          const targetRow = { ...newRows[targetRowIndexInRows] }
+          targetRow.tasks = [...targetRow.tasks]
+          newRows[targetRowIndexInRows] = targetRow
+
+          const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
+          targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
+        } else {
+          sourceRow.tasks[taskIndexInSource] = {
+            ...capturedTaskToMove,
+            start: newStart,
+            end: newEnd,
+          }
+        }
 
         if (this.host.option.dependency?.autoSchedule) {
           const scheduleResult = propagateAutoSchedule(
             newRows,
-            this.host.selectedTasks,
+            [id],
             this.getAutoScheduleOptions(),
           )
           if (scheduleResult.hasChanges) {
@@ -680,83 +815,29 @@ export class TaskDragController implements ReactiveController {
           }
         }
 
-        // 月単位モードは重いので rAF で rows 更新を次フレームに遅延させる
+        const isResize = dx === undefined
         requestAnimationFrame(() => {
           this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'task-move',
-            description: '複数タスクの移動',
+            type: isResize ? 'task-resize' : 'task-move',
+            description: isResize ? 'タスク期間の変更' : 'タスクの移動',
           })
+          this.host.pluginManager?.executeAfterTaskUpdate(eventDetail)
         })
       }
-      return
     }
 
-    if (mode === 'copy') {
-      if (targetRowIndexInRows !== -1) {
-        const newRows = [...this.host.rows]
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        targetRow.tasks = [...targetRow.tasks]
-
-        // 新しいIDを生成
-        const newId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-        const newTask = {
-          ...taskToMove,
-          id: newId,
-          start: newStart,
-          end: newEnd,
-          dependencies: [],
-        }
-
-        targetRow.tasks.push(newTask)
-        newRows[targetRowIndexInRows] = targetRow
-
-        requestAnimationFrame(() => {
-          this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'custom',
-            description: 'タスクの複製',
-          })
-        })
-      }
+    if (this.host.pluginManager) {
+      this.host.pluginManager.runBeforeHook(
+        'beforeTaskUpdate',
+        eventDetail,
+        commitDrop,
+        () => {
+          this.restoreBarDOMPosition(id, capturedTaskToMove.start, capturedTaskToMove.end)
+          this.host.requestUpdate()
+        },
+      )
     } else {
-      let newRows = [...this.host.rows]
-      const sourceRow = { ...newRows[sourceRowIndex] }
-      sourceRow.tasks = [...sourceRow.tasks]
-      newRows[sourceRowIndex] = sourceRow
-
-      if (targetRowIndexInRows !== -1 && sourceRowIndex !== targetRowIndexInRows) {
-        const targetRow = { ...newRows[targetRowIndexInRows] }
-        targetRow.tasks = [...targetRow.tasks]
-        newRows[targetRowIndexInRows] = targetRow
-
-        const [movedTask] = sourceRow.tasks.splice(taskIndexInSource, 1)
-        targetRow.tasks.push({ ...movedTask, start: newStart, end: newEnd })
-      } else {
-        sourceRow.tasks[taskIndexInSource] = {
-          ...taskToMove,
-          start: newStart,
-          end: newEnd,
-        }
-      }
-
-      if (this.host.option.dependency?.autoSchedule) {
-        const scheduleResult = propagateAutoSchedule(
-          newRows,
-          [id],
-          this.getAutoScheduleOptions(),
-        )
-        if (scheduleResult.hasChanges) {
-          newRows = scheduleResult.rows
-        }
-      }
-
-      const isResize = dx === undefined
-      requestAnimationFrame(() => {
-        this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-          type: isResize ? 'task-resize' : 'task-move',
-          description: isResize ? 'タスク期間の変更' : 'タスクの移動',
-        })
-      })
+      commitDrop()
     }
   }
 

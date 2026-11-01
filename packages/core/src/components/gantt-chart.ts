@@ -20,6 +20,10 @@ import type {
   GanttColumn,
   ColumnResizeEventDetail,
   CellEditEventDetail,
+  BeforeCellEditHookDetail,
+  CalendarRangeChangeEventDetail,
+  GanttOverlayRenderContext,
+  GanttViewportState,
   GanttDependency,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
@@ -40,6 +44,7 @@ import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
 import { PluginManager, type GanttPlugin } from '../core/plugin'
 import {
   ZoomController,
+  TouchController,
   MarqueeController,
   TooltipController,
   type TooltipState,
@@ -86,12 +91,17 @@ export class GanttChartElement extends LitElement {
   @property({ attribute: false })
   externalDraggingTask: GanttTask | null = null
 
+  private static readonly EMPTY_STRING_ARRAY: string[] = []
+  private static readonly VIRTUAL_X_CHUNK_PX = 250
+
   @state() public selectedRows = new Set<string>()
   @state() public selectedTasks = new Set<string>()
   @state() private lastClickedRowId: string | null = null
   @state() private virtualScrollTop = 0
-  @state() private currentScrollLeft = 0
-  @state() private currentScrollTop = 0
+  @state() private virtualRangeStartX = 0
+  @state() private virtualRangeEndX = 2000
+  private currentScrollLeft = 0
+  private currentScrollTop = 0
   @state() private viewportWidth = 800
   @state() private viewportHeight = 400
   @state() public calendarHeight = 0
@@ -279,6 +289,7 @@ export class GanttChartElement extends LitElement {
   private _systemThemeMediaQuery: MediaQueryList | null = null
   private _pluginManager = new PluginManager(this)
   private _zoomController = new ZoomController(this)
+  private _touchController = new TouchController(this, this._zoomController)
   private _marqueeController = new MarqueeController(this)
   private _tooltipController = new TooltipController(this)
   private _keyboardController = new KeyboardController(this)
@@ -344,6 +355,8 @@ export class GanttChartElement extends LitElement {
   private _lastZoomPercent: number | null = null
   private _lastZoomPxPerDay: number | null = null
   private _lastZoomPxPerMonth: number | null = null
+  private _lastAutoExtendTime = 0
+  private _cachedCriticalPathArray: string[] = GanttChartElement.EMPTY_STRING_ARRAY
   private _scrollContainer: HTMLElement | null = null
   public get _collapsedRowIds(): Set<string> {
     return this._treeController.collapsedRowIds
@@ -420,8 +433,11 @@ export class GanttChartElement extends LitElement {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === this) {
-          this.viewportHeight = entry.contentRect.height
-          this.viewportWidth = entry.contentRect.width
+          if (entry.contentRect.height > 0) this.viewportHeight = entry.contentRect.height
+          if (entry.contentRect.width > 0) {
+            this.viewportWidth = entry.contentRect.width
+            this.syncHorizontalVirtualRange(this.currentScrollLeft)
+          }
         } else if (entry.target === calendar) {
           this.calendarHeight = (entry.target as HTMLElement).offsetHeight
         }
@@ -438,8 +454,10 @@ export class GanttChartElement extends LitElement {
     if (this._scrollContainer) {
       this.currentScrollLeft = this._scrollContainer.scrollLeft
       this.currentScrollTop = this._scrollContainer.scrollTop
+      this.syncHorizontalVirtualRange(this.currentScrollLeft)
     }
     this._scrollContainer?.addEventListener('wheel', this.handleWheel, { passive: false })
+    this._touchController.attach(this._scrollContainer)
   }
 
   connectedCallback(): void {
@@ -455,6 +473,7 @@ export class GanttChartElement extends LitElement {
     this.addEventListener('keydown', this.handleKeyDown)
     this.addEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.addEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.addEventListener('zoom-change', this.handleInternalZoomChange as EventListener)
     this.addEventListener('wheel', this.handleWheel, { passive: false })
     // 初期テーマ設定
     if (this.option?.theme === 'system' || (this.option?.theme !== 'light' && this.option?.theme !== 'dark')) {
@@ -483,6 +502,7 @@ export class GanttChartElement extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this._pluginManager.destroy()
+    this._touchController.detach()
     window.removeEventListener('dragend', this._handleGlobalDragEnd)
     this.resizeObserver?.disconnect()
     this.stopCurrentTimeTimer()
@@ -490,6 +510,7 @@ export class GanttChartElement extends LitElement {
     this.removeEventListener('keydown', this.handleKeyDown)
     this.removeEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.removeEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.removeEventListener('zoom-change', this.handleInternalZoomChange as EventListener)
     this.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer = null
@@ -621,6 +642,18 @@ export class GanttChartElement extends LitElement {
       this._cachedSelectedTaskIds = [...this.selectedTasks]
       this._cachedSelectedTasksSize = this.selectedTasks.size
     }
+
+    if (
+      changedProperties.has('rows') ||
+      changedProperties.has('option')
+    ) {
+      if (this.option?.dependency?.showCriticalPath === true) {
+        this._cachedCriticalPathArray = [...computeCriticalPath(this.displayRows)]
+      } else {
+        this._cachedCriticalPathArray = GanttChartElement.EMPTY_STRING_ARRAY
+      }
+    }
+    this.syncHorizontalVirtualRange(this.currentScrollLeft)
   }
 
   protected updated(changedProperties: PropertyValues): void {
@@ -664,13 +697,19 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleHeaderResizeStart(e: PointerEvent) {
-    e.preventDefault()
+    if (e.cancelable) e.preventDefault()
     e.stopPropagation()
     this.isResizingHeader = true
     const startX = e.clientX
     const startWidth = this.currentRowHeaderWidth
     const target = e.target as HTMLElement
-    target.setPointerCapture(e.pointerId)
+    if (typeof target.setPointerCapture === 'function') {
+      try {
+        target.setPointerCapture(e.pointerId)
+      } catch {
+        // ignore
+      }
+    }
 
     const minWidth = this.option.rowHeader?.minWidth ?? 50
     const maxWidth = this.option.rowHeader?.maxWidth ?? Number.MAX_SAFE_INTEGER
@@ -683,9 +722,16 @@ export class GanttChartElement extends LitElement {
 
     const handleUp = () => {
       this.isResizingHeader = false
-      target.releasePointerCapture(e.pointerId)
+      if (typeof target.releasePointerCapture === 'function') {
+        try {
+          target.releasePointerCapture(e.pointerId)
+        } catch {
+          // ignore
+        }
+      }
       target.removeEventListener('pointermove', handleMove)
       target.removeEventListener('pointerup', handleUp)
+      target.removeEventListener('pointercancel', handleUp)
 
       const finalWidth = Math.round(this.currentRowHeaderWidth)
       this.currentRowHeaderWidth = finalWidth
@@ -693,6 +739,7 @@ export class GanttChartElement extends LitElement {
       this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
         ? Math.max(60, Math.round(finalWidth / this.effectiveZoomScale))
         : finalWidth
+      this.syncHorizontalVirtualRange(this.currentScrollLeft)
 
       this.dispatchEvent(
         new CustomEvent<RowHeaderResizeEventDetail>('row-header-resize', {
@@ -705,6 +752,7 @@ export class GanttChartElement extends LitElement {
 
     target.addEventListener('pointermove', handleMove)
     target.addEventListener('pointerup', handleUp)
+    target.addEventListener('pointercancel', handleUp)
   }
 
   private handleColumnResize = (e: CustomEvent<ColumnResizeEventDetail>) => {
@@ -795,12 +843,197 @@ export class GanttChartElement extends LitElement {
   }
 
 
+  private syncHorizontalVirtualRange(scrollLeft: number): void {
+    const timelineViewportW = Math.max(300, this.viewportWidth - this.currentRowHeaderWidth)
+    const overscanPx = Math.max(Math.round(timelineViewportW * 0.75), 600)
+    const chunkPx = GanttChartElement.VIRTUAL_X_CHUNK_PX
+    const nextStartX = Math.max(0, Math.floor((scrollLeft - overscanPx) / chunkPx) * chunkPx)
+    const nextEndX = Math.ceil((scrollLeft + timelineViewportW + overscanPx) / chunkPx) * chunkPx
+    if (this.virtualRangeStartX !== nextStartX) {
+      this.virtualRangeStartX = nextStartX
+    }
+    if (this.virtualRangeEndX !== nextEndX) {
+      this.virtualRangeEndX = nextEndX
+    }
+  }
+
+  private computeVisibleRowIndices(rowLayouts: Array<{ top: number; height: number }>, scrollTop: number): {
+    startIndex: number
+    endIndex: number
+  } {
+    const rowCount = this.displayRows.length
+    if (rowCount === 0) return { startIndex: 0, endIndex: -1 }
+    if (this.isExporting) return { startIndex: 0, endIndex: rowCount - 1 }
+
+    const buffer = 5
+    let startIndex = 0
+    let endIndex = rowCount - 1
+    for (let i = 0; i < rowLayouts.length; i++) {
+      if (rowLayouts[i].top + rowLayouts[i].height > scrollTop) {
+        startIndex = Math.max(0, i - buffer)
+        break
+      }
+    }
+    for (let i = startIndex; i < rowLayouts.length; i++) {
+      if (rowLayouts[i].top > scrollTop + this.viewportHeight) {
+        endIndex = Math.min(rowCount - 1, i + buffer)
+        break
+      }
+    }
+    return { startIndex, endIndex }
+  }
+
+  private emitViewportChange(): void {
+    const { layouts } = this.calculateLayout()
+    const { startIndex, endIndex } = this.computeVisibleRowIndices(layouts, this.currentScrollTop)
+    const timelineViewportW = Math.max(0, this.viewportWidth - this.currentRowHeaderWidth)
+    const viewportState: GanttViewportState = {
+      scrollLeft: this.currentScrollLeft,
+      scrollTop: this.currentScrollTop,
+      viewportWidth: this.viewportWidth,
+      viewportHeight: this.viewportHeight,
+      rowHeaderWidth: this.currentRowHeaderWidth,
+      calendarHeight: this.calendarHeight,
+      visibleStartX: Math.max(0, this.currentScrollLeft),
+      visibleEndX: Math.max(0, this.currentScrollLeft + timelineViewportW),
+      visibleRowStartIndex: startIndex,
+      visibleRowEndIndex: Math.max(0, endIndex),
+      pxPerDay: this.effectivePxPerDay,
+      pxPerMonth: this.effectivePxPerMonth,
+      zoomPercent: this.getZoomPercent(),
+      zoomScale: this.getZoomScale(),
+    }
+    this._pluginManager.executeViewportChange(viewportState)
+  }
+
+  private handleInternalZoomChange = (): void => {
+    if (this._scrollContainer) {
+      this.currentScrollLeft = this._scrollContainer.scrollLeft
+      this.currentScrollTop = this._scrollContainer.scrollTop
+    }
+    this.syncHorizontalVirtualRange(this.currentScrollLeft)
+    this.emitViewportChange()
+  }
+
+  /**
+   * タスクドラッグ・ドロップ時にカレンダー端へ到達した場合、表示期間を自動的に拡張する
+   */
+  public maybeAutoExtendCalendar(minDate: Date, maxDate: Date, isDragging: boolean): void {
+    const autoExtendOpt = this.option?.calendar?.autoExtend
+    if (!autoExtendOpt) return
+    if (typeof autoExtendOpt === 'object' && autoExtendOpt.enabled === false) return
+
+    if (isDragging) {
+      const now = Date.now()
+      if (now - this._lastAutoExtendTime < 120) return
+    }
+
+    const extendDays = Math.max(1, typeof autoExtendOpt === 'object' ? (autoExtendOpt.extendDays ?? 7) : 7)
+    const extendMonths = Math.max(1, typeof autoExtendOpt === 'object' ? (autoExtendOpt.extendMonths ?? 1) : 1)
+    const edgeThresholdPx = Math.max(0, typeof autoExtendOpt === 'object' ? (autoExtendOpt.edgeThresholdPx ?? 40) : 40)
+
+    const prevStart = new Date(this.option.calendar.start)
+    const prevEnd = new Date(this.option.calendar.end)
+    let nextStart = new Date(prevStart)
+    let nextEnd = new Date(prevEnd)
+    const isMonthMode = this.effectivePxPerMonth !== undefined || this.option.calendar.pxPerMonth !== undefined
+
+    // 未来方向（右端）の拡張判定
+    const maxDateX = this.getDateX(maxDate)
+    const endX = this.getDateX(prevEnd)
+    if (maxDate.getTime() > prevEnd.getTime() || maxDateX >= endX - edgeThresholdPx) {
+      const baseEnd = new Date(Math.max(prevEnd.getTime(), maxDate.getTime()))
+      if (isMonthMode) {
+        const d = new Date(baseEnd)
+        d.setMonth(d.getMonth() + extendMonths)
+        nextEnd = d
+      } else {
+        nextEnd = new Date(baseEnd.getTime() + extendDays * 24 * 60 * 60 * 1000)
+      }
+    }
+
+    // 過去方向（左端）の拡張判定（ドラッグ中の座標原点ズレを防ぐためドロップ確定時に実行）
+    if (!isDragging) {
+      const minDateX = this.getDateX(minDate)
+      if (minDate.getTime() < prevStart.getTime() || minDateX <= edgeThresholdPx) {
+        const baseStart = new Date(Math.min(prevStart.getTime(), minDate.getTime()))
+        if (isMonthMode) {
+          const d = new Date(baseStart)
+          d.setMonth(d.getMonth() - extendMonths)
+          d.setDate(1)
+          d.setHours(0, 0, 0, 0)
+          nextStart = d
+        } else {
+          const d = new Date(baseStart.getTime() - extendDays * 24 * 60 * 60 * 1000)
+          d.setHours(0, 0, 0, 0)
+          nextStart = d
+        }
+      }
+    }
+
+    const startChanged = nextStart.getTime() !== prevStart.getTime()
+    const endChanged = nextEnd.getTime() !== prevEnd.getTime()
+    if (!startChanged && !endChanged) return
+
+    if (isDragging) {
+      this._lastAutoExtendTime = Date.now()
+    }
+
+    const addedLeftPx = startChanged
+      ? dateToX(prevStart, nextStart, this.effectivePxPerDay, this.effectivePxPerMonth)
+      : 0
+
+    this.option = {
+      ...this.option,
+      calendar: {
+        ...this.option.calendar,
+        start: nextStart,
+        end: nextEnd,
+      },
+    }
+    this._layoutCache = null
+
+    if (addedLeftPx > 0) {
+      const container =
+        this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+      if (container) {
+        const compensatedLeft = container.scrollLeft + addedLeftPx
+        container.scrollLeft = compensatedLeft
+        this.currentScrollLeft = compensatedLeft
+      }
+    }
+
+    this.syncHorizontalVirtualRange(this.currentScrollLeft)
+
+    const direction: CalendarRangeChangeEventDetail['direction'] =
+      startChanged && endChanged ? 'both' : startChanged ? 'start' : 'end'
+
+    this.dispatchEvent(
+      new CustomEvent<CalendarRangeChangeEventDetail>('calendar-range-change', {
+        detail: {
+          start: nextStart,
+          end: nextEnd,
+          previousStart: prevStart,
+          previousEnd: prevEnd,
+          direction,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   private handleScroll = (e: Event) => {
     const target = e.target as HTMLElement
     this.currentScrollLeft = target.scrollLeft
     this.currentScrollTop = target.scrollTop
+    this.syncHorizontalVirtualRange(target.scrollLeft)
     this.updateScrollTop(target.scrollTop)
     this._tooltipController.hideTooltip()
+    if (this.option?.minimap?.enabled === true || this._pluginManager.hasOverlayRenderers()) {
+      this.requestUpdate()
+    }
+    this.emitViewportChange()
   }
 
   private handleMinimapScroll = (e: CustomEvent<MinimapScrollEventDetail>) => {
@@ -811,6 +1044,11 @@ export class GanttChartElement extends LitElement {
       this.currentScrollLeft = e.detail.scrollLeft
       this.currentScrollTop = e.detail.scrollTop
       this.virtualScrollTop = e.detail.scrollTop
+      this.syncHorizontalVirtualRange(e.detail.scrollLeft)
+      if (this.option?.minimap?.enabled === true || this._pluginManager.hasOverlayRenderers()) {
+        this.requestUpdate()
+      }
+      this.emitViewportChange()
     }
   }
 
@@ -1323,6 +1561,15 @@ export class GanttChartElement extends LitElement {
     this._zoomController.zoomToPercent(percent)
   }
 
+  public zoomToPercentAtPoint(percent: number, clientX: number, anchorUnits?: number): boolean {
+    return this._zoomController.zoomToPercentAtPoint(
+      percent,
+      clientX,
+      this._scrollContainer,
+      anchorUnits,
+    )
+  }
+
   public zoomToScale(scale: number): void {
     this._zoomController.zoomToScale(scale)
   }
@@ -1411,12 +1658,7 @@ export class GanttChartElement extends LitElement {
     const { task, isMultiSelect } = e.detail
 
     // ドラッグ操作がなかった（クリック扱い）場合でも、ドラッグ関連の状態をクリーンアップ
-    this.draggingTask = null
-    this.dragTargetRowIndex = null
-    if (this.dragOverlayInfo) {
-      this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
-      this.hideDragOverlay()
-    }
+    this._taskDragController.cleanupDragState()
 
     if (this.selectedDependency) {
       this.clearDependencySelection()
@@ -1584,55 +1826,85 @@ export class GanttChartElement extends LitElement {
 
     if (!editResult.changed) return
 
-    let nextRows = [...this.rows]
-    nextRows[rowIndex] = clonedRow
-
-    const editedNormalTasks = (clonedRow.tasks ?? []).filter(
+    const origNormalTasks = (origRow.tasks ?? []).filter(
       (t) => t.type !== 'summary' && !(t as any).isSummary,
     )
-    const editedSingleTask = editedNormalTasks.length === 1 ? editedNormalTasks[0] : undefined
+    const origSingleTask = origNormalTasks.length === 1 ? origNormalTasks[0] : undefined
 
-    if (this.option.dependency?.autoSchedule && editedSingleTask) {
-      const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
-        mode: this.option.dependency.scheduleMode,
-        respectMovable: this.option.dependency.respectMovable,
-        calendarMode: this.option.calendar?.calendarMode,
-        isHoliday: this.option.calendar?.isHoliday,
-        nonWorkingDays: this.option.calendar?.nonWorkingDays,
-      })
-      if (scheduleResult.hasChanges) {
-        nextRows = scheduleResult.rows
-      }
+    const beforeDetail: BeforeCellEditHookDetail = {
+      rowId,
+      columnId,
+      column: col,
+      oldValue: editResult.oldValue,
+      newValue: editResult.newValue,
+      rawValue,
+      row: origRow,
+      task: origSingleTask,
     }
 
-    this.applyRowsChangeWithCommand(previousRows, nextRows, {
-      type: 'cell-edit',
-      description: `${col.title ?? col.id} の編集`,
+    const commitEdit = () => {
+      let nextRows = [...this.rows]
+      nextRows[rowIndex] = clonedRow
+
+      const editedNormalTasks = (clonedRow.tasks ?? []).filter(
+        (t) => t.type !== 'summary' && !(t as any).isSummary,
+      )
+      const editedSingleTask = editedNormalTasks.length === 1 ? editedNormalTasks[0] : undefined
+
+      if (this.option.dependency?.autoSchedule && editedSingleTask) {
+        const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
+          mode: this.option.dependency.scheduleMode,
+          respectMovable: this.option.dependency.respectMovable,
+          calendarMode: this.option.calendar?.calendarMode,
+          isHoliday: this.option.calendar?.isHoliday,
+          nonWorkingDays: this.option.calendar?.nonWorkingDays,
+        })
+        if (scheduleResult.hasChanges) {
+          nextRows = scheduleResult.rows
+        }
+      }
+
+      this.applyRowsChangeWithCommand(previousRows, nextRows, {
+        type: 'cell-edit',
+        description: `${col.title ?? col.id} の編集`,
+      })
+
+      const updatedRow = this.rows.find((r) => r.id === rowId) ?? clonedRow
+      const normalTasks = (updatedRow.tasks ?? []).filter(
+        (t) => t.type !== 'summary' && !(t as any).isSummary,
+      )
+      const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
+
+      if (singleTask && singleTask.start && singleTask.end) {
+        this.maybeAutoExtendCalendar(singleTask.start, singleTask.end, false)
+      }
+
+      const afterDetail: CellEditEventDetail = {
+        rowId,
+        columnId,
+        column: col,
+        oldValue: editResult.oldValue,
+        newValue: editResult.newValue,
+        row: updatedRow,
+        previousRow: origRow,
+        task: singleTask,
+        rows: this.rows,
+      }
+
+      this.dispatchEvent(
+        new CustomEvent<CellEditEventDetail>('cell-edit', {
+          detail: afterDetail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+
+      this._pluginManager.executeAfterCellEdit(afterDetail)
+    }
+
+    this._pluginManager.runBeforeHook('beforeCellEdit', beforeDetail, commitEdit, () => {
+      this.requestUpdate()
     })
-
-    const updatedRow = this.rows.find((r) => r.id === rowId) ?? clonedRow
-    const normalTasks = (updatedRow.tasks ?? []).filter(
-      (t) => t.type !== 'summary' && !(t as any).isSummary,
-    )
-    const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
-
-    this.dispatchEvent(
-      new CustomEvent<CellEditEventDetail>('cell-edit', {
-        detail: {
-          rowId,
-          columnId,
-          column: col,
-          oldValue: editResult.oldValue,
-          newValue: editResult.newValue,
-          row: updatedRow,
-          previousRow: origRow,
-          task: singleTask,
-          rows: this.rows,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
   }
 
   /**
@@ -1724,7 +1996,9 @@ export class GanttChartElement extends LitElement {
     this.currentScrollLeft = 0
     this.currentScrollTop = 0
     this.virtualScrollTop = 0
+    this.syncHorizontalVirtualRange(0)
     this.requestUpdate()
+    this.emitViewportChange()
   }
 
   /**
@@ -1733,19 +2007,26 @@ export class GanttChartElement extends LitElement {
   public scrollToPosition(options: { left?: number; top?: number; behavior?: ScrollBehavior }): void {
     const container = this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
     if (container) {
-      container.scrollTo({
-        left: options.left,
-        top: options.top,
-        behavior: options.behavior ?? 'auto',
-      })
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({
+          left: options.left,
+          top: options.top,
+          behavior: options.behavior ?? 'auto',
+        })
+      } else {
+        if (options.left !== undefined) container.scrollLeft = options.left
+        if (options.top !== undefined) container.scrollTop = options.top
+      }
       if (options.left !== undefined) {
         this.currentScrollLeft = options.left
+        this.syncHorizontalVirtualRange(options.left)
       }
       if (options.top !== undefined) {
         this.currentScrollTop = options.top
         this.virtualScrollTop = options.top
       }
       this.requestUpdate()
+      this.emitViewportChange()
     }
   }
 
@@ -1786,11 +2067,18 @@ export class GanttChartElement extends LitElement {
     }
 
     if (targetTop !== undefined || targetLeft !== undefined) {
-      container.scrollTo({
-        top: targetTop !== undefined ? targetTop : container.scrollTop,
-        left: targetLeft !== undefined ? targetLeft : container.scrollLeft,
-        behavior: 'smooth',
-      })
+      const nextTop = targetTop !== undefined ? targetTop : container.scrollTop
+      const nextLeft = targetLeft !== undefined ? targetLeft : container.scrollLeft
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({
+          top: nextTop,
+          left: nextLeft,
+          behavior: 'smooth',
+        })
+      } else {
+        container.scrollTop = nextTop
+        container.scrollLeft = nextLeft
+      }
     }
   }
 
@@ -1870,8 +2158,48 @@ export class GanttChartElement extends LitElement {
     // 横スクロールバーが表示される場合はその高さ分(17px)を差し引いて判定
     const needsVerticalScroll = totalHeight > this.viewportHeight
 
-    const showCriticalPath = this.option.dependency?.showCriticalPath === true
-    const criticalPathTaskIds = showCriticalPath ? computeCriticalPath(this.displayRows) : new Set<string>()
+    const isVirtualX = !this.isExporting && this.option.calendar.virtualScrollX !== false
+    const effectiveVisibleStartX = isVirtualX ? this.virtualRangeStartX : 0
+    const effectiveVisibleEndX = isVirtualX ? this.virtualRangeEndX : Number.POSITIVE_INFINITY
+    const contentWidth = Math.max(0, this.getDateX(this.option.calendar.end))
+
+    const visibleMilestones = (this.option.calendar.milestones ?? []).filter((ms) => {
+      if (!isVirtualX) return true
+      const msX = this.getDateX(ms.start)
+      return msX >= effectiveVisibleStartX - 20 && msX <= effectiveVisibleEndX + 20
+    })
+
+    const hasPluginOverlays = this._pluginManager.hasOverlayRenderers()
+    const overlayRenderContext: GanttOverlayRenderContext<GanttChartElement> | null = hasPluginOverlays
+      ? {
+          chart: this,
+          rows: this.rows,
+          displayRows: this.displayRows,
+          option: currentOption,
+          theme: this.theme,
+          calendarHeight: this.calendarHeight,
+          rowHeaderWidth: labelWidth,
+          contentWidth,
+          totalHeight,
+          scrollLeft: this.currentScrollLeft,
+          scrollTop: this.currentScrollTop,
+          viewportWidth: this.viewportWidth,
+          viewportHeight: this.viewportHeight,
+          visibleStartX: effectiveVisibleStartX,
+          visibleEndX: effectiveVisibleEndX,
+          isExporting: this.isExporting,
+          getDateX: (d: Date) => this.getDateX(d),
+          xToDate: (x: number) =>
+            xToDate(
+              x,
+              this.option.calendar.start,
+              this.effectivePxPerDay,
+              this.effectivePxPerMonth,
+            ),
+          taskCoords,
+          rowLayouts,
+        }
+      : null
 
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}
@@ -1928,8 +2256,11 @@ export class GanttChartElement extends LitElement {
           .theme="${this.theme}"
           .currentTime="${this.currentTime}"
           .isExporting="${this.isExporting}"
+          .visibleStartX="${effectiveVisibleStartX}"
+          .visibleEndX="${effectiveVisibleEndX}"
           .hoveredMilestoneId="${this.hoveredMilestoneId}"
           .cornerContent="${this.option.customRendering?.cornerContent}"
+          .calendarQuarterContent="${this.option.customRendering?.calendarQuarterContent}"
           .calendarMonthContent="${this.option.customRendering?.calendarMonthContent}"
           .calendarDayContent="${this.option.customRendering?.calendarDayContent}"
           .calendarWeekContent="${this.option.customRendering?.calendarWeekContent}"
@@ -1983,7 +2314,7 @@ export class GanttChartElement extends LitElement {
               ></div>
             `
         : ''}
-        ${(this.option.calendar.milestones ?? []).map(
+        ${visibleMilestones.map(
           (ms) => html`
             <div
               class="milestone-line ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
@@ -2005,6 +2336,21 @@ export class GanttChartElement extends LitElement {
             ></div>
           `,
         )}
+        ${overlayRenderContext
+          ? html`
+              <div
+                class="plugin-overlay-layer"
+                style="
+                  top: ${this.calendarHeight}px;
+                  left: ${labelWidth}px;
+                  width: ${contentWidth}px;
+                  height: ${totalHeight}px;
+                "
+              >
+                ${this._pluginManager.renderOverlays(overlayRenderContext)}
+              </div>
+            `
+          : ''}
         ${this.option.calendar.showCursorLine && this.cursorLineX !== null
         ? html`
               <div
@@ -2046,7 +2392,9 @@ export class GanttChartElement extends LitElement {
                 .selectedTaskIds="${this._cachedSelectedTaskIds}"
                 .focusedTaskId="${this.focusedTaskId}"
                 .isExporting="${this.isExporting}"
-                .criticalPathTaskIds="${showCriticalPath ? [...criticalPathTaskIds] : []}"
+                .visibleStartX="${effectiveVisibleStartX}"
+                .visibleEndX="${effectiveVisibleEndX}"
+                .criticalPathTaskIds="${this._cachedCriticalPathArray}"
                 .gridScrollLeft="${this.currentGridScrollLeft}"
                 .gridColumns="${this.effectiveGridColumns}"
                 @task-update="${this.handleTaskUpdate}"

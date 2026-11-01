@@ -77,6 +77,8 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
+  @property({ type: Number }) visibleStartX = 0
+  @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
 
   @state() private _editingColumnId: string | null = null
   @state() private _editingValue = ''
@@ -1502,70 +1504,125 @@ export class GanttRowElement extends LitElement {
         >
           ${
             this.option.calendar.showRowBackground !== false && !this.option.calendar.showMonthsRow
-              ? html`<gantt-row-background .option="${this.option}" .theme="${this.theme}" .rowId="${this.row.id}" /> `
+              ? html`<gantt-row-background
+                  .option="${this.option}"
+                  .theme="${this.theme}"
+                  .rowId="${this.row.id}"
+                  .visibleStartX="${this.visibleStartX}"
+                  .visibleEndX="${this.visibleEndX}"
+                  .isExporting="${this.isExporting}"
+                /> `
               : ''
           }
           ${this.isSelected ? html`<div class="selected-row-overlay"></div>` : ''}
           ${backgroundStyle ? html`<div class="grid-background" style="${backgroundStyle}"></div>` : ''}
           ${
             monthGridLines
-              ? monthGridLines.map((line) => {
-                  let lineColor
-                  if (line.isYearBoundary) {
-                    lineColor = colors.yearGridLine || colors.monthGridLine || colors.gridLine
-                  } else {
-                    const isMonthMode =
-                      this.option.calendar.showMonthsRow ||
-                      (this.option.calendar.showDays === false && !this.option.calendar.showWeeks)
-                    lineColor = isMonthMode ? colors.gridLine : colors.monthGridLine || colors.gridLine
-                  }
-                  return html`<div
-                    style="position: absolute; top: 0; left: ${line.left - 1}px; width: 1px; height: 100%; background-color: ${lineColor}; pointer-events: none; z-index: 1;"
-                  ></div>`
-                })
+              ? (() => {
+                  const useVirtualX =
+                    !this.isExporting &&
+                    this.option.calendar.virtualScrollX !== false &&
+                    Number.isFinite(this.visibleEndX)
+                  const visibleMonthLines = useVirtualX
+                    ? monthGridLines.filter(
+                        (line) => line.left >= this.visibleStartX - 2 && line.left <= this.visibleEndX + 2,
+                      )
+                    : monthGridLines
+                  return visibleMonthLines.map((line) => {
+                    let lineColor
+                    if (line.isYearBoundary) {
+                      lineColor = colors.yearGridLine || colors.monthGridLine || colors.gridLine
+                    } else {
+                      const isMonthMode =
+                        this.option.calendar.showMonthsRow ||
+                        (this.option.calendar.showDays === false && !this.option.calendar.showWeeks)
+                      lineColor = isMonthMode ? colors.gridLine : colors.monthGridLine || colors.gridLine
+                    }
+                    return html`<div
+                      style="position: absolute; top: 0; left: ${line.left - 1}px; width: 1px; height: 100%; background-color: ${lineColor}; pointer-events: none; z-index: 1;"
+                    ></div>`
+                  })
+                })()
               : ''
           }
           ${isHidden ? html`<div class="hidden-row-overlay" style="background: ${colors.rowHiddenBg};"></div>` : ''}
-          ${repeat(
-            tasksWithLanes,
-            (task) => task.id,
-            (task) => {
-              const isDragging = this.draggingTask?.id === task.id
-              const isMultiDragging =
-                !isDragging && this.draggingTaskIds.length >= 2 && this.draggingTaskIds.includes(task.id)
-              const displayTask = isDragging
-                ? {
-                    ...task,
-                    start: this.draggingTask!.start,
-                    end: this.draggingTask!.end,
+          ${(() => {
+            const useVirtualX =
+              !this.isExporting &&
+              this.option.calendar.virtualScrollX !== false &&
+              Number.isFinite(this.visibleEndX)
+            const cullMargin = 600
+            const cullStartX = this.visibleStartX - cullMargin
+            const cullEndX = this.visibleEndX + cullMargin
+            const visibleTasksWithLanes = useVirtualX
+              ? tasksWithLanes.filter((task) => {
+                  if (
+                    this.draggingTask?.id === task.id ||
+                    this.draggingTaskIds.includes(task.id) ||
+                    this.selectedTaskIds.includes(task.id) ||
+                    this.focusedTaskId === task.id
+                  ) {
+                    return true
                   }
-                : task
-              const isTaskSelected = this.selectedTaskIds.includes(task.id)
-              const barMultiDragDx = isMultiDragging ? this.multiDragDx : 0
-              const barMultiDragDy = isMultiDragging ? this.multiDragDy : 0
-              const isPrimaryDrag =
-                (isDragging && this.draggingTaskIds.length >= 2) ||
-                (isTaskSelected && this.selectedTaskIds.length >= 2)
+                  let minX = this.getDateX(task.start)
+                  let maxX = this.getDateX(task.end)
+                  if (this.option.baseline?.enabled && task.baseline?.start && task.baseline?.end) {
+                    minX = Math.min(minX, this.getDateX(task.baseline.start))
+                    maxX = Math.max(maxX, this.getDateX(task.baseline.end))
+                  }
+                  return maxX >= cullStartX && minX <= cullEndX
+                })
+              : tasksWithLanes
 
-              return html`
-                <gantt-bar
-                  .task="${displayTask}"
-                  .option="${this.option}"
-                  .lane="${task.lane}"
-                  .selected="${isTaskSelected}"
-                  .focused="${this.focusedTaskId === task.id}"
-                  .multiDragDx="${barMultiDragDx}"
-                  .multiDragDy="${barMultiDragDy}"
-                  .multiDragActive="${isPrimaryDrag}"
-                  .multiDragSameRow="${this.multiDragSameRow}"
-                  .isExporting="${this.isExporting}"
-                  .isCriticalPath="${this.criticalPathTaskIds.includes(task.id)}"
-                />
-              `
-            },
-          )}
+            return repeat(
+              visibleTasksWithLanes,
+              (task) => task.id,
+              (task) => {
+                const isDragging = this.draggingTask?.id === task.id
+                const isMultiDragging =
+                  !isDragging && this.draggingTaskIds.length >= 2 && this.draggingTaskIds.includes(task.id)
+                const displayTask = isDragging
+                  ? {
+                      ...task,
+                      start: this.draggingTask!.start,
+                      end: this.draggingTask!.end,
+                    }
+                  : task
+                const isTaskSelected = this.selectedTaskIds.includes(task.id)
+                const barMultiDragDx = isMultiDragging ? this.multiDragDx : 0
+                const barMultiDragDy = isMultiDragging ? this.multiDragDy : 0
+                const isPrimaryDrag =
+                  (isDragging && this.draggingTaskIds.length >= 2) ||
+                  (isTaskSelected && this.selectedTaskIds.length >= 2)
+
+                return html`
+                  <gantt-bar
+                    .task="${displayTask}"
+                    .option="${this.option}"
+                    .lane="${task.lane}"
+                    .selected="${isTaskSelected}"
+                    .focused="${this.focusedTaskId === task.id}"
+                    .multiDragDx="${barMultiDragDx}"
+                    .multiDragDy="${barMultiDragDy}"
+                    .multiDragActive="${isPrimaryDrag}"
+                    .multiDragSameRow="${this.multiDragSameRow}"
+                    .isExporting="${this.isExporting}"
+                    .isCriticalPath="${this.criticalPathTaskIds.includes(task.id)}"
+                  />
+                `
+              },
+            )
+          })()}
           ${markersWithLanes.map(({ marker, lane: markerLane }) => {
             const x = this.getDateX(marker.date)
+            const isSelected = this.row.selectedMarkerId === marker.id
+            const useVirtualX =
+              !this.isExporting &&
+              this.option.calendar.virtualScrollX !== false &&
+              Number.isFinite(this.visibleEndX)
+            if (useVirtualX && !isSelected && (x < this.visibleStartX - 400 || x > this.visibleEndX + 400)) {
+              return ''
+            }
             const markerColor = marker.color ?? '#ef4444'
             // フォントサイズからシンボルサイズを算出（フォントサイズに連動）
             const fontSize = this.resolveMarkerFontSize(marker.fontSize)
@@ -1583,7 +1640,6 @@ export class GanttRowElement extends LitElement {
               marker.anchor === 'start' ? x : marker.anchor === 'end' ? x : x - individualMarkerSize / 2
             const isAnchorEnd = marker.anchor === 'end'
             const labelOnLeft = isAnchorEnd
-            const isSelected = this.row.selectedMarkerId === marker.id
             return html`
               <div
                 class="marker-wrapper${isSelected ? ' marker-selected' : ''}${isAnchorEnd ? ' marker-anchor-end' : ''}"

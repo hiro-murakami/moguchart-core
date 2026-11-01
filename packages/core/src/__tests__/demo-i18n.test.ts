@@ -46,6 +46,13 @@ describe('DemoTexts (collapse/expand)', () => {
 
     expect(jaTexts.resetZoom).toBe('100%に戻す')
     expect(enTexts.resetZoom).toBe('Reset 100%')
+
+    expect(jaTexts.showQuarters).toBe('四半期ヘッダーを表示')
+    expect(enTexts.showQuarters).toBe('Show Quarter Header')
+    expect(jaTexts.autoExtendTimeline).toBe('期間端で自動拡張')
+    expect(enTexts.autoExtendTimeline).toBe('Auto-Extend Timeline')
+    expect(jaTexts.largeScaleMode).toBe('大規模データ (3年・200行)')
+    expect(enTexts.largeScaleMode).toBe('Large Scale (3yr · 200 rows)')
   })
 })
 

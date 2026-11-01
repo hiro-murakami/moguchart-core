@@ -28,6 +28,7 @@ import type {
   DependencyType,
   GanttBarLabelPosition,
   GanttHolidayChecker,
+  CalendarRangeChangeEventDetail,
 } from '../core/types'
 import { isMilestoneTask } from '../core/utils'
 import {
@@ -49,6 +50,7 @@ import {
   generateWeekModeData,
   generateHourModeData,
   generateMonthModeData,
+  generateLargeScaleData,
   generateUnassignedTasks,
   chartStart,
 } from './data'
@@ -76,7 +78,9 @@ const setLang = (lang: 'ja' | 'en', updateUrl = true) => {
     window.history.replaceState({}, '', url.toString())
   }
   // データを言語変更時に再生成
-  if (viewMode === 'day') {
+  if (isLargeScaleMode) {
+    rows = generateLargeScaleData(t)
+  } else if (viewMode === 'day') {
     rows = generateDayModeData(t)
   } else if (viewMode === 'week') {
     rows = generateWeekModeData(t)
@@ -104,6 +108,7 @@ let zoomPercent = 100
 
 let pxPerDay = 48
 let pxPerMonth: number | undefined = undefined
+let demoChartStart = new Date(chartStart)
 const chartEnd = new Date(chartStart)
 chartEnd.setDate(chartStart.getDate() + 60)
 let barHeight = 28
@@ -125,6 +130,10 @@ let showMonths = true
 let showDays = true
 let showWeeks = false
 let showMonthsRow = false
+let showQuarters = false
+let quarterStartMonth: 1 | 4 | 10 = 4
+let autoExtend = true
+let isLargeScaleMode = false
 let showCurrentTime = true
 let showCurrentTimeBadge = false
 let currentTimeUpdateInterval = 1000
@@ -326,6 +335,7 @@ const handleExport = async (format: 'png' | 'pdf' | 'excel') => {
 
 const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
   viewMode = mode
+  demoChartStart = new Date(chartStart)
   if (mode === 'day') {
     pxPerDay = 48
     pxPerMonth = undefined
@@ -335,11 +345,12 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showDays = true
     showWeeks = false
     showMonthsRow = false
+    showQuarters = isLargeScaleMode
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(chartStart.getTime() + 50 * 24 * 60 * 60 * 1000)
-    rows = generateDayModeData(t)
+    chartEnd.setTime(demoChartStart.getTime() + (isLargeScaleMode ? 1095 : 50) * 24 * 60 * 60 * 1000)
+    rows = isLargeScaleMode ? generateLargeScaleData(t) : generateDayModeData(t)
   } else if (mode === 'week') {
     // 週単位モード: 1日あたり12px (1週間 ≈ 84px)
     pxPerDay = 12
@@ -350,26 +361,26 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showDays = false
     showWeeks = true
     showMonthsRow = false
+    showQuarters = isLargeScaleMode
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(chartStart.getTime() + 120 * 24 * 60 * 60 * 1000)
-    rows = generateWeekModeData(t)
+    chartEnd.setTime(demoChartStart.getTime() + (isLargeScaleMode ? 1095 : 120) * 24 * 60 * 60 * 1000)
+    rows = isLargeScaleMode ? generateLargeScaleData(t) : generateWeekModeData(t)
   } else if (mode === 'month') {
     // 月単位モード: 日単位の設定を無視してpxPerMonthを使用
-    // pxPerDay = 2 // unused when pxPerMonth is set
     pxPerMonth = 48
-    // snapDuration = 43200 // 30日 = 43200分
     showTime = false
     showMonths = false
     showDays = false
     showWeeks = false
     showMonthsRow = true
+    showQuarters = true
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(chartStart.getTime() + 365 * 6 * 24 * 60 * 60 * 1000) // カレンダーの期間を5年以上確保
-    rows = generateMonthModeData(t)
+    chartEnd.setTime(demoChartStart.getTime() + 365 * 6 * 24 * 60 * 60 * 1000) // カレンダーの期間を5年以上確保
+    rows = isLargeScaleMode ? generateLargeScaleData(t) : generateMonthModeData(t)
   } else {
     // 時間単位モード: 1時間あたり40px (960px/日)
     pxPerDay = 960
@@ -380,14 +391,23 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showDays = true
     showWeeks = false
     showMonthsRow = false
+    showQuarters = false
     showCurrentTime = true
     showCurrentTimeBadge = true
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(chartStart.getTime() + 5 * 24 * 60 * 60 * 1000)
+    chartEnd.setTime(demoChartStart.getTime() + 5 * 24 * 60 * 60 * 1000)
     rows = generateHourModeData(t)
   }
   zoomPercent = 100
   renderApp()
+}
+
+const toggleLargeScaleMode = (enabled: boolean) => {
+  isLargeScaleMode = enabled
+  if (enabled && viewMode === 'hour') {
+    viewMode = 'day'
+  }
+  setViewMode(viewMode)
 }
 
 const renderApp = () => {
@@ -415,7 +435,7 @@ const renderApp = () => {
       minWidth: 100,
     },
     calendar: {
-      start: chartStart,
+      start: demoChartStart,
       end: chartEnd,
       pxPerDay,
       pxPerMonth,
@@ -424,6 +444,9 @@ const renderApp = () => {
       nonWorkingDays,
       preserveWorkingDaysOnDrag,
       showTime,
+      showQuarters,
+      quarterStartMonth,
+      autoExtend,
       showMonths,
       showDays,
       showWeeks,
@@ -1014,6 +1037,18 @@ const renderApp = () => {
                   ${t.labelLeft}
                 </label>
               </div>
+
+              <span style="width: 1px; height: 20px; background: ${c.cardBorder}; margin: 0 4px;"></span>
+
+              <label class="toggle-label" style="font-weight: 600;">
+                <input
+                  type="checkbox"
+                  .checked="${isLargeScaleMode}"
+                  @change="${(e: Event) => toggleLargeScaleMode((e.target as HTMLInputElement).checked)}"
+                />
+                <span class="toggle-track"></span>
+                🚀 ${t.largeScaleMode}
+              </label>
             </div>
           </div>
         </div>
@@ -1029,6 +1064,34 @@ const renderApp = () => {
                 ${t.sectionCalendar}
               </div>
               <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${showQuarters}" @change="${(e: Event) => { showQuarters = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showQuarters}
+                </label>
+                ${showQuarters
+                  ? html`
+                      <span class="select-group">
+                        ${t.quarterStartMonthLabel}
+                        <select
+                          class="mini-select"
+                          @change="${(e: Event) => {
+                            quarterStartMonth = Number((e.target as HTMLSelectElement).value) as 1 | 4 | 10
+                            renderApp()
+                          }}"
+                        >
+                          <option value="1" ?selected="${quarterStartMonth === 1}">${t.fiscalYearJan}</option>
+                          <option value="4" ?selected="${quarterStartMonth === 4}">${t.fiscalYearApr}</option>
+                          <option value="10" ?selected="${quarterStartMonth === 10}">${t.fiscalYearOct}</option>
+                        </select>
+                      </span>
+                    `
+                  : ''}
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${autoExtend}" @change="${(e: Event) => { autoExtend = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.autoExtendTimeline}
+                </label>
                 <label class="toggle-label">
                   <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
                   <span class="toggle-track"></span>
@@ -1657,6 +1720,10 @@ const renderApp = () => {
             .option="${option}"
             .selectedRowIds="${selectedIds}"
             theme="${theme}"
+            @calendar-range-change="${(e: CustomEvent<CalendarRangeChangeEventDetail>) => {
+              demoChartStart = new Date(e.detail.start)
+              chartEnd.setTime(e.detail.end.getTime())
+            }}"
             @zoom-change="${(e: CustomEvent<ZoomChangeEventDetail>) => {
               if (typeof e.detail?.zoomPercent === 'number' && zoomPercent !== e.detail.zoomPercent) {
                 zoomPercent = e.detail.zoomPercent

@@ -212,6 +212,11 @@ export const ganttChartStyles = css`
     z-index: 550;
     box-sizing: border-box;
   }
+  .plugin-overlay-layer {
+    position: absolute;
+    pointer-events: none;
+    z-index: 65;
+  }
 `
 
 /**
@@ -276,6 +281,16 @@ export function buildDynamicStyles(
       z-index: 510;
       background-color: transparent;
       transition: background-color 0.2s;
+      touch-action: none;
+      position: relative;
+    }
+    .header-resizer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -6px;
+      right: -6px;
     }
     .header-resizer:hover,
     .header-resizer.resizing {

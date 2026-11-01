@@ -1,4 +1,5 @@
 export * from './zoom-controller'
+export * from './touch-controller'
 export * from './marquee-controller'
 export * from './tooltip-controller'
 export * from './keyboard-controller'

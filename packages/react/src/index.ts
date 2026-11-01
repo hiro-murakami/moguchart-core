@@ -33,6 +33,7 @@ import {
   type ColumnResizeEventDetail,
   type CellEditEventDetail,
   type RowsChangeEventDetail,
+  type CalendarRangeChangeEventDetail,
 } from '@mogura/moguchart-core'
 
 /**
@@ -76,6 +77,7 @@ export const GanttChart = createComponent({
     onColumnResize: 'column-resize' as EventName<CustomEvent<ColumnResizeEventDetail>>,
     onCellEdit: 'cell-edit' as EventName<CustomEvent<CellEditEventDetail>>,
     onRowsChange: 'rows-change' as EventName<CustomEvent<RowsChangeEventDetail>>,
+    onCalendarRangeChange: 'calendar-range-change' as EventName<CustomEvent<CalendarRangeChangeEventDetail>>,
   },
 })
 

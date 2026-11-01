@@ -56,6 +56,8 @@ export class MarqueeController implements ReactiveController {
   public handlePointerDown = (e: PointerEvent): void => {
     // 左クリックのみ
     if (e.button !== 0) return
+    // タッチ操作時は1本指スワイプによるネイティブスクロールを優先するため矩形選択を開始しない
+    if (e.pointerType === 'touch' && this.host.option?.touch?.enabled !== false) return
     // 矩形選択が無効化されている場合はスキップ
     if (this.host.option?.selection?.marquee === false) return
 

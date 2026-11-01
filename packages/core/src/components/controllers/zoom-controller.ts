@@ -260,6 +260,67 @@ export class ZoomController implements ReactiveController {
   }
 
   /**
+   * ピンチ操作など、指定したクライアントX座標のタイムライン位置（anchorUnits）を維持しながら
+   * スムーズにズームパーセンテージを変更する。
+   */
+  public zoomToPercentAtPoint(
+    percent: number,
+    clientX: number,
+    scrollContainer: HTMLElement | null,
+    anchorUnits?: number,
+  ): boolean {
+    const minPercent = this.host.option?.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
+    const maxPercent = this.host.option?.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
+    const clamped = Math.max(minPercent, Math.min(maxPercent, Math.round(percent)))
+
+    const isMonthMode = this.effectivePxPerMonth !== undefined
+    const oldEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
+
+    let computedAnchorUnits = anchorUnits
+    if (computedAnchorUnits === undefined && scrollContainer) {
+      const rect = scrollContainer.getBoundingClientRect()
+      const contentX = clientX - rect.left + scrollContainer.scrollLeft - this.host.currentRowHeaderWidth
+      computedAnchorUnits = Math.max(0, contentX) / oldEffectivePx
+    }
+
+    const changed =
+      this.zoomPercent !== clamped || this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null
+
+    if (changed) {
+      this.zoomPercent = clamped
+      this.zoomPxPerDay = null
+      this.zoomPxPerMonth = null
+
+      if (this.isScaleRowHeaderEnabled) {
+        this.host.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+      }
+      if (this.isScaleFontEnabled) {
+        this.host.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
+      }
+
+      this.host.invalidateLayoutCache()
+      this.host.requestUpdate()
+      this.dispatchZoomChange()
+    }
+
+    if (scrollContainer && computedAnchorUnits !== undefined) {
+      const newEffectivePx = isMonthMode ? this.effectivePxPerMonth! : this.effectivePxPerDay
+      const applyScroll = () => {
+        const rect = scrollContainer.getBoundingClientRect()
+        const viewportOffsetX = clientX - rect.left - this.host.currentRowHeaderWidth
+        const targetScrollLeft = Math.max(0, computedAnchorUnits! * newEffectivePx - viewportOffsetX)
+        scrollContainer.scrollLeft = targetScrollLeft
+      }
+      applyScroll()
+      if (changed) {
+        this.host.updateComplete.then(applyScroll)
+      }
+    }
+
+    return changed
+  }
+
+  /**
    * 指定したパーセンテージにズームを設定する。
    */
   public zoomToPercent(percent: number): void {

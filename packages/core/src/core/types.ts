@@ -288,6 +288,20 @@ export interface GanttChartMilestone {
 }
 
 /**
+ * カレンダー期間の自動拡張オプション
+ */
+export interface GanttCalendarAutoExtendOption {
+  /** 自動拡張を有効にするか (デフォルト: true) */
+  enabled?: boolean
+  /** 1回の拡張で追加する日数（日単位モード時、デフォルト: 7） */
+  extendDays?: number
+  /** 1回の拡張で追加する月数（月単位モード時、デフォルト: 1） */
+  extendMonths?: number
+  /** カレンダー左右端からの拡張判定マージン px (デフォルト: 40) */
+  edgeThresholdPx?: number
+}
+
+/**
  * カレンダー表示に関するオプション
  */
 export interface GanttChartOptionCalendar {
@@ -317,6 +331,14 @@ export interface GanttChartOptionCalendar {
   showCurrentTimeBadge?: boolean
   /** 現在時刻線を自動更新する間隔（ミリ秒）。0または未指定の場合は更新しない */
   currentTimeUpdateInterval?: number
+  /** 四半期（Q1〜Q4）ヘッダーを表示するかどうか (デフォルト: false) */
+  showQuarters?: boolean
+  /** 会計年度の開始月 (1=1月始まり, 4=4月始まり等。デフォルト: 1) */
+  quarterStartMonth?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+  /** 四半期の表示フォーマット関数 (引数: 四半期番号 1〜4, 会計年度, 四半期開始日) */
+  quarterFormat?: (quarter: 1 | 2 | 3 | 4, fiscalYear: number, startDate: Date) => string
+  /** 四半期セルのテキスト配置 (デフォルト: 'center') */
+  quarterTextAlign?: 'left' | 'center' | 'right'
   /** 週番号ヘッダーを表示するかどうか */
   showWeeks?: boolean
   /** 週の始まりの曜日 (0=日曜, 1=月曜, ..., 6=土曜)。デフォルト: 1 (月曜) */
@@ -347,6 +369,34 @@ export interface GanttChartOptionCalendar {
    * タスクバーのドラッグ移動時に元の稼働日数を維持して終了日を伸縮させるか (デフォルト: false)
    */
   preserveWorkingDaysOnDrag?: boolean
+  /**
+   * タイムライン横方向（X軸）の仮想スクロール・DOM軽量化を有効にするか (デフォルト: true)
+   */
+  virtualScrollX?: boolean
+  /**
+   * タスクドラッグ・リサイズ・接続線ドラッグ時にビューポート端で自動スクロールするか (デフォルト: true)
+   */
+  autoScrollOnDrag?: boolean
+  /**
+   * タスクをカレンダー左右端へドラッグ／ドロップした際に表示期間 (start / end) を自動拡張するか (デフォルト: false)
+   */
+  autoExtend?: boolean | GanttCalendarAutoExtendOption
+}
+
+/**
+ * カレンダー四半期セルのカスタムレンダリング用コンテキスト
+ */
+export interface CalendarQuarterCellContext {
+  /** 四半期番号 (1〜4) */
+  quarter: 1 | 2 | 3 | 4
+  /** 会計年度 (例: 2026) */
+  fiscalYear: number
+  /** 四半期の開始日 */
+  startDate: Date
+  /** セルの幅 (px) */
+  width: number
+  /** デフォルトのラベルテキスト */
+  defaultLabel: string
 }
 
 /**
@@ -445,6 +495,8 @@ export interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数 */
   cornerContent?: () => string | unknown
+  /** カレンダーの四半期セルをレンダリングする関数 */
+  calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
   /** カレンダーの月セルをレンダリングする関数 */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
   /** カレンダーの日セルをレンダリングする関数 */
@@ -578,6 +630,24 @@ export interface GanttChartOption {
   baseline?: GanttChartOptionBaseline
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
+  /** タッチデバイス（タブレット・モバイル）操作に関する設定 */
+  touch?: GanttChartOptionTouch
+}
+
+/**
+ * タッチデバイス操作に関するオプション
+ */
+export interface GanttChartOptionTouch {
+  /** タッチ最適化操作を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** タッチ操作時にタスク移動を開始するまでのロングプレス待機時間 ms (デフォルト: 250) */
+  longPressDelay?: number
+  /** ロングプレス完了前にスクロール操作とみなしてキャンセルする移動閾値 px (デフォルト: 8) */
+  moveSlop?: number
+  /** 2本指ピンチイン・ピンチアウトによるズームを有効にするか (未指定時は option.zoom?.enabled に準拠) */
+  pinchZoom?: boolean
+  /** ロングプレス確定時に navigator.vibrate による微振動フィードバックを行うか (デフォルト: false) */
+  hapticFeedback?: boolean
 }
 
 /**
@@ -1382,6 +1452,101 @@ export interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
   task?: TTask
   /** 更新後の全行配列 */
   rows: TRow[]
+}
+
+/**
+ * グリッドセルのインライン編集確定前フック詳細データ
+ */
+export interface BeforeCellEditHookDetail<TRow = GanttRow, TTask = GanttTask> {
+  /** 編集対象の行ID */
+  rowId: string
+  /** 編集対象のカラムID */
+  columnId: string
+  /** 編集対象のカラム定義 */
+  column: GanttColumn<TRow, TTask>
+  /** 編集前のセル値 */
+  oldValue: any
+  /** 編集後の新しいセル値 */
+  newValue: any
+  /** エディタから入力された生データ */
+  rawValue: any
+  /** 編集前の行データ */
+  row: TRow
+  /** 更新対象の単一タスク（該当する場合） */
+  task?: TTask
+}
+
+/**
+ * カレンダー期間変更（自動拡張など）イベントの詳細データ
+ */
+export interface CalendarRangeChangeEventDetail {
+  /** 更新後の開始日時 */
+  start: Date
+  /** 更新後の終了日時 */
+  end: Date
+  /** 更新前の開始日時 */
+  previousStart: Date
+  /** 更新前の終了日時 */
+  previousEnd: Date
+  /** 拡張された方向 ('start' | 'end' | 'both') */
+  direction: 'start' | 'end' | 'both'
+}
+
+/**
+ * ビューポート状態（スクロール位置・可視範囲・ズーム状態）
+ */
+export interface GanttViewportState {
+  scrollLeft: number
+  scrollTop: number
+  viewportWidth: number
+  viewportHeight: number
+  rowHeaderWidth: number
+  calendarHeight: number
+  visibleStartX: number
+  visibleEndX: number
+  visibleRowStartIndex: number
+  visibleRowEndIndex: number
+  pxPerDay: number
+  pxPerMonth?: number
+  zoomPercent: number
+  zoomScale: number
+}
+
+/**
+ * プラグインのオーバーレイ描画スロットに渡されるコンテキスト
+ */
+export interface GanttOverlayRenderContext<TChart = any> {
+  chart: TChart
+  rows: GanttRow[]
+  displayRows: GanttRow[]
+  option: GanttChartOption
+  theme: 'light' | 'dark'
+  calendarHeight: number
+  rowHeaderWidth: number
+  contentWidth: number
+  totalHeight: number
+  scrollLeft: number
+  scrollTop: number
+  viewportWidth: number
+  viewportHeight: number
+  visibleStartX: number
+  visibleEndX: number
+  isExporting: boolean
+  getDateX: (date: Date) => number
+  xToDate: (x: number) => Date
+  taskCoords: Map<
+    string,
+    {
+      x: number
+      y: number
+      width: number
+      height: number
+      dependencies?: GanttDependency[]
+      isSummary?: boolean
+      isMilestone?: boolean
+    }
+  >
+  rowLayouts: Array<{ top: number; height: number }>
 }
 
 /**

@@ -12,6 +12,7 @@ import type {
   RowSelectionChangeEventDetail,
 } from '../../core/types'
 import type { GanttCommandType } from '../../core/history'
+import type { PluginManager } from '../../core/plugin'
 import {
   createDependencyEntry,
   endpointsToDependencyType,
@@ -45,6 +46,7 @@ export interface DependencyControllerHost extends ReactiveControllerHost, HTMLEl
     newRows: GanttRow[],
     commandInfo: { type: GanttCommandType; description: string },
   ): void
+  pluginManager?: PluginManager
   clearTooltip(): void
 }
 
@@ -112,54 +114,66 @@ export class DependencyController implements ReactiveController {
   public triggerDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event): void {
     if (this.host.option.readOnly || this.host.option.dependency?.deletable === false) return
 
-    let sourceTask: GanttTask | undefined
-    let targetTask: GanttTask | undefined
-    for (const row of this.host.rows) {
-      for (const t of row.tasks) {
-        if (t.id === sourceTaskId) sourceTask = t
-        if (t.id === targetTaskId) targetTask = t
+    const detail: DependencyDeleteEventDetail = {
+      sourceTaskId,
+      targetTaskId,
+      originalEvent,
+    }
+
+    const commitDelete = () => {
+      let sourceTask: GanttTask | undefined
+      let targetTask: GanttTask | undefined
+      for (const row of this.host.rows) {
+        for (const t of row.tasks) {
+          if (t.id === sourceTaskId) sourceTask = t
+          if (t.id === targetTaskId) targetTask = t
+        }
       }
-    }
 
-    if (targetTask && hasDependencyTarget(targetTask.dependencies, sourceTaskId)) {
-      const previousRows = this.host.rows
-      const newRows = previousRows.map((row) => ({
-        ...row,
-        tasks: row.tasks.map((t) => {
-          if (t.id === targetTaskId && t.dependencies) {
-            return {
-              ...t,
-              dependencies: removeDependencyTarget(t.dependencies, sourceTaskId),
+      if (targetTask && hasDependencyTarget(targetTask.dependencies, sourceTaskId)) {
+        const previousRows = this.host.rows
+        const newRows = previousRows.map((row) => ({
+          ...row,
+          tasks: row.tasks.map((t) => {
+            if (t.id === targetTaskId && t.dependencies) {
+              return {
+                ...t,
+                dependencies: removeDependencyTarget(t.dependencies, sourceTaskId),
+              }
             }
-          }
-          return t
-        }),
-      }))
+            return t
+          }),
+        }))
 
-      this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-        type: 'dependency-delete',
-        description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を削除`,
-      })
+        this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+          type: 'dependency-delete',
+          description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を削除`,
+        })
+      }
+
+      this.host.dispatchEvent(
+        new CustomEvent<DependencyDeleteEventDetail>('dependency-delete', {
+          detail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+
+      if (
+        this.selectedDependency &&
+        this.selectedDependency.sourceTaskId === sourceTaskId &&
+        this.selectedDependency.targetTaskId === targetTaskId
+      ) {
+        this.clearDependencySelection()
+      }
+
+      this.host.pluginManager?.executeAfterDependencyDelete(detail)
     }
 
-    this.host.dispatchEvent(
-      new CustomEvent<DependencyDeleteEventDetail>('dependency-delete', {
-        detail: {
-          sourceTaskId,
-          targetTaskId,
-          originalEvent,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    if (
-      this.selectedDependency &&
-      this.selectedDependency.sourceTaskId === sourceTaskId &&
-      this.selectedDependency.targetTaskId === targetTaskId
-    ) {
-      this.clearDependencySelection()
+    if (this.host.pluginManager) {
+      this.host.pluginManager.runBeforeHook('beforeDependencyDelete', detail, commitDelete)
+    } else {
+      commitDelete()
     }
   }
 
@@ -218,7 +232,7 @@ export class DependencyController implements ReactiveController {
     const { taskCoords } = this.host.calculateLayout()
     let closestTaskId: string | null = null
     let closestEndpoint: DependencyEndpoint | null = null
-    let minDist = 30 // スナップ閾値（px）
+    let minDist = e.detail?.pointerType === 'touch' ? 42 : 30 // スナップ閾値（px）
 
     for (const [taskId, coord] of taskCoords) {
       if (taskId === this.connectorDrag.sourceTaskId) continue
@@ -278,75 +292,87 @@ export class DependencyController implements ReactiveController {
       this.setConnectorDropTarget(targetTaskId, false)
     }
 
+    this.connectorDrag = null
+    this.host.requestUpdate()
+
     if (!cancelled && targetTaskId && targetEndpoint && sourceTaskId !== targetTaskId) {
       const { taskCoords } = this.host.calculateLayout()
       const sourceCoord = taskCoords.get(sourceTaskId)
       const targetCoord = taskCoords.get(targetTaskId)
       if (!sourceCoord?.isSummary && !targetCoord?.isSummary) {
-        let sourceTask: GanttTask | undefined
-        let targetTask: GanttTask | undefined
-        for (const row of this.host.rows) {
-          for (const t of row.tasks) {
-            if (t.id === sourceTaskId) sourceTask = t
-            if (t.id === targetTaskId) targetTask = t
-          }
+        const depType = endpointsToDependencyType(sourceEndpoint, targetEndpoint)
+        const detail: DependencyCreateEventDetail = {
+          sourceTaskId,
+          sourceEndpoint,
+          targetTaskId,
+          targetEndpoint,
+          type: depType,
         }
 
-        const depType = endpointsToDependencyType(sourceEndpoint, targetEndpoint)
-        const depEntry = createDependencyEntry(sourceTaskId, depType)
-        const currentDeps = targetTask?.dependencies ?? []
-        if (targetTask && !hasDependencyTarget(currentDeps, sourceTaskId)) {
-          const previousRows = this.host.rows
-          let newRows = previousRows.map((row) => ({
-            ...row,
-            tasks: row.tasks.map((t) => {
-              if (t.id === targetTaskId) {
-                return {
-                  ...t,
-                  dependencies: [...(t.dependencies ?? []), depEntry],
-                }
-              }
-              return t
-            }),
-          }))
-
-          if (this.host.option.dependency?.autoSchedule) {
-            const scheduleResult = propagateAutoSchedule(newRows, [sourceTaskId], {
-              mode: this.host.option.dependency.scheduleMode,
-              respectMovable: this.host.option.dependency.respectMovable,
-              calendarMode: this.host.option.calendar?.calendarMode,
-              isHoliday: this.host.option.calendar?.isHoliday,
-              nonWorkingDays: this.host.option.calendar?.nonWorkingDays,
-            })
-            if (scheduleResult.hasChanges) {
-              newRows = scheduleResult.rows
+        const commitCreate = () => {
+          let sourceTask: GanttTask | undefined
+          let targetTask: GanttTask | undefined
+          for (const row of this.host.rows) {
+            for (const t of row.tasks) {
+              if (t.id === sourceTaskId) sourceTask = t
+              if (t.id === targetTaskId) targetTask = t
             }
           }
 
-          this.host.applyRowsChangeWithCommand(previousRows, newRows, {
-            type: 'dependency-create',
-            description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を追加`,
-          })
+          const depEntry = createDependencyEntry(sourceTaskId, depType)
+          const currentDeps = targetTask?.dependencies ?? []
+          if (targetTask && !hasDependencyTarget(currentDeps, sourceTaskId)) {
+            const previousRows = this.host.rows
+            let newRows = previousRows.map((row) => ({
+              ...row,
+              tasks: row.tasks.map((t) => {
+                if (t.id === targetTaskId) {
+                  return {
+                    ...t,
+                    dependencies: [...(t.dependencies ?? []), depEntry],
+                  }
+                }
+                return t
+              }),
+            }))
+
+            if (this.host.option.dependency?.autoSchedule) {
+              const scheduleResult = propagateAutoSchedule(newRows, [sourceTaskId], {
+                mode: this.host.option.dependency.scheduleMode,
+                respectMovable: this.host.option.dependency.respectMovable,
+                calendarMode: this.host.option.calendar?.calendarMode,
+                isHoliday: this.host.option.calendar?.isHoliday,
+                nonWorkingDays: this.host.option.calendar?.nonWorkingDays,
+              })
+              if (scheduleResult.hasChanges) {
+                newRows = scheduleResult.rows
+              }
+            }
+
+            this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+              type: 'dependency-create',
+              description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を追加`,
+            })
+          }
+
+          this.host.dispatchEvent(
+            new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
+              detail,
+              bubbles: true,
+              composed: true,
+            }),
+          )
+
+          this.host.pluginManager?.executeAfterDependencyCreate(detail)
         }
 
-        this.host.dispatchEvent(
-          new CustomEvent<DependencyCreateEventDetail>('dependency-create', {
-            detail: {
-              sourceTaskId,
-              sourceEndpoint,
-              targetTaskId,
-              targetEndpoint,
-              type: depType,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        if (this.host.pluginManager) {
+          this.host.pluginManager.runBeforeHook('beforeDependencyCreate', detail, commitCreate)
+        } else {
+          commitCreate()
+        }
       }
     }
-
-    this.connectorDrag = null
-    this.host.requestUpdate()
   }
 
   /**

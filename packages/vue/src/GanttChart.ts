@@ -43,6 +43,7 @@ import {
   type ColumnResizeEventDetail,
   type CellEditEventDetail,
   type RowsChangeEventDetail,
+  type CalendarRangeChangeEventDetail,
   type IHistoryManager,
 } from '@mogura/moguchart-core'
 
@@ -117,6 +118,7 @@ export const ganttChartEmits = {
   'column-resize': (_detail: ColumnResizeEventDetail, _e: CustomEvent<ColumnResizeEventDetail>) => true,
   'cell-edit': (_detail: CellEditEventDetail, _e: CustomEvent<CellEditEventDetail>) => true,
   'rows-change': (_detail: RowsChangeEventDetail, _e: CustomEvent<RowsChangeEventDetail>) => true,
+  'calendar-range-change': (_detail: CalendarRangeChangeEventDetail, _e: CustomEvent<CalendarRangeChangeEventDetail>) => true,
 }
 
 /**
@@ -273,6 +275,7 @@ export const GanttChart = defineComponent({
       zoomToFit: (...args: Parameters<GanttChartElement['zoomToFit']>) => elRef.value?.zoomToFit(...args),
       resetZoom: (...args: Parameters<GanttChartElement['resetZoom']>) => elRef.value?.resetZoom(...args),
       zoomToPercent: (...args: Parameters<GanttChartElement['zoomToPercent']>) => elRef.value?.zoomToPercent(...args),
+      zoomToPercentAtPoint: (...args: Parameters<GanttChartElement['zoomToPercentAtPoint']>) => elRef.value?.zoomToPercentAtPoint(...args),
       zoomToScale: (...args: Parameters<GanttChartElement['zoomToScale']>) => elRef.value?.zoomToScale(...args),
       zoomIn: (...args: Parameters<GanttChartElement['zoomIn']>) => elRef.value?.zoomIn(...args),
       zoomOut: (...args: Parameters<GanttChartElement['zoomOut']>) => elRef.value?.zoomOut(...args),
@@ -325,6 +328,7 @@ export interface GanttChartPublicApi {
   zoomToFit: GanttChartElement['zoomToFit']
   resetZoom: GanttChartElement['resetZoom']
   zoomToPercent: GanttChartElement['zoomToPercent']
+  zoomToPercentAtPoint: GanttChartElement['zoomToPercentAtPoint']
   zoomToScale: GanttChartElement['zoomToScale']
   zoomIn: GanttChartElement['zoomIn']
   zoomOut: GanttChartElement['zoomOut']

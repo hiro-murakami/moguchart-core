@@ -1428,6 +1428,91 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
 }
 
 /**
+ * 大規模データ（3年間・200行・WBS階層・複数フェーズタスク）のストレステスト用データを生成します。
+ */
+export const generateLargeScaleData = (t: DemoTexts, totalGroups = 20, childrenPerGroup = 9): GanttRow[] => {
+  const start = new Date(chartStart)
+  const rows: GanttRow[] = []
+  const palette = [
+    '#3b82f6',
+    '#8b5cf6',
+    '#10b981',
+    '#f59e0b',
+    '#ec4899',
+    '#06b6d4',
+    '#6366f1',
+    '#14b8a6',
+  ]
+  const phaseLabels = [
+    t.planning,
+    t.design,
+    t.development,
+    t.testing,
+    t.staging,
+    t.release,
+  ]
+
+  let rowSeq = 1
+  for (let g = 1; g <= totalGroups; g++) {
+    const groupRowId = `ls-group-${g}`
+    rows.push({
+      id: groupRowId,
+      name: `📁 ${t.project(((g - 1) % 50) + 1)} (#${g})`,
+      tasks: [],
+    })
+    rowSeq++
+
+    let prevTaskId: string | undefined = undefined
+    for (let c = 1; c <= childrenPerGroup; c++) {
+      const childIdx = (g - 1) * childrenPerGroup + c
+      const rowId = `ls-row-${childIdx}`
+      const tasks: GanttTask[] = []
+
+      // 3年間（約1095日）にわたって各行に4フェーズのタスクを配置（先頭付近にも必ず表示されるようオフセット分散）
+      const baseOffset = ((c - 1) * 7 + (g - 1) * 4) % 45
+      for (let p = 0; p < 4; p++) {
+        const taskId = `ls-t-${childIdx}-${p + 1}`
+        const phaseSpan = p === 0 ? 0 : p * 240
+        const startOffset = baseOffset + phaseSpan + c * 5
+        const durationDays = 10 + ((childIdx + p * 3) % 18)
+        const taskStart = d(start, startOffset)
+        const taskEnd = d(start, startOffset + durationDays)
+        const color = palette[(childIdx + p) % palette.length]
+        const progress = p === 0 ? Math.min(100, ((childIdx * 17) % 11) * 10) : p === 1 ? ((childIdx * 7) % 6) * 10 : 0
+
+        tasks.push({
+          id: taskId,
+          name: `${phaseLabels[(c + p) % phaseLabels.length]} Y${p + 1}`,
+          start: taskStart,
+          end: taskEnd,
+          style: `background-color: ${color};`,
+          progress,
+          dependencies: p === 0 && prevTaskId && c <= 4 ? [prevTaskId] : p > 0 ? [`ls-t-${childIdx}-${p}`] : undefined,
+          baseline: {
+            start: taskStart,
+            end: d(start, startOffset + Math.max(5, durationDays - (childIdx % 4 === 0 ? 3 : 0))),
+            progress,
+          },
+        })
+        if (p === 0) {
+          prevTaskId = taskId
+        }
+      }
+
+      rows.push({
+        id: rowId,
+        parentId: groupRowId,
+        name: `${t.assignee(((rowSeq - 1) % 30) + 1)} — ${phaseLabels[c % phaseLabels.length]}`,
+        tasks,
+      })
+      rowSeq++
+    }
+  }
+
+  return rows
+}
+
+/**
  * 未割り当てタスク（追加候補）のリストを生成します。
  */
 export const generateUnassignedTasks = (t: DemoTexts): GanttTask[] => [

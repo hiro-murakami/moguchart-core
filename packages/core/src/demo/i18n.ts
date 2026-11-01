@@ -17,6 +17,13 @@ export interface DemoTexts {
   showHiddenRows: string
   showConnectors: string
   showTime: string
+  showQuarters: string
+  quarterStartMonthLabel: string
+  fiscalYearJan: string
+  fiscalYearApr: string
+  fiscalYearOct: string
+  autoExtendTimeline: string
+  largeScaleMode: string
   showYearMonth: string
   showDates: string
   showCurrentTimeLine: string
@@ -162,6 +169,13 @@ export const jaTexts: DemoTexts = {
   showHiddenRows: '非表示行を表示 (5行おき)',
   showConnectors: '接続ポイント（丸印）を表示',
   showTime: '時間を表示',
+  showQuarters: '四半期ヘッダーを表示',
+  quarterStartMonthLabel: '年度開始:',
+  fiscalYearJan: '1月始まり (暦年)',
+  fiscalYearApr: '4月始まり (日本年度 FY)',
+  fiscalYearOct: '10月始まり (米国年度)',
+  autoExtendTimeline: '期間端で自動拡張',
+  largeScaleMode: '大規模データ (3年・200行)',
   showYearMonth: '年月を表示',
   showDates: '日付を表示',
   showCurrentTimeLine: '現在時刻線を表示',
@@ -367,6 +381,13 @@ export const enTexts: DemoTexts = {
   showHiddenRows: 'Show Hidden Rows (every 5)',
   showConnectors: 'Show Connectors',
   showTime: 'Show Time',
+  showQuarters: 'Show Quarter Header',
+  quarterStartMonthLabel: 'Fiscal Year:',
+  fiscalYearJan: 'Jan (Calendar Year)',
+  fiscalYearApr: 'Apr (FY April)',
+  fiscalYearOct: 'Oct (FY October)',
+  autoExtendTimeline: 'Auto-Extend Timeline',
+  largeScaleMode: 'Large Scale (3yr · 200 rows)',
   showYearMonth: 'Show Year/Month',
   showDates: 'Show Dates',
   showCurrentTimeLine: 'Show Current Time Line',

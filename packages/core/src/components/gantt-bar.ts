@@ -37,10 +37,13 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean, reflect: true, attribute: 'connector-drop-target' }) connectorDropTarget = false
   @property({ type: Boolean, reflect: true }) isExporting = false
   @property({ type: Boolean, reflect: true, attribute: 'critical-path' }) isCriticalPath = false
+  @property({ type: Boolean, reflect: true, attribute: 'touch-active' }) touchActive = false
   @state() private _dragProgress: number | null = null
   @state() private _isDraggingProgress = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
+  private _autoScrollTimer: number | null = null
+  private _longPressTimer: number | null = null
   private _wasDragging = false
   private _connectorEdgeThreshold = 30
 
@@ -71,6 +74,11 @@ export class GanttBarElement extends LitElement {
     .task-group.dragging {
       opacity: 0.5;
       z-index: 15;
+    }
+    .task-group.touch-dragging {
+      opacity: 0.85;
+      z-index: 25;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
     }
     .bar {
       cursor: grab;
@@ -131,6 +139,7 @@ export class GanttBarElement extends LitElement {
       bottom: 0;
       width: 10px;
       z-index: 11;
+      touch-action: none;
     }
     .handle-left {
       left: 0px;
@@ -141,6 +150,56 @@ export class GanttBarElement extends LitElement {
     .handle-left:hover,
     .handle-right:hover {
       background: rgba(255, 255, 255, 0.3);
+    }
+    :host([selected]) .handle-left::after,
+    :host([selected]) .handle-right::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 55%;
+      max-height: 12px;
+      border-radius: 1px;
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+    }
+    :host([selected]) .handle-left::after {
+      left: 2px;
+    }
+    :host([selected]) .handle-right::after {
+      right: 2px;
+    }
+    :host([touch-active][selected]) .handle-left::before,
+    :host([touch-active][selected]) .handle-right::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      bottom: -4px;
+      width: 18px;
+    }
+    :host([touch-active][selected]) .handle-left::before {
+      left: -8px;
+    }
+    :host([touch-active][selected]) .handle-right::before {
+      right: -8px;
+    }
+    @media (pointer: coarse) {
+      .handle-left::before,
+      .handle-right::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        bottom: -4px;
+        width: 18px;
+      }
+      .handle-left::before {
+        left: -8px;
+      }
+      .handle-right::before {
+        right: -8px;
+      }
     }
     .connector-left,
     .connector-right {
@@ -158,10 +217,29 @@ export class GanttBarElement extends LitElement {
       opacity: 0;
       transition: opacity 0.15s ease;
       pointer-events: auto;
+      touch-action: none;
+    }
+    .connector-left::before,
+    .connector-right::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
     }
     .connector-left.show-connector,
-    .connector-right.show-connector {
+    .connector-right.show-connector,
+    :host([touch-active][selected]) .connector-left,
+    :host([touch-active][selected]) .connector-right {
       opacity: 1;
+    }
+    @media (pointer: coarse) {
+      :host([selected]) .connector-left,
+      :host([selected]) .connector-right {
+        opacity: 1;
+      }
+      .connector-left::before,
+      .connector-right::before {
+        inset: -10px;
+      }
     }
     .connector-left {
       left: -10px;
@@ -284,6 +362,7 @@ export class GanttBarElement extends LitElement {
       transition: opacity 0.15s ease;
     }
     .task-group:hover .handle-progress,
+    :host([selected]) .handle-progress,
     .handle-progress.dragging {
       opacity: 1;
     }
@@ -310,11 +389,17 @@ export class GanttBarElement extends LitElement {
       pointer-events: auto;
       cursor: ew-resize;
       z-index: 1;
+      touch-action: none;
     }
     .handle-progress-knob::before {
       content: '';
       position: absolute;
-      inset: -2px -3px;
+      inset: -4px -5px;
+    }
+    @media (pointer: coarse) {
+      .handle-progress-knob::before {
+        inset: -8px -10px;
+      }
     }
     .handle-progress:hover .handle-progress-knob,
     .handle-progress.dragging .handle-progress-knob {
@@ -475,26 +560,158 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private _autoScrollPointerX = 0
+  private _autoScrollPointerY = 0
+
+  private safeSetPointerCapture(target: HTMLElement | null | undefined, pointerId: number) {
+    if (!target || typeof target.setPointerCapture !== 'function') return
+    try {
+      target.setPointerCapture(pointerId)
+    } catch {
+      // 合成イベントや未接続要素での例外を無視
+    }
+  }
+
+  private safeReleasePointerCapture(target: HTMLElement | null | undefined, pointerId: number) {
+    if (!target || typeof target.releasePointerCapture !== 'function') return
+    try {
+      target.releasePointerCapture(pointerId)
+    } catch {
+      // 未キャプチャ時の例外を無視
+    }
+  }
+
+  private updateAutoScrollPointer(clientX: number, clientY: number) {
+    this._autoScrollPointerX = clientX
+    this._autoScrollPointerY = clientY
+  }
+
+  private stopEdgeAutoScroll() {
+    if (this._autoScrollTimer !== null) {
+      window.clearInterval(this._autoScrollTimer)
+      this._autoScrollTimer = null
+    }
+  }
+
+  private clearLongPressTimer() {
+    if (this._longPressTimer !== null) {
+      window.clearTimeout(this._longPressTimer)
+      this._longPressTimer = null
+    }
+  }
+
+  private startEdgeAutoScroll(
+    initialClientX: number,
+    initialClientY: number,
+    axes: { allowX: boolean; allowY: boolean },
+    onTick: (clientX: number, clientY: number) => void,
+  ) {
+    this.stopEdgeAutoScroll()
+    if (this.option?.calendar?.autoScrollOnDrag === false) return
+    this._autoScrollPointerX = initialClientX
+    this._autoScrollPointerY = initialClientY
+
+    const chartEl = this.getGanttChartElement() as any
+    const scrollContainer = chartEl?.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    if (!scrollContainer) return
+
+    const EDGE_THRESHOLD = 44
+    const MAX_STEP = 18
+
+    this._autoScrollTimer = window.setInterval(() => {
+      if (!scrollContainer.isConnected) {
+        this.stopEdgeAutoScroll()
+        return
+      }
+      const rect = scrollContainer.getBoundingClientRect()
+      const leftEdge = rect.left + (chartEl?.currentRowHeaderWidth ?? 0)
+      const rightEdge = rect.right
+      const topEdge = rect.top + (chartEl?.calendarHeight ?? 0)
+      const bottomEdge = rect.bottom
+
+      let stepX = 0
+      let stepY = 0
+
+      if (axes.allowX && rightEdge > leftEdge) {
+        if (this._autoScrollPointerX < leftEdge + EDGE_THRESHOLD && scrollContainer.scrollLeft > 0) {
+          const ratio = Math.min(1, Math.max(0.15, (leftEdge + EDGE_THRESHOLD - this._autoScrollPointerX) / EDGE_THRESHOLD))
+          stepX = -Math.ceil(MAX_STEP * ratio)
+        } else if (this._autoScrollPointerX > rightEdge - EDGE_THRESHOLD) {
+          const maxScrollLeft = Math.max(0, scrollContainer.scrollWidth - scrollContainer.clientWidth)
+          if (scrollContainer.scrollLeft < maxScrollLeft) {
+            const ratio = Math.min(1, Math.max(0.15, (this._autoScrollPointerX - (rightEdge - EDGE_THRESHOLD)) / EDGE_THRESHOLD))
+            stepX = Math.ceil(MAX_STEP * ratio)
+          }
+        }
+      }
+
+      if (axes.allowY && bottomEdge > topEdge) {
+        if (this._autoScrollPointerY < topEdge + EDGE_THRESHOLD && scrollContainer.scrollTop > 0) {
+          const ratio = Math.min(1, Math.max(0.15, (topEdge + EDGE_THRESHOLD - this._autoScrollPointerY) / EDGE_THRESHOLD))
+          stepY = -Math.ceil(MAX_STEP * ratio)
+        } else if (this._autoScrollPointerY > bottomEdge - EDGE_THRESHOLD) {
+          const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight)
+          if (scrollContainer.scrollTop < maxScrollTop) {
+            const ratio = Math.min(1, Math.max(0.15, (this._autoScrollPointerY - (bottomEdge - EDGE_THRESHOLD)) / EDGE_THRESHOLD))
+            stepY = Math.ceil(MAX_STEP * ratio)
+          }
+        }
+      }
+
+      if (stepX === 0 && stepY === 0) return
+
+      const prevLeft = scrollContainer.scrollLeft
+      const prevTop = scrollContainer.scrollTop
+      if (stepX !== 0) {
+        scrollContainer.scrollLeft = Math.max(0, scrollContainer.scrollLeft + stepX)
+      }
+      if (stepY !== 0) {
+        scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + stepY)
+      }
+
+      if (scrollContainer.scrollLeft !== prevLeft || scrollContainer.scrollTop !== prevTop) {
+        onTick(this._autoScrollPointerX, this._autoScrollPointerY)
+      }
+    }, 20)
+  }
+
   private setupDragEvents(
     target: HTMLElement,
     pointerId: number,
     onMove: (e: PointerEvent) => void,
     onEnd: (isCancel: boolean, e?: PointerEvent) => void,
   ) {
+    const isMatchingPointer = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' && pointerId !== 0 && e.pointerId !== pointerId) {
+        return false
+      }
+      return true
+    }
+
     const cleanup = () => {
-      target.releasePointerCapture(pointerId)
+      this.stopEdgeAutoScroll()
+      this.safeReleasePointerCapture(target, pointerId)
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
       window.removeEventListener('keydown', handleKeyDown)
     }
 
     const handleMove = (e: PointerEvent) => {
+      if (!isMatchingPointer(e)) return
       onMove(e)
     }
 
     const handleUp = (e: PointerEvent) => {
+      if (!isMatchingPointer(e)) return
       cleanup()
       onEnd(false, e)
+    }
+
+    const handleCancel = (e: PointerEvent) => {
+      if (!isMatchingPointer(e)) return
+      cleanup()
+      onEnd(true, e)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -506,11 +723,16 @@ export class GanttBarElement extends LitElement {
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
     window.addEventListener('keydown', handleKeyDown)
   }
 
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
     e.stopPropagation()
+    if (e.pointerType === 'touch') {
+      this.touchActive = true
+      if (e.cancelable) e.preventDefault()
+    }
     const target = e.target as HTMLElement
 
     const movable = this.task.movable ?? 'both'
@@ -536,105 +758,122 @@ export class GanttBarElement extends LitElement {
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     taskGroup?.classList.add('dragging')
 
-    target.setPointerCapture(e.pointerId)
+    this.safeSetPointerCapture(target, e.pointerId)
+    const chartEl = this.getGanttChartElement()
+    const scrollContainer = chartEl?.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    const initialScrollLeft = scrollContainer?.scrollLeft ?? 0
+
     const startX = e.clientX
     const originalStart = new Date(this.task.start)
     const originalEnd = new Date(this.task.end)
     let currentStart = new Date(originalStart)
     let currentEnd = new Date(originalEnd)
 
+    const applyResizeAt = (clientX: number, clientY: number) => {
+      const scrollDeltaX = (scrollContainer?.scrollLeft ?? 0) - initialScrollLeft
+      const deltaX = clientX - startX + scrollDeltaX
+
+      let newStart = new Date(originalStart)
+      let newEnd = new Date(originalEnd)
+
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const pxPerMonth = this.option.calendar.pxPerMonth
+      const snapDuration = Math.max(this.option.snapDuration ?? 1440, 1)
+
+      if (!pxPerMonth) {
+        const pxPerMinute = pxPerDay / (24 * 60)
+        const snapPx = pxPerMinute * snapDuration
+        const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
+        const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
+
+        if (handle === 'left') {
+          newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
+          if (newStart >= newEnd) {
+            newStart = new Date(newEnd.getTime() - snapDuration * 60 * 1000)
+          }
+        } else {
+          newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
+          if (newEnd <= newStart) {
+            newEnd = new Date(newStart.getTime() + snapDuration * 60 * 1000)
+          }
+        }
+      } else {
+        const originalStartXBase = this.getX(originalStart)
+        const originalEndXBase = this.getX(originalEnd)
+
+        if (handle === 'left') {
+          const rawNewStart = xToDate(originalStartXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
+          if (rawNewStart.getDate() > 15) rawNewStart.setMonth(rawNewStart.getMonth() + 1)
+          rawNewStart.setDate(1)
+          rawNewStart.setHours(0, 0, 0, 0)
+          newStart = rawNewStart
+          if (newStart >= newEnd) {
+            newStart = new Date(newEnd)
+            newStart.setMonth(newStart.getMonth() - 1)
+          }
+        } else {
+          const rawNewEnd = xToDate(originalEndXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
+          if (rawNewEnd.getDate() > 15) rawNewEnd.setMonth(rawNewEnd.getMonth() + 1)
+          rawNewEnd.setDate(1)
+          rawNewEnd.setHours(0, 0, 0, 0)
+          newEnd = rawNewEnd
+          if (newEnd <= newStart) {
+            newEnd = new Date(newStart)
+            newEnd.setMonth(newEnd.getMonth() + 1)
+          }
+        }
+      }
+
+      currentStart = newStart
+      currentEnd = newEnd
+
+      if (taskGroup) {
+        const newX = this.getX(newStart)
+        const newWidth = this.getX(newEnd) - newX
+        taskGroup.style.left = `${newX}px`
+        taskGroup.style.width = `${newWidth}px`
+      }
+
+      if (this._dragAnimationFrame) {
+        cancelAnimationFrame(this._dragAnimationFrame)
+      }
+
+      this._dragAnimationFrame = requestAnimationFrame(() => {
+        const barRect = taskGroup?.getBoundingClientRect()
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: newStart,
+              end: newEnd,
+              dy: 0,
+              isDragging: true,
+              x: clientX,
+              y: clientY,
+              barX: barRect ? barRect.left + barRect.width / 2 : undefined,
+              barTop: barRect?.top,
+              barBottom: barRect?.bottom,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      })
+    }
+
+    this.startEdgeAutoScroll(
+      e.clientX,
+      e.clientY,
+      { allowX: true, allowY: false },
+      (cx, cy) => applyResizeAt(cx, cy),
+    )
+
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
-        const deltaX = moveEvent.clientX - startX
-
-        let newStart = new Date(originalStart)
-        let newEnd = new Date(originalEnd)
-
-        const pxPerDay = this.option.calendar.pxPerDay ?? 50
-        const pxPerMonth = this.option.calendar.pxPerMonth
-        const snapDuration = Math.max(this.option.snapDuration ?? 1440, 1)
-
-        if (!pxPerMonth) {
-          const pxPerMinute = pxPerDay / (24 * 60)
-          const snapPx = pxPerMinute * snapDuration
-          const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
-          const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
-
-          if (handle === 'left') {
-            newStart = new Date(originalStart.getTime() + minutesDiff * 60 * 1000)
-            if (newStart >= newEnd) {
-              newStart = new Date(newEnd.getTime() - snapDuration * 60 * 1000)
-            }
-          } else {
-            newEnd = new Date(originalEnd.getTime() + minutesDiff * 60 * 1000)
-            if (newEnd <= newStart) {
-              newEnd = new Date(newStart.getTime() + snapDuration * 60 * 1000)
-            }
-          }
-        } else {
-          const originalStartXBase = this.getX(originalStart)
-          const originalEndXBase = this.getX(originalEnd)
-
-          if (handle === 'left') {
-            let rawNewStart = xToDate(originalStartXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (rawNewStart.getDate() > 15) rawNewStart.setMonth(rawNewStart.getMonth() + 1)
-            rawNewStart.setDate(1)
-            rawNewStart.setHours(0, 0, 0, 0)
-            newStart = rawNewStart
-            if (newStart >= newEnd) {
-              newStart = new Date(newEnd)
-              newStart.setMonth(newStart.getMonth() - 1)
-            }
-          } else {
-            let rawNewEnd = xToDate(originalEndXBase + deltaX, this.option.calendar.start, pxPerDay, pxPerMonth)
-            if (rawNewEnd.getDate() > 15) rawNewEnd.setMonth(rawNewEnd.getMonth() + 1)
-            rawNewEnd.setDate(1)
-            rawNewEnd.setHours(0, 0, 0, 0)
-            newEnd = rawNewEnd
-            if (newEnd <= newStart) {
-              newEnd = new Date(newStart)
-              newEnd.setMonth(newEnd.getMonth() + 1)
-            }
-          }
-        }
-
-        currentStart = newStart
-        currentEnd = newEnd
-
-        if (taskGroup) {
-          const newX = this.getX(newStart)
-          const newWidth = this.getX(newEnd) - newX
-          taskGroup.style.left = `${newX}px`
-          taskGroup.style.width = `${newWidth}px`
-        }
-
-        if (this._dragAnimationFrame) {
-          cancelAnimationFrame(this._dragAnimationFrame)
-        }
-
-        this._dragAnimationFrame = requestAnimationFrame(() => {
-          const barRect = taskGroup?.getBoundingClientRect()
-          this.dispatchEvent(
-            new CustomEvent('task-update', {
-              detail: {
-                ...this.task,
-                start: newStart,
-                end: newEnd,
-                dy: 0,
-                isDragging: true,
-                x: moveEvent.clientX,
-                y: moveEvent.clientY,
-                barX: barRect ? barRect.left + barRect.width / 2 : undefined,
-                barTop: barRect?.top,
-                barBottom: barRect?.bottom,
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
-        })
+        this.updateAutoScrollPointer(moveEvent.clientX, moveEvent.clientY)
+        applyResizeAt(moveEvent.clientX, moveEvent.clientY)
       },
       (isCancel) => {
         taskGroup?.classList.remove('dragging')
@@ -710,10 +949,19 @@ export class GanttBarElement extends LitElement {
   /** ドラッグ開始と判定するための移動閾値（px） */
   private static readonly DRAG_THRESHOLD = 3
 
+  private onTaskGroupPointerDown = (e: PointerEvent) => {
+    if (e.pointerType === 'touch' && this.option?.touch?.enabled !== false) {
+      this.touchActive = true
+    }
+  }
+
   private onMoveStart(e: PointerEvent) {
     // 右クリック（button === 2）はコンテキストメニュー用なので無視
     if (e.button === 2) return
     e.stopPropagation()
+    this._wasDragging = false
+    this.clearLongPressTimer()
+
     const target = e.target as HTMLElement
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
 
@@ -721,12 +969,19 @@ export class GanttBarElement extends LitElement {
       return
     }
 
+    const isTouch = e.pointerType === 'touch' && this.option?.touch?.enabled !== false
+    if (isTouch) {
+      this.touchActive = true
+    }
+
     const movable = this.task.movable ?? 'both'
     if (movable === 'none') return
 
-    target.setPointerCapture(e.pointerId)
-
     const chartEl = this.getGanttChartElement()
+    const scrollContainer = chartEl?.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    let initialScrollLeft = scrollContainer?.scrollLeft ?? 0
+    let initialScrollTop = scrollContainer?.scrollTop ?? 0
+
     const startX = e.clientX
     const startY = e.clientY
     // 開始時の一時的な日付を保持
@@ -737,6 +992,7 @@ export class GanttBarElement extends LitElement {
 
     // ドラッグ閾値を超えたかどうかを追跡
     let dragStarted = false
+    let lastModifierCopy = false
 
     const checkIsOutside = (clientX: number, clientY: number) => {
       if (!chartEl) return false
@@ -766,12 +1022,391 @@ export class GanttBarElement extends LitElement {
       return false
     }
 
+    const computeSnappedMove = (clientX: number, clientY: number) => {
+      const scrollDeltaX = (scrollContainer?.scrollLeft ?? 0) - initialScrollLeft
+      const scrollDeltaY = (scrollContainer?.scrollTop ?? 0) - initialScrollTop
+      const rawDeltaX = clientX - startX + scrollDeltaX
+      const rawDeltaY = clientY - startY + scrollDeltaY
+
+      let deltaX = rawDeltaX
+      let deltaY = rawDeltaY
+
+      if (movable === 'y') deltaX = 0
+      if (movable === 'x') deltaY = 0
+      if (this.option.enableCrossRowMove === false) deltaY = 0
+      // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
+      if (this.multiDragActive && !this.multiDragSameRow) deltaY = 0
+
+      let translateX = deltaX
+      if (!this.option.calendar.pxPerMonth) {
+        const pxPerMinute = (this.option.calendar.pxPerDay ?? 50) / (24 * 60)
+        const snapPx = pxPerMinute * snapDuration
+        translateX = Math.round(deltaX / snapPx) * snapPx
+      } else {
+        // Monthモードでの移動時は常に1ヶ月単位でスナップ
+        // 元の開始日をベースにどれだけ月をまたいだかを計算する
+        const rawDate = xToDate(
+          this.getX(originalStart) + deltaX,
+          this.option.calendar.start,
+          50,
+          this.option.calendar.pxPerMonth,
+        )
+        const diffMonths =
+          (rawDate.getFullYear() - originalStart.getFullYear()) * 12 +
+          (rawDate.getMonth() - originalStart.getMonth()) +
+          (rawDate.getDate() > 15 ? 1 : 0)
+
+        const snappedStart = new Date(originalStart)
+        snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
+        translateX = this.getX(snappedStart) - this.getX(originalStart)
+      }
+
+      return { rawDeltaX, rawDeltaY, translateX, deltaY }
+    }
+
+    const updateMoveAt = (clientX: number, clientY: number, isCopy: boolean) => {
+      lastModifierCopy = isCopy
+      if (!isTouch) {
+        const newCursor = isCopy ? 'copy' : 'grabbing'
+        this._currentDragCursor = newCursor
+        target.style.cursor = newCursor
+      }
+
+      const isOutside = checkIsOutside(clientX, clientY)
+
+      if (isOutside) {
+        // ガントチャート外または行外の場合はバーを元の位置に表示
+        taskGroup.style.transform = ''
+
+        if (this._dragAnimationFrame) {
+          cancelAnimationFrame(this._dragAnimationFrame)
+        }
+
+        this._dragAnimationFrame = requestAnimationFrame(() => {
+          this.dispatchEvent(
+            new CustomEvent('task-update', {
+              detail: {
+                ...this.task,
+                start: originalStart,
+                end: originalEnd,
+                dx: 0,
+                dy: 0,
+                isDragging: true,
+                isOutside: true,
+                x: clientX,
+                y: clientY,
+                mode: isCopy ? 'copy' : 'move',
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        })
+        return
+      }
+
+      const { translateX, deltaY } = computeSnappedMove(clientX, clientY)
+      taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
+
+      if (this._dragAnimationFrame) {
+        cancelAnimationFrame(this._dragAnimationFrame)
+      }
+
+      this._dragAnimationFrame = requestAnimationFrame(() => {
+        const barRect = taskGroup?.getBoundingClientRect()
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: originalStart,
+              end: originalEnd,
+              dx: translateX,
+              dy: deltaY,
+              isDragging: true,
+              isOutside: false,
+              x: clientX,
+              y: clientY,
+              barX: barRect ? barRect.left + barRect.width / 2 : undefined,
+              barTop: barRect?.top,
+              barBottom: barRect?.bottom,
+              mode: isCopy ? 'copy' : 'move',
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      })
+    }
+
+    const finishMove = (isCancel: boolean, upEvent?: PointerEvent) => {
+      this._currentDragCursor = null
+      taskGroup.classList.remove('dragging', 'touch-dragging')
+      taskGroup.style.transform = ''
+      target.style.cursor = ''
+      if (this._dragAnimationFrame) {
+        cancelAnimationFrame(this._dragAnimationFrame)
+        this._dragAnimationFrame = null
+      }
+
+      // ドラッグ閾値を超えていなかった場合はクリックとして扱う
+      if (!dragStarted) {
+        if (upEvent) {
+          this.dispatchEvent(
+            new CustomEvent('bar-click', {
+              detail: {
+                task: this.task,
+                event: upEvent,
+                isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+          this._wasDragging = true
+        }
+        return
+      }
+
+      const isOutside = upEvent ? checkIsOutside(upEvent.clientX, upEvent.clientY) : false
+
+      if (isCancel || isOutside) {
+        this._wasDragging = true
+        this.requestUpdate()
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: originalStart,
+              end: originalEnd,
+              dx: 0,
+              dy: 0,
+              isDragging: false,
+              isCancel: true,
+              isOutside,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      } else if (upEvent) {
+        const { translateX: finalTranslateX, deltaY: finalDeltaY } = computeSnappedMove(
+          upEvent.clientX,
+          upEvent.clientY,
+        )
+
+        // 移動量が閾値以下の場合はクリックとして扱う
+        if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
+          // クリックイベントを発火（task-updateは発火しない）
+          this.dispatchEvent(
+            new CustomEvent('bar-click', {
+              detail: {
+                task: this.task,
+                event: upEvent,
+                isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+          // onClickでの重複発火を防止
+          this._wasDragging = true
+          return
+        }
+
+        const isCopy = !isTouch && (upEvent.ctrlKey || upEvent.altKey)
+
+        // 実際にドラッグが行われたのでフラグを設定
+        this._wasDragging = true
+
+        // 複数選択ドラッグ中はbar-clickを発火しない。
+        // bar-click(isMultiSelect: false)を発火すると selectedTasks が単一にリセットされ、
+        // 続く task-update で isMultiDrag が false になって他バーが元の位置に戻ってしまう。
+        if (!this.multiDragActive) {
+          // 単一ドラッグ時のみ、ドラッグしたバーに選択を移す
+          this.dispatchEvent(
+            new CustomEvent('bar-click', {
+              detail: {
+                task: this.task,
+                event: upEvent,
+                isMultiSelect: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+        }
+
+        this.dispatchEvent(
+          new CustomEvent('task-update', {
+            detail: {
+              ...this.task,
+              start: originalStart,
+              end: originalEnd,
+              dx: finalTranslateX,
+              dy: finalDeltaY,
+              isDragging: false, // ドロップしたことを示す
+              isOutside: false,
+              mode: isCopy ? 'copy' : 'move',
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
+
+    // --- タッチ入力: 短押しタップ＝選択、スワイプ＝ネイティブスクロール、長押し＝移動ドラッグ開始 ---
+    if (isTouch) {
+      const longPressDelay = Math.max(0, this.option?.touch?.longPressDelay ?? 250)
+      const moveSlop = Math.max(1, this.option?.touch?.moveSlop ?? 8)
+      const activePointerId = e.pointerId
+      let latestClientX = startX
+      let latestClientY = startY
+
+      const isMatchingTouch = (ev: PointerEvent) =>
+        activePointerId === 0 || ev.pointerId === 0 || ev.pointerId === activePointerId
+
+      const preventNativeTouchScroll = (te: TouchEvent) => {
+        if (dragStarted && te.cancelable) {
+          te.preventDefault()
+        }
+      }
+
+      const cleanupTouchListeners = () => {
+        this.clearLongPressTimer()
+        this.stopEdgeAutoScroll()
+        this.safeReleasePointerCapture(target, activePointerId)
+        window.removeEventListener('pointermove', onTouchPointerMove)
+        window.removeEventListener('pointerup', onTouchPointerUp)
+        window.removeEventListener('pointercancel', onTouchPointerCancel)
+        window.removeEventListener('moguchart-pinch-start', onPinchStart)
+        window.removeEventListener('touchmove', preventNativeTouchScroll)
+        window.removeEventListener('keydown', onTouchEscape)
+      }
+
+      const activateTouchDrag = () => {
+        this.clearLongPressTimer()
+        initialScrollLeft = scrollContainer?.scrollLeft ?? 0
+        initialScrollTop = scrollContainer?.scrollTop ?? 0
+        dragStarted = true
+        this.safeSetPointerCapture(target, activePointerId)
+        taskGroup.classList.add('dragging', 'touch-dragging')
+        window.addEventListener('touchmove', preventNativeTouchScroll, { passive: false })
+
+        if (this.option?.touch?.hapticFeedback && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          try {
+            navigator.vibrate(10)
+          } catch {
+            // 非対応環境では無視
+          }
+        }
+
+        this.startEdgeAutoScroll(
+          latestClientX,
+          latestClientY,
+          {
+            allowX: movable !== 'y',
+            allowY: movable !== 'x' && this.option.enableCrossRowMove !== false,
+          },
+          (cx, cy) => updateMoveAt(cx, cy, false),
+        )
+        updateMoveAt(latestClientX, latestClientY, false)
+      }
+
+      const onTouchPointerMove = (moveEvent: PointerEvent) => {
+        if (!isMatchingTouch(moveEvent)) return
+        latestClientX = moveEvent.clientX
+        latestClientY = moveEvent.clientY
+
+        if (!dragStarted) {
+          const dist = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY)
+          if (dist > moveSlop) {
+            // スワイプ開始とみなし、長押しタイマーを破棄してネイティブスクロールに委譲
+            cleanupTouchListeners()
+          }
+          return
+        }
+
+        if (moveEvent.cancelable) moveEvent.preventDefault()
+        this.updateAutoScrollPointer(moveEvent.clientX, moveEvent.clientY)
+        updateMoveAt(moveEvent.clientX, moveEvent.clientY, false)
+      }
+
+      const onTouchPointerUp = (upEvent: PointerEvent) => {
+        if (!isMatchingTouch(upEvent)) return
+        const wasStarted = dragStarted
+        cleanupTouchListeners()
+        if (!wasStarted) {
+          // 長押し成立前の離指はタスク選択タップとして扱う
+          this.dispatchEvent(
+            new CustomEvent('bar-click', {
+              detail: {
+                task: this.task,
+                event: upEvent,
+                isMultiSelect: false,
+              },
+              bubbles: true,
+              composed: true,
+            }),
+          )
+          this._wasDragging = true
+          return
+        }
+        finishMove(false, upEvent)
+      }
+
+      const onTouchPointerCancel = (cancelEvent: PointerEvent) => {
+        if (!isMatchingTouch(cancelEvent)) return
+        const wasStarted = dragStarted
+        cleanupTouchListeners()
+        if (wasStarted) {
+          finishMove(true, cancelEvent)
+        }
+      }
+
+      const onPinchStart = () => {
+        const wasStarted = dragStarted
+        cleanupTouchListeners()
+        if (wasStarted) {
+          finishMove(true)
+        }
+      }
+
+      const onTouchEscape = (ke: KeyboardEvent) => {
+        if (ke.key === 'Escape') {
+          const wasStarted = dragStarted
+          cleanupTouchListeners()
+          if (wasStarted) {
+            finishMove(true)
+          }
+        }
+      }
+
+      window.addEventListener('pointermove', onTouchPointerMove)
+      window.addEventListener('pointerup', onTouchPointerUp)
+      window.addEventListener('pointercancel', onTouchPointerCancel)
+      window.addEventListener('moguchart-pinch-start', onPinchStart)
+      window.addEventListener('keydown', onTouchEscape)
+
+      if (longPressDelay === 0) {
+        activateTouchDrag()
+      } else {
+        this._longPressTimer = window.setTimeout(activateTouchDrag, longPressDelay)
+      }
+      return
+    }
+
+    // --- マウス / ペン入力 ---
+    this.safeSetPointerCapture(target, e.pointerId)
+
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
-        const rawDeltaX = moveEvent.clientX - startX
-        const rawDeltaY = moveEvent.clientY - startY
+        const scrollDeltaX = (scrollContainer?.scrollLeft ?? 0) - initialScrollLeft
+        const scrollDeltaY = (scrollContainer?.scrollTop ?? 0) - initialScrollTop
+        const rawDeltaX = moveEvent.clientX - startX + scrollDeltaX
+        const rawDeltaY = moveEvent.clientY - startY + scrollDeltaY
 
         // ドラッグ閾値を超えていない場合は何もしない
         if (!dragStarted) {
@@ -784,250 +1419,22 @@ export class GanttBarElement extends LitElement {
           this._currentDragCursor = initialCursor
           target.style.cursor = initialCursor
           taskGroup.classList.add('dragging')
-        }
-
-        const isCopy = moveEvent.ctrlKey || moveEvent.altKey
-        const newCursor = isCopy ? 'copy' : 'grabbing'
-        this._currentDragCursor = newCursor
-        target.style.cursor = newCursor
-
-        const isOutside = checkIsOutside(moveEvent.clientX, moveEvent.clientY)
-
-        if (isOutside) {
-          // ガントチャート外または行外の場合はバーを元の位置に表示
-          taskGroup.style.transform = ''
-
-          if (this._dragAnimationFrame) {
-            cancelAnimationFrame(this._dragAnimationFrame)
-          }
-
-          this._dragAnimationFrame = requestAnimationFrame(() => {
-            this.dispatchEvent(
-              new CustomEvent('task-update', {
-                detail: {
-                  ...this.task,
-                  start: originalStart,
-                  end: originalEnd,
-                  dx: 0,
-                  dy: 0,
-                  isDragging: true,
-                  isOutside: true,
-                  x: moveEvent.clientX,
-                  y: moveEvent.clientY,
-                  mode: isCopy ? 'copy' : 'move',
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-          })
-          return
-        }
-
-        let deltaX = rawDeltaX
-        let deltaY = rawDeltaY
-
-        if (movable === 'y') deltaX = 0
-        if (movable === 'x') deltaY = 0
-        if (this.option.enableCrossRowMove === false) deltaY = 0
-        // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
-        if (this.multiDragActive && !this.multiDragSameRow) deltaY = 0
-
-        let translateX = deltaX
-        if (!this.option.calendar.pxPerMonth) {
-          const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
-          const snapPx = pxPerMinute * snapDuration
-          translateX = Math.round(deltaX / snapPx) * snapPx
-        } else {
-          // Monthモードでの移動時は常に1ヶ月単位でスナップ
-          // 元の開始日をベースにどれだけ月をまたいだかを計算する
-          const rawDate = xToDate(
-            this.getX(originalStart) + deltaX,
-            this.option.calendar.start,
-            50,
-            this.option.calendar.pxPerMonth,
+          this.startEdgeAutoScroll(
+            moveEvent.clientX,
+            moveEvent.clientY,
+            {
+              allowX: movable !== 'y',
+              allowY: movable !== 'x' && this.option.enableCrossRowMove !== false,
+            },
+            (cx, cy) => updateMoveAt(cx, cy, lastModifierCopy),
           )
-          const diffMonths =
-            (rawDate.getFullYear() - originalStart.getFullYear()) * 12 +
-            (rawDate.getMonth() - originalStart.getMonth()) +
-            (rawDate.getDate() > 15 ? 1 : 0)
-
-          const snappedStart = new Date(originalStart)
-          snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
-          translateX = this.getX(snappedStart) - this.getX(originalStart)
         }
 
-        taskGroup.style.transform = `translate(${translateX}px, ${deltaY}px)`
-
-        if (this._dragAnimationFrame) {
-          cancelAnimationFrame(this._dragAnimationFrame)
-        }
-
-        this._dragAnimationFrame = requestAnimationFrame(() => {
-          const barRect = taskGroup?.getBoundingClientRect()
-          this.dispatchEvent(
-            new CustomEvent('task-update', {
-              detail: {
-                ...this.task,
-                start: originalStart,
-                end: originalEnd,
-                dx: translateX,
-                dy: deltaY,
-                isDragging: true,
-                isOutside: false,
-                x: moveEvent.clientX,
-                y: moveEvent.clientY,
-                barX: barRect ? barRect.left + barRect.width / 2 : undefined,
-                barTop: barRect?.top,
-                barBottom: barRect?.bottom,
-                mode: isCopy ? 'copy' : 'move',
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
-        })
+        this.updateAutoScrollPointer(moveEvent.clientX, moveEvent.clientY)
+        updateMoveAt(moveEvent.clientX, moveEvent.clientY, moveEvent.ctrlKey || moveEvent.altKey)
       },
       (isCancel, upEvent) => {
-        this._currentDragCursor = null
-        taskGroup.classList.remove('dragging')
-        taskGroup.style.transform = ''
-        target.style.cursor = ''
-        if (this._dragAnimationFrame) {
-          cancelAnimationFrame(this._dragAnimationFrame)
-          this._dragAnimationFrame = null
-        }
-
-        // ドラッグ閾値を超えていなかった場合はクリックとして扱う
-        if (!dragStarted) {
-          if (upEvent) {
-            this.dispatchEvent(
-              new CustomEvent('bar-click', {
-                detail: {
-                  task: this.task,
-                  event: upEvent,
-                  isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-            this._wasDragging = true
-          }
-          return
-        }
-
-        const isOutside = upEvent ? checkIsOutside(upEvent.clientX, upEvent.clientY) : false
-
-        if (isCancel || isOutside) {
-          this._wasDragging = true
-          this.requestUpdate()
-          this.dispatchEvent(
-            new CustomEvent('task-update', {
-              detail: {
-                ...this.task,
-                start: originalStart,
-                end: originalEnd,
-                dx: 0,
-                dy: 0,
-                isDragging: false,
-                isCancel: true,
-                isOutside,
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
-        } else if (upEvent) {
-          const rawDeltaX = upEvent.clientX - startX
-          let finalTranslateX = rawDeltaX
-          if (!this.option.calendar.pxPerMonth) {
-            const pxPerMinute = this.option.calendar.pxPerDay / (24 * 60)
-            const snapPx = pxPerMinute * snapDuration
-            finalTranslateX = Math.round(rawDeltaX / snapPx) * snapPx
-          } else {
-            const rawDate = xToDate(
-              this.getX(originalStart) + rawDeltaX,
-              this.option.calendar.start,
-              50,
-              this.option.calendar.pxPerMonth,
-            )
-            const diffMonths =
-              (rawDate.getFullYear() - originalStart.getFullYear()) * 12 +
-              (rawDate.getMonth() - originalStart.getMonth()) +
-              (rawDate.getDate() > 15 ? 1 : 0)
-            const snappedStart = new Date(originalStart)
-            snappedStart.setMonth(snappedStart.getMonth() + diffMonths)
-            finalTranslateX = this.getX(snappedStart) - this.getX(originalStart)
-          }
-          let finalDeltaY = upEvent.clientY - startY
-
-          // movable制限をドロップ時にも適用
-          if (movable === 'y') finalTranslateX = 0
-          if (movable === 'x') finalDeltaY = 0
-          if (this.option.enableCrossRowMove === false) finalDeltaY = 0
-          // 複数ドラッグ中：同じ行のバーのみ選択されている場合は縦移動を許可
-          if (this.multiDragActive && !this.multiDragSameRow) finalDeltaY = 0
-
-          // 移動量が閾値以下の場合はクリックとして扱う
-          if (finalTranslateX === 0 && Math.abs(finalDeltaY) < 5) {
-            // クリックイベントを発火（task-updateは発火しない）
-            this.dispatchEvent(
-              new CustomEvent('bar-click', {
-                detail: {
-                  task: this.task,
-                  event: upEvent,
-                  isMultiSelect: upEvent.metaKey || upEvent.ctrlKey,
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-            // onClickでの重複発火を防止
-            this._wasDragging = true
-            return
-          }
-
-          const isCopy = upEvent.ctrlKey || upEvent.altKey
-
-          // 実際にドラッグが行われたのでフラグを設定
-          this._wasDragging = true
-
-          // 複数選択ドラッグ中はbar-clickを発火しない。
-          // bar-click(isMultiSelect: false)を発火すると selectedTasks が単一にリセットされ、
-          // 続く task-update で isMultiDrag が false になって他バーが元の位置に戻ってしまう。
-          if (!this.multiDragActive) {
-            // 単一ドラッグ時のみ、ドラッグしたバーに選択を移す
-            this.dispatchEvent(
-              new CustomEvent('bar-click', {
-                detail: {
-                  task: this.task,
-                  event: upEvent,
-                  isMultiSelect: false,
-                },
-                bubbles: true,
-                composed: true,
-              }),
-            )
-          }
-
-          this.dispatchEvent(
-            new CustomEvent('task-update', {
-              detail: {
-                ...this.task,
-                start: originalStart,
-                end: originalEnd,
-                dx: finalTranslateX,
-                dy: finalDeltaY,
-                isDragging: false, // ドロップしたことを示す
-                isOutside: false,
-                mode: isCopy ? 'copy' : 'move',
-              },
-              bubbles: true,
-              composed: true,
-            }),
-          )
-        }
+        finishMove(isCancel, upEvent)
       },
     )
   }
@@ -1089,6 +1496,8 @@ export class GanttBarElement extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback()
+    this.stopEdgeAutoScroll()
+    this.clearLongPressTimer()
     window.removeEventListener('keydown', this.handleKeyDown)
     window.removeEventListener('keyup', this.handleKeyUp)
   }
@@ -1244,9 +1653,12 @@ export class GanttBarElement extends LitElement {
   private onConnectorDragStart(e: PointerEvent, endpoint: DependencyEndpoint) {
     if (this.task?.type === 'summary' || this.option.readOnly || this.option.dependency?.creatable === false) return
     e.stopPropagation()
-    e.preventDefault()
+    if (e.cancelable) e.preventDefault()
+    if (e.pointerType === 'touch') {
+      this.touchActive = true
+    }
     const target = e.target as HTMLElement
-    target.setPointerCapture(e.pointerId)
+    this.safeSetPointerCapture(target, e.pointerId)
 
     const taskGroup = this.shadowRoot?.querySelector('.task-group') as HTMLElement
     if (!taskGroup) return
@@ -1264,6 +1676,24 @@ export class GanttBarElement extends LitElement {
     const startX = endpoint === 'start' ? x : x + width
     const startY = y + barHeight / 2
 
+    const emitMove = (clientX: number, clientY: number) => {
+      this.dispatchEvent(
+        new CustomEvent('connector-drag-move', {
+          detail: {
+            taskId: this.task.id,
+            endpoint,
+            startX,
+            startY,
+            clientX,
+            clientY,
+            pointerType: e.pointerType,
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
     // ドラッグ開始を通知
     this.dispatchEvent(
       new CustomEvent('connector-drag-start', {
@@ -1274,30 +1704,26 @@ export class GanttBarElement extends LitElement {
           startY,
           clientX: e.clientX,
           clientY: e.clientY,
+          pointerType: e.pointerType,
         },
         bubbles: true,
         composed: true,
       }),
     )
 
+    this.startEdgeAutoScroll(
+      e.clientX,
+      e.clientY,
+      { allowX: true, allowY: true },
+      (cx, cy) => emitMove(cx, cy),
+    )
+
     this.setupDragEvents(
       target,
       e.pointerId,
       (moveEvent) => {
-        this.dispatchEvent(
-          new CustomEvent('connector-drag-move', {
-            detail: {
-              taskId: this.task.id,
-              endpoint,
-              startX,
-              startY,
-              clientX: moveEvent.clientX,
-              clientY: moveEvent.clientY,
-            },
-            bubbles: true,
-            composed: true,
-          }),
-        )
+        this.updateAutoScrollPointer(moveEvent.clientX, moveEvent.clientY)
+        emitMove(moveEvent.clientX, moveEvent.clientY)
       },
       (isCancel) => {
         this.dispatchEvent(
@@ -1317,9 +1743,13 @@ export class GanttBarElement extends LitElement {
 
   private onProgressDragStart(e: PointerEvent) {
     e.stopPropagation()
-    e.preventDefault()
+    if (e.cancelable) e.preventDefault()
+    if (e.pointerType === 'touch') {
+      this.touchActive = true
+    }
     const target = e.currentTarget as HTMLElement
     if (!target) return
+    this.safeSetPointerCapture(target, e.pointerId)
 
     const isReadOnly = this.option?.readOnly
     const isProgressFeatureEnabled = this.option?.progress?.enabled !== false
@@ -1582,6 +2012,7 @@ export class GanttBarElement extends LitElement {
           height: ${groupHeight}px;
           ${isDelayed ? `--moguchart-delay-color: ${delayColor};` : ''}
         "
+        @pointerdown="${this.onTaskGroupPointerDown}"
         @mouseenter="${this.onMouseEnter}"
         @mouseleave="${this.onMouseLeave}"
         @click="${this.onClick}"

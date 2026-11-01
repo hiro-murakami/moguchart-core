@@ -1,7 +1,8 @@
-import { LitElement, html, css } from 'lit'
+import { LitElement, html, css, render } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type {
   GanttChartOption,
+  CalendarQuarterCellContext,
   CalendarMonthCellContext,
   CalendarDayCellContext,
   CalendarWeekCellContext,
@@ -16,6 +17,97 @@ import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core
 import { normalizeGridColumns } from '../core/grid'
 import dayjs from 'dayjs'
 
+interface PositionedRange {
+  left: number
+  width: number
+}
+
+interface CachedMonthItem extends PositionedRange {
+  year: number
+  month: number
+  count: number
+  start: Date
+  end: Date
+}
+
+interface CachedYearItem extends PositionedRange {
+  year: number
+  count: number
+  start: Date
+  end: Date
+}
+
+interface CachedQuarterItem extends PositionedRange {
+  quarter: 1 | 2 | 3 | 4
+  fiscalYear: number
+  count: number
+  start: Date
+  end: Date
+}
+
+interface CachedWeekItem extends PositionedRange {
+  weekNumber: number
+  startDate: Date
+  count: number
+}
+
+interface CachedDayItem extends PositionedRange {
+  date: Date
+  index: number
+}
+
+interface ShowTimeSeg extends PositionedRange {
+  date: Date
+  hStart: number
+  hEnd: number
+  segIndex: number
+}
+
+function slicePositionedRange<T extends PositionedRange>(
+  items: T[],
+  startX: number,
+  endX: number,
+  useVirtualX: boolean,
+): { slice: T[]; offsetLeft: number } {
+  if (items.length === 0) return { slice: [], offsetLeft: 0 }
+  if (!useVirtualX || !Number.isFinite(endX)) {
+    return { slice: items, offsetLeft: items[0].left }
+  }
+
+  let lo = 0
+  let hi = items.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (items[mid].left + items[mid].width <= startX) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+  const firstIdx = lo
+  if (firstIdx >= items.length || items[firstIdx].left >= endX) {
+    return { slice: [], offsetLeft: 0 }
+  }
+
+  lo = firstIdx
+  hi = items.length - 1
+  let lastIdx = firstIdx
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1
+    if (items[mid].left < endX) {
+      lastIdx = mid
+      lo = mid + 1
+    } else {
+      hi = mid - 1
+    }
+  }
+
+  return {
+    slice: items.slice(firstIdx, lastIdx + 1),
+    offsetLeft: items[firstIdx].left,
+  }
+}
+
 @customElement('gantt-calendar')
 export class GanttCalendarElement extends LitElement {
   @property({ type: Object }) option!: GanttChartOption
@@ -25,16 +117,19 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: Boolean }) isExporting = false
   @property({ type: String }) hoveredMilestoneId: string | null = null
   @property({ attribute: false }) cornerContent?: () => string | unknown
+  @property({ attribute: false }) calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
   @property({ attribute: false }) calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
   @property({ attribute: false }) calendarDayContent?: (context: CalendarDayCellContext) => string | unknown
   @property({ attribute: false }) calendarWeekContent?: (context: CalendarWeekCellContext) => string | unknown
   @property({ attribute: false }) calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
+  @property({ type: Number }) visibleStartX = 0
+  @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
 
   /**
    * カスタムレンダリング関数の返却値をターゲット要素に注入するヘルパー
-   * HTMLElement の場合は appendChild、文字列の場合は innerHTML に設定する
+   * HTMLElement の場合は appendChild、文字列の場合は textContent、Lit TemplateResult の場合は render で設定する
    */
   private injectCustomContent(target: HTMLElement, content: unknown, className: string) {
     // 既存のカスタムコンテンツを削除（再レンダリング時の重複防止）
@@ -49,12 +144,18 @@ export class GanttCalendarElement extends LitElement {
       // textContent で安全に挿入（innerHTML による XSS を防止）
       wrapper.textContent = content
       target.appendChild(wrapper)
+    } else if (content !== null && content !== undefined && typeof content === 'object') {
+      const wrapper = document.createElement('span')
+      wrapper.classList.add(className)
+      render(content, wrapper)
+      target.appendChild(wrapper)
     }
   }
 
   private get isGridEnabled(): boolean {
     return (
-      (this.option?.grid?.enabled === true || (this.option?.grid?.columns !== undefined && this.option?.grid?.enabled !== false)) &&
+      (this.option?.grid?.enabled === true ||
+        (this.option?.grid?.columns !== undefined && this.option?.grid?.enabled !== false)) &&
       (!!this.gridColumns || !!this.option?.grid?.columns)
     )
   }
@@ -90,7 +191,12 @@ export class GanttCalendarElement extends LitElement {
 
     const isMonthMode = this.option.calendar.pxPerMonth !== undefined
     const isTimeMode = !!this.option.calendar.showTime
-    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode, isTimeMode)
+    const columns = normalizeGridColumns(
+      this.gridColumns ?? this.option.grid?.columns,
+      this.option.locale,
+      isMonthMode,
+      isTimeMode,
+    )
     const targetCol = columns.find((c) => c.id === columnId)
     if (!targetCol) return
 
@@ -122,6 +228,7 @@ export class GanttCalendarElement extends LitElement {
       target.releasePointerCapture(e.pointerId)
       target.removeEventListener('pointermove', handleMove)
       target.removeEventListener('pointerup', handleUp)
+      target.removeEventListener('pointercancel', handleUp)
       this.dispatchEvent(
         new CustomEvent<ColumnResizeEventDetail>('column-resize', {
           detail: {
@@ -139,6 +246,7 @@ export class GanttCalendarElement extends LitElement {
 
     target.addEventListener('pointermove', handleMove)
     target.addEventListener('pointerup', handleUp)
+    target.addEventListener('pointercancel', handleUp)
   }
 
   /**
@@ -149,7 +257,12 @@ export class GanttCalendarElement extends LitElement {
 
     const isMonthMode = this.option.calendar.pxPerMonth !== undefined
     const isTimeMode = !!this.option.calendar.showTime
-    const columns = normalizeGridColumns(this.gridColumns ?? this.option.grid?.columns, this.option.locale, isMonthMode, isTimeMode)
+    const columns = normalizeGridColumns(
+      this.gridColumns ?? this.option.grid?.columns,
+      this.option.locale,
+      isMonthMode,
+      isTimeMode,
+    )
     const visibleColumns = columns.filter((c) => c.visible !== false)
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const hasCornerTop = Boolean(this.cornerContent)
@@ -208,11 +321,25 @@ export class GanttCalendarElement extends LitElement {
     `
   }
 
-
   /**
    * カレンダーセルのカスタムレンダリングコンテンツを注入する
    */
   private injectCalendarCustomContent() {
+    if (this.calendarQuarterContent) {
+      const cells = this.shadowRoot?.querySelectorAll('[data-calendar-quarter]')
+      cells?.forEach((cell) => {
+        const el = cell as HTMLElement
+        const quarter = (parseInt(el.dataset.calendarQuarter ?? '1', 10) || 1) as 1 | 2 | 3 | 4
+        const fiscalYear = parseInt(el.dataset.calendarQuarterFiscalYear ?? '0', 10)
+        const startDate = new Date(el.dataset.calendarQuarterStart ?? '')
+        const width = parseFloat(el.dataset.calendarQuarterWidth ?? '0')
+        const defaultLabel = el.dataset.calendarQuarterLabel ?? ''
+        const context: CalendarQuarterCellContext = { quarter, fiscalYear, startDate, width, defaultLabel }
+        const content = this.calendarQuarterContent!(context)
+        this.injectCustomContent(el, content, 'custom-quarter-content')
+      })
+    }
+
     if (this.calendarMonthContent) {
       const cells = this.shadowRoot?.querySelectorAll('[data-calendar-month]')
       cells?.forEach((cell) => {
@@ -274,18 +401,19 @@ export class GanttCalendarElement extends LitElement {
     }
   }
 
-  // days/months/years/weeks のキャッシュ
+  // days/months/years/quarters/weeks のキャッシュ
   private _cachedDays: Date[] | null = null
-  private _cachedMonths:
-    | { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[]
-    | null = null
-  private _cachedYears: { year: number; count: number; start?: Date; end?: Date; width?: number }[] | null = null
-  private _cachedWeeks: { weekNumber: number; startDate: Date; count: number }[] | null = null
+  private _cachedDayItems: CachedDayItem[] | null = null
+  private _cachedMonths: CachedMonthItem[] | null = null
+  private _cachedYears: CachedYearItem[] | null = null
+  private _cachedQuarters: CachedQuarterItem[] | null = null
+  private _cachedWeeks: CachedWeekItem[] | null = null
   private _cachedStartTime = 0
   private _cachedEndTime = 0
   private _cachedPxPerDay = 0
   private _cachedPxPerMonth: number | undefined = undefined
   private _cachedWeekStartDay: number = -1
+  private _cachedQuarterStartMonth: number = -1
 
   private get totalDays() {
     return getTotalDays(this.option.calendar.start, this.option.calendar.end)
@@ -322,6 +450,15 @@ export class GanttCalendarElement extends LitElement {
       height: 100%;
       cursor: col-resize;
       z-index: 10;
+      touch-action: none;
+    }
+    .column-resizer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -6px;
+      right: -4px;
     }
     .column-resizer:hover,
     .column-resizer:active {
@@ -333,6 +470,19 @@ export class GanttCalendarElement extends LitElement {
       position: relative;
       z-index: 70;
     }
+    .quarters-container {
+      display: flex;
+    }
+    .quarter-cell {
+      box-sizing: border-box;
+      padding: 3px 6px;
+      font-size: calc(11px * var(--moguchart-font-scale, 1));
+      font-weight: 700;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .months-container {
       display: flex;
     }
@@ -341,6 +491,7 @@ export class GanttCalendarElement extends LitElement {
       padding: 4px 8px;
       font-size: calc(12px * var(--moguchart-font-scale, 1));
       font-weight: bold;
+      flex-shrink: 0;
       white-space: nowrap;
       overflow: hidden;
     }
@@ -438,7 +589,27 @@ export class GanttCalendarElement extends LitElement {
     return `${h}:${m}`
   }
 
-  private _buildWeeks(days: Date[], weekStartDay: number): { weekNumber: number; startDate: Date; count: number }[] {
+  private _buildDayItems(days: Date[]): CachedDayItem[] {
+    const pxPerDay = this.option.calendar.pxPerDay
+    const total = this.totalDays
+    let accLeft = 0
+    return days.map((day, index) => {
+      let width = pxPerDay
+      if (index + 1 > total) {
+        width = (total - index) * pxPerDay
+      }
+      const item: CachedDayItem = {
+        date: day,
+        index,
+        left: accLeft,
+        width,
+      }
+      accLeft += width
+      return item
+    })
+  }
+
+  private _buildWeeks(days: Date[], weekStartDay: number): CachedWeekItem[] {
     const getWeekNumber = (date: Date): number => {
       const d = new Date(date.getTime())
       d.setHours(0, 0, 0, 0)
@@ -450,31 +621,139 @@ export class GanttCalendarElement extends LitElement {
       const dayOfYear = Math.floor((weekStart.getTime() - yearStart.getTime()) / 86400000)
       return Math.floor(dayOfYear / 7) + 1
     }
-    const weeks: { weekNumber: number; startDate: Date; count: number }[] = []
+    const rawWeeks: { weekNumber: number; startDate: Date; count: number }[] = []
     days.forEach((day) => {
       const dayOfWeek = day.getDay()
       const isWeekStart = dayOfWeek === weekStartDay
-      const last = weeks[weeks.length - 1]
+      const last = rawWeeks[rawWeeks.length - 1]
       if (last && !isWeekStart) {
         last.count++
       } else {
-        weeks.push({ weekNumber: getWeekNumber(day), startDate: new Date(day), count: 1 })
+        rawWeeks.push({ weekNumber: getWeekNumber(day), startDate: new Date(day), count: 1 })
       }
     })
-    return weeks
+    return this._applyWeekPositions(rawWeeks)
+  }
+
+  private _applyWeekPositions(
+    rawWeeks: { weekNumber: number; startDate: Date; count: number }[],
+  ): CachedWeekItem[] {
+    const pxPerDay = this.option.calendar.pxPerDay
+    let accLeft = 0
+    return rawWeeks.map((w) => {
+      const width = w.count * pxPerDay
+      const item: CachedWeekItem = {
+        weekNumber: w.weekNumber,
+        startDate: w.startDate,
+        count: w.count,
+        left: accLeft,
+        width,
+      }
+      accLeft += width
+      return item
+    })
+  }
+
+  private _buildQuarters(days: Date[], quarterStartMonth: number): CachedQuarterItem[] {
+    const startMonth0 = ((quarterStartMonth - 1) % 12 + 12) % 12
+    const quarters: CachedQuarterItem[] = []
+
+    days.forEach((day) => {
+      const m0 = day.getMonth()
+      const y = day.getFullYear()
+      const offsetMonths = (m0 - startMonth0 + 12) % 12
+      const quarter = (Math.floor(offsetMonths / 3) + 1) as 1 | 2 | 3 | 4
+      const fiscalYear = m0 < startMonth0 ? y - 1 : y
+
+      const last = quarters[quarters.length - 1]
+      if (last && last.fiscalYear === fiscalYear && last.quarter === quarter) {
+        last.count++
+        const end = new Date(day)
+        end.setDate(end.getDate() + 1)
+        last.end = end
+      } else {
+        const start = new Date(day)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(day)
+        end.setDate(end.getDate() + 1)
+        quarters.push({
+          quarter,
+          fiscalYear,
+          count: 1,
+          start,
+          end,
+          left: 0,
+          width: 0,
+        })
+      }
+    })
+
+    quarters.forEach((q) => {
+      const left = Math.max(0, this.getDateX(q.start))
+      const right = this.getDateX(q.end)
+      q.left = left
+      q.width = Math.max(0, right - left)
+    })
+
+    return quarters
+  }
+
+  private _renderQuartersRow(
+    quarters: CachedQuarterItem[],
+    colors: ReturnType<typeof getThemeColors>,
+    useVirtualX: boolean,
+  ) {
+    if (!this.option.calendar.showQuarters) return ''
+    const { slice, offsetLeft } = slicePositionedRange(quarters, this.visibleStartX, this.visibleEndX, useVirtualX)
+    const quarterFormat = this.option.calendar.quarterFormat
+    const quarterTextAlign = this.option.calendar.quarterTextAlign ?? 'center'
+    const quarterStartMonth = this.option.calendar.quarterStartMonth ?? 1
+    const showYearInLabel = !this.option.calendar.showMonthsRow || quarterStartMonth !== 1
+
+    return html`
+      <div
+        class="quarters-container"
+        style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative; z-index: 2;"
+      >
+        ${offsetLeft > 0 ? html`<div style="width: ${offsetLeft}px; flex-shrink: 0;"></div>` : ''}
+        ${slice.map((q) => {
+          const defaultLabel = quarterFormat
+            ? quarterFormat(q.quarter, q.fiscalYear, q.start)
+            : showYearInLabel
+              ? quarterStartMonth !== 1
+                ? `FY${q.fiscalYear} Q${q.quarter}`
+                : `${q.fiscalYear} Q${q.quarter}`
+              : `Q${q.quarter}`
+          return html`<div
+            class="quarter-cell"
+            style="width: ${q.width}px; border-right: 1px solid ${colors.monthGridLine ||
+            colors.border}; text-align: ${quarterTextAlign};"
+            data-calendar-quarter="${q.quarter}"
+            data-calendar-quarter-fiscal-year="${q.fiscalYear}"
+            data-calendar-quarter-start="${q.start.toISOString()}"
+            data-calendar-quarter-width="${q.width}"
+            data-calendar-quarter-label="${defaultLabel}"
+          >
+            ${this.calendarQuarterContent ? '' : defaultLabel}
+          </div>`
+        })}
+      </div>
+    `
   }
 
   render() {
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
-    // start/end が変わった時だけ days/months/years を再計算する
+    // start/end が変わった時だけ days/months/years/quarters を再計算する
     const startTime = this.option.calendar.start.getTime()
     const endTime = this.option.calendar.end.getTime()
     const pxPerDay = this.option.calendar.pxPerDay
     const pxPerMonth = this.option.calendar.pxPerMonth
     const weekStartDay = this.option.calendar.weekStartDay ?? 1
+    const quarterStartMonth = this.option.calendar.quarterStartMonth ?? 1
     const needsRebuild = !this._cachedDays || startTime !== this._cachedStartTime || endTime !== this._cachedEndTime
     const needsWidthRecalc = pxPerDay !== this._cachedPxPerDay || pxPerMonth !== this._cachedPxPerMonth
+
     if (needsRebuild) {
       this._cachedStartTime = startTime
       this._cachedEndTime = endTime
@@ -487,85 +766,119 @@ export class GanttCalendarElement extends LitElement {
         return d
       })
       this._cachedDays = days
+      this._cachedDayItems = this._buildDayItems(days)
 
-      const months: { year: number; month: number; count: number; width?: number; start?: Date; end?: Date }[] = []
+      const months: CachedMonthItem[] = []
       days.forEach((day) => {
         const year = day.getFullYear()
         const month = day.getMonth()
         const last = months[months.length - 1]
         if (last && last.year === year && last.month === month) {
           last.count++
-          last.end = new Date(day)
-          last.end.setDate(last.end.getDate() + 1)
+          const end = new Date(day)
+          end.setDate(end.getDate() + 1)
+          last.end = end
         } else {
           const start = new Date(day)
           start.setHours(0, 0, 0, 0)
           const end = new Date(day)
           end.setDate(end.getDate() + 1)
-          months.push({ year, month, count: 1, start, end })
+          months.push({ year, month, count: 1, start, end, left: 0, width: 0 })
         }
       })
       months.forEach((m) => {
-        if (m.start && m.end) {
-          m.width = this.getDateX(m.end) - this.getDateX(m.start)
-        }
+        const left = Math.max(0, this.getDateX(m.start))
+        const right = this.getDateX(m.end)
+        m.left = left
+        m.width = Math.max(0, right - left)
       })
       this._cachedMonths = months
 
       // years（showMonthsRow 用）
-      const years: { year: number; count: number; start?: Date; end?: Date; width?: number }[] = []
+      const years: CachedYearItem[] = []
       days.forEach((day) => {
         const year = day.getFullYear()
         const last = years[years.length - 1]
         if (last && last.year === year) {
           last.count++
-          last.end = new Date(day)
-          last.end.setDate(last.end.getDate() + 1)
+          const end = new Date(day)
+          end.setDate(end.getDate() + 1)
+          last.end = end
         } else {
           const start = new Date(day)
           start.setHours(0, 0, 0, 0)
           const end = new Date(day)
           end.setDate(end.getDate() + 1)
-          years.push({ year, count: 1, start, end })
+          years.push({ year, count: 1, start, end, left: 0, width: 0 })
         }
       })
       years.forEach((y) => {
-        if (y.start && y.end) {
-          y.width = this.getDateX(y.end) - this.getDateX(y.start)
-        }
+        const left = Math.max(0, this.getDateX(y.start))
+        const right = this.getDateX(y.end)
+        y.left = left
+        y.width = Math.max(0, right - left)
       })
       this._cachedYears = years
 
-      // weeks（showWeeks 用）— weekStartDay もここで計算しキャッシュ
+      this._cachedQuarterStartMonth = quarterStartMonth
+      this._cachedQuarters = this._buildQuarters(days, quarterStartMonth)
+
+      // weeks（showWeeks 用）
       this._cachedWeekStartDay = weekStartDay
       this._cachedWeeks = this._buildWeeks(days, weekStartDay)
     } else if (needsWidthRecalc) {
-      // pxPerDay / pxPerMonth が変わった場合は months/years の width のみ再計算
       this._cachedPxPerDay = pxPerDay
       this._cachedPxPerMonth = pxPerMonth
+      this._cachedDayItems = this._buildDayItems(this._cachedDays!)
       this._cachedMonths!.forEach((m) => {
-        if (m.start && m.end) {
-          m.width = this.getDateX(m.end) - this.getDateX(m.start)
-        }
+        const left = Math.max(0, this.getDateX(m.start))
+        const right = this.getDateX(m.end)
+        m.left = left
+        m.width = Math.max(0, right - left)
       })
       this._cachedYears!.forEach((y) => {
-        if (y.start && y.end) {
-          y.width = this.getDateX(y.end) - this.getDateX(y.start)
-        }
+        const left = Math.max(0, this.getDateX(y.start))
+        const right = this.getDateX(y.end)
+        y.left = left
+        y.width = Math.max(0, right - left)
       })
+      if (quarterStartMonth !== this._cachedQuarterStartMonth) {
+        this._cachedQuarterStartMonth = quarterStartMonth
+        this._cachedQuarters = this._buildQuarters(this._cachedDays!, quarterStartMonth)
+      } else {
+        this._cachedQuarters!.forEach((q) => {
+          const left = Math.max(0, this.getDateX(q.start))
+          const right = this.getDateX(q.end)
+          q.left = left
+          q.width = Math.max(0, right - left)
+        })
+      }
+      if (weekStartDay !== this._cachedWeekStartDay) {
+        this._cachedWeekStartDay = weekStartDay
+        this._cachedWeeks = this._buildWeeks(this._cachedDays!, weekStartDay)
+      } else {
+        this._cachedWeeks = this._applyWeekPositions(this._cachedWeeks!)
+      }
+    } else {
       if (weekStartDay !== this._cachedWeekStartDay) {
         this._cachedWeekStartDay = weekStartDay
         this._cachedWeeks = this._buildWeeks(this._cachedDays!, weekStartDay)
       }
-    } else if (weekStartDay !== this._cachedWeekStartDay) {
-      // weekStartDay だけ変わった場合は weeks のみ再計算
-      this._cachedWeekStartDay = weekStartDay
-      this._cachedWeeks = this._buildWeeks(this._cachedDays!, weekStartDay)
+      if (quarterStartMonth !== this._cachedQuarterStartMonth) {
+        this._cachedQuarterStartMonth = quarterStartMonth
+        this._cachedQuarters = this._buildQuarters(this._cachedDays!, quarterStartMonth)
+      }
     }
 
-    const days = this._cachedDays!
+    const dayItems = this._cachedDayItems!
     const months = this._cachedMonths!
     const years = this._cachedYears!
+    const quarters = this._cachedQuarters!
+
+    const useVirtualX =
+      !this.isExporting &&
+      this.option.calendar.virtualScrollX !== false &&
+      Number.isFinite(this.visibleEndX)
 
     const backgroundStyle = `
       background-image: linear-gradient(90deg, transparent ${this.option.calendar.pxPerDay - 1}px, ${colors.border} ${this.option.calendar.pxPerDay - 1}px);
@@ -576,14 +889,10 @@ export class GanttCalendarElement extends LitElement {
     const dayWidth = this.option.calendar.pxPerDay
     const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.border
     // 開始時刻が0時でない場合、背景グリッドをオフセットする
-    // 例: 開始が09:00なら、最初の日区切り線は 15時間後 = (24-9)*hourWidth の位置に来るべき
     const startDate = this.option.calendar.start
     const startOffsetMs =
       startDate.getHours() * 60 * 60 * 1000 + startDate.getMinutes() * 60 * 1000 + startDate.getSeconds() * 1000
     const startOffsetPx = (startOffsetMs / (24 * 60 * 60 * 1000)) * dayWidth
-    // CSS background-position は正方向にずらすため、負のオフセット（つまり右にずらす）
-    // 日区切り: 最初の0時までの距離 = dayWidth - startOffsetPx
-    // 時間グリッド: hourWidth 単位で同様にオフセット
     const hourOffsetPx = startOffsetPx % hourWidth
     const dayBgPos = startOffsetPx === 0 ? '0px 0' : `${-startOffsetPx}px 0`
     const hourBgPos = hourOffsetPx === 0 ? '0px 0' : `${-hourOffsetPx}px 0`
@@ -593,13 +902,14 @@ export class GanttCalendarElement extends LitElement {
       background-position: ${dayBgPos}, ${hourBgPos};
     `
     // showTime モード: 深夜0時を日付境界とする日ごとのセグメントを生成
-    type ShowTimeSeg = { date: Date; hStart: number; hEnd: number; widthPx: number }
     const showTimeDays: ShowTimeSeg[] = []
     if (this.option.calendar.showTime) {
       const calStart = this.option.calendar.start
       const calEnd = this.option.calendar.end
       let cur = new Date(calStart)
       cur.setHours(0, 0, 0, 0)
+      let accShowTimeLeft = 0
+      let segIdx = 0
       while (cur.getTime() < calEnd.getTime()) {
         const segStart = cur.getTime() < calStart.getTime() ? calStart : cur
         const nextDay = new Date(cur)
@@ -610,14 +920,25 @@ export class GanttCalendarElement extends LitElement {
         const hasFraction = segEnd.getMinutes() > 0 || segEnd.getSeconds() > 0 || segEnd.getMilliseconds() > 0
         const hEnd = hEndRaw === 0 && !hasFraction ? 24 : hasFraction ? hEndRaw + 1 : hEndRaw
         const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
-        showTimeDays.push({ date: new Date(cur), hStart, hEnd, widthPx: durationHours * hourWidth })
+        const widthPx = durationHours * hourWidth
+        showTimeDays.push({
+          date: new Date(cur),
+          hStart,
+          hEnd,
+          left: accShowTimeLeft,
+          width: widthPx,
+          segIndex: segIdx++,
+        })
+        accShowTimeLeft += widthPx
         cur = new Date(nextDay)
       }
     }
 
-    // 月単位モード（pxPerMonth 設定時）では、最後の月セルの終端（翌月1日の位置）を
-    // totalWidth とする。calendar.end が月の途中の日付だと getDateX(end) が月境界より
-    // 手前の値になり、overflow: hidden で最後の月の border-right が切り取られてしまうため。
+    const visibleShowTime = this.option.calendar.showTime
+      ? slicePositionedRange(showTimeDays, this.visibleStartX, this.visibleEndX, useVirtualX)
+      : { slice: [] as ShowTimeSeg[], offsetLeft: 0 }
+
+    // 月単位モード（pxPerMonth 設定時）では、最後の月セルの終端（翌月1日の位置）を totalWidth とする
     const lastMonth = months[months.length - 1]
     const totalWidth =
       this.option.calendar.pxPerMonth !== undefined && lastMonth?.end
@@ -661,26 +982,35 @@ export class GanttCalendarElement extends LitElement {
         ${this.option.calendar.showMonthsRow
           ? (() => {
               const monthTextAlign = this.option.calendar.monthTextAlign ?? 'center'
+              const visibleYears = slicePositionedRange(years, this.visibleStartX, this.visibleEndX, useVirtualX)
+              const visibleMonths = slicePositionedRange(months, this.visibleStartX, this.visibleEndX, useVirtualX)
 
               return html`<div class="months-container" style="position: relative; z-index: 2;">
-                  ${years.map(
+                  ${visibleYears.offsetLeft > 0
+                    ? html`<div style="width: ${visibleYears.offsetLeft}px; flex-shrink: 0;"></div>`
+                    : ''}
+                  ${visibleYears.slice.map(
                     (y) =>
                       html`<div
                         class="month-cell"
-                        style="width: ${y.width ?? y.count * this.option.calendar.pxPerDay}px;"
+                        style="width: ${y.width}px;"
                       >
                         ${y.year}
                       </div>`,
                   )}
                 </div>
+                ${this._renderQuartersRow(quarters, colors, useVirtualX)}
                 <div
                   class="weeks-container"
                   style="background: ${colors.bg}; border-bottom: 1px solid ${colors.border}; position: relative;"
                 >
-                  ${months.map((m) => {
+                  ${visibleMonths.offsetLeft > 0
+                    ? html`<div style="width: ${visibleMonths.offsetLeft}px; flex-shrink: 0;"></div>`
+                    : ''}
+                  ${visibleMonths.slice.map((m) => {
                     const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
                     const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
-                    const cellWidth = m.width ?? m.count * this.option.calendar.pxPerDay
+                    const cellWidth = m.width
                     return html`<div
                       class="week-cell"
                       style="width: ${cellWidth}px; text-align: ${monthTextAlign}; padding: 0 2px;"
@@ -694,29 +1024,36 @@ export class GanttCalendarElement extends LitElement {
                   })}
                 </div>`
             })()
-          : ''}
+          : html`${this._renderQuartersRow(quarters, colors, useVirtualX)}`}
         ${this.option.calendar.showMonths !== false && !this.option.calendar.showMonthsRow
-          ? html`<div class="months-container" style="position: relative;">
-              ${months.map((m) => {
-                const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
-                const text = dayjs(new Date(m.year, m.month)).format(format)
-                const cellWidth = m.width ?? m.count * this.option.calendar.pxPerDay
-                return html`<div
-                  class="month-cell"
-                  style="width: ${cellWidth}px;"
-                  data-calendar-month="${m.month}"
-                  data-calendar-month-year="${m.year}"
-                  data-calendar-month-width="${cellWidth}"
-                  data-calendar-month-label="${text}"
-                >
-                  ${this.calendarMonthContent ? '' : text}
-                </div>`
-              })}
-            </div>`
+          ? (() => {
+              const visibleMonths = slicePositionedRange(months, this.visibleStartX, this.visibleEndX, useVirtualX)
+              return html`<div class="months-container" style="position: relative;">
+                ${visibleMonths.offsetLeft > 0
+                  ? html`<div style="width: ${visibleMonths.offsetLeft}px; flex-shrink: 0;"></div>`
+                  : ''}
+                ${visibleMonths.slice.map((m) => {
+                  const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
+                  const text = dayjs(new Date(m.year, m.month)).format(format)
+                  const cellWidth = m.width
+                  return html`<div
+                    class="month-cell"
+                    style="width: ${cellWidth}px;"
+                    data-calendar-month="${m.month}"
+                    data-calendar-month-year="${m.year}"
+                    data-calendar-month-width="${cellWidth}"
+                    data-calendar-month-label="${text}"
+                  >
+                    ${this.calendarMonthContent ? '' : text}
+                  </div>`
+                })}
+              </div>`
+            })()
           : ''}
         ${this.option.calendar.showWeeks
           ? (() => {
               const weeks = this._cachedWeeks!
+              const visibleWeeks = slicePositionedRange(weeks, this.visibleStartX, this.visibleEndX, useVirtualX)
 
               const weekBackgroundStyle = `
                 background: ${colors.bg};
@@ -726,9 +1063,12 @@ export class GanttCalendarElement extends LitElement {
               const weekFormat = this.option.calendar.weekFormat
               const weekTextAlign = this.option.calendar.weekTextAlign ?? 'center'
               return html`<div class="weeks-container" style="${weekBackgroundStyle}">
-                ${weeks.map((w) => {
+                ${visibleWeeks.offsetLeft > 0
+                  ? html`<div style="width: ${visibleWeeks.offsetLeft}px; flex-shrink: 0;"></div>`
+                  : ''}
+                ${visibleWeeks.slice.map((w) => {
                   const label = weekFormat ? weekFormat(w.weekNumber, w.startDate) : `W${w.weekNumber}`
-                  const cellWidth = w.count * this.option.calendar.pxPerDay
+                  const cellWidth = w.width
                   return html`<div
                     class="week-cell"
                     style="width: ${cellWidth}px; border-right: 1px solid ${colors.border}; text-align: ${weekTextAlign}; padding: 0 2px;"
@@ -749,73 +1089,83 @@ export class GanttCalendarElement extends LitElement {
                 isHoliday: this.option.calendar.isHoliday,
                 nonWorkingDays: this.option.calendar.nonWorkingDays,
               })
-              return html`<div class="days-container" style="${this.option.calendar.showTime ? '' : backgroundStyle}">
-                ${this.option.calendar.showTime
-                  ? showTimeDays.map((seg, segIndex) => {
-                      const backgroundColor = getCalendarColor(
-                        seg.date,
-                        colors,
-                        this.option.calendar.isHoliday,
-                        this.option.calendar,
-                      )
-                      const isLastSeg = segIndex === showTimeDays.length - 1
-                      const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
-                      const defaultLabel = (this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)
-                      const isHolidayDay = holidayResolver.isHolidayDate(seg.date)
-                      return html`
-                        <div
-                          class="day-cell"
-                          style="width: ${seg.widthPx}px; border-right: ${isLastSeg
-                            ? 'none'
-                            : `1px solid ${dateBorderColor}`}; ${backgroundColor
-                            ? `background-color: ${backgroundColor};`
-                            : ''} font-size: calc(12px * var(--moguchart-font-scale, 1)); font-weight: 700; justify-content: flex-start; padding-left: 4px;"
-                          data-calendar-day="${seg.date.toISOString()}"
-                          data-calendar-day-width="${seg.widthPx}"
-                          data-calendar-day-saturday="${seg.date.getDay() === 6}"
-                          data-calendar-day-sunday="${seg.date.getDay() === 0}"
-                          data-calendar-day-holiday="${isHolidayDay}"
-                          data-calendar-day-label="${defaultLabel}"
-                        >
-                          ${this.calendarDayContent ? '' : defaultLabel}
-                        </div>
-                      `
-                    })
-                  : days.map((day, index) => {
-                      let width = this.option.calendar.pxPerDay
-                      if (index + 1 > this.totalDays) {
-                        width = (this.totalDays - index) * this.option.calendar.pxPerDay
-                      }
-                      const backgroundColor = getCalendarColor(
-                        day,
-                        colors,
-                        this.option.calendar.isHoliday,
-                        this.option.calendar,
-                      )
-                      const defaultLabel = String(day.getDate())
-                      const isHolidayDay = holidayResolver.isHolidayDate(day)
-                      return html`
-                        <div
-                          class="day-cell"
-                          style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
-                          data-calendar-day="${day.toISOString()}"
-                          data-calendar-day-width="${width}"
-                          data-calendar-day-saturday="${day.getDay() === 6}"
-                          data-calendar-day-sunday="${day.getDay() === 0}"
-                          data-calendar-day-holiday="${isHolidayDay}"
-                          data-calendar-day-label="${defaultLabel}"
-                        >
-                          ${this.calendarDayContent ? '' : defaultLabel}
-                        </div>
-                      `
-                    })}
+              if (this.option.calendar.showTime) {
+                return html`<div class="days-container">
+                  ${visibleShowTime.offsetLeft > 0
+                    ? html`<div style="width: ${visibleShowTime.offsetLeft}px; flex-shrink: 0;"></div>`
+                    : ''}
+                  ${visibleShowTime.slice.map((seg) => {
+                    const backgroundColor = getCalendarColor(
+                      seg.date,
+                      colors,
+                      this.option.calendar.isHoliday,
+                      this.option.calendar,
+                    )
+                    const isLastSeg = seg.segIndex === showTimeDays.length - 1
+                    const dateBorderColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+                    const defaultLabel = (this.option.locale ?? jaLocale).timeUnitDateFormat(seg.date)
+                    const isHolidayDay = holidayResolver.isHolidayDate(seg.date)
+                    return html`
+                      <div
+                        class="day-cell"
+                        style="width: ${seg.width}px; border-right: ${isLastSeg
+                          ? 'none'
+                          : `1px solid ${dateBorderColor}`}; ${backgroundColor
+                          ? `background-color: ${backgroundColor};`
+                          : ''} font-size: calc(12px * var(--moguchart-font-scale, 1)); font-weight: 700; justify-content: flex-start; padding-left: 4px;"
+                        data-calendar-day="${seg.date.toISOString()}"
+                        data-calendar-day-width="${seg.width}"
+                        data-calendar-day-saturday="${seg.date.getDay() === 6}"
+                        data-calendar-day-sunday="${seg.date.getDay() === 0}"
+                        data-calendar-day-holiday="${isHolidayDay}"
+                        data-calendar-day-label="${defaultLabel}"
+                      >
+                        ${this.calendarDayContent ? '' : defaultLabel}
+                      </div>
+                    `
+                  })}
+                </div>`
+              }
+
+              const visibleDays = slicePositionedRange(dayItems, this.visibleStartX, this.visibleEndX, useVirtualX)
+              return html`<div class="days-container" style="${backgroundStyle}">
+                ${visibleDays.offsetLeft > 0
+                  ? html`<div style="width: ${visibleDays.offsetLeft}px; flex-shrink: 0;"></div>`
+                  : ''}
+                ${visibleDays.slice.map(({ date: day, width }) => {
+                  const backgroundColor = getCalendarColor(
+                    day,
+                    colors,
+                    this.option.calendar.isHoliday,
+                    this.option.calendar,
+                  )
+                  const defaultLabel = String(day.getDate())
+                  const isHolidayDay = holidayResolver.isHolidayDate(day)
+                  return html`
+                    <div
+                      class="day-cell"
+                      style="width: ${width}px; ${backgroundColor ? `background-color: ${backgroundColor};` : ''}"
+                      data-calendar-day="${day.toISOString()}"
+                      data-calendar-day-width="${width}"
+                      data-calendar-day-saturday="${day.getDay() === 6}"
+                      data-calendar-day-sunday="${day.getDay() === 0}"
+                      data-calendar-day-holiday="${isHolidayDay}"
+                      data-calendar-day-label="${defaultLabel}"
+                    >
+                      ${this.calendarDayContent ? '' : defaultLabel}
+                    </div>
+                  `
+                })}
               </div>`
             })()
           : ''}
         ${this.option.calendar.showTime
           ? html`
               <div class="hours-container" style="${hourBackgroundStyle}">
-                ${showTimeDays.map((seg) => {
+                ${visibleShowTime.offsetLeft > 0
+                  ? html`<div style="width: ${visibleShowTime.offsetLeft}px; flex-shrink: 0;"></div>`
+                  : ''}
+                ${visibleShowTime.slice.map((seg) => {
                   return Array.from({ length: seg.hEnd - seg.hStart }, (_, i) => seg.hStart + i).map((h) => {
                     return html` <div
                       class="hour-cell"
@@ -835,11 +1185,13 @@ export class GanttCalendarElement extends LitElement {
             (this.option.calendar.showDays === false && !this.option.calendar.showWeeks)
           const startX = this.getDateX(this.option.calendar.start)
           const endX = this.getDateX(this.option.calendar.end)
-          const lines = months.map((m) => {
-            if (!m.start) return ''
+          const lines: unknown[] = []
+          for (const m of months) {
+            if (!m.start) continue
             const x = this.getDateX(m.start)
-            if (x <= startX) return '' // do not draw line at the very left edge
-            const isYearBoundary = m.month === 0 // January is the year boundary
+            if (x <= startX) continue
+            if (useVirtualX && (x < this.visibleStartX - 2 || x > this.visibleEndX + 2)) continue
+            const isYearBoundary = m.month === 0
             let lineColor
             let lineZIndex = 1
             if (isYearBoundary) {
@@ -849,16 +1201,21 @@ export class GanttCalendarElement extends LitElement {
               lineColor = isMonthMode ? colors.border : colors.monthGridLine || colors.border
               lineZIndex = 1
             }
-            return html`<div
-              style="position: absolute; top: 0; bottom: 0; left: ${x -
-              1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: ${lineZIndex};"
-            ></div>`
-          })
+            lines.push(
+              html`<div
+                style="position: absolute; top: 0; bottom: 0; left: ${x -
+                1}px; width: 1px; background-color: ${lineColor}; pointer-events: none; z-index: ${lineZIndex};"
+              ></div>`,
+            )
+          }
           // 最後の月の右端（calendar.end の位置）にも縦線を描画する
-          // end が月の初日でない場合、months の start 位置ループでは右端の線が生成されないため
-          const lastMonth = months[months.length - 1]
-          if (lastMonth && endX > startX) {
-            const lastIsYearBoundary = lastMonth.month === 11 // December boundary
+          const lastMonthItem = months[months.length - 1]
+          if (
+            lastMonthItem &&
+            endX > startX &&
+            (!useVirtualX || (endX >= this.visibleStartX - 2 && endX <= this.visibleEndX + 2))
+          ) {
+            const lastIsYearBoundary = lastMonthItem.month === 11
             const endLineColor = lastIsYearBoundary
               ? colors.yearGridLine || colors.monthGridLine || colors.border
               : isMonthMode
@@ -892,12 +1249,16 @@ export class GanttCalendarElement extends LitElement {
               </div>
             `
           : ''}
-        ${(this.option.calendar.milestones ?? []).map(
-          (ms) => html`
+        ${(this.option.calendar.milestones ?? []).map((ms) => {
+          const msX = this.getDateX(ms.start)
+          if (useVirtualX && (msX < this.visibleStartX - 200 || msX > this.visibleEndX + 200)) {
+            return ''
+          }
+          return html`
             <div
               class="milestone-connector ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
-                left: ${this.getDateX(ms.start) + 1}px;
+                left: ${msX + 1}px;
                 width: ${ms.width ?? 2}px;
                 background-color: ${ms.color};
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
@@ -924,7 +1285,7 @@ export class GanttCalendarElement extends LitElement {
             <div
               class="milestone-badge ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
-                left: ${this.getDateX(ms.start)}px;
+                left: ${msX}px;
                 background-color: ${ms.color};
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
               "
@@ -949,8 +1310,8 @@ export class GanttCalendarElement extends LitElement {
             >
               ${ms.name}
             </div>
-          `,
-        )}
+          `
+        })}
       </div>
     `
   }
