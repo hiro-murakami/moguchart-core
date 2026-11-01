@@ -151,8 +151,8 @@ export class GanttBarElement extends LitElement {
     .handle-right:hover {
       background: rgba(255, 255, 255, 0.3);
     }
-    :host([selected]) .handle-left::after,
-    :host([selected]) .handle-right::after {
+    :host([touch-active][selected]) .handle-left::after,
+    :host([touch-active][selected]) .handle-right::after {
       content: '';
       position: absolute;
       top: 50%;
@@ -165,10 +165,10 @@ export class GanttBarElement extends LitElement {
       box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
       pointer-events: none;
     }
-    :host([selected]) .handle-left::after {
+    :host([touch-active][selected]) .handle-left::after {
       left: 2px;
     }
-    :host([selected]) .handle-right::after {
+    :host([touch-active][selected]) .handle-right::after {
       right: 2px;
     }
     :host([touch-active][selected]) .handle-left::before,
@@ -186,6 +186,26 @@ export class GanttBarElement extends LitElement {
       right: -8px;
     }
     @media (pointer: coarse) {
+      :host([selected]) .handle-left::after,
+      :host([selected]) .handle-right::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 2px;
+        height: 55%;
+        max-height: 12px;
+        border-radius: 1px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+      }
+      :host([selected]) .handle-left::after {
+        left: 2px;
+      }
+      :host([selected]) .handle-right::after {
+        right: 2px;
+      }
       .handle-left::before,
       .handle-right::before {
         content: '';
@@ -362,9 +382,14 @@ export class GanttBarElement extends LitElement {
       transition: opacity 0.15s ease;
     }
     .task-group:hover .handle-progress,
-    :host([selected]) .handle-progress,
+    :host([touch-active][selected]) .handle-progress,
     .handle-progress.dragging {
       opacity: 1;
+    }
+    @media (pointer: coarse) {
+      :host([selected]) .handle-progress {
+        opacity: 1;
+      }
     }
     .handle-progress-line {
       position: absolute;
@@ -729,9 +754,9 @@ export class GanttBarElement extends LitElement {
 
   private onResizeStart(e: PointerEvent, handle: 'left' | 'right') {
     e.stopPropagation()
-    if (e.pointerType === 'touch') {
-      this.touchActive = true
-      if (e.cancelable) e.preventDefault()
+    this.syncTouchActive(e)
+    if (e.pointerType === 'touch' && e.cancelable) {
+      e.preventDefault()
     }
     const target = e.target as HTMLElement
 
@@ -949,10 +974,16 @@ export class GanttBarElement extends LitElement {
   /** ドラッグ開始と判定するための移動閾値（px） */
   private static readonly DRAG_THRESHOLD = 3
 
-  private onTaskGroupPointerDown = (e: PointerEvent) => {
+  private syncTouchActive(e: PointerEvent) {
     if (e.pointerType === 'touch' && this.option?.touch?.enabled !== false) {
       this.touchActive = true
+    } else if (e.pointerType === 'mouse' && this.touchActive) {
+      this.touchActive = false
     }
+  }
+
+  private onTaskGroupPointerDown = (e: PointerEvent) => {
+    this.syncTouchActive(e)
   }
 
   private onMoveStart(e: PointerEvent) {
@@ -970,9 +1001,7 @@ export class GanttBarElement extends LitElement {
     }
 
     const isTouch = e.pointerType === 'touch' && this.option?.touch?.enabled !== false
-    if (isTouch) {
-      this.touchActive = true
-    }
+    this.syncTouchActive(e)
 
     const movable = this.task.movable ?? 'both'
     if (movable === 'none') return
@@ -1654,9 +1683,7 @@ export class GanttBarElement extends LitElement {
     if (this.task?.type === 'summary' || this.option.readOnly || this.option.dependency?.creatable === false) return
     e.stopPropagation()
     if (e.cancelable) e.preventDefault()
-    if (e.pointerType === 'touch') {
-      this.touchActive = true
-    }
+    this.syncTouchActive(e)
     const target = e.target as HTMLElement
     this.safeSetPointerCapture(target, e.pointerId)
 
@@ -1744,9 +1771,7 @@ export class GanttBarElement extends LitElement {
   private onProgressDragStart(e: PointerEvent) {
     e.stopPropagation()
     if (e.cancelable) e.preventDefault()
-    if (e.pointerType === 'touch') {
-      this.touchActive = true
-    }
+    this.syncTouchActive(e)
     const target = e.currentTarget as HTMLElement
     if (!target) return
     this.safeSetPointerCapture(target, e.pointerId)

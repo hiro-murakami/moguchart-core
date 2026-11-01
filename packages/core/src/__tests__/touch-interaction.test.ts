@@ -312,4 +312,94 @@ describe('Touch & Multi-Device UX', () => {
     touchEnd.touches = []
     container.dispatchEvent(touchEnd)
   })
+
+  it('keeps resize/progress handle indicators hidden on mouse selection and clears touch-active on mouse interaction', async () => {
+    const rowEl = chart.shadowRoot?.querySelector('gantt-row') as any
+    await rowEl.updateComplete
+    const barEl = rowEl.shadowRoot?.querySelector('gantt-bar') as any
+    await barEl.updateComplete
+    const innerBar = barEl.shadowRoot?.querySelector('.bar') as HTMLElement
+
+    // マウスでの pointerdown / pointerup では touch-active が付かない
+    innerBar.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        button: 0,
+        clientX: 300,
+        clientY: 80,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 300,
+        clientY: 80,
+      }),
+    )
+    await chart.updateComplete
+    await barEl.updateComplete
+
+    expect(chart.selectedTasks.has('task-1')).toBe(true)
+    expect(barEl.touchActive).toBe(false)
+    expect(barEl.hasAttribute('touch-active')).toBe(false)
+
+    // タッチ入力で touch-active になった後、マウス入力に戻ったら解除されること
+    innerBar.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 2,
+        pointerType: 'touch',
+        button: 0,
+        clientX: 300,
+        clientY: 80,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 2,
+        pointerType: 'touch',
+        clientX: 300,
+        clientY: 80,
+      }),
+    )
+    await barEl.updateComplete
+    expect(barEl.hasAttribute('touch-active')).toBe(true)
+
+    innerBar.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        pointerId: 3,
+        pointerType: 'mouse',
+        button: 0,
+        clientX: 300,
+        clientY: 80,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 3,
+        pointerType: 'mouse',
+        clientX: 300,
+        clientY: 80,
+      }),
+    )
+    await barEl.updateComplete
+    expect(barEl.touchActive).toBe(false)
+    expect(barEl.hasAttribute('touch-active')).toBe(false)
+
+    // スタイル定義でも @media (pointer: coarse) 外の無条件 :host([selected]) 指定がないこと
+    const styleText = String((barEl.constructor as any).styles?.cssText ?? '')
+    const withoutCoarseMedia = styleText.replace(/@media\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\n\s{4}\}/g, '')
+    expect(withoutCoarseMedia).not.toContain(':host([selected]) .handle-left::after')
+    expect(withoutCoarseMedia).not.toContain(':host([selected]) .handle-right::after')
+    expect(withoutCoarseMedia).not.toContain(':host([selected]) .handle-progress')
+    expect(withoutCoarseMedia).toContain(':host([touch-active][selected]) .handle-left::after')
+    expect(withoutCoarseMedia).toContain(':host([touch-active][selected]) .handle-progress')
+  })
 })
