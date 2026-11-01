@@ -25,25 +25,27 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - ダブルクリック（`contentTarget` で行名DOM要素の直接参照に対応）や右クリックイベントのハンドリング
 - 🎨 **高度なカスタマイズ**:
   - タスクバー、行ヘッダー、ツールチップ、ドラッグ情報のコンテンツを自由にレンダリング可能
+  - タスクバー名ラベルの柔軟な配置制御（`labelPosition: 'inside' | 'right' | 'left' | 'auto'`：バー幅が狭い場合のみ自動で右外側へ退避する `'auto'` モード対応）
   - ライト/ダーク/システムテーマの切り替え＋カスタムカラーテーマ
   - タスクバーの塗りつぶしパターン（ストライプ、ドット、チェッカーボードなど13種類）
   - CSSによるスタイリング
 - 🔗 **依存関係の対話的操作 ＆ 自動スケジューリング**:
   - 4種類の標準依存関係タイプ（`FS`: 終了-開始、`SS`: 開始-開始、`FF`: 終了-終了、`SF`: 開始-終了）およびラグ・リード期間（`lag`: 分単位）を `GanttDependencyLink` で指定可能（文字列タスクIDとも100%後方互換）
-  - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`, `calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`, `isHoliday`）。営業日ベース（土日除外・土日祝日除外）での非稼働日スキップと実稼働期間・ラグ維持、ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
+  - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`）。`option.calendar` の稼働日設定（`calendarMode`, `nonWorkingDays`, `isHoliday`）と連動した非稼働日スキップと実稼働期間・ラグ維持、ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
   - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で左右端エンドポイントに応じて可視化
   - 依存関係線のクリック選択・ハイライト表示に加え、ダブルクリック（`dblclick`）・右クリック（`contextmenu`）イベントにも対応
   - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
   - クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
-- 📅 **柔軟なカレンダー**:
+- 📅 **柔軟なカレンダー ＆ 稼働日管理**:
   - 日単位 / 週単位 / 月単位の表示切り替え
   - ズームレベル（1日・1ヶ月あたりの幅）や表示期間の調整が可能
   - 現在時刻ラインの表示（バッジ付き、自動更新対応）
-  - 祝日判定のカスタムロジック
+  - 稼働日計算モード（`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`）、カスタム定休日曜日（`nonWorkingDays`）、および休日ごとの個別背景色・メタデータ返却に対応した祝日・休日判定ロジック（`isHoliday`）
+  - ドラッグ移動時の実稼働日数維持（`preserveWorkingDaysOnDrag`）およびツールチップでの稼働日数併記
   - 週の始まり曜日の設定
   - ロケール対応（日本語・英語、カスタムロケールも可能）
 - 🔤 **フォントサイズ倍率 (`fontScale`)**: `fontScale` オプションや CSS 変数 `--moguchart-font-scale` でチャート全体のフォントサイズを一括スケーリング。カレンダーヘッダーやタスクバーだけでなく、WBSツリートグルボタンやスペーサーの寸法も連動し、高DPIや高密度表示に最適化
-- 🏁 **マイルストーン**: チャート上にマイルストーン（縦線＋名前バッジ）を表示
+- 🏁 **マイルストーン**: チャート全体の縦線＋バッジ表示（`calendar.milestones`）に加え、各行のタイムライン上にひし形（ダイヤモンド）シンボルとして描画・依存関係接続できるタスクレベルのマイルストーン（`task.type: 'milestone'`, `bar.milestoneColor`）に対応
 - 📍 **マーカー**: 行のタイムライン上に三角形アイコンとラベルで目印を表示
 - 🗺️ **ミニマップ（Overview Minimap）**: チャート全体の鳥瞰プレビュー表示、ドラッグによるスクロール同期・パン操作、クリックジャンプ、ドラッグ移動・リサイズ、折りたたみ対応
 - 📊 **タスク進捗管理**:
@@ -83,7 +85,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - タスク遅延計算（`calculateTaskDelay`）およびプロジェクト予実統計集計（`calculateProjectBaselineSummary`）関数
 - 📋 **マルチカラムデータグリッド（WBS テーブル）**:
   - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
-  - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、進捗率 `progress`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
+  - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、稼働日 `workingDays`、進捗率 `progress`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
   - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出
   - **インラインセル編集**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
   - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）および `customRendering.cornerContent` との上下2段レイアウト共存
@@ -334,11 +336,13 @@ const option = {
 }
 ```
 
-### マイルストーン
+### マイルストーン（縦線マイルストーン ＆ タスクレベルのマイルストーン）
 
-`calendar.milestones` にマイルストーンの配列を渡すことで、チャート上に縦線とバッジを表示できます。マウスオーバーで透明度が変化するホバーエフェクト付きです。
+1. **チャート縦線マイルストーン (`calendar.milestones`)**: チャート全体を貫く縦線とバッジを表示できます。マウスオーバーで透明度が変化するホバーエフェクト付きです。
+2. **タスクレベルのマイルストーン (`task.type: 'milestone'`)**: 行内の個別タスクに `type: 'milestone'` を設定すると、タイムライン上にひし形（ダイヤモンド）シンボルとして描画されます。ドラッグ移動、依存関係線の接続、ミニマップ上のひし形描画、マルチカラムグリッド（期間・稼働日 `0日` 表示、開始日/終了日の同期編集）、および Excel エクスポート（`◆` マーク出力）と完全連動します。
 
 ```javascript
+// 1. チャート縦線マイルストーン
 option.calendar.milestones = [
   {
     id: 'ms-1',
@@ -354,6 +358,62 @@ option.calendar.milestones = [
     color: '#10b981',
   },
 ]
+
+// 2. 行内のマイルストーンタスク (type: 'milestone')
+option.bar = {
+  milestoneColor: '#8b5cf6', // マイルストーンタスクの既定色 (デフォルト: '#8b5cf6')
+}
+const milestoneRow = {
+  id: 'row-gate',
+  name: '設計ゲートレビュー',
+  tasks: [
+    {
+      id: 'task-ms-1',
+      name: '設計承認完了',
+      type: 'milestone',
+      start: new Date('2025-04-15'),
+      end: new Date('2025-04-15'),
+      dependencies: ['task-design'],
+    },
+  ],
+}
+```
+
+### タスクバーのラベル表示位置 (`labelPosition`)
+
+チャート全体の `option.bar.labelPosition` または個別タスクの `task.labelPosition` で、タスク名ラベルの表示位置を制御できます（`'inside'` | `'right'` | `'left'` | `'auto'`）。`'auto'` を指定すると、バー幅が狭くて文字が収まらない場合のみ自動的にバーの右外側（`'right'`）へ退避します。
+
+```javascript
+const option = {
+  bar: {
+    labelPosition: 'auto', // 'inside' (デフォルト) | 'right' | 'left' | 'auto'
+  },
+  // ...
+}
+```
+
+### 稼働日・カスタム休日設定 (`calendarMode` / `nonWorkingDays` / `isHoliday` / `preserveWorkingDaysOnDrag`)
+
+`option.calendar` でプロジェクトの稼働日（営業日）ルールを一元設定できます。設定されたルールはカレンダー・行背景の着色、ツールチップの稼働日数併記、マルチカラムグリッドの `workingDays` 列、タスクドラッグ時の稼働日数維持、および自動スケジューリングのすべてに反映されます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-05-31'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (暦日, デフォルト) | 'weekends' | 'weekends-holidays'
+    nonWorkingDays: [0, 6], // 非営業日とする曜日 (0=日曜 .. 6=土曜、デフォルト: [0, 6])
+    preserveWorkingDaysOnDrag: true, // ドラッグ移動で休日を跨いだ際に元の実稼働日数を維持して終了日を自動伸縮
+    // boolean または { name, color } オブジェクトを返却可能
+    isHoliday: (date) => {
+      if (date.getMonth() === 4 && date.getDate() === 5) {
+        return { name: 'こどもの日', color: '#fee2e2' } // 休日ごとの個別背景色にも対応
+      }
+      return false
+    },
+  },
+}
 ```
 
 ### マーカー
@@ -540,6 +600,14 @@ const rows = [
 ]
 
 const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (暦日, デフォルト) | 'weekends' (非営業曜日除外) | 'weekends-holidays' (非営業曜日・祝日除外)
+    // nonWorkingDays: [0, 6], // 非営業曜日 (デフォルト: 土日 [0, 6])
+    // isHoliday: (date) => false, // 祝日・休日判定関数 (boolean または { name, color } を返却)
+  },
   dependency: {
     lineStyle: 'orthogonal', // 接続線の形状 ('orthogonal': 角丸直角折れ線, 'curve': ベジェ曲線)
     cornerRadius: 8, // 直角折れ線時の角丸半径 (px)
@@ -553,8 +621,6 @@ const option = {
     autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
     scheduleMode: 'push-only', // 'push-only' (制約違反時のみ押し出し) | 'strict' (常に厳密追従)
     respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
-    calendarMode: 'weekends-holidays', // 'calendar' (暦日, デフォルト) | 'weekends' (土日除外) | 'weekends-holidays' (土日・祝日除外)
-    // isHoliday: (date) => false, // 祝日判定関数（省略時は option.calendar.isHoliday を使用）
   },
   // ...
 }
@@ -835,7 +901,8 @@ const option = {
       { id: 'name', width: 220 }, // タスク名 (ツリー開閉トグル付き・テキスト編集)
       { id: 'startDate', width: 125 }, // 開始日 (日/月/日時エディタに自動連動)
       { id: 'endDate', width: 125 }, // 終了日 (日/月/日時エディタに自動連動)
-      { id: 'duration', width: 80 }, // 期間 (数値エディタ)
+      { id: 'duration', width: 80 }, // 期間 (暦日数・数値エディタ)
+      { id: 'workingDays', width: 80 }, // 稼働日 (非営業日・祝日を除いた営業日数・数値エディタ)
       { id: 'progress', width: 70 }, // 進捗率 (0〜100% 数値エディタ)
       {
         id: 'assignee',
@@ -1110,10 +1177,15 @@ import {
   canDropRow,
   // クリティカルパス計算
   computeCriticalPath,
-  // 自動スケジューリング・依存関係ヘルパー
+  // 自動スケジューリング・稼働日・休日・依存関係ヘルパー
   propagateAutoSchedule,
   computeRequiredStartMs,
   createNonWorkingDayChecker,
+  createCustomHolidayResolver,
+  resolveHolidayMeta,
+  parseLocalDateToStartOfDayMs,
+  countWorkingDays,
+  addWorkingDays,
   computeWorkingDurationMs,
   snapToWorkingStartMs,
   addWorkingTimeMs,
@@ -1124,6 +1196,9 @@ import {
   createDependencyEntry,
   hasDependencyTarget,
   removeDependencyTarget,
+  // マイルストーン・バーラベルヘルパー
+  isMilestoneTask,
+  estimateTaskLabelWidth,
   // 進捗率計算
   clampProgress,
   calculateRowProgress,

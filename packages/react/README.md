@@ -16,8 +16,9 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - ⚡ **Imperative API Access**: Directly access methods like `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` via `ref`
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
-- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
-- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
+- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
+- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
+- 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`)
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---

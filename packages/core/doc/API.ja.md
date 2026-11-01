@@ -38,6 +38,8 @@ interface GanttChartOption {
     height?: number // バーの高さ (px)
     margin?: number // バーの上下マージン (px)
     cornerRadius?: number // バーの角丸 (px)
+    labelPosition?: GanttBarLabelPosition // タスク名ラベルの表示位置 ('inside' | 'right' | 'left' | 'auto'、デフォルト: 'inside')
+    milestoneColor?: string // マイルストーンタスク (type === 'milestone') の既定色 (CSSカラー文字列、デフォルト: '#8b5cf6')
   }
   /** 行ヘッダーの設定 */
   rowHeader?: {
@@ -55,7 +57,7 @@ interface GanttChartOption {
     pxPerMonth?: number // 1ヶ月あたりの幅 (px)。指定した場合、月単位の等幅表示になる
     monthFormat?: string // 月の表示フォーマット (例: 'YYYY年M月')
     showRowBackground?: boolean // 行の背景を表示するかどうか
-    isHoliday?: (date: Date) => boolean // 祝日判定ロジック
+    isHoliday?: GanttHolidayChecker // 祝日・休日判定ロジック (true または { name, color } を返すと休日として扱われる)
     showTime?: boolean // 時間単位のグリッドを表示するかどうか
     showMonths?: boolean // 年月を表示するかどうか
     showDays?: boolean // 日付を表示するかどうか
@@ -71,6 +73,9 @@ interface GanttChartOption {
     milestones?: GanttChartMilestone[] // マイルストーンの配列
     showCursorLine?: boolean // マウスカーソル位置に追従する縦罫線を表示するか (デフォルト: false)
     cursorLineColor?: string // カーソル縦罫線の色 (CSS color string。省略時は currentTimeLine と同色)
+    calendarMode?: AutoScheduleCalendarMode // チャート全体の稼働日（休日除外）計算モード ('calendar' | 'weekends' | 'weekends-holidays'、デフォルト: 'calendar')
+    nonWorkingDays?: number[] // 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。デフォルト: [0, 6])
+    preserveWorkingDaysOnDrag?: boolean // タスクバーのドラッグ移動時に元の実稼働日数を維持して終了日を伸縮させるか (デフォルト: false)
   }
   /** 読み取り専用モードかどうか */
   readOnly?: boolean
@@ -461,22 +466,44 @@ type GanttDependency = string | GanttDependencyLink
 type AutoScheduleMode = 'push-only' | 'strict'
 
 /**
- * 自動スケジューリングにおける稼働日計算モード
+ * 稼働日（休日除外）計算モード
  * - 'calendar': カレンダー通り（土日・祝日も稼働日として計算、デフォルト）
- * - 'weekends': 土日を非稼働日として除外（営業日ベースで期間・ラグを維持し、着地日が土日の場合は翌営業日へスキップ）
- * - 'weekends-holidays': 土日および祝日（isHoliday）を非稼働日として除外
+ * - 'weekends': 非営業曜日（nonWorkingDays、デフォルト: 土日 [0, 6]）を非稼働日として除外
+ * - 'weekends-holidays': 非営業曜日および祝日・休日（isHoliday）を非稼働日として除外
  */
 type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
+
+/**
+ * タスクバーのラベル（タスク名）の表示位置
+ * - 'inside': バー内部に表示（通常タスクのデフォルト）
+ * - 'right': バーの右外側に表示（マイルストーンタスクのデフォルト）
+ * - 'left': バーの左外側に表示
+ * - 'auto': バー幅が狭くて文字が収まらない場合のみ右外側に自動退避
+ */
+type GanttBarLabelPosition = 'inside' | 'right' | 'left' | 'auto'
+
+interface GanttHolidayMeta {
+  /** 休日の名称・ラベル（任意） */
+  name?: string
+  /** カレンダー・行背景の個別カスタム背景色（未指定時は theme.holiday 色を使用） */
+  color?: string
+}
+
+type GanttHolidayResult = boolean | GanttHolidayMeta | null | undefined
+
+type GanttHolidayChecker = (date: Date) => GanttHolidayResult
 
 interface AutoScheduleOptions {
   /** スケジューリング制約モード (デフォルト: 'push-only') */
   mode?: AutoScheduleMode
   /** movable === 'none' または 'y' のタスクを自動移動対象から除外するか (デフォルト: true) */
   respectMovable?: boolean
-  /** 稼働日・非稼働日（土日・祝日）の計算モード (デフォルト: 'calendar') */
+  /** 稼働日・非稼働日計算モード (デフォルト: 'calendar') */
   calendarMode?: AutoScheduleCalendarMode
-  /** 祝日判定関数（calendarMode === 'weekends-holidays' 時に使用） */
-  isHoliday?: (date: Date) => boolean
+  /** 祝日・休日判定関数（calendarMode === 'weekends-holidays' 時に使用） */
+  isHoliday?: GanttHolidayChecker
+  /** 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。デフォルト: [0, 6]) */
+  nonWorkingDays?: number[]
 }
 
 interface AutoScheduleResult {
@@ -493,9 +520,10 @@ interface GanttTask {
   name?: string // タスクの表示名
   start: Date // 開始日時
   end: Date // 終了日時
-  type?: 'task' | 'summary' | 'milestone' // タスクの種別 ('task': 通常, 'summary': 親サマリー集計バー, 'milestone': マイルストーン)
+  type?: 'task' | 'summary' | 'milestone' // タスクの種別 ('task': 通常, 'summary': 親サマリー集計バー, 'milestone': ひし形マイルストーン)
   style?: string // バーのカスタムスタイル (CSS文字列)
   labelStyle?: string // バーのラベルのカスタムスタイル (CSS文字列)
+  labelPosition?: GanttBarLabelPosition // バーのラベル表示位置（未指定時は option.bar.labelPosition、マイルストーン時は 'right' に準拠）
   pattern?: GanttTaskPattern // バーの塗りつぶしパターン
   dependencies?: GanttDependency[] // 依存関係にある先行タスクの配列（タスクID文字列または GanttDependencyLink）
   movable?: 'both' | 'x' | 'y' | 'none' // 移動許可設定 ('both': 縦横, 'x': 横のみ, 'y': 縦のみ, 'none': 不可)
@@ -1175,22 +1203,10 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true) */
   respectMovable?: boolean
-  /**
-   * 自動スケジューリング時の稼働日計算モード (デフォルト: 'calendar')
-   * - 'calendar': カレンダー通り（土日・祝日も稼働日として計算）
-   * - 'weekends': 土日を非稼働日として除外（営業日ベースで期間・ラグを維持し、着地日が土日の場合は翌営業日へスキップ）
-   * - 'weekends-holidays': 土日および祝日（isHoliday または option.calendar.isHoliday）を非稼働日として除外
-   */
-  calendarMode?: AutoScheduleCalendarMode
-  /**
-   * calendarMode === 'weekends-holidays' 時に使用するカスタム祝日判定関数。
-   * 未指定時は option.calendar.isHoliday にフォールバックします。
-   */
-  isHoliday?: (date: Date) => boolean
 }
 ```
 
-> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。
+> **Note:** `lineStyle` のデフォルトは `'orthogonal'`（直角折れ線）です。右→左方向の依存関係の場合、自動的にコの字型の迂回ルートが計算されます。`'curve'` を指定した場合は従来通りベジェ曲線で描画されます。また、自動スケジューリング時の稼働日・非営業曜日・祝日除外設定は `option.calendar`（`calendarMode`, `nonWorkingDays`, `isHoliday`）を参照します。
 
 ### DependencyCreateEventDetail
 
@@ -1452,7 +1468,7 @@ interface GanttChartOptionGrid {
 
 #### GanttColumn
 
-各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
+各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
@@ -1478,7 +1494,7 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
 }
 
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'progress' またはカスタム文字列) */
+  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' またはカスタム文字列) */
   id: string
   /** ヘッダー表示名 (未指定時はロケール辞書または id を使用。startDate/endDate は月単位・時間単位モードに応じて自動切替) */
   title?: string
@@ -1506,14 +1522,14 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
   /**
    * セルのインライン編集を許可するかどうか（または行ごとの判定関数）
-   * - `grid.editable: true` の場合、組み込みカラム（`wbs` 除く）および `field` / `valueSetter` を持つカラムはデフォルトで編集可能（サマリータスク行や複数タスク行の日付・期間・進捗は自動的に編集不可）
-   * - 単一タスク行の場合、日付・期間カラムは `task.resizable !== false` かつ `task.movable !== 'none'`、進捗カラムは `task.progressResizable !== false` の設定とも自動連動します
+   * - `grid.editable: true` の場合、組み込みカラム（`wbs` 除く）および `field` / `valueSetter` を持つカラムはデフォルトで編集可能（サマリータスク行や複数タスク行の日付・期間・稼働日・進捗は自動的に編集不可）
+   * - 単一タスク行の場合、日付・期間・稼働日カラムは `task.resizable !== false` かつ `task.movable !== 'none'`、進捗カラムは `task.progressResizable !== false` の設定とも自動連動します（マイルストーンタスク `type === 'milestone'` の場合は `duration` / `workingDays` / `progress` は自動的に編集不可となり、`startDate` / `endDate` の編集時は両者が同一日時へ同期されます）
    * - インライン編集有効時、編集可能セルには `.grid-cell-editable`、編集不可セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます
    */
   editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
   /**
    * セルエディタの種類またはカスタムエディタ生成関数
-   * - 未指定時はカラムIDに応じて自動推論 ('name'->'text', 'startDate'/'endDate'->表示モードに応じて 'date' | 'month' | 'datetime', 'duration'/'progress'->'number')
+   * - 未指定時はカラムIDに応じて自動推論 ('name'->'text', 'startDate'/'endDate'->表示モードに応じて 'date' | 'month' | 'datetime', 'duration'/'workingDays'/'progress'->'number')
    */
   editor?: GanttColumnEditorType | ((context: GanttCellEditorContext<TRow, TTask>) => HTMLElement)
   /** `editor: 'select'` 時の選択肢リスト（または行ごとの動的選択肢取得関数） */
@@ -1590,7 +1606,12 @@ interface MoguchartLocale {
   }
   tooltip: {
     duration: (days: number) => string // 所要日数の表示
+    workingDays?: (days: number, workingDays: number) => string // 稼働日を含めた所要日数の表示 (例: (5, 3) → "所要日数: 5日 (稼働3日)") (オプション)
     progress?: (percent: number) => string // 進捗率の表示 (例: 75 → "進捗: 75%") (オプション)
+    baseline?: (startStr: string, endStr: string, days: number) => string // ベースラインの表示 (オプション)
+    delay?: (days: number) => string // 遅延状況の表示 (オプション)
+    ahead?: (days: number) => string // 前倒し状況の表示 (オプション)
+    onSchedule?: string // 予定通り状況の表示 (オプション)
   }
   dragOverlay: {
     noTitle: string // タイトル未設定時のフォールバック
@@ -1608,7 +1629,8 @@ interface MoguchartLocale {
       startDateTime?: string // 時間単位モード時の開始日時見出し (例: '開始日時')
       endDateTime?: string // 時間単位モード時の終了日時見出し (例: '終了日時')
       duration: string // 期間列の見出し (例: '期間')
-      progress: string // 進捗列の見出し (例: '進捗')
+      workingDays?: string // 稼働日列の見出し (例: '稼働日')
+      progress: string // 進捗列の見出し (例: '進捗率')
     }
   }
 }
@@ -2416,7 +2438,8 @@ function getGridCellValue(
   column: GanttColumn,
   row: GanttRow,
   tasks: GanttTask[],
-  wbsCode?: string
+  wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions
 ): any
 
 // セル値をカラム定義・ロケール・表示モードに応じた表示文字列へフォーマット
@@ -2437,7 +2460,7 @@ function resolveColumnEditorType(
   isTimeMode?: boolean
 ): GanttColumnEditorType
 
-// 指定セルがインライン編集可能かどうかを判定（サマリー行・複数タスク行や task.movable / resizable / progressResizable も考慮）
+// 指定セルがインライン編集可能かどうかを判定（サマリー行・複数タスク行・マイルストーンや task.movable / resizable / progressResizable も考慮）
 function isGridCellEditable(
   column: GanttColumn,
   row: GanttRow,
@@ -2463,13 +2486,24 @@ function applyGridCellEdit(
   rawInputValue: any,
   isMonthMode?: boolean,
   isTimeMode?: boolean,
-  wbsCode?: string
+  wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions
 ): { changed: boolean; oldValue: any; newValue: any }
 ```
 
-### 自動スケジューリング・依存関係用ヘルパー (`propagateAutoSchedule`, `normalizeDependencyLink` など)
+### マイルストーン・バーラベル用ヘルパー (`isMilestoneTask`, `estimateTaskLabelWidth`)
 
-トポロジカルソートに基づく後続タスクの自動スケジューリング計算、および `GanttDependency`（`string | GanttDependencyLink`）の正規化・操作を行うヘルパー関数群です。
+```typescript
+// 指定されたタスクがマイルストーンタスク (task.type === 'milestone') かどうかを判定
+function isMilestoneTask(task?: GanttTask | null): boolean
+
+// タスク名ラベルの推定描画幅 (px) を算出 ('auto' ラベル配置モードの判定用)
+function estimateTaskLabelWidth(text: string, fontScale?: number): number
+```
+
+### 自動スケジューリング・稼働日・休日・依存関係用ヘルパー (`propagateAutoSchedule`, `countWorkingDays`, `addWorkingDays`, `normalizeDependencyLink` など)
+
+トポロジカルソートに基づく後続タスクの自動スケジューリング計算、稼働日・休日計算、および `GanttDependency`（`string | GanttDependencyLink`）の正規化・操作を行うヘルパー関数群です。
 
 ```typescript
 // 変更起点タスク（省略時は全依存タスク）からトポロジカル順で後続タスクの日程をカスケード更新
@@ -2489,10 +2523,41 @@ function computeRequiredStartMs(
   isNonWorkingDay?: ((dayStartMs: number) => boolean) | null
 ): number
 
-// calendarMode と isHoliday から非稼働日判定関数を生成（calendarMode === 'calendar' 時は null）
+// 指定された期間 [start, end) に含まれる稼働日数（営業日数）を算出
+function countWorkingDays(
+  start: Date,
+  end: Date,
+  options?: AutoScheduleOptions
+): number
+
+// 開始日時から指定した稼働日数（workingDays）を進めた日時を算出
+function addWorkingDays(
+  start: Date,
+  workingDays: number,
+  options?: AutoScheduleOptions
+): Date
+
+// カレンダー描画・行背景・稼働日計算で共通利用する休日リゾルバーを生成
+function createCustomHolidayResolver(
+  options?: { isHoliday?: GanttHolidayChecker; nonWorkingDays?: number[] }
+): {
+  isHolidayDate: (date: Date) => boolean
+  getHolidayMeta: (date: Date) => GanttHolidayMeta | null
+  isNonWorkingDayOfWeek: (date: Date) => boolean
+  hasCustomNonWorkingDays: boolean
+}
+
+// isHoliday の戻り値を正規化（休日であれば GanttHolidayMeta、休日でなければ null）
+function resolveHolidayMeta(result: GanttHolidayResult): GanttHolidayMeta | null
+
+// Date または 'YYYY-MM-DD' / 'YYYY/MM/DD' 文字列をローカルタイムゾーンの 00:00:00.000 ミリ秒に変換
+function parseLocalDateToStartOfDayMs(input: Date | string | undefined | null): number | null
+
+// calendarMode, isHoliday, nonWorkingDays から非稼働日判定関数を生成（calendarMode === 'calendar' 時は null）
 function createNonWorkingDayChecker(
   calendarMode?: AutoScheduleCalendarMode,
-  isHoliday?: (date: Date) => boolean
+  isHoliday?: GanttHolidayChecker,
+  nonWorkingDays?: number[]
 ): ((dayStartMs: number) => boolean) | null
 
 // 非稼働日を除外した実稼働期間（ミリ秒）を算出
@@ -2648,7 +2713,14 @@ chart.addEventListener('history-change', (e) => {
 
 ```typescript
 chart.option = {
-  // ...
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (デフォルト) | 'weekends' | 'weekends-holidays'
+    // nonWorkingDays: [0, 6], // 非営業曜日 (デフォルト: [0, 6])
+    // isHoliday: (date) => false, // 祝日・休日判定関数 (boolean または { name, color } を返却)
+  },
   dependency: {
     lineStyle: 'orthogonal', // 'orthogonal' (直角折れ線) または 'curve' (曲線)
     showArrows: true,
@@ -2659,8 +2731,6 @@ chart.option = {
     autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
     scheduleMode: 'push-only', // 'push-only' (デフォルト: 制約違反時のみ押し出し) | 'strict' (常時追従)
     respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
-    calendarMode: 'weekends-holidays', // 'calendar' (デフォルト) | 'weekends' | 'weekends-holidays'
-    // isHoliday: (date) => false, // 祝日判定関数（省略時は option.calendar.isHoliday を使用）
   },
 }
 ```

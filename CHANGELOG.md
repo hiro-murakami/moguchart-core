@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-31
+
+### Added
+
+- **Task-Level Milestones (`task.type === 'milestone'`)**:
+  - Tasks with `type: 'milestone'` now render as diamond-shaped milestone symbols (`.milestone-bar` / `.milestone-task-group`) directly on row timelines.
+  - Added `option.bar.milestoneColor` (CSS color string, default: `'#8b5cf6'`) and CSS custom property `--moguchart-milestone-bar-color` for customizing the default milestone color (per-task overrides via `task.style` are also supported).
+  - Automatically disables duration resize handles, progress overlays, and progress drag handles on milestone tasks while supporting drag movement, left/right connector dependency creation, single-date tooltips, drag info overlays, and diamond rendering on the 2D Canvas overview minimap.
+  - Enhanced `calculateTaskLanes` to separate multiple milestone tasks placed at the exact same timestamp in the same row into distinct lanes.
+  - **Multi-Column Grid & Excel Export Integration**:
+    - `duration` and `workingDays` columns display `0 days` (`0日`) and are read-only for milestone rows, while `startDate` and `endDate` display the exact milestone date; inline editing either `startDate` or `endDate` synchronizes both `start` and `end` to the same timestamp without exclusive `+1 day` offsets.
+    - Updated `@mogura/moguchart-plugin-excel` to export milestone durations as `0` and render `◆` markers with default purple shading (`#8B5CF6`) on timeline cells.
+  - Exported `isMilestoneTask(task)` helper utility.
+- **Working-Day Management, Custom Holiday Metadata & Drag Preservation**:
+  - **Custom Non-Working Weekdays (`option.calendar.nonWorkingDays`)**:
+    - Added `nonWorkingDays?: number[]` (`0 = Sunday .. 6 = Saturday`, default: `[0, 6]`) to `option.calendar` and `AutoScheduleOptions`, allowing custom regular off-days (e.g., `[2, 3]` for Tuesday/Wednesday) across calendar headers, row backgrounds, working-day calculations, and auto-scheduling.
+  - **Per-Holiday Metadata & Custom Colors (`GanttHolidayChecker` / `GanttHolidayMeta`)**:
+    - Extended `option.calendar.isHoliday` (and `isHoliday` in `@mogura/moguchart-plugin-excel`) to accept `GanttHolidayChecker`, allowing the callback to return either a `boolean` or a `{ name?: string, color?: string }` metadata object so individual holidays can render custom background colors in calendar headers and row backgrounds.
+  - **Working-Day Preservation During Task Drag (`option.calendar.preserveWorkingDaysOnDrag`)**:
+    - Added `preserveWorkingDaysOnDrag?: boolean` (default: `false`). When enabled, dragging a task (including multi-task batch moves) across weekends or holidays snaps its start date to the next working day and automatically stretches/shrinks its end date to preserve the original working-day duration.
+  - **Built-in `workingDays` Grid Column & Tooltip Working-Day Display**:
+    - Added `'workingDays'` (`稼働日` / `Working Days`) to `GanttBuiltinColumnId` in `option.grid`, supporting automatic working-day count display and inline numeric editing (automatically recalculating `task.end` across non-working days).
+    - When `option.calendar.calendarMode` is `'weekends'` or `'weekends-holidays'` in day/week view, task tooltips automatically display working days alongside total calendar duration (customizable via `MoguchartLocale.tooltip.workingDays`).
+  - Exported `countWorkingDays`, `addWorkingDays`, `createCustomHolidayResolver`, `resolveHolidayMeta`, and `parseLocalDateToStartOfDayMs` helper utilities.
+- **External & Auto-Overflow Task Bar Label Positioning (`labelPosition`)**:
+  - Added `option.bar.labelPosition` (chart-wide default) and `task.labelPosition` (per-task override) supporting `GanttBarLabelPosition` (`'inside' | 'right' | 'left' | 'auto'`):
+    - `'inside'`: Renders the label inside the bar (default for normal tasks).
+    - `'right'`: Renders the label outside to the right of the bar (default for milestone tasks).
+    - `'left'`: Renders the label outside to the left of the bar.
+    - `'auto'`: Automatically places the label outside to the right (`'right'`) when the rendered bar width is narrower than the estimated text width (`estimateTaskLabelWidth`, respecting `fontScale`), or `'inside'` when it fits.
+
+### Changed
+
+- **Unified Working-Day & Holiday Configuration under `option.calendar`**:
+  - Moved `calendarMode` (`'calendar' | 'weekends' | 'weekends-holidays'`) to `option.calendar.calendarMode` and removed the redundant `option.dependency.calendarMode` and `option.dependency.isHoliday` properties so that calendar rendering, tooltips, multi-column grid columns, drag preservation, and auto-scheduling all share a single source of truth under `option.calendar` (`AutoScheduleOptions` passed directly to `chart.autoSchedule()` or `propagateAutoSchedule()` continues to accept `calendarMode`, `isHoliday`, and `nonWorkingDays` overrides).
+
+---
+
 ## [1.6.0] - 2026-10-25
 
 ### Added

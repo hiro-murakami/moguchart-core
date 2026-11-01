@@ -38,6 +38,8 @@ interface GanttChartOption {
     height?: number // Bar height (px)
     margin?: number // Bar top/bottom margin (px)
     cornerRadius?: number // Bar corner radius (px)
+    labelPosition?: GanttBarLabelPosition // Task label display position ('inside' | 'right' | 'left' | 'auto', default: 'inside')
+    milestoneColor?: string // Default color for milestone tasks (type === 'milestone') (CSS color string, default: '#8b5cf6')
   }
   /** Row header settings */
   rowHeader?: {
@@ -55,7 +57,7 @@ interface GanttChartOption {
     pxPerMonth?: number // Width per month (px). When specified, each month is rendered at a fixed equal width.
     monthFormat?: string // Month display format (e.g., 'MMM YYYY')
     showRowBackground?: boolean // Whether to show row backgrounds
-    isHoliday?: (date: Date) => boolean // Custom holiday detection logic
+    isHoliday?: GanttHolidayChecker // Custom holiday checker (returning true or { name, color } marks the date as a holiday)
     showTime?: boolean // Whether to show time-unit grid
     showMonths?: boolean // Whether to show year/month headers
     showDays?: boolean // Whether to show date headers
@@ -71,6 +73,9 @@ interface GanttChartOption {
     milestones?: GanttChartMilestone[] // Array of milestones
     showCursorLine?: boolean // Whether to show a vertical line that follows the mouse cursor (default: false)
     cursorLineColor?: string // Color of the cursor tracking line (CSS color string; defaults to currentTimeLine color)
+    calendarMode?: AutoScheduleCalendarMode // Chart-wide working-day calculation mode ('calendar' | 'weekends' | 'weekends-holidays', default: 'calendar')
+    nonWorkingDays?: number[] // Non-working day-of-week indices (0=Sun, 1=Mon, ..., 6=Sat; default: [0, 6])
+    preserveWorkingDaysOnDrag?: boolean // Whether dragging a task bar preserves its original working-day duration by stretching/shrinking its end date (default: false)
   }
   /** Whether the chart is read-only */
   readOnly?: boolean
@@ -461,12 +466,32 @@ type GanttDependency = string | GanttDependencyLink
 type AutoScheduleMode = 'push-only' | 'strict'
 
 /**
- * Working-day calculation mode for auto-scheduling
+ * Working-day (holiday exclusion) calculation mode
  * - 'calendar': Treat all calendar days (including weekends & holidays) as working days (default)
- * - 'weekends': Exclude Saturdays and Sundays as non-working days (preserves working duration & lag, snapping landing dates to the next working day)
- * - 'weekends-holidays': Exclude Saturdays, Sundays, and custom holidays (via isHoliday) as non-working days
+ * - 'weekends': Exclude non-working days of the week (nonWorkingDays, default: Sat/Sun [0, 6]) as non-working days
+ * - 'weekends-holidays': Exclude non-working days of the week and custom holidays (via isHoliday) as non-working days
  */
 type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
+
+/**
+ * Task bar label (task name) display position
+ * - 'inside': Render inside the bar (default for normal tasks)
+ * - 'right': Render outside to the right of the bar (default for milestone tasks)
+ * - 'left': Render outside to the left of the bar
+ * - 'auto': Render outside to the right automatically only when the bar is too narrow to fit the text
+ */
+type GanttBarLabelPosition = 'inside' | 'right' | 'left' | 'auto'
+
+interface GanttHolidayMeta {
+  /** Optional holiday name / label */
+  name?: string
+  /** Optional per-holiday custom background color on calendar & row backgrounds (falls back to theme.holiday color) */
+  color?: string
+}
+
+type GanttHolidayResult = boolean | GanttHolidayMeta | null | undefined
+
+type GanttHolidayChecker = (date: Date) => GanttHolidayResult
 
 interface AutoScheduleOptions {
   /** Scheduling constraint mode (default: 'push-only') */
@@ -475,8 +500,10 @@ interface AutoScheduleOptions {
   respectMovable?: boolean
   /** Working-day / non-working-day calculation mode (default: 'calendar') */
   calendarMode?: AutoScheduleCalendarMode
-  /** Holiday predicate function used when calendarMode === 'weekends-holidays' */
-  isHoliday?: (date: Date) => boolean
+  /** Holiday checker function used when calendarMode === 'weekends-holidays' */
+  isHoliday?: GanttHolidayChecker
+  /** Non-working day-of-week indices (0=Sun, 1=Mon, ..., 6=Sat; default: [0, 6]) */
+  nonWorkingDays?: number[]
 }
 
 interface AutoScheduleResult {
@@ -493,9 +520,10 @@ interface GanttTask {
   name?: string // Task display name
   start: Date // Start date/time
   end: Date // End date/time
-  type?: 'task' | 'summary' | 'milestone' // Task kind ('task': normal, 'summary': parent aggregate bar, 'milestone': milestone)
+  type?: 'task' | 'summary' | 'milestone' // Task kind ('task': normal, 'summary': parent aggregate bar, 'milestone': diamond milestone)
   style?: string // Custom bar style (CSS string)
   labelStyle?: string // Custom bar label style (CSS string)
+  labelPosition?: GanttBarLabelPosition // Bar label display position (falls back to option.bar.labelPosition, or 'right' for milestones)
   pattern?: GanttTaskPattern // Bar fill pattern
   dependencies?: GanttDependency[] // Predecessor task IDs or GanttDependencyLink objects
   movable?: 'both' | 'x' | 'y' | 'none' // Movement permission ('both': both axes, 'x': horizontal only, 'y': vertical only, 'none': disabled)
@@ -1102,22 +1130,10 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** Whether auto-scheduling respects task.movable ('none' | 'y') and excludes locked tasks (default: true) */
   respectMovable?: boolean
-  /**
-   * Working-day calculation mode during auto-scheduling (default: 'calendar')
-   * - 'calendar': Treat all calendar days as working days
-   * - 'weekends': Skip Saturdays and Sundays (preserves working duration & lag, snapping landing dates to the next working day)
-   * - 'weekends-holidays': Skip Saturdays, Sundays, and holidays (via isHoliday or option.calendar.isHoliday)
-   */
-  calendarMode?: AutoScheduleCalendarMode
-  /**
-   * Custom holiday predicate used when calendarMode === 'weekends-holidays'.
-   * Falls back to option.calendar.isHoliday when omitted.
-   */
-  isHoliday?: (date: Date) => boolean
 }
 ```
 
-> **Note:** The default `lineStyle` is `'orthogonal'`. For reverse-direction (right-to-left) dependencies, it automatically calculates a U-turn bypass route. If `'curve'` is specified, it draws a Bezier curve as before.
+> **Note:** The default `lineStyle` is `'orthogonal'`. For reverse-direction (right-to-left) dependencies, it automatically calculates a U-turn bypass route. If `'curve'` is specified, it draws a Bezier curve as before. Auto-scheduling uses `option.calendar` (`calendarMode`, `nonWorkingDays`, `isHoliday`) for working-day, non-working weekday, and holiday exclusion rules.
 
 ### DependencyCreateEventDetail
 
@@ -1452,7 +1468,7 @@ interface GanttChartOptionGrid {
 
 #### GanttColumn
 
-Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `progress`) are supported alongside arbitrary custom columns.
+Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`) are supported alongside arbitrary custom columns.
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
@@ -1478,7 +1494,7 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
 }
 
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'progress' or custom string) */
+  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' or custom string) */
   id: string
   /** Header display title (defaults to locale dictionary or column id; startDate/endDate automatically adapt to monthly/hourly view modes) */
   title?: string
@@ -1506,14 +1522,14 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   renderCell?: (value: any, row: TRow, tasks: TTask[], locale?: MoguchartLocale) => HTMLElement | string
   /**
    * Whether inline editing is allowed for this column (or a predicate function per row).
-   * - When `grid.editable: true`, built-in columns (except `wbs`) and columns with `field` or `valueSetter` are editable by default (date, duration, and progress cells on summary rows and multi-task rows are automatically non-editable).
-   * - On single-task rows, date/duration columns also respect `task.resizable !== false` and `task.movable !== 'none'`, and the progress column respects `task.progressResizable !== false`.
+   * - When `grid.editable: true`, built-in columns (except `wbs`) and columns with `field` or `valueSetter` are editable by default (date, duration, workingDays, and progress cells on summary rows and multi-task rows are automatically non-editable).
+   * - On single-task rows, date/duration/workingDays columns also respect `task.resizable !== false` and `task.movable !== 'none'`, and the progress column respects `task.progressResizable !== false` (for milestone tasks `type === 'milestone'`, `duration` / `workingDays` / `progress` are automatically read-only, and editing `startDate` or `endDate` syncs both timestamps together).
    * - Editable cells receive `.grid-cell-editable` and read-only cells receive `.grid-cell-readonly` for visual distinction.
    */
   editable?: boolean | ((row: TRow, tasks: TTask[]) => boolean)
   /**
    * Built-in cell editor type or custom editor factory function.
-   * - If omitted, automatically inferred from column id ('name'->'text', 'startDate'/'endDate'->'date' | 'month' | 'datetime' depending on view mode, 'duration'/'progress'->'number').
+   * - If omitted, automatically inferred from column id ('name'->'text', 'startDate'/'endDate'->'date' | 'month' | 'datetime' depending on view mode, 'duration'/'workingDays'/'progress'->'number').
    */
   editor?: GanttColumnEditorType | ((context: GanttCellEditorContext<TRow, TTask>) => HTMLElement)
   /** Options list (or dynamic resolver per row) when `editor: 'select'` */
@@ -1603,8 +1619,18 @@ interface MoguchartLocale {
   tooltip: {
     /** Duration display (e.g., 5 → "Duration: 5 days") */
     duration: (days: number) => string
+    /** Duration display including working days (e.g., (5, 3) → "Duration: 5 days (3 working days)") (optional) */
+    workingDays?: (days: number, workingDays: number) => string
     /** Progress percentage display (e.g., 75 → "Progress: 75%") (optional) */
     progress?: (percent: number) => string
+    /** Baseline schedule display (optional) */
+    baseline?: (startStr: string, endStr: string, days: number) => string
+    /** Schedule delay status display (optional) */
+    delay?: (days: number) => string
+    /** Ahead-of-schedule status display (optional) */
+    ahead?: (days: number) => string
+    /** On-schedule status display (optional) */
+    onSchedule?: string
   }
   /** Drag overlay strings */
   dragOverlay: {
@@ -1627,6 +1653,7 @@ interface MoguchartLocale {
       startDateTime?: string // Start date-time header in hourly view mode (e.g., 'Start Time')
       endDateTime?: string // End date-time header in hourly view mode (e.g., 'End Time')
       duration: string // Duration column header (e.g., 'Duration')
+      workingDays?: string // Working days column header (e.g., 'Working Days')
       progress: string // Progress column header (e.g., 'Progress')
     }
   }
@@ -2437,7 +2464,8 @@ function getGridCellValue(
   column: GanttColumn,
   row: GanttRow,
   tasks: GanttTask[],
-  wbsCode?: string
+  wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions
 ): any
 
 // Format a resolved cell value into a display string according to column and view mode
@@ -2458,7 +2486,7 @@ function resolveColumnEditorType(
   isTimeMode?: boolean
 ): GanttColumnEditorType
 
-// Determine whether a specific cell is editable (respecting summary/multi-task rules and task.movable / resizable / progressResizable)
+// Determine whether a specific cell is editable (respecting summary/multi-task/milestone rules and task.movable / resizable / progressResizable)
 function isGridCellEditable(
   column: GanttColumn,
   row: GanttRow,
@@ -2484,13 +2512,24 @@ function applyGridCellEdit(
   rawInputValue: any,
   isMonthMode?: boolean,
   isTimeMode?: boolean,
-  wbsCode?: string
+  wbsCode?: string,
+  calendarOptions?: AutoScheduleOptions
 ): { changed: boolean; oldValue: any; newValue: any }
 ```
 
-### Auto-Scheduling & Dependency Helpers (`propagateAutoSchedule`, `normalizeDependencyLink`, etc.)
+### Milestone & Bar Label Helpers (`isMilestoneTask`, `estimateTaskLabelWidth`)
 
-Helper functions for calculating topological cascade schedules and manipulating `GanttDependency` (`string | GanttDependencyLink`) entries:
+```typescript
+// Check whether the given task is a milestone task (task.type === 'milestone')
+function isMilestoneTask(task?: GanttTask | null): boolean
+
+// Estimate rendered task label width (px) for 'auto' label positioning
+function estimateTaskLabelWidth(text: string, fontScale?: number): number
+```
+
+### Auto-Scheduling, Working-Day, Holiday & Dependency Helpers (`propagateAutoSchedule`, `countWorkingDays`, `addWorkingDays`, `normalizeDependencyLink`, etc.)
+
+Helper functions for calculating topological cascade schedules, counting/adding working days, resolving holidays, and manipulating `GanttDependency` (`string | GanttDependencyLink`) entries:
 
 ```typescript
 // Cascade successor task dates in topological order from changedTaskIds (or all tasks if omitted)
@@ -2510,10 +2549,41 @@ function computeRequiredStartMs(
   isNonWorkingDay?: ((dayStartMs: number) => boolean) | null
 ): number
 
-// Create a non-working day predicate from calendarMode and isHoliday (returns null when calendarMode === 'calendar')
+// Count working days (business days) contained in [start, end)
+function countWorkingDays(
+  start: Date,
+  end: Date,
+  options?: AutoScheduleOptions
+): number
+
+// Compute the resulting Date after advancing workingDays from start while skipping non-working days
+function addWorkingDays(
+  start: Date,
+  workingDays: number,
+  options?: AutoScheduleOptions
+): Date
+
+// Create a shared holiday & non-working weekday resolver used across calendar headers, row backgrounds, and working-day math
+function createCustomHolidayResolver(
+  options?: { isHoliday?: GanttHolidayChecker; nonWorkingDays?: number[] }
+): {
+  isHolidayDate: (date: Date) => boolean
+  getHolidayMeta: (date: Date) => GanttHolidayMeta | null
+  isNonWorkingDayOfWeek: (date: Date) => boolean
+  hasCustomNonWorkingDays: boolean
+}
+
+// Normalize an isHoliday return value into GanttHolidayMeta (if holiday) or null
+function resolveHolidayMeta(result: GanttHolidayResult): GanttHolidayMeta | null
+
+// Parse a Date or 'YYYY-MM-DD' / 'YYYY/MM/DD' string into local 00:00:00.000 timestamp (ms)
+function parseLocalDateToStartOfDayMs(input: Date | string | undefined | null): number | null
+
+// Create a non-working day predicate from calendarMode, isHoliday, and nonWorkingDays (returns null when calendarMode === 'calendar')
 function createNonWorkingDayChecker(
   calendarMode?: AutoScheduleCalendarMode,
-  isHoliday?: (date: Date) => boolean
+  isHoliday?: GanttHolidayChecker,
+  nonWorkingDays?: number[]
 ): ((dayStartMs: number) => boolean) | null
 
 // Compute effective working duration (ms) between startMs and endMs excluding non-working days
@@ -2669,7 +2739,14 @@ Task dependencies support all four relationship types (`FS`, `SS`, `FF`, `SF`) w
 
 ```typescript
 chart.option = {
-  // ...
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (default) | 'weekends' | 'weekends-holidays'
+    // nonWorkingDays: [0, 6], // Non-working day-of-week indices (default: [0, 6])
+    // isHoliday: (date) => false, // Custom holiday checker (returns boolean or { name, color })
+  },
   dependency: {
     lineStyle: 'orthogonal', // 'orthogonal' or 'curve'
     showArrows: true,
@@ -2680,8 +2757,6 @@ chart.option = {
     autoSchedule: true, // Automatically cascade date changes to successor tasks (default: false)
     scheduleMode: 'push-only', // 'push-only' (default) | 'strict'
     respectMovable: true, // Respect task.movable ('none' | 'y') during cascade (default: true)
-    calendarMode: 'weekends-holidays', // 'calendar' (default) | 'weekends' | 'weekends-holidays'
-    // isHoliday: (date) => false, // Custom holiday checker (falls back to option.calendar.isHoliday)
   },
 }
 ```

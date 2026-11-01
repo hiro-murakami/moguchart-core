@@ -26,26 +26,28 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Double-click (exposing row name DOM container via `contentTarget`) and right-click event handling
 - 🎨 **Highly Customizable**:
   - Custom rendering for task bars, row headers, row header tooltips, tooltips, and drag info overlays
+  - Flexible task bar label positioning (`labelPosition: 'inside' | 'right' | 'left' | 'auto'` with smart `'auto'` overflow placement outside narrow bars)
   - Light / Dark / System theme switching + custom color palettes
   - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
   - Native CSS variable-driven styling
 - 🔗 **Interactive Dependencies & Auto-Scheduling**:
   - Support all 4 standard dependency relationships (`FS`: Finish-to-Start, `SS`: Start-to-Start, `FF`: Finish-to-Finish, `SF`: Start-to-Finish) and lag/lead time (`lag` in minutes) via `GanttDependencyLink` (with 100% backward compatibility for string task IDs)
-  - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`, `calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`, `isHoliday`) with working-day/holiday skipping and working-duration/lag preservation across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
+  - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`) seamlessly linked with `option.calendar` working-day settings (`calendarMode`, `nonWorkingDays`, `isHoliday`) for non-working day skipping and working-duration/lag preservation across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
   - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves routed accurately to left/right bar endpoints
   - Click, double-click, and right-click (`contextmenu`) support on dependency lines with dedicated highlight styling
   - One-click deletion via on-line "×" button or `Delete` / `Backspace` key
   - Proximity connector toggle (`showConnectors`)
   - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
-- 📅 **Flexible Calendar & Timeline**:
+- 📅 **Flexible Calendar, Timeline & Working-Day Management**:
   - Day / Week / Month view switching
   - Dynamic zoom levels (`pxPerDay` or `pxPerMonth`) with smooth mouse-wheel zoom support
   - Current time indicator line with date badge (auto-refresh support)
-  - Custom holiday detection logic
+  - Working-day calculation modes (`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`), custom regular off-days (`nonWorkingDays`), and custom holiday detection (`isHoliday`) supporting per-holiday `{ name, color }` metadata
+  - Working-day duration preservation when dragging tasks across weekends/holidays (`preserveWorkingDaysOnDrag`) and automatic working-day count display in tooltips
   - Configurable week start day
   - Built-in internationalization (Japanese, English, and custom locale extensibility)
 - 🔤 **Font Scaling (`fontScale`)**: Scale all text font sizes throughout the Gantt chart uniformly via `fontScale` option or `--moguchart-font-scale` CSS variable; calendar headers, task bars, as well as WBS tree toggle buttons and spacers scale dynamically to guarantee optimal layouts across display densities.
-- 🏁 **Milestones**: Display key milestones with vertical markers and customizable badges.
+- 🏁 **Milestones**: Display chart-wide vertical milestone lines with badges (`calendar.milestones`) as well as row-level diamond milestone tasks (`task.type: 'milestone'`, `bar.milestoneColor`) supporting dependency links, minimap rendering, grid integration, and Excel export.
 - 📍 **Markers**: Place labeled triangle marker indicators on individual row timelines.
 - 🗺️ **Overview Minimap**: Floating bird's-eye canvas preview of the entire chart, interactive pan & scroll synchronization, click-to-jump, drag-to-move, edge drag-resizing, opacity slider, and collapsible window state.
 - 📊 **Task Progress Management**:
@@ -88,7 +90,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Helper functions for individual task variance (`calculateTaskDelay`) and project-wide statistics (`calculateProjectBaselineSummary`)
 - 📋 **Multi-Column Data Grid (WBS Table)**:
   - Display and interact with the row header area as a full-featured multi-column data table
-  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
+  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), working days (`workingDays`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
   - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
   - **Inline Cell Editing** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
   - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes) and 2-tier layout coexistence with `customRendering.cornerContent`
@@ -340,11 +342,13 @@ const option = {
 }
 ```
 
-### Milestones
+### Milestones (Vertical Milestone Lines & Task-Level Milestones)
 
-Pass an array of milestone definitions to `calendar.milestones` to render vertical milestone lines with name badges across the chart. Hover effects provide smooth visual feedback.
+1. **Chart Vertical Milestone Lines (`calendar.milestones`)**: Render vertical milestone lines with name badges across the chart. Hover effects provide smooth visual feedback.
+2. **Task-Level Milestones (`task.type: 'milestone'`)**: Set `type: 'milestone'` on individual tasks to render diamond symbols directly on row timelines, complete with drag movement, dependency connections, minimap rendering, multi-column grid integration (`0 days` duration/working days and synchronized start/end date editing), and Excel export (`◆` markers).
 
 ```javascript
+// 1. Chart-wide vertical milestone lines
 option.calendar.milestones = [
   {
     id: 'ms-1',
@@ -360,6 +364,62 @@ option.calendar.milestones = [
     color: '#10b981',
   },
 ]
+
+// 2. Row-level milestone task (type: 'milestone')
+option.bar = {
+  milestoneColor: '#8b5cf6', // Default diamond color for milestone tasks (default: '#8b5cf6')
+}
+const milestoneRow = {
+  id: 'row-gate',
+  name: 'Architecture Sign-off',
+  tasks: [
+    {
+      id: 'task-ms-1',
+      name: 'Design Approved',
+      type: 'milestone',
+      start: new Date('2025-04-15'),
+      end: new Date('2025-04-15'),
+      dependencies: ['task-design'],
+    },
+  ],
+}
+```
+
+### Task Bar Label Positioning (`labelPosition`)
+
+Control where task name labels are placed via `option.bar.labelPosition` (chart-wide default) or `task.labelPosition` (per-task override): `'inside'` | `'right'` | `'left'` | `'auto'`. Setting `'auto'` automatically places the label outside to the right (`'right'`) whenever a task bar is too narrow to fit its text.
+
+```javascript
+const option = {
+  bar: {
+    labelPosition: 'auto', // 'inside' (default) | 'right' | 'left' | 'auto'
+  },
+  // ...
+}
+```
+
+### Working-Day & Custom Holiday Settings (`calendarMode` / `nonWorkingDays` / `isHoliday` / `preserveWorkingDaysOnDrag`)
+
+Configure project-wide working-day rules in `option.calendar`. These settings unify calendar/row background shading, tooltip working-day counts, the `workingDays` grid column, drag working-day preservation, and topological auto-scheduling.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-05-31'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (default) | 'weekends' | 'weekends-holidays'
+    nonWorkingDays: [0, 6], // Non-working weekdays (0 = Sunday .. 6 = Saturday, default: [0, 6])
+    preserveWorkingDaysOnDrag: true, // Preserve working-day duration when dragging tasks across weekends/holidays
+    // Return a boolean or a { name, color } metadata object
+    isHoliday: (date) => {
+      if (date.getMonth() === 4 && date.getDate() === 5) {
+        return { name: 'Company Holiday', color: '#fee2e2' } // Per-holiday custom background color
+      }
+      return false
+    },
+  },
+}
 ```
 
 ### Markers
@@ -533,11 +593,9 @@ Configure task dependency curves, interactive operations, and topological cascad
 - `creatable`: Allow creating links via connector drag (default: `true`). Dragging between left/right connectors automatically infers `'FS' | 'SS' | 'FF' | 'SF'`.
 - `deletable`: Allow deleting links via keyboard or button (default: `true`).
 - `showDeleteButton`: Display "×" delete button on selected link (default: `true`).
-- `autoSchedule`: Automatically cascade date changes to successor tasks when a predecessor task is moved, resized, or edited (default: `false`).
+- `autoSchedule`: Automatically cascade date changes to successor tasks when a predecessor task is moved, resized, or edited (default: `false`). Working-day skipping and duration/lag preservation follow `option.calendar.calendarMode`, `option.calendar.nonWorkingDays`, and `option.calendar.isHoliday`.
 - `scheduleMode`: `'push-only'` (default: shifts successors forward only when constraints are violated) or `'strict'` (always shifts successors in lockstep with predecessor dates and lag).
 - `respectMovable`: Exclude tasks with `movable: 'none' | 'y'` from automatic cascade movement (default: `true`).
-- `calendarMode`: `'calendar'` (default: calendar days), `'weekends'` (skip Saturdays/Sundays and preserve working days/lag), or `'weekends-holidays'` (skip weekends and holidays).
-- `isHoliday`: Custom holiday predicate `(date: Date) => boolean` used when `calendarMode === 'weekends-holidays'` (falls back to `option.calendar.isHoliday`).
 
 Each item in `task.dependencies` can be a simple task ID string (`'task-1'`, treated as `FS` with `0` lag) or a `GanttDependencyLink` object (`{ taskId: 'task-1', type: 'FS' | 'SS' | 'FF' | 'SF', lag: 1440 }`, where `lag` is in minutes).
 
@@ -563,6 +621,14 @@ const rows = [
 ]
 
 const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    calendarMode: 'weekends-holidays', // 'calendar' (default) | 'weekends' | 'weekends-holidays'
+    // nonWorkingDays: [0, 6], // Non-working weekdays (default: [0, 6])
+    // isHoliday: (date) => false, // Optional holiday checker (boolean or { name, color })
+  },
   dependency: {
     lineStyle: 'orthogonal',
     cornerRadius: 8,
@@ -576,8 +642,6 @@ const option = {
     autoSchedule: true, // Enable topological cascade auto-scheduling
     scheduleMode: 'push-only', // 'push-only' | 'strict'
     respectMovable: true,
-    calendarMode: 'weekends-holidays', // 'calendar' | 'weekends' | 'weekends-holidays'
-    // isHoliday: (date) => false, // Optional holiday checker (falls back to option.calendar.isHoliday)
   },
   // ...
 }
@@ -859,7 +923,8 @@ const option = {
       { id: 'name', width: 220 }, // Task name (includes tree indent, collapse toggle, and text editing)
       { id: 'startDate', width: 125 }, // Start date (adapts to date/month/datetime editor)
       { id: 'endDate', width: 125 }, // End date (adapts to date/month/datetime editor)
-      { id: 'duration', width: 80 }, // Duration (numeric editor)
+      { id: 'duration', width: 80 }, // Duration in calendar days (numeric editor)
+      { id: 'workingDays', width: 80 }, // Working days excluding non-working days & holidays (numeric editor)
       { id: 'progress', width: 70 }, // Progress (0–100% numeric editor)
       {
         id: 'assignee',
@@ -1134,10 +1199,15 @@ import {
   canDropRow,
   // Critical path computation
   computeCriticalPath,
-  // Auto-scheduling & dependency helpers
+  // Auto-scheduling, working-day, holiday & dependency helpers
   propagateAutoSchedule,
   computeRequiredStartMs,
   createNonWorkingDayChecker,
+  createCustomHolidayResolver,
+  resolveHolidayMeta,
+  parseLocalDateToStartOfDayMs,
+  countWorkingDays,
+  addWorkingDays,
   computeWorkingDurationMs,
   snapToWorkingStartMs,
   addWorkingTimeMs,
@@ -1148,6 +1218,9 @@ import {
   createDependencyEntry,
   hasDependencyTarget,
   removeDependencyTarget,
+  // Milestone & task label helpers
+  isMilestoneTask,
+  estimateTaskLabelWidth,
   // Progress calculations
   clampProgress,
   calculateRowProgress,

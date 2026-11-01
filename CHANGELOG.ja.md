@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-01
+
+### Added
+
+- **タスクレベルのマイルストーン対応 (`task.type === 'milestone'`)**:
+  - `task.type: 'milestone'` を指定したタスクを、各行のタイムライン上にひし形（ダイヤモンド）シンボル（`.milestone-bar` / `.milestone-task-group`）として描画する機能を追加
+  - `option.bar.milestoneColor`（CSSカラー文字列、デフォルト: `'#8b5cf6'`）および CSS カスタムプロパティ `--moguchart-milestone-bar-color` によるマイルストーン既定色のカスタマイズに対応（タスク個別の `task.style` 指定も併用可能）
+  - マイルストーンタスクでは期間リサイズハンドル・進捗バー・進捗ドラッグ編集を自動的に無効化し、単一時点のタスクとしてドラッグ移動、左右コネクタからの依存関係作成、単一日付ツールチップ表示、ドラッグオーバーレイ表示、および全体鳥瞰ミニマップ（2D Canvas）上でのひし形描画に対応
+  - `calculateTaskLanes` を拡張し、同一行・同一日時に複数のマイルストーンタスクが重なる場合に自動的に別レーンへ分離
+  - **マルチカラムグリッド ＆ Excel エクスポート連携**:
+    - マルチカラムグリッド（`option.grid`）において、マイルストーン行の期間（`duration`）・稼働日（`workingDays`）を `0日`（編集不可）として表示・集計し、`startDate` と `endDate` の両方に同一日付を表示。`startDate` または `endDate` をインライン編集した際は排他的オフセットなしで `start` と `end` の両方を同一タイムスタンプへ同期更新
+    - `@mogura/moguchart-plugin-excel` において、マイルストーンの期間列を `0` として出力し、タイムラインセル上に紫系既定色（`#8B5CF6`）と `◆` シンボルを描画するよう対応
+  - マイルストーン判定用ユーティリティ関数 `isMilestoneTask(task)` を公開エクスポート
+- **稼働日（営業日）管理・カスタム休日メタデータ・ドラッグ時稼働日数維持の拡充**:
+  - **カスタム定休日曜日の指定 (`option.calendar.nonWorkingDays`)**:
+    - 非営業日とする曜日配列 `nonWorkingDays?: number[]`（`0=日曜, 1=月曜, ..., 6=土曜`、デフォルト: `[0, 6]`）を `option.calendar` および `AutoScheduleOptions` に追加（例: 火・水定休 `[2, 3]` などのカスタム定休日がカレンダーヘッダー・行背景色・稼働日計算・自動スケジューリングのすべてに連動）
+  - **休日ごとのカスタムメタデータ・個別背景色 (`GanttHolidayChecker` / `GanttHolidayMeta`)**:
+    - `option.calendar.isHoliday`（および `@mogura/moguchart-plugin-excel` の `isHoliday`）が従来の `boolean` 返却に加え、メタ情報オブジェクト `{ name?: string, color?: string }` の返却に対応。`color` 指定時はカレンダーヘッダー日セルおよび行背景にその休日固有の背景色を適用
+  - **タスクドラッグ移動時の実稼働日数維持 (`option.calendar.preserveWorkingDaysOnDrag`)**:
+    - `preserveWorkingDaysOnDrag?: boolean`（デフォルト: `false`）を追加。有効化すると、タスクバーのドラッグ移動（複数選択の一括移動含む）で週末や祝日を跨いだ際に、開始日を翌営業日へスナップしつつ元の実稼働日数を維持するよう終了日を自動伸縮
+  - **マルチカラムグリッド標準組み込みカラム `workingDays`（稼働日）＆ ツールチップ稼働日表示**:
+    - `GanttBuiltinColumnId` に `'workingDays'`（見出し: `稼働日` / `Working Days`）を追加。非営業曜日や祝日を除外した実稼働日数の自動算出・表示およびインライン数値編集（非稼働日をスキップした終了日の自動再計算）に対応
+    - 日・週単位表示かつ `option.calendar.calendarMode` が `'weekends'` または `'weekends-holidays'` の場合、タスクホバー時のツールチップに暦日数と併せて稼働日数を自動表示（例: `所要日数: 5日 (稼働3日)`、`MoguchartLocale.tooltip.workingDays` でカスタマイズ可能）
+  - 稼働日・休日計算ユーティリティ関数（`countWorkingDays`, `addWorkingDays`, `createCustomHolidayResolver`, `resolveHolidayMeta`, `parseLocalDateToStartOfDayMs`）を公開エクスポート
+- **タスクバーラベルの表示位置制御・自動外側退避 (`labelPosition`)**:
+  - チャート全体の既定値 `option.bar.labelPosition` およびタスク個別のオーバーライド `task.labelPosition`（`GanttBarLabelPosition`: `'inside' | 'right' | 'left' | 'auto'`）を追加:
+    - `'inside'`: バー内部に表示（通常タスクのデフォルト）
+    - `'right'`: バーの右外側に表示（マイルストーンタスクのデフォルト）
+    - `'left'`: バーの左外側に表示
+    - `'auto'`: バーの描画幅がラベル推定幅（`estimateTaskLabelWidth`、`fontScale` 考慮）より狭い場合のみ自動的に右外側（`'right'`）へ退避し、収まる場合はバー内部（`'inside'`）に表示
+
+### Changed
+
+- **稼働日・休日設定の `option.calendar` への一元化**:
+  - カレンダー描画・ツールチップ・データグリッド・ドラッグ移動・自動スケジューリングの間で稼働日・休日設定を一元管理するため、`v1.6.0` で `option.dependency` に配置されていた `calendarMode` および `isHoliday` を削除し、`option.calendar.calendarMode` および `option.calendar.isHoliday` に統合（`chart.autoSchedule(ids, options)` や `propagateAutoSchedule(rows, ids, options)` 実行時の `AutoScheduleOptions` による個別指定は引き続き利用可能）
+
+---
+
 ## [1.6.0] - 2026-10-25
 
 ### Added

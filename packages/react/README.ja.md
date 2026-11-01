@@ -16,8 +16,9 @@ Lit 公式の `@lit/react` をベースに設計されており、Web Components
 - ⚡ **命令的メソッドへのアクセス**: `ref` を介して `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` などを直接呼び出し可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
-- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示・列幅リサイズ・セル直接編集（`onCellEdit`, `onColumnResize`）に対応
-- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日ベース（土日・祝日除外 `calendarMode`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays` 列対応）・列幅リサイズ・セル直接編集（`onCellEdit`, `onColumnResize`）に対応
+- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
 - 📦 **Re-export**: `@mogura/moguchart-core` の型定義や定数をすべて再エクスポートしているため、本パッケージのみのインストールで開発可能
 
 ---

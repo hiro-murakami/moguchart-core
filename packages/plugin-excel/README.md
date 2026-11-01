@@ -7,7 +7,7 @@ Using ExcelJS, it generates beautifully styled Excel files with an interactive t
 
 ## Features
 
-- 📊 **Excel Timeline (Visual Gantt)**: Task attributes on the left (WBS, Task Name, Assignee, Dates, Progress) and calendar date columns on the right with colored task duration cells (summary tasks, weekend & holiday shading, progress labels).
+- 📊 **Excel Timeline (Visual Gantt)**: Task attributes on the left (WBS, Task Name, Assignee, Dates, Progress) and calendar date columns on the right with colored task duration cells (summary tasks, milestone tasks `◆`, weekend & holiday shading, progress labels).
 - 🌐 **Multi-Language Support & Custom Locales**: Built-in support for Japanese (`ja`), English (`en`), and Simplified Chinese (`zh`). Easily register custom language packs with `registerExcelLocale`.
 - 🌳 **WBS Hierarchy**: Retains parent-child hierarchy with WBS codes (`1`, `1.1`), indentations, and bold styling.
 - 🎨 **Color Customization**: Reflects theme colors and task-specific colors (`progressColor`) in Excel.
@@ -111,7 +111,7 @@ await chart.exportExcel({ locale: 'fr' })
 | `includeWeekends` | `boolean` | `true` | Include weekends in timeline (day scale only: Saturdays in light blue, Sundays & holidays in light red/pink) |
 | `highlightToday` | `boolean` | `true` | Highlight today's date column |
 | `themeColor` | `string` | `'#3B82F6'` | Theme color for header & bars |
-| `isHoliday` | `(date: Date) => boolean` | Auto-detect | Holiday judgment function (auto-detected from `chart.option.calendar.isHoliday`) |
+| `isHoliday` | `GanttHolidayChecker` | Auto-detect | Holiday judgment function returning `boolean` or `{ name?, color? }` (auto-detected from `chart.option.calendar.isHoliday`) |
 | `holidayColor` | `string` | `'#FEE2E2'` | Background color for holiday and Sunday columns (applies to day scale only) |
 | `columns` | `ExcelExportColumn[]` | Standard cols | Custom column definitions |
 | `download` | `boolean` | `true` | Auto-trigger file download |
