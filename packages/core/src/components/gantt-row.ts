@@ -289,7 +289,7 @@ export class GanttRowElement extends LitElement {
       margin-right: calc(2px * var(--moguchart-font-scale, 1));
       cursor: pointer;
       user-select: none;
-      font-size: calc(9px * var(--moguchart-font-scale, 1));
+      font-size: calc(11px * var(--moguchart-font-scale, 1));
       line-height: 1;
       color: inherit;
       opacity: 0.7;
@@ -790,6 +790,20 @@ export class GanttRowElement extends LitElement {
   private handleToggleDblClick(e: MouseEvent) {
     e.stopPropagation()
     e.preventDefault()
+  }
+
+  private renderTreeToggleIcon(collapsed?: boolean) {
+    const d = collapsed ? 'M 1.8 0.8 L 9.0 5 L 1.8 9.2 Z' : 'M 0.8 1.8 L 9.2 1.8 L 5 9.0 Z'
+    return html`<svg
+      class="tree-toggle-icon"
+      width="11"
+      height="11"
+      viewBox="0 0 10 10"
+      aria-hidden="true"
+      style="width: 1em; height: 1em; display: block; pointer-events: none; flex-shrink: 0;"
+    >
+      <path d="${d}" fill="currentColor" />
+    </svg>`
   }
 
   // --- インラインセル編集 ---
@@ -1419,7 +1433,7 @@ export class GanttRowElement extends LitElement {
                                             @dblclick="${this.handleToggleDblClick}"
                                             @mouseenter="${this.handleToggleMouseEnter}"
                                             @mouseleave="${this.handleToggleMouseLeave}"
-                                            >${this.row.collapsed ? '▶' : '▼'}</span
+                                            >${this.renderTreeToggleIcon(this.row.collapsed)}</span
                                           >`
                                         : treeEnabled && (this.level > 0 || this.hasChildren)
                                           ? html`<span class="tree-toggle-spacer"></span>`
@@ -1474,7 +1488,7 @@ export class GanttRowElement extends LitElement {
                           @dblclick="${this.handleToggleDblClick}"
                           @mouseenter="${this.handleToggleMouseEnter}"
                           @mouseleave="${this.handleToggleMouseLeave}"
-                          >${this.row.collapsed ? '▶' : '▼'}</span
+                          >${this.renderTreeToggleIcon(this.row.collapsed)}</span
                         >`
                       : treeEnabled && (this.level > 0 || this.hasChildren)
                         ? html`<span class="tree-toggle-spacer"></span>`

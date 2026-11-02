@@ -282,5 +282,65 @@ describe('GanttRowElement', () => {
       /\.tree-toggle-spacer\s*\{[^}]*height:\s*calc\(16px\s*\*\s*var\(--moguchart-font-scale,\s*1\)\)/,
     )
   })
+
+  it('renders inline SVG icon instead of Unicode triangle character in tree-toggle-btn (prevents emoji rendering on iOS/iPadOS)', async () => {
+    const baseOption: GanttChartOption = {
+      calendar: {
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-31'),
+        pxPerDay: 50,
+      },
+      tree: {
+        enabled: true,
+        showToggleIcon: true,
+      },
+    }
+
+    // 1. 通常行ヘッダー表示モード
+    const el = document.createElement('gantt-row') as GanttRowElement
+    el.row = { id: 'parent1', name: 'Parent Row', tasks: [], collapsed: false }
+    el.option = baseOption
+    el.hasChildren = true
+    document.body.appendChild(el)
+    await el.updateComplete
+
+    let toggleBtn = el.shadowRoot?.querySelector('.tree-toggle-btn') as HTMLElement
+    expect(toggleBtn).toBeTruthy()
+    expect(toggleBtn.textContent?.trim()).toBe('')
+    const expandedSvg = toggleBtn.querySelector('svg.tree-toggle-icon')
+    expect(expandedSvg).toBeTruthy()
+    const expandedPath = expandedSvg?.querySelector('path')?.getAttribute('d')
+    expect(expandedPath).toBeTruthy()
+
+    // 折りたたみ状態に更新
+    el.row = { id: 'parent1', name: 'Parent Row', tasks: [], collapsed: true }
+    await el.updateComplete
+
+    toggleBtn = el.shadowRoot?.querySelector('.tree-toggle-btn') as HTMLElement
+    expect(toggleBtn.textContent?.trim()).toBe('')
+    const collapsedSvg = toggleBtn.querySelector('svg.tree-toggle-icon')
+    expect(collapsedSvg).toBeTruthy()
+    const collapsedPath = collapsedSvg?.querySelector('path')?.getAttribute('d')
+    expect(collapsedPath).toBeTruthy()
+    expect(collapsedPath).not.toBe(expandedPath)
+
+    // 2. マルチカラムグリッド表示モード
+    el.option = {
+      ...baseOption,
+      grid: {
+        enabled: true,
+        columns: [{ id: 'name', label: 'タスク名', width: 200, isTreeColumn: true }],
+      },
+    }
+    await el.updateComplete
+
+    const gridToggleBtn = el.shadowRoot?.querySelector('.grid-cell .tree-toggle-btn') as HTMLElement
+    expect(gridToggleBtn).toBeTruthy()
+    expect(gridToggleBtn.textContent?.trim()).toBe('')
+    expect(gridToggleBtn.querySelector('svg.tree-toggle-icon path')?.getAttribute('d')).toBe(collapsedPath)
+
+    el.remove()
+  })
 })
+
 
