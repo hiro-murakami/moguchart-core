@@ -115,7 +115,7 @@ let barHeight = 28
 const barMargin = 4
 const barCornerRadius = 4
 let barLabelPosition: GanttBarLabelPosition = 'inside'
-let rowHeaderWidth = 760
+let rowHeaderWidth = 200
 let rowHeaderResizable = true
 let isReadOnly = false
 let tooltipDelay = 500
@@ -267,8 +267,8 @@ let editableProgress = true
 let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
-let enableBaseline = true
-let enableGrid = true
+let enableBaseline = false
+let enableGrid = false
 let enableGridEdit = true
 let demoGridColumns: GanttColumn[] = [
   { id: 'wbs', width: 55 },
@@ -1053,200 +1053,156 @@ const renderApp = () => {
           </div>
         </div>
 
-        <!-- 2行目: カレンダー表示/データグリッド + 動作設定 + 予実管理 + サイズ設定 -->
+        <!-- 2行目: カレンダー表示 + 動作設定 + 予実管理/データグリッド + サイズ設定 -->
         <div class="ctrl-row">
-          <!-- カレンダー表示 & データグリッド カラム -->
-          <div class="ctrl-col">
-            <!-- カレンダー表示 -->
-            <div class="ctrl-card">
-              <div class="ctrl-card-header">
-                <span class="icon">📅</span>
-                ${t.sectionCalendar}
-              </div>
-              <div class="ctrl-card-body">
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showQuarters}" @change="${(e: Event) => { showQuarters = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showQuarters}
-                </label>
-                ${showQuarters
-                  ? html`
-                      <span class="select-group">
-                        ${t.quarterStartMonthLabel}
-                        <select
-                          class="mini-select"
-                          @change="${(e: Event) => {
-                            quarterStartMonth = Number((e.target as HTMLSelectElement).value) as 1 | 4 | 10
-                            renderApp()
-                          }}"
-                        >
-                          <option value="1" ?selected="${quarterStartMonth === 1}">${t.fiscalYearJan}</option>
-                          <option value="4" ?selected="${quarterStartMonth === 4}">${t.fiscalYearApr}</option>
-                          <option value="10" ?selected="${quarterStartMonth === 10}">${t.fiscalYearOct}</option>
-                        </select>
-                      </span>
-                    `
-                  : ''}
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${autoExtend}" @change="${(e: Event) => { autoExtend = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.autoExtendTimeline}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showTime}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showMonths}" @change="${(e: Event) => { showMonths = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showYearMonth}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showDays}" @change="${(e: Event) => { showDays = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showDates}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showCurrentTime}" @change="${(e: Event) => { showCurrentTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showCurrentTimeLine}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showCurrentTimeBadge}" @change="${(e: Event) => { showCurrentTimeBadge = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.showCurrentTimeBadge}
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" .checked="${showCursorLine}" @change="${(e: Event) => { showCursorLine = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
-                </label>
-                <div style="width: 100%; border-top: 1px dashed ${c.cardBorder}; margin: 2px 0;"></div>
-                <span class="select-group">
-                  ${t.calendarModeLabel}
-                  <select
-                    class="mini-select"
-                    @change="${(e: Event) => {
-                      calendarMode = (e.target as HTMLSelectElement).value as 'calendar' | 'weekends' | 'weekends-holidays'
-                      renderApp()
-                    }}"
-                  >
-                    <option value="calendar" ?selected="${calendarMode === 'calendar'}">${t.calendarModeCalendar}</option>
-                    <option value="weekends" ?selected="${calendarMode === 'weekends'}">${t.calendarModeWeekends}</option>
-                    <option value="weekends-holidays" ?selected="${calendarMode === 'weekends-holidays'}">${t.calendarModeHolidays}</option>
-                  </select>
-                </span>
-                <span class="select-group" style="flex-wrap: wrap;">
-                  ${t.nonWorkingDaysLabel}
-                  <span style="display: inline-flex; gap: 3px;">
-                    ${t.dayNames.map(
-                      (dayLabel: string, dayIdx: number) => {
-                        const isChecked = nonWorkingDays.includes(dayIdx)
-                        return html`
-                          <button
-                            type="button"
-                            style="
-                              padding: 2px 7px;
-                              font-size: 11px;
-                              font-weight: 600;
-                              border-radius: 5px;
-                              cursor: pointer;
-                              border: 1px solid ${isChecked ? c.accent : c.selectBorder};
-                              background: ${isChecked ? c.accent : c.selectBg};
-                              color: ${isChecked ? '#ffffff' : c.text};
-                              transition: all 0.15s;
-                            "
-                            @click="${() => {
-                              if (nonWorkingDays.includes(dayIdx)) {
-                                nonWorkingDays = nonWorkingDays.filter((d) => d !== dayIdx)
-                              } else {
-                                nonWorkingDays = [...nonWorkingDays, dayIdx].sort((a, b) => a - b)
-                              }
-                              renderApp()
-                            }}"
-                          >
-                            ${dayLabel.replace('曜', '')}
-                          </button>
-                        `
-                      },
-                    )}
-                  </span>
-                </span>
-                <label class="toggle-label">
-                  <input
-                    type="checkbox"
-                    .checked="${enableCustomNonWorkingDates}"
-                    @change="${(e: Event) => {
-                      enableCustomNonWorkingDates = (e.target as HTMLInputElement).checked
-                      renderApp()
-                    }}"
-                  />
-                  <span class="toggle-track"></span>
-                  ${t.enableCustomNonWorkingDates}
-                </label>
-                ${viewMode === 'week'
-                  ? html`
-                      <span class="select-group">
-                        ${t.weekStartDay}
-                        <select
-                          class="mini-select"
-                          @change="${(e: Event) => {
-                            weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
-                            renderApp()
-                          }}"
-                        >
-                          ${t.dayNames.map(
-                            (name: string, i: number) => html`
-                              <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
-                            `,
-                          )}
-                        </select>
-                      </span>
-                    `
-                  : ''}
-              </div>
+          <!-- カレンダー表示 -->
+          <div class="ctrl-card">
+            <div class="ctrl-card-header">
+              <span class="icon">📅</span>
+              ${t.sectionCalendar}
             </div>
-
-            <!-- マルチカラムデータグリッド設定 -->
-            <div class="ctrl-card">
-              <div class="ctrl-card-header">
-                <span class="icon">📋</span>
-                ${t.sectionGrid}
-              </div>
-              <div class="ctrl-card-body">
-                <label class="toggle-label">
-                  <input
-                    type="checkbox"
-                    .checked="${enableGrid}"
-                    @change="${(e: Event) => {
-                      enableGrid = (e.target as HTMLInputElement).checked
-                      rowHeaderWidth = enableGrid ? 760 : 200
-                      renderApp()
-                    }}"
-                  />
-                  <span class="toggle-track"></span>
-                  ${t.enableGrid}
-                </label>
-                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                  <input type="checkbox" .checked="${enableGridEdit}" @change="${(e: Event) => { enableGridEdit = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                  <span class="toggle-track"></span>
-                  ${t.enableGridEdit}
-                </label>
-                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                  <input
-                    type="checkbox"
-                    .checked="${showWorkingDaysColumn}"
-                    @change="${(e: Event) => {
-                      showWorkingDaysColumn = (e.target as HTMLInputElement).checked
-                      rowHeaderWidth = showWorkingDaysColumn ? 760 : 685
-                      renderApp()
-                    }}"
-                  />
-                  <span class="toggle-track"></span>
-                  ${t.showWorkingDaysColumn}
-                </label>
-              </div>
+            <div class="ctrl-card-body">
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showQuarters}" @change="${(e: Event) => { showQuarters = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showQuarters}
+              </label>
+              ${showQuarters
+                ? html`
+                    <span class="select-group">
+                      ${t.quarterStartMonthLabel}
+                      <select
+                        class="mini-select"
+                        @change="${(e: Event) => {
+                          quarterStartMonth = Number((e.target as HTMLSelectElement).value) as 1 | 4 | 10
+                          renderApp()
+                        }}"
+                      >
+                        <option value="1" ?selected="${quarterStartMonth === 1}">${t.fiscalYearJan}</option>
+                        <option value="4" ?selected="${quarterStartMonth === 4}">${t.fiscalYearApr}</option>
+                        <option value="10" ?selected="${quarterStartMonth === 10}">${t.fiscalYearOct}</option>
+                      </select>
+                    </span>
+                  `
+                : ''}
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${autoExtend}" @change="${(e: Event) => { autoExtend = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.autoExtendTimeline}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showTime}" @change="${(e: Event) => { showTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showTime}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showMonths}" @change="${(e: Event) => { showMonths = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showYearMonth}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showDays}" @change="${(e: Event) => { showDays = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showDates}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCurrentTime}" @change="${(e: Event) => { showCurrentTime = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showCurrentTimeLine}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCurrentTimeBadge}" @change="${(e: Event) => { showCurrentTimeBadge = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${t.showCurrentTimeBadge}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showCursorLine}" @change="${(e: Event) => { showCursorLine = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${currentLang === 'ja' ? 'カーソル線' : 'Cursor Line'}
+              </label>
+              <div style="width: 100%; border-top: 1px dashed ${c.cardBorder}; margin: 2px 0;"></div>
+              <span class="select-group">
+                ${t.calendarModeLabel}
+                <select
+                  class="mini-select"
+                  @change="${(e: Event) => {
+                    calendarMode = (e.target as HTMLSelectElement).value as 'calendar' | 'weekends' | 'weekends-holidays'
+                    renderApp()
+                  }}"
+                >
+                  <option value="calendar" ?selected="${calendarMode === 'calendar'}">${t.calendarModeCalendar}</option>
+                  <option value="weekends" ?selected="${calendarMode === 'weekends'}">${t.calendarModeWeekends}</option>
+                  <option value="weekends-holidays" ?selected="${calendarMode === 'weekends-holidays'}">${t.calendarModeHolidays}</option>
+                </select>
+              </span>
+              <span class="select-group" style="flex-wrap: wrap;">
+                ${t.nonWorkingDaysLabel}
+                <span style="display: inline-flex; gap: 3px;">
+                  ${t.dayNames.map(
+                    (dayLabel: string, dayIdx: number) => {
+                      const isChecked = nonWorkingDays.includes(dayIdx)
+                      return html`
+                        <button
+                          type="button"
+                          style="
+                            padding: 2px 7px;
+                            font-size: 11px;
+                            font-weight: 600;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            border: 1px solid ${isChecked ? c.accent : c.selectBorder};
+                            background: ${isChecked ? c.accent : c.selectBg};
+                            color: ${isChecked ? '#ffffff' : c.text};
+                            transition: all 0.15s;
+                          "
+                          @click="${() => {
+                            if (nonWorkingDays.includes(dayIdx)) {
+                              nonWorkingDays = nonWorkingDays.filter((d) => d !== dayIdx)
+                            } else {
+                              nonWorkingDays = [...nonWorkingDays, dayIdx].sort((a, b) => a - b)
+                            }
+                            renderApp()
+                          }}"
+                        >
+                          ${dayLabel.replace('曜', '')}
+                        </button>
+                      `
+                    },
+                  )}
+                </span>
+              </span>
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  .checked="${enableCustomNonWorkingDates}"
+                  @change="${(e: Event) => {
+                    enableCustomNonWorkingDates = (e.target as HTMLInputElement).checked
+                    renderApp()
+                  }}"
+                />
+                <span class="toggle-track"></span>
+                ${t.enableCustomNonWorkingDates}
+              </label>
+              ${viewMode === 'week'
+                ? html`
+                    <span class="select-group">
+                      ${t.weekStartDay}
+                      <select
+                        class="mini-select"
+                        @change="${(e: Event) => {
+                          weekStartDay = Number((e.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+                          renderApp()
+                        }}"
+                      >
+                        ${t.dayNames.map(
+                          (name: string, i: number) => html`
+                            <option value="${i}" ?selected="${weekStartDay === i}">${name}</option>
+                          `,
+                        )}
+                      </select>
+                    </span>
+                  `
+                : ''}
             </div>
           </div>
 
@@ -1355,33 +1311,77 @@ const renderApp = () => {
             </div>
           </div>
 
-          <!-- 予実管理 (Baseline) 設定 -->
-          <div class="ctrl-card">
-            <div class="ctrl-card-header">
-              <span class="icon">📊</span>
-              ${t.sectionBaseline}
+          <!-- 予実管理 & データグリッド カラム -->
+          <div class="ctrl-col">
+            <!-- 予実管理 (Baseline) 設定 -->
+            <div class="ctrl-card">
+              <div class="ctrl-card-header">
+                <span class="icon">📊</span>
+                ${t.sectionBaseline}
+              </div>
+              <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${enableBaseline}" @change="${(e: Event) => { enableBaseline = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.enableBaseline}
+                </label>
+                <label class="toggle-label" style="${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${highlightDelay}" @change="${(e: Event) => { highlightDelay = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.highlightDelay}
+                </label>
+                <div class="select-group" style="margin-top: 6px; ${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  ${t.baselinePosition}
+                  <select
+                    class="mini-select"
+                    @change="${(e: Event) => { baselinePosition = (e.target as HTMLSelectElement).value as any; renderApp() }}"
+                  >
+                    <option value="bottom" ?selected="${baselinePosition === 'bottom'}">Bottom (下部)</option>
+                    <option value="top" ?selected="${baselinePosition === 'top'}">Top (上部)</option>
+                    <option value="overlay" ?selected="${baselinePosition === 'overlay'}">Overlay (重ね合わせ)</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div class="ctrl-card-body">
-              <label class="toggle-label">
-                <input type="checkbox" .checked="${enableBaseline}" @change="${(e: Event) => { enableBaseline = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.enableBaseline}
-              </label>
-              <label class="toggle-label" style="${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                <input type="checkbox" .checked="${highlightDelay}" @change="${(e: Event) => { highlightDelay = (e.target as HTMLInputElement).checked; renderApp() }}" />
-                <span class="toggle-track"></span>
-                ${t.highlightDelay}
-              </label>
-              <div class="select-group" style="margin-top: 6px; ${!enableBaseline ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                ${t.baselinePosition}
-                <select
-                  class="mini-select"
-                  @change="${(e: Event) => { baselinePosition = (e.target as HTMLSelectElement).value as any; renderApp() }}"
-                >
-                  <option value="bottom" ?selected="${baselinePosition === 'bottom'}">Bottom (下部)</option>
-                  <option value="top" ?selected="${baselinePosition === 'top'}">Top (上部)</option>
-                  <option value="overlay" ?selected="${baselinePosition === 'overlay'}">Overlay (重ね合わせ)</option>
-                </select>
+
+            <!-- マルチカラムデータグリッド設定 -->
+            <div class="ctrl-card">
+              <div class="ctrl-card-header">
+                <span class="icon">📋</span>
+                ${t.sectionGrid}
+              </div>
+              <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    .checked="${enableGrid}"
+                    @change="${(e: Event) => {
+                      enableGrid = (e.target as HTMLInputElement).checked
+                      rowHeaderWidth = enableGrid ? 760 : 200
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  ${t.enableGrid}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${enableGridEdit}" @change="${(e: Event) => { enableGridEdit = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.enableGridEdit}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input
+                    type="checkbox"
+                    .checked="${showWorkingDaysColumn}"
+                    @change="${(e: Event) => {
+                      showWorkingDaysColumn = (e.target as HTMLInputElement).checked
+                      rowHeaderWidth = showWorkingDaysColumn ? 760 : 685
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  ${t.showWorkingDaysColumn}
+                </label>
               </div>
             </div>
           </div>
