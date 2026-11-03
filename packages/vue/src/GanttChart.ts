@@ -295,6 +295,7 @@ export const GanttChart = defineComponent({
       triggerDependencyDelete: (...args: Parameters<GanttChartElement['triggerDependencyDelete']>) => elRef.value?.triggerDependencyDelete(...args),
       autoSchedule: (...args: Parameters<GanttChartElement['autoSchedule']>) => elRef.value?.autoSchedule(...args),
       startCellEdit: (...args: Parameters<GanttChartElement['startCellEdit']>) => elRef.value?.startCellEdit(...args),
+      navigateCellEdit: (...args: Parameters<GanttChartElement['navigateCellEdit']>) => elRef.value?.navigateCellEdit(...args),
       commitCellEdit: (...args: Parameters<GanttChartElement['commitCellEdit']>) => elRef.value?.commitCellEdit(...args),
       cancelCellEdit: (...args: Parameters<GanttChartElement['cancelCellEdit']>) => elRef.value?.cancelCellEdit(...args),
     }
@@ -348,6 +349,7 @@ export interface GanttChartPublicApi {
   triggerDependencyDelete: GanttChartElement['triggerDependencyDelete']
   autoSchedule: GanttChartElement['autoSchedule']
   startCellEdit: GanttChartElement['startCellEdit']
+  navigateCellEdit: GanttChartElement['navigateCellEdit']
   commitCellEdit: GanttChartElement['commitCellEdit']
   cancelCellEdit: GanttChartElement['cancelCellEdit']
   /** コンポーネントのルートDOM要素 */

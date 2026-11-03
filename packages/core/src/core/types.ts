@@ -1316,6 +1316,15 @@ export interface GanttColumnSelectOption {
 }
 
 /**
+ * インラインセル編集時のセル間移動方向
+ * - 'next': 次の編集可能セル（右方向、行末で次行の先頭へ折り返し）[Tab]
+ * - 'prev': 前の編集可能セル（左方向、行頭で前行の末尾へ折り返し）[Shift+Tab]
+ * - 'down': 同じカラムの下の編集可能行 [Enter]
+ * - 'up': 同じカラムの上の編集可能行 [Shift+Enter]
+ */
+export type GridCellNavigationDirection = 'next' | 'prev' | 'down' | 'up'
+
+/**
  * カスタムセルエディタ生成関数に渡されるコンテキスト
  */
 export interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
@@ -1327,8 +1336,8 @@ export interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
   tasks: TTask[]
   /** カラム定義 */
   column: GanttColumn<TRow, TTask>
-  /** 編集を確定して反映するコールバック */
-  commit: (newValue: any) => void
+  /** 編集を確定して反映するコールバック（navigationDirection 指定時は確定後に隣接セルへ移動） */
+  commit: (newValue: any, navigationDirection?: GridCellNavigationDirection) => void
   /** 編集をキャンセルして閉じるコールバック */
   cancel: () => void
 }

@@ -4,6 +4,7 @@ import type {
   GanttColumnEditorType,
   GanttRow,
   GanttTask,
+  GridCellNavigationDirection,
 } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
@@ -568,6 +569,105 @@ export function isGridCellEditable(
   }
 
   return false
+}
+
+/**
+ * 現在のセル（currentRowId, currentColumnId）から指定方向にある次のインライン編集可能セルを検索する。
+ * 編集不可のセルは自動的にスキップし、'next' / 'prev' は行端で次行・前行へ折り返す。
+ */
+export function findAdjacentEditableCell(
+  displayRows: GanttRow[],
+  allRows: GanttRow[],
+  columns: GanttColumn[],
+  currentRowId: string,
+  currentColumnId: string,
+  direction: GridCellNavigationDirection,
+  gridEditable?: boolean,
+): { rowId: string; columnId: string } | null {
+  const visibleColumns = (columns ?? []).filter((c) => c.visible !== false)
+  if (visibleColumns.length === 0 || !displayRows || displayRows.length === 0) {
+    return null
+  }
+
+  const currentRowIndex = displayRows.findIndex((r) => r.id === currentRowId)
+  const currentColIndex = visibleColumns.findIndex((c) => c.id === currentColumnId)
+  if (currentRowIndex === -1 || currentColIndex === -1) {
+    return null
+  }
+
+  const rowsWithChildren = new Set<string>()
+  for (const r of allRows ?? displayRows) {
+    if (r.parentId) {
+      rowsWithChildren.add(r.parentId)
+    }
+  }
+
+  const canEdit = (row: GanttRow, col: GanttColumn): boolean =>
+    isGridCellEditable(col, row, row.tasks ?? [], rowsWithChildren.has(row.id), gridEditable)
+
+  if (direction === 'next') {
+    // 1. 現在行の右側のカラムを探索
+    const currentRow = displayRows[currentRowIndex]
+    for (let cIdx = currentColIndex + 1; cIdx < visibleColumns.length; cIdx++) {
+      if (canEdit(currentRow, visibleColumns[cIdx])) {
+        return { rowId: currentRow.id, columnId: visibleColumns[cIdx].id }
+      }
+    }
+    // 2. 次の行以降を先頭カラムから順に探索
+    for (let rIdx = currentRowIndex + 1; rIdx < displayRows.length; rIdx++) {
+      const row = displayRows[rIdx]
+      for (let cIdx = 0; cIdx < visibleColumns.length; cIdx++) {
+        if (canEdit(row, visibleColumns[cIdx])) {
+          return { rowId: row.id, columnId: visibleColumns[cIdx].id }
+        }
+      }
+    }
+    return null
+  }
+
+  if (direction === 'prev') {
+    // 1. 現在行の左側のカラムを探索
+    const currentRow = displayRows[currentRowIndex]
+    for (let cIdx = currentColIndex - 1; cIdx >= 0; cIdx--) {
+      if (canEdit(currentRow, visibleColumns[cIdx])) {
+        return { rowId: currentRow.id, columnId: visibleColumns[cIdx].id }
+      }
+    }
+    // 2. 前の行以前を末尾カラムから逆順に探索
+    for (let rIdx = currentRowIndex - 1; rIdx >= 0; rIdx--) {
+      const row = displayRows[rIdx]
+      for (let cIdx = visibleColumns.length - 1; cIdx >= 0; cIdx--) {
+        if (canEdit(row, visibleColumns[cIdx])) {
+          return { rowId: row.id, columnId: visibleColumns[cIdx].id }
+        }
+      }
+    }
+    return null
+  }
+
+  if (direction === 'down') {
+    const col = visibleColumns[currentColIndex]
+    for (let rIdx = currentRowIndex + 1; rIdx < displayRows.length; rIdx++) {
+      const row = displayRows[rIdx]
+      if (canEdit(row, col)) {
+        return { rowId: row.id, columnId: col.id }
+      }
+    }
+    return null
+  }
+
+  if (direction === 'up') {
+    const col = visibleColumns[currentColIndex]
+    for (let rIdx = currentRowIndex - 1; rIdx >= 0; rIdx--) {
+      const row = displayRows[rIdx]
+      if (canEdit(row, col)) {
+        return { rowId: row.id, columnId: col.id }
+      }
+    }
+    return null
+  }
+
+  return null
 }
 
 function formatDateInputString(d: Date): string {

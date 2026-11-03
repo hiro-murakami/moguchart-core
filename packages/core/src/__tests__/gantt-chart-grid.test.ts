@@ -1009,4 +1009,96 @@ describe('GanttChartElement Multi-Column Grid Inline Editing', () => {
       'assignee',
     ])
   })
+
+  it('navigates between editable cells with Tab, Shift+Tab, Enter, and Shift+Enter', async () => {
+    chart.rows = [
+      ...chart.rows,
+      {
+        id: 'row-2',
+        parentId: 'parent-1',
+        name: 'Task 2',
+        assignee: 'Bob',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'Task 2',
+            start: new Date(2026, 9, 6),
+            end: new Date(2026, 9, 10),
+            progress: 20,
+          },
+        ],
+      } as any,
+    ]
+    await chart.updateComplete
+
+    const getRowEl = (index: number) =>
+      chart.shadowRoot?.querySelectorAll('gantt-row')?.[index] as any
+
+    // 1. Start editing parent-1 'name' and press Enter -> moves down to row-1 'name'
+    expect(chart.startCellEdit('parent-1', 'name')).toBe(true)
+    const parentRowEl = getRowEl(0)
+    await parentRowEl.updateComplete
+
+    let inputEl = parentRowEl.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    inputEl.value = 'Updated Parent Phase'
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }))
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+    await chart.updateComplete
+    const row1El = getRowEl(1)
+    await row1El.updateComplete
+
+    expect(chart.rows[0].name).toBe('Updated Parent Phase')
+    expect(parentRowEl.editingColumnId).toBeNull()
+    expect(row1El.editingColumnId).toBe('name')
+
+    // 2. Press Tab on row-1 'name' without changing value -> moves to row-1 'startDate'
+    inputEl = row1El.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+
+    await chart.updateComplete
+    await row1El.updateComplete
+    expect(row1El.editingColumnId).toBe('startDate')
+
+    // 3. Press Shift+Tab on row-1 'startDate' -> moves back to row-1 'name'
+    inputEl = row1El.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    inputEl.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+    )
+
+    await chart.updateComplete
+    await row1El.updateComplete
+    expect(row1El.editingColumnId).toBe('name')
+
+    // 4. Start editing row-1 'assignee' (last column of row-1) and press Tab -> wraps to row-2 'name'
+    expect(chart.startCellEdit('row-1', 'assignee')).toBe(true)
+    await row1El.updateComplete
+    const selectEl = row1El.shadowRoot?.querySelector('.grid-cell-select') as HTMLSelectElement
+    expect(selectEl).toBeTruthy()
+    selectEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+
+    await chart.updateComplete
+    const row2El = getRowEl(2)
+    await row2El.updateComplete
+    expect(row1El.editingColumnId).toBeNull()
+    expect(row2El.editingColumnId).toBe('name')
+
+    // 5. Press Shift+Enter on row-2 'name' -> moves up to row-1 'name'
+    inputEl = row2El.shadowRoot?.querySelector('.grid-cell-input') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    inputEl.value = 'Task 2 Updated'
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }))
+    inputEl.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }),
+    )
+
+    await chart.updateComplete
+    await row1El.updateComplete
+    expect(chart.rows[2].name).toBe('Task 2 Updated')
+    expect(row2El.editingColumnId).toBeNull()
+    expect(row1El.editingColumnId).toBe('name')
+  })
 })

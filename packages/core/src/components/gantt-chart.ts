@@ -26,9 +26,15 @@ import type {
   GanttOverlayRenderContext,
   GanttViewportState,
   GanttDependency,
+  GridCellNavigationDirection,
 } from '../core/types'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
-import { normalizeGridColumns, applyGridCellEdit } from '../core/grid'
+import {
+  normalizeGridColumns,
+  applyGridCellEdit,
+  findAdjacentEditableCell,
+  isGridCellEditable,
+} from '../core/grid'
 import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
 import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule'
@@ -1832,10 +1838,15 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleRowCellEdit = (
-    e: CustomEvent<{ rowId: string; columnId: string; rawValue: any }>,
+    e: CustomEvent<{
+      rowId: string
+      columnId: string
+      rawValue: any
+      navigationDirection?: GridCellNavigationDirection
+    }>,
   ): void => {
     if (this.option?.readOnly) return
-    const { rowId, columnId, rawValue } = e.detail
+    const { rowId, columnId, rawValue, navigationDirection } = e.detail
     const columns = this.effectiveGridColumns
     if (!columns) return
     const col = columns.find((c) => c.id === columnId)
@@ -1875,7 +1886,12 @@ export class GanttChartElement extends LitElement {
       calendarOptions,
     )
 
-    if (!editResult.changed) return
+    if (!editResult.changed) {
+      if (navigationDirection) {
+        this.navigateCellEdit(rowId, columnId, navigationDirection)
+      }
+      return
+    }
 
     const origNormalTasks = (origRow.tasks ?? []).filter(
       (t) => t.type !== 'summary' && !(t as any).isSummary,
@@ -1951,6 +1967,10 @@ export class GanttChartElement extends LitElement {
       )
 
       this._pluginManager.executeAfterCellEdit(afterDetail)
+
+      if (navigationDirection) {
+        this.navigateCellEdit(rowId, columnId, navigationDirection)
+      }
     }
 
     this._pluginManager.runBeforeHook('beforeCellEdit', beforeDetail, commitEdit, () => {
@@ -1987,33 +2007,190 @@ export class GanttChartElement extends LitElement {
    * 指定された行とカラムのインライン編集を開始する
    */
   public startCellEdit(rowId: string, columnId: string): boolean {
-    const rowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as Array<HTMLElement & { row?: GanttRow; startCellEdit?: (colId: string) => boolean }>
-    const targetRowEl = rowElements.find((el) => el.row?.id === rowId)
-    if (!targetRowEl || typeof targetRowEl.startCellEdit !== 'function') {
+    if (this.option?.readOnly) return false
+    const columns = this.effectiveGridColumns
+    if (!columns) return false
+    const col = columns.find((c) => c.id === columnId && c.visible !== false)
+    if (!col) return false
+
+    const targetRow = this.displayRows.find((r) => r.id === rowId)
+    if (!targetRow) return false
+
+    const rowsWithChildren = new Set<string>()
+    for (const r of this.rows) {
+      if (r.parentId) rowsWithChildren.add(r.parentId)
+    }
+    const gridEditable = this.option?.grid?.editable === true
+    if (
+      !isGridCellEditable(
+        col,
+        targetRow,
+        targetRow.tasks,
+        rowsWithChildren.has(rowId),
+        gridEditable,
+      )
+    ) {
       return false
     }
-    return targetRowEl.startCellEdit(columnId)
+
+    this.scrollGridCellIntoView(rowId, columnId)
+
+    const rowElements = Array.from(
+      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+    ) as Array<
+      HTMLElement & {
+        row?: GanttRow
+        editingColumnId?: string | null
+        commitCellEdit?: (val?: any) => boolean
+        startCellEdit?: (colId: string) => boolean
+      }
+    >
+    for (const el of rowElements) {
+      if (el.row?.id !== rowId && el.editingColumnId) {
+        el.commitCellEdit?.()
+      }
+    }
+
+    const targetRowEl = rowElements.find((el) => el.row?.id === rowId)
+    if (targetRowEl && typeof targetRowEl.startCellEdit === 'function') {
+      const latestRow = this.displayRows.find((r) => r.id === rowId)
+      if (latestRow && targetRowEl.row !== latestRow) {
+        targetRowEl.row = latestRow
+      }
+      return targetRowEl.startCellEdit(columnId)
+    }
+
+    // 仮想スクロールにより対象行の DOM がまだ描画されていない場合は、更新完了後に編集を開始する
+    this.updateComplete.then(() => {
+      const updatedRowElements = Array.from(
+        this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
+      ) as Array<
+        HTMLElement & {
+          row?: GanttRow
+          startCellEdit?: (colId: string) => boolean
+        }
+      >
+      const updatedTargetRowEl = updatedRowElements.find((el) => el.row?.id === rowId)
+      if (updatedTargetRowEl && typeof updatedTargetRowEl.startCellEdit === 'function') {
+        updatedTargetRowEl.startCellEdit(columnId)
+      }
+    })
+    return true
+  }
+
+  /**
+   * 指定したセルから隣接する編集可能なセルへ移動してインライン編集を開始する
+   */
+  public navigateCellEdit(
+    fromRowId: string,
+    fromColumnId: string,
+    direction: GridCellNavigationDirection,
+  ): boolean {
+    if (this.option?.readOnly) return false
+    const columns = this.effectiveGridColumns
+    if (!columns) return false
+    const gridEditable = this.option?.grid?.editable === true
+
+    const nextCell = findAdjacentEditableCell(
+      this.displayRows,
+      this.rows,
+      columns,
+      fromRowId,
+      fromColumnId,
+      direction,
+      gridEditable,
+    )
+    if (!nextCell) return false
+
+    return this.startCellEdit(nextCell.rowId, nextCell.columnId)
+  }
+
+  /**
+   * グリッドセルが表示領域内に収まるよう、必要に応じてグリッド横スクロールおよびチャート縦スクロールを調整する
+   */
+  private scrollGridCellIntoView(rowId: string, columnId: string): void {
+    const columns = this.effectiveGridColumns
+    if (columns) {
+      const visibleCols = columns.filter((c) => c.visible !== false)
+      let colLeft = 0
+      let colWidth = 0
+      let found = false
+      for (const c of visibleCols) {
+        const w = c.width ?? 100
+        if (c.id === columnId) {
+          colWidth = w
+          found = true
+          break
+        }
+        colLeft += w
+      }
+      if (found) {
+        const headerWidth = this.currentRowHeaderWidth
+        const totalGridWidth = visibleCols.reduce((sum, c) => sum + (c.width ?? 100), 0)
+        const maxGridScroll = Math.max(0, totalGridWidth - headerWidth)
+        let nextGridScroll = this.currentGridScrollLeft
+        if (colLeft < nextGridScroll) {
+          nextGridScroll = colLeft
+        } else if (colLeft + colWidth > nextGridScroll + headerWidth) {
+          nextGridScroll = Math.max(0, colLeft + colWidth - headerWidth)
+        }
+        nextGridScroll = Math.max(0, Math.min(maxGridScroll, nextGridScroll))
+        if (nextGridScroll !== this.currentGridScrollLeft) {
+          this.currentGridScrollLeft = nextGridScroll
+        }
+      }
+    }
+
+    const rowIndex = this.displayRows.findIndex((r) => r.id === rowId)
+    if (rowIndex === -1) return
+
+    const { layouts } = this.calculateLayout()
+    const layout = layouts[rowIndex]
+    if (!layout) return
+
+    const container =
+      this._scrollContainer ??
+      (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    if (!container || container.clientHeight <= 0) return
+
+    const visibleTop = container.scrollTop
+    const visibleBottom = container.scrollTop + Math.max(0, container.clientHeight - this.calendarHeight)
+
+    let nextTop: number | undefined
+    if (layout.top < visibleTop) {
+      nextTop = Math.max(0, layout.top)
+    } else if (layout.top + layout.height > visibleBottom) {
+      nextTop = Math.max(0, layout.top + layout.height - Math.max(0, container.clientHeight - this.calendarHeight))
+    }
+
+    if (nextTop !== undefined && nextTop !== container.scrollTop) {
+      container.scrollTop = nextTop
+      this.currentScrollTop = nextTop
+      this.virtualScrollTop = nextTop
+      this.requestUpdate()
+    }
   }
 
   /**
    * 現在編集中のセルがあれば編集を確定する
    */
-  public commitCellEdit(overrideValue?: any): boolean {
+  public commitCellEdit(
+    overrideValue?: any,
+    navigationDirection?: GridCellNavigationDirection,
+  ): boolean {
     const rowElements = Array.from(
       this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
     ) as Array<
       HTMLElement & {
         editingColumnId?: string | null
-        commitCellEdit?: (val?: any) => boolean
+        commitCellEdit?: (val?: any, navDir?: GridCellNavigationDirection) => boolean
       }
     >
     const editingRowEl = rowElements.find((el) => el.editingColumnId !== null && el.editingColumnId !== undefined)
     if (!editingRowEl || typeof editingRowEl.commitCellEdit !== 'function') {
       return false
     }
-    return editingRowEl.commitCellEdit(overrideValue)
+    return editingRowEl.commitCellEdit(overrideValue, navigationDirection)
   }
 
   /**

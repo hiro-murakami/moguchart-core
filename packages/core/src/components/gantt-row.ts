@@ -12,6 +12,7 @@ import type {
   RowHeaderContextMenuEventDetail,
   RowToggleCollapseEventDetail,
   GanttColumn,
+  GridCellNavigationDirection,
 } from '../core/types'
 import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
 import {
@@ -834,6 +835,19 @@ export class GanttRowElement extends LitElement {
       this.commitCellEdit()
     }
 
+    // 同一シャドウツリー内の他行で編集中のセルがあれば確定する
+    const rootNode = this.getRootNode() as ShadowRoot | Document | null
+    if (rootNode && 'querySelectorAll' in rootNode) {
+      const otherRows = Array.from(rootNode.querySelectorAll('gantt-row')) as Array<
+        HTMLElement & { editingColumnId?: string | null; commitCellEdit?: () => boolean }
+      >
+      for (const other of otherRows) {
+        if (other !== this && other.editingColumnId) {
+          other.commitCellEdit?.()
+        }
+      }
+    }
+
     const cellValue = getGridCellValue(
       col,
       this.row,
@@ -851,8 +865,15 @@ export class GanttRowElement extends LitElement {
         HTMLInputElement | HTMLSelectElement | null
       if (editorEl) {
         editorEl.focus()
-        if (editorEl instanceof HTMLInputElement && editorEl.type === 'text') {
-          editorEl.select()
+        if (
+          editorEl instanceof HTMLInputElement &&
+          (editorEl.type === 'text' || editorEl.type === 'number')
+        ) {
+          try {
+            editorEl.select()
+          } catch {
+            // number input 等で select() が未対応の環境では無視
+          }
         }
       }
     })
@@ -860,7 +881,7 @@ export class GanttRowElement extends LitElement {
     return true
   }
 
-  public commitCellEdit(overrideValue?: any): boolean {
+  public commitCellEdit(overrideValue?: any, navigationDirection?: GridCellNavigationDirection): boolean {
     if (!this._editingColumnId || this._isCommittingEdit) return false
     this._isCommittingEdit = true
     const columnId = this._editingColumnId
@@ -874,6 +895,7 @@ export class GanttRowElement extends LitElement {
           rowId: this.row.id,
           columnId,
           rawValue,
+          navigationDirection,
         },
         bubbles: true,
         composed: true,
@@ -900,10 +922,13 @@ export class GanttRowElement extends LitElement {
 
   private _handleEditorKeyDown = (e: KeyboardEvent) => {
     e.stopPropagation()
-    if (e.key === 'Enter') {
-      if (e.isComposing || e.keyCode === 229) return
+    if (e.isComposing || e.keyCode === 229) return
+    if (e.key === 'Tab') {
       e.preventDefault()
-      this.commitCellEdit()
+      this.commitCellEdit(undefined, e.shiftKey ? 'prev' : 'next')
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      this.commitCellEdit(undefined, e.shiftKey ? 'up' : 'down')
     } else if (e.key === 'Escape') {
       e.preventDefault()
       this.cancelCellEdit()
@@ -914,6 +939,7 @@ export class GanttRowElement extends LitElement {
     if (typeof col.editor === 'function') {
       return html`<div
         class="grid-custom-editor-host"
+        data-editor-col-id="${col.id}"
         @click="${(e: Event) => e.stopPropagation()}"
         @dblclick="${(e: Event) => e.stopPropagation()}"
         @mousedown="${(e: Event) => e.stopPropagation()}"
@@ -937,7 +963,11 @@ export class GanttRowElement extends LitElement {
             this._editingValue = val
             this.commitCellEdit(val)
           }}"
-          @blur="${() => this.commitCellEdit()}"
+          @blur="${() => {
+            if (this._editingColumnId === col.id) {
+              this.commitCellEdit()
+            }
+          }}"
           @keydown="${this._handleEditorKeyDown}"
           @click="${(e: Event) => e.stopPropagation()}"
           @dblclick="${(e: Event) => e.stopPropagation()}"
@@ -993,7 +1023,11 @@ export class GanttRowElement extends LitElement {
         @input="${(e: Event) => {
           this._editingValue = (e.target as HTMLInputElement).value
         }}"
-        @blur="${() => this.commitCellEdit()}"
+        @blur="${() => {
+          if (this._editingColumnId === col.id) {
+            this.commitCellEdit()
+          }
+        }}"
         @keydown="${this._handleEditorKeyDown}"
         @click="${(e: Event) => e.stopPropagation()}"
         @dblclick="${(e: Event) => e.stopPropagation()}"
@@ -1006,7 +1040,9 @@ export class GanttRowElement extends LitElement {
     super.updated(changedProperties)
 
     if (this._editingColumnId) {
-      const host = this.shadowRoot?.querySelector('.grid-custom-editor-host') as HTMLElement | null
+      const host = this.shadowRoot?.querySelector(
+        `.grid-custom-editor-host[data-editor-col-id="${this._editingColumnId}"]`,
+      ) as HTMLElement | null
       if (host && host.childElementCount === 0) {
         const isMonthMode = this.option.calendar.pxPerMonth !== undefined
         const isTimeMode = !!this.option.calendar.showTime
@@ -1030,7 +1066,8 @@ export class GanttRowElement extends LitElement {
             row: this.row,
             tasks: this.row.tasks,
             value: cellValue,
-            commit: (newVal: any) => this.commitCellEdit(newVal),
+            commit: (newVal: any, navDir?: GridCellNavigationDirection) =>
+              this.commitCellEdit(newVal, navDir),
             cancel: () => this.cancelCellEdit(),
           })
           if (customEl instanceof HTMLElement) {

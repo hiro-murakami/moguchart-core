@@ -8,6 +8,7 @@ import {
   isGridCellEditable,
   formatGridCellEditValue,
   applyGridCellEdit,
+  findAdjacentEditableCell,
 } from '../core/grid'
 import type { GanttColumn, GanttRow, GanttTask } from '../core/types'
 import { jaLocale, enLocale } from '../core/i18n'
@@ -494,6 +495,118 @@ describe('grid calculation & formatting', () => {
       )
       expect(resSetter.changed).toBe(true)
       expect(rCustom.assignee).toBe('CHARLIE')
+    })
+
+    it('findAdjacentEditableCell navigates across columns and rows while skipping uneditable cells', () => {
+      const columns = normalizeGridColumns([
+        { id: 'wbs' },
+        { id: 'name' },
+        { id: 'startDate' },
+        { id: 'duration' },
+        { id: 'progress' },
+      ])
+      const allRows: GanttRow[] = [
+        {
+          id: 'parent-1',
+          name: 'Parent 1',
+          tasks: [],
+        },
+        {
+          id: 'child-1',
+          parentId: 'parent-1',
+          name: 'Child 1',
+          tasks: [
+            {
+              id: 't-1',
+              name: 'Child 1',
+              start: new Date(2026, 9, 1),
+              end: new Date(2026, 9, 5),
+              progress: 20,
+            },
+          ],
+        },
+        {
+          id: 'milestone-1',
+          parentId: 'parent-1',
+          name: 'Milestone 1',
+          tasks: [
+            {
+              id: 't-m',
+              name: 'Milestone 1',
+              start: new Date(2026, 9, 10),
+              end: new Date(2026, 9, 10),
+              type: 'milestone',
+            },
+          ],
+        },
+      ]
+
+      // 'next' from parent-1.name wraps to child-1.name (since parent-1 task columns and wbs are uneditable)
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'parent-1', 'name', 'next', true),
+      ).toEqual({ rowId: 'child-1', columnId: 'name' })
+
+      // 'next' within child-1 moves across editable columns and wraps to milestone-1.name
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'name', 'next', true),
+      ).toEqual({ rowId: 'child-1', columnId: 'startDate' })
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'progress', 'next', true),
+      ).toEqual({ rowId: 'milestone-1', columnId: 'name' })
+
+      // 'next' on milestone-1 skips duration & progress and returns null at the end of grid
+      expect(
+        findAdjacentEditableCell(
+          allRows,
+          allRows,
+          columns,
+          'milestone-1',
+          'startDate',
+          'next',
+          true,
+        ),
+      ).toBeNull()
+
+      // 'prev' from milestone-1.startDate goes to milestone-1.name, then wraps to child-1.progress
+      expect(
+        findAdjacentEditableCell(
+          allRows,
+          allRows,
+          columns,
+          'milestone-1',
+          'startDate',
+          'prev',
+          true,
+        ),
+      ).toEqual({ rowId: 'milestone-1', columnId: 'name' })
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'milestone-1', 'name', 'prev', true),
+      ).toEqual({ rowId: 'child-1', columnId: 'progress' })
+
+      // 'down' / 'up' on duration skips milestone-1 (where duration is uneditable) and parent-1
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'duration', 'down', true),
+      ).toBeNull()
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'startDate', 'down', true),
+      ).toEqual({ rowId: 'milestone-1', columnId: 'startDate' })
+      expect(
+        findAdjacentEditableCell(
+          allRows,
+          allRows,
+          columns,
+          'milestone-1',
+          'startDate',
+          'up',
+          true,
+        ),
+      ).toEqual({ rowId: 'child-1', columnId: 'startDate' })
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'startDate', 'up', true),
+      ).toBeNull()
+      expect(
+        findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'name', 'up', true),
+      ).toEqual({ rowId: 'parent-1', columnId: 'name' })
     })
   })
 })
