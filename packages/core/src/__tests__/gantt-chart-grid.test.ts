@@ -847,4 +847,166 @@ describe('GanttChartElement Multi-Column Grid Inline Editing', () => {
     expect(contentEl).toBeTruthy()
     expect(contentEl.style.padding).toBe('0px 6px')
   })
+
+  it('reorders columns via drag and drop on grid header cells and preserves order across option reference updates', async () => {
+    let reorderDetail: any = null
+    chart.addEventListener('column-reorder', ((e: CustomEvent) => {
+      reorderDetail = e.detail
+    }) as EventListener)
+
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar')
+    expect(calendar).toBeTruthy()
+    await calendar?.updateComplete
+
+    // Columns are: wbs (50), name (150), startDate (100), endDate (100), duration (70), progress (70), assignee (100)
+    // Virtual bounds: wbs [0..50], name [50..200], startDate [200..300], endDate [300..400], duration [400..470], progress [470..540], assignee [540..640]
+    const progressHeader = calendar?.shadowRoot?.querySelector(
+      '.grid-header-cell-progress',
+    ) as HTMLElement
+    expect(progressHeader).toBeTruthy()
+
+    // Drag 'progress' (starts at x=490) and drop onto the left half of 'startDate' (x=220)
+    progressHeader.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 490, button: 0, bubbles: true }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 220, bubbles: true }))
+    await calendar?.updateComplete
+
+    const startHeader = calendar?.shadowRoot?.querySelector(
+      '.grid-header-cell-startDate',
+    ) as HTMLElement
+    expect(startHeader?.classList.contains('drop-target-left')).toBe(true)
+
+    await chart.updateComplete
+    const firstRowDuringDrag = chart.shadowRoot?.querySelectorAll('gantt-row')?.[0] as any
+    await firstRowDuringDrag.updateComplete
+    const startRowCellDuringDrag = firstRowDuringDrag.shadowRoot?.querySelector(
+      '.grid-cell-startDate',
+    ) as HTMLElement
+    expect(startRowCellDuringDrag?.classList.contains('drop-target-left')).toBe(true)
+
+    // Verify ghost image is displayed during column drag
+    const ghostEl = document.body.querySelector('.moguchart-column-drag-ghost') as HTMLElement
+    expect(ghostEl).toBeTruthy()
+    expect(
+      ghostEl?.querySelector('.moguchart-column-drag-ghost-header')?.textContent,
+    ).toContain('進捗率')
+    expect(ghostEl?.querySelectorAll('.grid-cell').length).toBeGreaterThan(0)
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 220, bubbles: true }))
+    await chart.updateComplete
+    await calendar?.updateComplete
+
+    // Verify ghost image is removed after drop
+    expect(document.body.querySelector('.moguchart-column-drag-ghost')).toBeNull()
+
+    expect(reorderDetail).toBeTruthy()
+    expect(reorderDetail.columnId).toBe('progress')
+    expect(reorderDetail.targetColumnId).toBe('startDate')
+    expect(reorderDetail.position).toBe('left')
+    expect(reorderDetail.columnIds).toEqual([
+      'wbs',
+      'name',
+      'progress',
+      'startDate',
+      'endDate',
+      'duration',
+      'assignee',
+    ])
+
+    // Verify row cells are rendered in the new column order
+    const rowEl = chart.shadowRoot?.querySelectorAll('gantt-row')?.[0] as any
+    await rowEl.updateComplete
+    const rowCellIds = Array.from(rowEl.shadowRoot?.querySelectorAll('.grid-cell') ?? []).map(
+      (el: any) => el.dataset.columnId,
+    )
+    expect(rowCellIds).toEqual([
+      'wbs',
+      'name',
+      'progress',
+      'startDate',
+      'endDate',
+      'duration',
+      'assignee',
+    ])
+
+    // Re-assign option with same initial column definitions (simulating parent re-render without explicit column order change)
+    chart.option = { ...chart.option }
+    await chart.updateComplete
+    await rowEl.updateComplete
+    const rowCellIdsAfter = Array.from(rowEl.shadowRoot?.querySelectorAll('.grid-cell') ?? []).map(
+      (el: any) => el.dataset.columnId,
+    )
+    expect(rowCellIdsAfter).toEqual([
+      'wbs',
+      'name',
+      'progress',
+      'startDate',
+      'endDate',
+      'duration',
+      'assignee',
+    ])
+  })
+
+  it('cancels column drag and drop when Escape key is pressed during drag', async () => {
+    let reorderCalled = false
+    chart.addEventListener('column-reorder', () => {
+      reorderCalled = true
+    })
+
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar')
+    expect(calendar).toBeTruthy()
+    await calendar?.updateComplete
+
+    const progressHeader = calendar?.shadowRoot?.querySelector(
+      '.grid-header-cell-progress',
+    ) as HTMLElement
+    expect(progressHeader).toBeTruthy()
+
+    // Start dragging 'progress' (x=490) to left half of 'startDate' (x=220)
+    progressHeader.dispatchEvent(
+      new PointerEvent('pointerdown', { clientX: 490, button: 0, bubbles: true }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 220, bubbles: true }))
+    await calendar?.updateComplete
+    await chart.updateComplete
+
+    expect(document.body.querySelector('.moguchart-column-drag-ghost')).toBeTruthy()
+    const startHeader = calendar?.shadowRoot?.querySelector(
+      '.grid-header-cell-startDate',
+    ) as HTMLElement
+    expect(startHeader?.classList.contains('drop-target-left')).toBe(true)
+
+    // Press Escape to cancel drag
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await calendar?.updateComplete
+    await chart.updateComplete
+
+    // Ghost image and drop indicators should be removed immediately
+    expect(document.body.querySelector('.moguchart-column-drag-ghost')).toBeNull()
+    expect(startHeader?.classList.contains('drop-target-left')).toBe(false)
+
+    const firstRow = chart.shadowRoot?.querySelectorAll('gantt-row')?.[0] as any
+    await firstRow.updateComplete
+    const startRowCell = firstRow.shadowRoot?.querySelector('.grid-cell-startDate') as HTMLElement
+    expect(startRowCell?.classList.contains('drop-target-left')).toBe(false)
+
+    // Releasing pointer after Escape should not trigger column-reorder
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 220, bubbles: true }))
+    await chart.updateComplete
+
+    expect(reorderCalled).toBe(false)
+    const rowCellIds = Array.from(firstRow.shadowRoot?.querySelectorAll('.grid-cell') ?? []).map(
+      (el: any) => el.dataset.columnId,
+    )
+    expect(rowCellIds).toEqual([
+      'wbs',
+      'name',
+      'startDate',
+      'endDate',
+      'duration',
+      'progress',
+      'assignee',
+    ])
+  })
 })

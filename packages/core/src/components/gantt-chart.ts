@@ -19,6 +19,7 @@ import type {
   HistoryChangeEventDetail,
   GanttColumn,
   ColumnResizeEventDetail,
+  ColumnReorderEventDetail,
   CellEditEventDetail,
   BeforeCellEditHookDetail,
   CalendarRangeChangeEventDetail,
@@ -322,10 +323,13 @@ export class GanttChartElement extends LitElement {
   @state() private isExporting = false
   @state() private currentGridColumns: GanttColumn[] | null = null
   @state() private currentGridScrollLeft = 0
+  @state() private columnDropTarget: { columnId: string; position: 'left' | 'right' } | null = null
   private _userResizedHeaderWidth: number | null = null
   private _lastExplicitOptionWidth: number | undefined = undefined
   private _userColumnWidths: Map<string, number> = new Map()
   private _lastExplicitColumnWidths: Map<string, number | undefined> = new Map()
+  private _userColumnOrder: string[] | null = null
+  private _lastExplicitColumnOrderKey: string | null = null
 
   public get effectiveGridColumns(): GanttColumn[] | undefined {
     const gridOpt = this.option?.grid
@@ -335,10 +339,19 @@ export class GanttChartElement extends LitElement {
     const isMonthMode = this.effectivePxPerMonth !== undefined || this.option?.calendar?.pxPerMonth !== undefined
     const isTimeMode = !!this.option?.calendar?.showTime
     const normalized = normalizeGridColumns(baseColumns, this.option?.locale, isMonthMode, isTimeMode)
-    return normalized.map((col) => {
+    let result = normalized.map((col) => {
       const userW = this._userColumnWidths.get(col.id)
       return userW !== undefined ? { ...col, width: userW } : col
     })
+    if (this._userColumnOrder && this._userColumnOrder.length > 0) {
+      const orderMap = new Map(this._userColumnOrder.map((id, idx) => [id, idx]))
+      result = [...result].sort((a, b) => {
+        const idxA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
+        const idxB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
+        return idxA - idxB
+      })
+    }
+    return result
   }
 
   private _layoutCache: {
@@ -552,6 +565,15 @@ export class GanttChartElement extends LitElement {
       this.currentGridColumns = null
 
       if (this.option?.grid?.columns) {
+        const explicitOrder = this.option.grid.columns
+          .filter((col): col is GanttColumn => typeof col === 'object' && col !== null)
+          .map((col) => col.id)
+        const orderKey = explicitOrder.join(',')
+        if (orderKey !== this._lastExplicitColumnOrderKey) {
+          this._lastExplicitColumnOrderKey = orderKey
+          this._userColumnOrder = null
+        }
+
         for (const col of this.option.grid.columns) {
           if (typeof col === 'object' && col !== null) {
             const prevExplicit = this._lastExplicitColumnWidths.get(col.id)
@@ -763,6 +785,35 @@ export class GanttChartElement extends LitElement {
     this.requestUpdate()
     this.dispatchEvent(
       new CustomEvent<ColumnResizeEventDetail>('column-resize', {
+        detail: e.detail,
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private handleColumnDragOver = (
+    e: CustomEvent<{ columnId: string | null; position: 'left' | 'right' | null }>,
+  ) => {
+    const { columnId, position } = e.detail ?? {}
+    if (columnId && position) {
+      this.columnDropTarget = { columnId, position }
+    } else {
+      this.columnDropTarget = null
+    }
+  }
+
+  private handleColumnReorder = (e: CustomEvent<ColumnReorderEventDetail>) => {
+    this.columnDropTarget = null
+    if (Array.isArray(e.detail.columnIds) && e.detail.columnIds.length > 0) {
+      this._userColumnOrder = [...e.detail.columnIds]
+    } else if (Array.isArray(e.detail.columns)) {
+      this._userColumnOrder = e.detail.columns.map((c) => c.id)
+    }
+    this.currentGridColumns = e.detail.columns
+    this.requestUpdate()
+    this.dispatchEvent(
+      new CustomEvent<ColumnReorderEventDetail>('column-reorder', {
         detail: e.detail,
         bubbles: true,
         composed: true,
@@ -2268,6 +2319,8 @@ export class GanttChartElement extends LitElement {
           .gridScrollLeft="${this.currentGridScrollLeft}"
           .gridColumns="${this.effectiveGridColumns}"
           @column-resize="${this.handleColumnResize}"
+          @column-drag-over="${this.handleColumnDragOver}"
+          @column-reorder="${this.handleColumnReorder}"
           @milestone-hover-change="${(e: CustomEvent) => {
         this.hoveredMilestoneId = e.detail.milestoneId
       }}"
@@ -2397,6 +2450,7 @@ export class GanttChartElement extends LitElement {
                 .criticalPathTaskIds="${this._cachedCriticalPathArray}"
                 .gridScrollLeft="${this.currentGridScrollLeft}"
                 .gridColumns="${this.effectiveGridColumns}"
+                .columnDropTarget="${this.columnDropTarget}"
                 @task-update="${this.handleTaskUpdate}"
                 @row-clicked="${this.handleRowClicked}"
                 @row-header-contextmenu="${this.handleRowContextMenu}"

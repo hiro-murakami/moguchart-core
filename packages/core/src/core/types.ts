@@ -1351,6 +1351,8 @@ export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   align?: 'left' | 'center' | 'right'
   /** ユーザーによる幅リサイズを許可するか (デフォルト: true) */
   resizable?: boolean
+  /** ユーザーによるドラッグでの列並び替えを許可するか (デフォルト: true) */
+  reorderable?: boolean
   /** カラムを表示するか (デフォルト: true) */
   visible?: boolean
   /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
@@ -1404,6 +1406,8 @@ export interface GanttChartOptionGrid {
   width?: number
   /** スプリッターによるグリッド領域全体の幅リサイズを許可するか (デフォルト: true) */
   splitterResizable?: boolean
+  /** ドラッグ＆ドロップによるカラム（列）の並び替えを許可するか (デフォルト: true) */
+  reorderable?: boolean
   /** セルの境界線を表示するか (デフォルト: true) */
   showBorders?: boolean
   /** セルのパディング (px)。デフォルト: 4 */
@@ -1428,6 +1432,22 @@ export interface ColumnResizeEventDetail {
   isFinal?: boolean
   /** 更新後の全カラム定義配列 */
   columns: GanttColumn[]
+}
+
+/**
+ * カラム並び替えイベントの詳細データ
+ */
+export interface ColumnReorderEventDetail {
+  /** 移動元のカラムID */
+  columnId: string
+  /** ドロップ先のターゲットカラムID */
+  targetColumnId: string
+  /** ドロップ位置 ('left' | 'right') */
+  position: 'left' | 'right'
+  /** 更新後の全カラム定義配列 */
+  columns: GanttColumn[]
+  /** 更新後の全カラムID配列 */
+  columnIds: string[]
 }
 
 /**

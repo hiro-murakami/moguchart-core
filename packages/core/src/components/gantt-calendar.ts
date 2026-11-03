@@ -1,5 +1,5 @@
 import { LitElement, html, css, render } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
+import { customElement, property, state } from 'lit/decorators.js'
 import type {
   GanttChartOption,
   CalendarQuarterCellContext,
@@ -9,12 +9,13 @@ import type {
   CalendarHourCellContext,
   GanttColumn,
   ColumnResizeEventDetail,
+  ColumnReorderEventDetail,
 } from '../core/types'
 import { jaLocale } from '../core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
 import { createCustomHolidayResolver } from '../core/auto-schedule'
 import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
-import { normalizeGridColumns } from '../core/grid'
+import { normalizeGridColumns, reorderGridColumns } from '../core/grid'
 import dayjs from 'dayjs'
 
 interface PositionedRange {
@@ -126,6 +127,157 @@ export class GanttCalendarElement extends LitElement {
   @property({ type: Array }) gridColumns?: GanttColumn[]
   @property({ type: Number }) visibleStartX = 0
   @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
+
+  @state() private _draggingColumnId: string | null = null
+  @state() private _dragOverColumnId: string | null = null
+  @state() private _dragOverColumnPosition: 'left' | 'right' | null = null
+  private _columnDragGhostEl: HTMLElement | null = null
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback()
+    this.removeColumnDragGhost()
+  }
+
+  private removeColumnDragGhost(): void {
+    if (this._columnDragGhostEl) {
+      if (this._columnDragGhostEl.parentNode) {
+        this._columnDragGhostEl.parentNode.removeChild(this._columnDragGhostEl)
+      }
+      this._columnDragGhostEl = null
+    }
+  }
+
+  private createColumnDragGhost(
+    columnId: string,
+    sourceCol: GanttColumn,
+    startX: number,
+    startY: number,
+  ): { el: HTMLElement; offsetX: number; offsetY: number } {
+    this.removeColumnDragGhost()
+    const colors = getThemeColors(this.theme, this.option.customTheme)
+    const headerCell = this.shadowRoot?.querySelector(
+      `.grid-header-cell[data-column-id="${columnId}"]`,
+    ) as HTMLElement | null
+    const headerRect = headerCell?.getBoundingClientRect()
+    const colWidth =
+      (headerRect && headerRect.width > 0 ? headerRect.width : sourceCol.width) ?? 100
+    const headerHeight = headerRect && headerRect.height > 0 ? headerRect.height : 28
+    const offsetX =
+      headerRect && headerRect.width > 0
+        ? Math.max(0, Math.min(colWidth, startX - headerRect.left))
+        : Math.min(20, colWidth / 2)
+    const offsetY =
+      headerRect && headerRect.height > 0
+        ? Math.max(0, Math.min(headerHeight, startY - headerRect.top))
+        : 14
+
+    const ghost = document.createElement('div')
+    ghost.className = 'moguchart-column-drag-ghost'
+    ghost.style.position = 'fixed'
+    ghost.style.top = '0px'
+    ghost.style.left = '0px'
+    ghost.style.width = `${colWidth}px`
+    ghost.style.display = 'flex'
+    ghost.style.flexDirection = 'column'
+    ghost.style.pointerEvents = 'none'
+    ghost.style.zIndex = '99999'
+    ghost.style.opacity = '0.6'
+    ghost.style.boxShadow =
+      '0 8px 20px -4px rgba(0, 0, 0, 0.22), 0 4px 8px -2px rgba(0, 0, 0, 0.12)'
+    ghost.style.border = '1.5px solid #3b82f6'
+    ghost.style.borderRadius = '6px'
+    ghost.style.overflow = 'hidden'
+    ghost.style.background = colors.bg
+    ghost.style.color = colors.text
+    ghost.style.fontFamily = 'var(--moguchart-font-family, sans-serif)'
+
+    const cellPadding = this.option.grid?.cellPadding ?? 6
+    const justify =
+      sourceCol.align === 'center'
+        ? 'center'
+        : sourceCol.align === 'right'
+          ? 'flex-end'
+          : 'flex-start'
+
+    const ghostHeader = document.createElement('div')
+    ghostHeader.className = 'moguchart-column-drag-ghost-header'
+    ghostHeader.style.width = `${colWidth}px`
+    ghostHeader.style.height = `${headerHeight}px`
+    ghostHeader.style.boxSizing = 'border-box'
+    ghostHeader.style.display = 'flex'
+    ghostHeader.style.alignItems = 'center'
+    ghostHeader.style.justifyContent = justify
+    ghostHeader.style.padding = `0 ${cellPadding}px`
+    ghostHeader.style.background =
+      this.theme === 'dark' ? 'rgba(59, 130, 246, 0.24)' : 'rgba(59, 130, 246, 0.12)'
+    ghostHeader.style.color = colors.text
+    ghostHeader.style.fontSize = headerCell
+      ? window.getComputedStyle(headerCell).fontSize || '12px'
+      : '12px'
+    ghostHeader.style.fontWeight = 'bold'
+    ghostHeader.style.whiteSpace = 'nowrap'
+    ghostHeader.style.overflow = 'hidden'
+    ghostHeader.style.textOverflow = 'ellipsis'
+    ghostHeader.style.borderBottom = `1px solid ${colors.border}`
+    ghostHeader.textContent = sourceCol.title ?? sourceCol.id
+    ghost.appendChild(ghostHeader)
+
+    const root = this.getRootNode() as ShadowRoot | Document | null
+    const rowEls = root ? (Array.from(root.querySelectorAll('gantt-row')) as HTMLElement[]) : []
+    const maxPreviewRows = 8
+    const previewRows = rowEls.slice(0, maxPreviewRows)
+
+    previewRows.forEach((rowEl, idx) => {
+      const cellEl = rowEl.shadowRoot?.querySelector(
+        `.grid-cell[data-column-id="${columnId}"]`,
+      ) as HTMLElement | null
+      if (!cellEl) return
+      const cellClone = cellEl.cloneNode(true) as HTMLElement
+      const comp = window.getComputedStyle(cellEl)
+      const rowHeight = rowEl.offsetHeight || parseFloat(comp.height) || 36
+      cellClone.style.width = `${colWidth}px`
+      cellClone.style.minWidth = `${colWidth}px`
+      cellClone.style.maxWidth = `${colWidth}px`
+      cellClone.style.height = `${rowHeight}px`
+      cellClone.style.boxSizing = 'border-box'
+      cellClone.style.display = 'flex'
+      cellClone.style.alignItems = 'center'
+      cellClone.style.justifyContent = justify
+      cellClone.style.padding = comp.padding || `0 ${cellPadding}px`
+      cellClone.style.background =
+        comp.backgroundColor && comp.backgroundColor !== 'rgba(0, 0, 0, 0)'
+          ? comp.backgroundColor
+          : colors.bg
+      cellClone.style.color = comp.color || colors.text
+      cellClone.style.fontSize = comp.fontSize || '12px'
+      cellClone.style.overflow = 'hidden'
+      cellClone.style.whiteSpace = 'nowrap'
+      cellClone.style.textOverflow = 'ellipsis'
+      cellClone.style.borderRight = 'none'
+      cellClone.style.borderBottom =
+        idx < previewRows.length - 1 || rowEls.length > maxPreviewRows
+          ? `1px solid ${colors.border}`
+          : 'none'
+      ghost.appendChild(cellClone)
+    })
+
+    if (rowEls.length > maxPreviewRows) {
+      const moreBadge = document.createElement('div')
+      moreBadge.className = 'moguchart-column-drag-ghost-more'
+      moreBadge.style.padding = '3px 6px'
+      moreBadge.style.background = colors.bg
+      moreBadge.style.color = colors.text
+      moreBadge.style.opacity = '0.7'
+      moreBadge.style.fontSize = '11px'
+      moreBadge.style.textAlign = 'center'
+      moreBadge.textContent = `+ ${rowEls.length - maxPreviewRows} more`
+      ghost.appendChild(moreBadge)
+    }
+
+    document.body.appendChild(ghost)
+    this._columnDragGhostEl = ghost
+    return { el: ghost, offsetX, offsetY }
+  }
 
   /**
    * カスタムレンダリング関数の返却値をターゲット要素に注入するヘルパー
@@ -250,6 +402,214 @@ export class GanttCalendarElement extends LitElement {
   }
 
   /**
+   * カラムヘッダードラッグによる列入れ替えの開始ハンドラー
+   */
+  private handleColumnDragStart(e: PointerEvent, columnId: string) {
+    if (e.button !== undefined && e.button !== 0) return
+    const eventTarget = e.target as HTMLElement | null
+    if (eventTarget?.closest?.('.column-resizer')) return
+    if (this.option?.grid?.reorderable === false) return
+
+    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
+    const isTimeMode = !!this.option.calendar.showTime
+    const columns = normalizeGridColumns(
+      this.gridColumns ?? this.option.grid?.columns,
+      this.option.locale,
+      isMonthMode,
+      isTimeMode,
+    )
+    const visibleColumns = columns.filter((c) => c.visible !== false)
+    if (visibleColumns.length < 2) return
+
+    const sourceCol = visibleColumns.find((c) => c.id === columnId)
+    if (!sourceCol || sourceCol.reorderable === false) return
+
+    const startX = e.clientX
+    const startY = e.clientY ?? 0
+    let isDragging = false
+    let ghostInfo: { el: HTMLElement; offsetX: number; offsetY: number } | null = null
+
+    const resolveDropTarget = (
+      clientX: number,
+    ): { targetColumnId: string; position: 'left' | 'right' } | null => {
+      const cellEls = Array.from(
+        this.shadowRoot?.querySelectorAll('.grid-header-cell') ?? [],
+      ) as HTMLElement[]
+      const rects = cellEls.map((el) => el.getBoundingClientRect())
+      const hasLayoutRects = rects.some((r) => r.width > 0)
+
+      let accLeft = 0
+      const bounds = visibleColumns.map((col, idx) => {
+        const w = col.width ?? 100
+        if (hasLayoutRects && rects[idx] && rects[idx].width > 0) {
+          return {
+            id: col.id,
+            left: rects[idx].left,
+            right: rects[idx].right,
+            width: rects[idx].width,
+            reorderable: col.reorderable !== false,
+          }
+        }
+        const item = {
+          id: col.id,
+          left: accLeft,
+          right: accLeft + w,
+          width: w,
+          reorderable: col.reorderable !== false,
+        }
+        accLeft += w
+        return item
+      })
+
+      if (bounds.length === 0) return null
+
+      let targetBound = bounds[0]
+      let position: 'left' | 'right' = 'left'
+
+      if (clientX <= bounds[0].left) {
+        targetBound = bounds[0]
+        position = 'left'
+      } else if (clientX >= bounds[bounds.length - 1].right) {
+        targetBound = bounds[bounds.length - 1]
+        position = 'right'
+      } else {
+        for (const b of bounds) {
+          if (clientX >= b.left && clientX <= b.right) {
+            targetBound = b
+            position = clientX < b.left + b.width / 2 ? 'left' : 'right'
+            break
+          }
+        }
+      }
+
+      if (!targetBound.reorderable) return null
+
+      const sourceVisIdx = visibleColumns.findIndex((c) => c.id === columnId)
+      const targetVisIdx = visibleColumns.findIndex((c) => c.id === targetBound.id)
+      if (targetBound.id === columnId) return null
+      if (position === 'right' && targetVisIdx === sourceVisIdx - 1) return null
+      if (position === 'left' && targetVisIdx === sourceVisIdx + 1) return null
+
+      return { targetColumnId: targetBound.id, position }
+    }
+
+    const handleMove = (ev: PointerEvent) => {
+      if (!isDragging) {
+        if (Math.abs(ev.clientX - startX) < 4) return
+        isDragging = true
+        this._draggingColumnId = columnId
+        ghostInfo = this.createColumnDragGhost(columnId, sourceCol, startX, startY)
+      }
+      ev.preventDefault()
+      if (ghostInfo) {
+        const gx = Math.round(ev.clientX - ghostInfo.offsetX)
+        const gy = Math.round((ev.clientY ?? startY) - ghostInfo.offsetY)
+        ghostInfo.el.style.transform = `translate3d(${gx}px, ${gy}px, 0)`
+      }
+      const dropTarget = resolveDropTarget(ev.clientX)
+      const nextTargetId = dropTarget?.targetColumnId ?? null
+      const nextPos = dropTarget?.position ?? null
+      if (this._dragOverColumnId !== nextTargetId || this._dragOverColumnPosition !== nextPos) {
+        this._dragOverColumnId = nextTargetId
+        this._dragOverColumnPosition = nextPos
+        this.dispatchEvent(
+          new CustomEvent<{ columnId: string | null; position: 'left' | 'right' | null }>(
+            'column-drag-over',
+            {
+              detail: { columnId: nextTargetId, position: nextPos },
+              bubbles: true,
+              composed: true,
+            },
+          ),
+        )
+      }
+    }
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
+      window.removeEventListener('keydown', handleKeyDown, true)
+      this.removeColumnDragGhost()
+      ghostInfo = null
+
+      const hadDragState =
+        this._draggingColumnId !== null ||
+        this._dragOverColumnId !== null ||
+        this._dragOverColumnPosition !== null
+      this._draggingColumnId = null
+      this._dragOverColumnId = null
+      this._dragOverColumnPosition = null
+      if (hadDragState) {
+        this.dispatchEvent(
+          new CustomEvent<{ columnId: string | null; position: 'left' | 'right' | null }>(
+            'column-drag-over',
+            {
+              detail: { columnId: null, position: null },
+              bubbles: true,
+              composed: true,
+            },
+          ),
+        )
+      }
+    }
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        ev.preventDefault()
+        ev.stopPropagation()
+        cleanup()
+      }
+    }
+
+    const handleCancel = () => {
+      cleanup()
+    }
+
+    const handleUp = (ev: PointerEvent) => {
+      const wasDragging = isDragging
+      const finalTarget = wasDragging
+        ? (resolveDropTarget(ev.clientX) ??
+          (this._dragOverColumnId && this._dragOverColumnPosition
+            ? { targetColumnId: this._dragOverColumnId, position: this._dragOverColumnPosition }
+            : null))
+        : null
+
+      cleanup()
+
+      if (!wasDragging || !finalTarget) return
+
+      const reordered = reorderGridColumns(
+        columns,
+        columnId,
+        finalTarget.targetColumnId,
+        finalTarget.position,
+      )
+      const changed = reordered.some((c, i) => c.id !== columns[i]?.id)
+      if (!changed) return
+
+      this.dispatchEvent(
+        new CustomEvent<ColumnReorderEventDetail>('column-reorder', {
+          detail: {
+            columnId,
+            targetColumnId: finalTarget.targetColumnId,
+            position: finalTarget.position,
+            columns: reordered,
+            columnIds: reordered.map((c) => c.id),
+          },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
+    window.addEventListener('keydown', handleKeyDown, true)
+  }
+
+  /**
    * マルチカラムグリッドのヘッダーを描画する
    */
   private renderGridHeaders(colors: ReturnType<typeof getThemeColors>) {
@@ -266,6 +626,7 @@ export class GanttCalendarElement extends LitElement {
     const visibleColumns = columns.filter((c) => c.visible !== false)
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const hasCornerTop = Boolean(this.cornerContent)
+    const gridReorderable = this.option.grid?.reorderable !== false && visibleColumns.length >= 2
 
     return html`
       <div
@@ -279,10 +640,17 @@ export class GanttCalendarElement extends LitElement {
           box-sizing: border-box;
         "
       >
-        ${visibleColumns.map(
-          (col) => html`
+        ${visibleColumns.map((col) => {
+          const isReorderable = gridReorderable && col.reorderable !== false
+          const isDragging = this._draggingColumnId === col.id
+          const isDropLeft =
+            this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'left'
+          const isDropRight =
+            this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'right'
+          return html`
             <div
-              class="grid-header-cell grid-header-cell-${col.id}"
+              class="grid-header-cell grid-header-cell-${col.id} ${isReorderable ? 'is-reorderable' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+              data-column-id="${col.id}"
               style="
                 width: ${col.width}px;
                 min-width: ${col.minWidth ?? 40}px;
@@ -302,6 +670,7 @@ export class GanttCalendarElement extends LitElement {
                 font-weight: bold;
                 flex-shrink: 0;
               "
+              @pointerdown="${(e: PointerEvent) => this.handleColumnDragStart(e, col.id)}"
             >
               <span class="grid-header-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${col.title}
@@ -315,8 +684,8 @@ export class GanttCalendarElement extends LitElement {
                   `
                 : ''}
             </div>
-          `,
-        )}
+          `
+        })}
       </div>
     `
   }
@@ -463,6 +832,34 @@ export class GanttCalendarElement extends LitElement {
     .column-resizer:hover,
     .column-resizer:active {
       background-color: #3b82f6;
+    }
+    .grid-header-cell.is-reorderable {
+      cursor: grab;
+    }
+    .grid-header-cell.is-reorderable:active {
+      cursor: grabbing;
+    }
+    .grid-header-cell.is-dragging {
+      opacity: 0.45;
+      background-color: rgba(59, 130, 246, 0.12);
+      cursor: grabbing;
+    }
+    .grid-header-cell.drop-target-left::after,
+    .grid-header-cell.drop-target-right::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background-color: #3b82f6;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .grid-header-cell.drop-target-left::after {
+      left: 0;
+    }
+    .grid-header-cell.drop-target-right::after {
+      right: 0;
     }
     .calendar-group {
       display: flex;

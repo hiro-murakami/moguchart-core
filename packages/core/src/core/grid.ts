@@ -193,6 +193,7 @@ export function normalizeGridColumns(
     const minWidth = col.minWidth ?? defaultMinWidth
     const align = col.align ?? builtinConfig?.align ?? 'left'
     const resizable = col.resizable !== false
+    const reorderable = col.reorderable !== false
     const visible = col.visible !== false
     const isTreeColumn = col.isTreeColumn ?? (builtinConfig?.isTreeColumn || false)
 
@@ -240,6 +241,7 @@ export function normalizeGridColumns(
       minWidth,
       align,
       resizable,
+      reorderable,
       visible,
       isTreeColumn,
     }
@@ -259,6 +261,39 @@ export function normalizeGridColumns(
   }
 
   return normalized
+}
+
+/**
+ * カラム配列内の指定カラムをターゲットカラムの左または右に移動した新しい配列を返す
+ */
+export function reorderGridColumns(
+  columns: GanttColumn[],
+  sourceColumnId: string,
+  targetColumnId: string,
+  position: 'left' | 'right',
+): GanttColumn[] {
+  if (!columns || columns.length <= 1 || sourceColumnId === targetColumnId) {
+    return columns ? [...columns] : []
+  }
+  const sourceIdx = columns.findIndex((c) => c.id === sourceColumnId)
+  const targetIdx = columns.findIndex((c) => c.id === targetColumnId)
+  if (sourceIdx === -1 || targetIdx === -1) {
+    return [...columns]
+  }
+  const sourceCol = columns[sourceIdx]
+  const targetCol = columns[targetIdx]
+  if (sourceCol.reorderable === false || targetCol.reorderable === false) {
+    return [...columns]
+  }
+
+  const next = columns.filter((c) => c.id !== sourceColumnId)
+  const newTargetIdx = next.findIndex((c) => c.id === targetColumnId)
+  if (newTargetIdx === -1) {
+    return [...columns]
+  }
+  const insertIdx = position === 'left' ? newTargetIdx : newTargetIdx + 1
+  next.splice(insertIdx, 0, sourceCol)
+  return next
 }
 
 /**

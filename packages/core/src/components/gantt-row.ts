@@ -77,6 +77,7 @@ export class GanttRowElement extends LitElement {
 
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
+  @property({ type: Object }) columnDropTarget: { columnId: string; position: 'left' | 'right' } | null = null
   @property({ type: Number }) visibleStartX = 0
   @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
 
@@ -1294,6 +1295,23 @@ export class GanttRowElement extends LitElement {
           background-color: var(--moguchart-editor-bg, ${this.theme === 'dark' ? colors.bg : '#ffffff'});
           color: var(--moguchart-editor-text, ${colors.text});
         }
+        .grid-cell.drop-target-left::after,
+        .grid-cell.drop-target-right::after {
+          content: '';
+          position: absolute;
+          top: -1px;
+          bottom: -1px;
+          width: 3px;
+          background-color: #3b82f6;
+          z-index: 20;
+          pointer-events: none;
+        }
+        .grid-cell.drop-target-left::after {
+          left: 0;
+        }
+        .grid-cell.drop-target-right::after {
+          right: 0;
+        }
       </style>
       <div class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}">
         <div
@@ -1376,9 +1394,16 @@ export class GanttRowElement extends LitElement {
                             : '0'
                           : `0 ${cellPadding}px`
 
+                        const isDropLeft =
+                          this.columnDropTarget?.columnId === col.id &&
+                          this.columnDropTarget.position === 'left'
+                        const isDropRight =
+                          this.columnDropTarget?.columnId === col.id &&
+                          this.columnDropTarget.position === 'right'
+
                         return html`
                           <div
-                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''}"
+                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
                             data-column-id="${col.id}"
                             draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
                             style="
@@ -1393,6 +1418,7 @@ export class GanttRowElement extends LitElement {
                             };
                             padding: ${cellPaddingStyle};
                             ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
+                            position: relative;
                             overflow: hidden;
                             white-space: nowrap;
                             text-overflow: ellipsis;
