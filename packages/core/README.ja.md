@@ -12,19 +12,23 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
 ## 特徴
 
 - 🚀 **フレームワーク非依存**: Web Components (Custom Elements) として実装されており、あらゆる環境で動作します。
-- ⚡ **仮想スクロール**: 大量のタスクや行があってもスムーズに動作します。
+- ⚡ **縦・横2軸の仮想スクロール ＆ スパース背景描画**: 行方向（Y軸）だけでなくタイムライン横方向（X軸：`calendar.virtualScrollX`）の仮想スクロールとスパース背景描画により、数百行×複数年にわたる大規模データでもスムーズに動作します。
 - ↩️ **操作履歴管理 (Undo / Redo)**: コマンドパターンによる直感的な履歴管理。タスクの移動・リサイズ・進捗変更・削除、行の並び替え、依存関係の作成・削除など主要な編集操作の取り消し・やり直しを完全サポート（`Ctrl+Z` / `Ctrl+Y` 対応）。
-- 🔍 **包括的なズーム制御**: パーセンテージ（50%〜200%）やスケール倍率（0.5〜2.0）に基づく柔軟な拡大縮小。カレンダー列幅・行ヘッダー幅・タスクバー高さ・フォントサイズ（`--moguchart-font-scale`）の一括連動スケーリング。ショートカットキー（`Ctrl/Cmd + + / - / 0`）やホイール操作に対応。
+- 🔍 **包括的なズーム制御**: パーセンテージ（50%〜200%）やスケール倍率（0.5〜2.0）に基づく柔軟な拡大縮小。カレンダー列幅・行ヘッダー幅・タスクバー高さ・フォントサイズ（`--moguchart-font-scale`）の一括連動スケーリング。ショートカットキー（`Ctrl/Cmd + + / - / 0`）、ホイール操作、およびタッチデバイスの2本指ピンチズームに対応。
+- 📱 **タッチデバイス（タブレット・モバイル）最適化 (`option.touch`)**:
+  - 1本指の通常スワイプによる自然なチャートスクロールと、タスクバーのロングプレス（長押し）によるドラッグ移動の自動判別
+  - 2本指ピンチイン・ピンチアウトによるアンカー位置維持スムーズズーム（`zoomToPercentAtPoint`）
+  - タッチ選択時のリサイズハンドル・依存関係コネクタ・進捗ノブのヒット領域拡大と視覚インジケーター表示、および微振動（Haptic）フィードバック対応
 - 🖱️ **インタラクティブ**:
-  - ドラッグ＆ドロップによるタスク移動（行間移動対応）
+  - ドラッグ＆ドロップによるタスク移動（行間移動・ビューポート端オートスクロール `autoScrollOnDrag` 対応）
   - ハンドル操作による期間リサイズ
   - ドラッグ＆ドロップによる行の並び替え
-  - 列ヘッダーの幅リサイズ
+  - 列ヘッダーの幅リサイズおよびドラッグ＆ドロップによる列の並び替え（`column-reorder`）
   - 矩形範囲選択（ラバーバンドドラッグ選択）による複数タスク一括選択（Shift/Ctrl/Cmdキーでの追加選択対応）
   - 複数タスクの選択＆一括ドラッグ（Ctrl/Cmd + クリック、矩形選択）
   - ダブルクリック（`contentTarget` で行名DOM要素の直接参照に対応）や右クリックイベントのハンドリング
 - 🎨 **高度なカスタマイズ**:
-  - タスクバー、行ヘッダー、ツールチップ、ドラッグ情報のコンテンツを自由にレンダリング可能
+  - タスクバー、行ヘッダー、四半期/月/週/日/時間カレンダーセル、ツールチップ、ドラッグ情報のコンテンツを自由にレンダリング可能
   - タスクバー名ラベルの柔軟な配置制御（`labelPosition: 'inside' | 'right' | 'left' | 'auto'`：バー幅が狭い場合のみ自動で右外側へ退避する `'auto'` モード対応）
   - ライト/ダーク/システムテーマの切り替え＋カスタムカラーテーマ
   - タスクバーの塗りつぶしパターン（ストライプ、ドット、チェッカーボードなど13種類）
@@ -37,7 +41,8 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
   - クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
 - 📅 **柔軟なカレンダー ＆ 稼働日管理**:
-  - 日単位 / 週単位 / 月単位の表示切り替え
+  - 日単位 / 週単位 / 月単位の表示切り替えに加え、最上段への **四半期（Q1〜Q4）ヘッダー表示**（`showQuarters`）および会計年度開始月（`quarterStartMonth`: 1月始まり・4月始まり・10月始まり等）の設定に対応
+  - タスクをカレンダー左右端へ移動・編集した際の **表示期間の自動拡張**（`autoExtend` / `calendar-range-change` イベント）に対応
   - ズームレベル（1日・1ヶ月あたりの幅）や表示期間の調整が可能
   - 現在時刻ラインの表示（バッジ付き、自動更新対応）
   - 稼働日計算モード（`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`）、カスタム定休日曜日（`nonWorkingDays`）、および休日ごとの個別背景色・メタデータ返却に対応した祝日・休日判定ロジック（`isHoliday`）
@@ -55,7 +60,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - サマリータスク（親集計バー）への進捗ラベル自動表示および専用カスタム色（`summaryColor`）対応
   - 進捗変更イベント（`task-progress-change`）の発火
   - 行・プロジェクト全体の進捗率計算ユーティリティ関数
-- 🧩 **プラグインアーキテクチャ**: コア本体を超軽量（数十KB）に保ちつつ、エクスポート等の機能をプラグインとして柔軟に拡張可能
+- 🧩 **プラグインアーキテクチャ ＆ オーバーレイ描画スロット**: コア本体を超軽量（数十KB）に保ちつつ、タスク更新・依存関係作成/削除・セル編集のキャンセル可能な `before*` / `after*` ライフサイクルフック、`onViewportChange` フック、およびタイムライン上へのカスタムオーバーレイ描画スロット（`renderOverlay`）により高度な機能拡張が可能
 - 📷 **画像・PDFエクスポート（プラグイン）**: `@mogura/moguchart-plugin-export` による PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、エクスポート時のズーム正規化 `normalizeZoom`、スクロール位置保持）
 - 📊 **Excelタイムラインエクスポート（プラグイン）**: `@mogura/moguchart-plugin-excel` によるカレンダー日付列にタスク期間が色塗りされた工程表・タイムライン付き Excel (.xlsx) エクスポート（多言語対応 `ja`/`en`/`zh`、WBS階層構造保持、土日祝日の色分け）
 - ✨ **高度なインテグレーション**:
@@ -67,7 +72,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 目的のタスクへスムーズに移動するスクロールメソッド (`scrollToTask`)
 - 🌳 **WBS（階層ツリー・展開/折りたたみ）**:
   - `parentId` による無制限の親子階層構造
-  - インデント表示と開閉トグルボタン（▶/▼）
+  - インデント表示と視認性に優れたインラインSVG開閉トグルボタン（▶/▼）
   - 配下の子タスクから自動計算されるサマリータスクバー（ブラケット形状）
   - サマリータスクバーの色設定（プロジェクト既定色および行単位の個別色指定）
   - 親行におけるサマリータスクと通常タスクの共存・同時描画
@@ -87,11 +92,11 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
   - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、稼働日 `workingDays`、進捗率 `progress`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
   - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出
-  - **インラインセル編集**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
+  - **インラインセル編集 ＆ 連続セル移動**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、編集中に `Tab` / `Shift+Tab`（左右セル移動・行折り返し）や `Enter` / `Shift+Enter`（上下行の同一カラム移動）で読み取り専用セルを自動スキップして連続入力できるキーボードセルナビゲーション（`navigateCellEdit`）、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
   - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）および `customRendering.cornerContent` との上下2段レイアウト共存
-  - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）
+  - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）および **カラムヘッダーのドラッグ＆ドロップによる列の並び替え**（`reorderable`、`column-reorder` イベント）
   - グリッド領域とタイムライン領域のスプリッターリサイズ＆グリッド内独立横スクロール同期（トラックパッド横スワイプ、Shift+ホイール、ヘッダー上のホイールに対応）
-- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・Undo/Redo・ズームショートカット
+- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・グリッド編集中の `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` セル間移動・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
 
@@ -549,6 +554,69 @@ const option = {
 }
 ```
 
+#### 四半期（Q1〜Q4）ヘッダー ＆ 会計年度設定 (`showQuarters` / `quarterStartMonth`)
+
+`calendar.showQuarters: true` を設定すると、カレンダー最上段に四半期（Q1〜Q4）ヘッダーを表示できます。`quarterStartMonth` で会計年度の開始月（`1`=暦年、`4`=4月始まり日本年度、`10`=10月始まり米国年度など）を指定できます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2027-03-31'),
+    pxPerDay: 20,
+    showQuarters: true, // 四半期ヘッダーを表示 (デフォルト: false)
+    quarterStartMonth: 4, // 4月始まり (FY2026 Q1〜Q4)
+    quarterTextAlign: 'center', // 'left' | 'center' | 'right'
+    // quarterFormat: (q, fy) => `FY${fy} 第${q}四半期`, // カスタムラベルフォーマット
+  },
+}
+```
+
+#### ドラッグ時の端オートスクロール ＆ カレンダー期間の自動拡張 (`autoScrollOnDrag` / `autoExtend`)
+
+タスクのドラッグ中やリサイズ中にビューポート端へ近づくと自動的にスクロール（`autoScrollOnDrag: true`）するほか、`autoExtend` を有効化するとタスクをカレンダー左右端へ移動・編集した際に表示期間（`calendar.start` / `calendar.end`）を自動的に拡張できます。
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    virtualScrollX: true, // 横方向（X軸）の仮想スクロールを有効化 (デフォルト: true)
+    autoScrollOnDrag: true, // ドラッグ時のビューポート端自動スクロール (デフォルト: true)
+    autoExtend: {
+      enabled: true,
+      extendDays: 7, // 日単位モード時の1回あたり拡張日数 (デフォルト: 7)
+      extendMonths: 1, // 月単位モード時の1回あたり拡張月数 (デフォルト: 1)
+      edgeThresholdPx: 40, // 端からの判定マージン px (デフォルト: 40)
+    },
+  },
+}
+
+// カレンダー期間が自動拡張された際のイベント
+chart.addEventListener('calendar-range-change', (e) => {
+  const { start, end, previousStart, previousEnd, direction } = e.detail
+  console.log(`カレンダー期間が拡張されました (${direction}):`, start, '〜', end)
+})
+```
+
+### タッチデバイス（タブレット・モバイル）操作最適化 (`option.touch`)
+
+タブレットやスマートフォンなどのタッチ画面において、1本指の通常スワイプによるスクロールと、タスクバーの長押し（ロングプレス）によるドラッグ移動を自動で判別します。また、2本指でのピンチイン・ピンチアウトによるスムーズなズーム操作に対応しています。
+
+```javascript
+const option = {
+  zoom: { enabled: true },
+  touch: {
+    enabled: true, // タッチ最適化を有効化 (デフォルト: true)
+    longPressDelay: 250, // タスク移動開始までの長押し待機時間 ms (デフォルト: 250)
+    moveSlop: 8, // 長押し成立前にスクロールとみなす移動閾値 px (デフォルト: 8)
+    pinchZoom: true, // 2本指ピンチイン・ピンチアウトによるズーム (未指定時は zoom.enabled に準拠)
+    hapticFeedback: false, // 長押し確定時の微振動フィードバック (デフォルト: false)
+  },
+}
+```
+
 ### フォントサイズ倍率 (`fontScale`)
 
 `fontScale` オプション（または CSS カスタムプロパティ `--moguchart-font-scale`）を指定することで、ガントチャート全体のフォントサイズを一括で拡大・縮小できます。
@@ -884,6 +952,8 @@ console.log(`計画タスク数: ${summary.totalBaselineTasks}, 遅延タスク�
 
 行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、進捗率、カスタム列を柔軟に構成できるほか、`editable: true` を設定することでセルのダブルクリック（またはクリック）によるインライン編集が可能です（編集可能セルには `.grid-cell-editable`、サマリー行や複数タスク行の集計セル・`wbs` 列などの読み取り専用セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます。単一タスク行の日付・期間・進捗セルはタスクの `movable` / `resizable` / `progressResizable` 設定とも自動連動します）。
 
+さらに、インライン編集中はキーボードの `Tab` / `Shift+Tab`（左右の編集可能セルへ移動・行端で次行/前行へ折り返し）および `Enter` / `Shift+Enter`（同じカラムの上下の編集可能行へ移動）により、読み取り専用セルを自動スキップしてスプレッドシートのように連続して値を入力できます。カラムヘッダーのドラッグ＆ドロップによる列の並び替え（`reorderable: true`）にも対応しています。
+
 表示モードに応じて、`startDate` / `endDate` の列タイトルや表示フォーマット・エディタ種別は自動的に切り替わります（月単位モード時は「開始月」「終了月」、時間単位モード時は「開始日時」「終了日時」）。また、`customRendering.cornerContent` と併用した場合は、左上コーナー領域の上段に `cornerContent`、下段にグリッドカラムヘッダーが2段構成で表示されます。
 
 ```javascript
@@ -893,11 +963,12 @@ const option = {
     enabled: true, // グリッド表示を有効化 (デフォルト: columns 指定時は true)
     width: 700, // グリッド領域全体の初期幅 (px)
     splitterResizable: true, // スプリッターによるグリッド幅変更を許可 (デフォルト: true)
+    reorderable: true, // ドラッグ＆ドロップによるカラム（列）の並び替えを許可 (デフォルト: true)
     showBorders: true, // セル罫線を表示 (デフォルト: true)
     editable: true, // セルのインライン編集を有効化 (デフォルト: false)
     editTrigger: 'dblclick', // 編集開始トリガー ('dblclick' | 'click'、デフォルト: 'dblclick')
     columns: [
-      { id: 'wbs', width: 60 }, // WBS番号 (1, 1.1, 1.2 など)
+      { id: 'wbs', width: 60, reorderable: false }, // WBS番号 (reorderable: false で列位置を固定可能)
       { id: 'name', width: 220 }, // タスク名 (ツリー開閉トグル付き・テキスト編集)
       { id: 'startDate', width: 125 }, // 開始日 (日/月/日時エディタに自動連動)
       { id: 'endDate', width: 125 }, // 終了日 (日/月/日時エディタに自動連動)
@@ -941,9 +1012,16 @@ chart.addEventListener('column-resize', (event) => {
   }
 })
 
-// プログラムからのセル編集制御
+// カラム並び替えイベントの購読
+chart.addEventListener('column-reorder', (event) => {
+  const { columnId, targetColumnId, position, columnIds } = event.detail
+  console.log(`カラム ${columnId} が ${targetColumnId} の ${position} に移動しました:`, columnIds)
+})
+
+// プログラムからのセル編集制御・セル間ナビゲーション
 chart.startCellEdit('row-1', 'name') // 編集開始
-chart.commitCellEdit('新しいタスク名') // 編集確定
+chart.navigateCellEdit('row-1', 'name', 'next') // 次の編集可能セルへ移動して編集開始 ('next' | 'prev' | 'down' | 'up')
+chart.commitCellEdit('新しいタスク名', 'down') // 編集を確定し、下の行の同一カラムへ移動
 chart.cancelCellEdit() // 編集キャンセル
 ```
 
@@ -1207,13 +1285,15 @@ import {
   // 予実管理（ベースライン）計算
   calculateTaskDelay,
   calculateProjectBaselineSummary,
-  // マルチカラムグリッド計算・インライン編集ヘルパー
+  // マルチカラムグリッド計算・インライン編集・カラム並び替えヘルパー
   calculateRowSummaryDates,
   normalizeGridColumns,
+  reorderGridColumns,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,
   isGridCellEditable,
+  findAdjacentEditableCell,
   formatGridCellEditValue,
   applyGridCellEdit,
 } from '@mogura/moguchart-core'

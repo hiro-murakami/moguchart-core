@@ -17,9 +17,10 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
 - 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips.
-- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing and inline cell editing (`@cell-edit`, `@column-resize`).
+- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing, drag-and-drop column reordering (`@column-reorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`@cell-edit`, `@column-resize`).
 - 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
 - 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`).
+- 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`@calendar-range-change`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`).
 
 ---
 
@@ -189,10 +190,10 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 ### Available Public Methods & Getters
 
 - **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
-- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
+- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
 - **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
@@ -376,7 +377,9 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@row-reordered` | Dispatched when a row is reordered via drag-and-drop | `RowReorderEventDetail` |
 | `@row-header-resize` | Dispatched when row header width is resized | `RowHeaderResizeEventDetail` |
 | `@column-resize` | Dispatched when a multi-column grid column is resized | `ColumnResizeEventDetail` |
+| `@column-reorder` | Dispatched when a multi-column grid column is reordered via drag & drop | `ColumnReorderEventDetail` |
 | `@cell-edit` | Dispatched when an inline grid cell edit is committed | `CellEditEventDetail` |
+| `@calendar-range-change` | Dispatched when the calendar display range is auto-extended during drag operations | `CalendarRangeChangeEventDetail` |
 | `@rows-change` | Dispatched when row data changes | `RowsChangeEventDetail` |
 | `@row-selection-change` | Dispatched when row selection changes | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | Dispatched when task bar selection changes | `BarSelectionChangeEventDetail` |

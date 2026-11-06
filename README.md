@@ -12,20 +12,24 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
 ## Features
 
 - 🚀 **Framework-agnostic**: Built as standard Web Components (Custom Elements), easily integrated into any frontend framework.
-- ⚡ **Virtual Scrolling**: Smooth 60fps rendering even with extensive tasks and rows.
+- ⚡ **2D Virtual Scrolling & Sparse Background Rendering**: Combines vertical row virtualization (Y-axis) with horizontal timeline virtualization (`calendar.virtualScrollX`, X-axis) and sparse weekend/holiday cell rendering for smooth 60fps performance across hundreds of rows and multi-year timelines.
 - ↩️ **Operation History (Undo / Redo)**: Command pattern-based history manager. Complete undo/redo support for task movement, duration resizing, progress adjustments, deletion, row reordering, and dependency editing (`Ctrl+Z` / `Ctrl+Y`).
-- 🔍 **Comprehensive Zoom Controls**: Smooth magnification adjustments based on percentage (50% to 200%) and scale factors (0.5 to 2.0). Coordinated synchronization across calendar width, row header width, bar height, and font scale (`--moguchart-font-scale`). Keyboard shortcuts (`Ctrl/Cmd + + / - / 0`) and mouse wheel zoom.
+- 🔍 **Comprehensive Zoom Controls**: Smooth magnification adjustments based on percentage (50% to 200%) and scale factors (0.5 to 2.0). Coordinated synchronization across calendar width, row header width, bar height, and font scale (`--moguchart-font-scale`). Keyboard shortcuts (`Ctrl/Cmd + + / - / 0`), mouse wheel zoom, and 2-finger touch pinch zoom.
+- 📱 **Touch Device (Tablet & Mobile) Optimization (`option.touch`)**:
+  - Automatic differentiation between 1-finger swipe scrolling and long-press task bar drag movement
+  - Smooth 2-finger pinch-in / pinch-out zoom anchored at the midpoint between fingers (`zoomToPercentAtPoint`)
+  - Enlarged touch hit areas and visual handle indicators for resize handles, dependency connectors, and progress knobs on touch-selected bars, plus optional haptic feedback
 - 🖱️ **Rich Interactive Controls**:
-  - Drag & drop task movement (with optional cross-row vertical movement)
+  - Drag & drop task movement (with optional cross-row vertical movement and automatic viewport edge scrolling `autoScrollOnDrag`)
   - Handle-based task duration resizing
   - Drag & drop row reordering
-  - Column header width resizing
+  - Column header width resizing and drag & drop column reordering (`column-reorder`)
   - Marquee selection (rubberband drag selection) for batch task selection (with Shift / Ctrl / Cmd additive selection support)
   - Multi-task selection and synchronized batch dragging (Ctrl / Cmd + click, marquee selection)
   - Safe drag cancellation and snapback when cursor exits chart boundaries
   - Double-click (exposing row name DOM container via `contentTarget`) and right-click event handling
 - 🎨 **Highly Customizable**:
-  - Custom rendering for task bars, row headers, row header tooltips, tooltips, and drag info overlays
+  - Custom rendering for task bars, row headers, quarter/month/week/day/hour calendar cells, row header tooltips, tooltips, and drag info overlays
   - Flexible task bar label positioning (`labelPosition: 'inside' | 'right' | 'left' | 'auto'` with smart `'auto'` overflow placement outside narrow bars)
   - Light / Dark / System theme switching + custom color palettes
   - 13 built-in task bar fill patterns (stripes, dots, checkerboard, grid, etc.)
@@ -39,7 +43,8 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Proximity connector toggle (`showConnectors`)
   - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
 - 📅 **Flexible Calendar, Timeline & Working-Day Management**:
-  - Day / Week / Month view switching
+  - Day / Week / Month view switching plus top-tier **Quarter (`Q1`–`Q4`) Header** (`showQuarters`) with configurable fiscal year start month (`quarterStartMonth`: e.g., Jan, Apr, Oct)
+  - **Automatic Timeline Range Extension** (`autoExtend` / `calendar-range-change` event) when tasks are dragged or edited near/beyond calendar boundaries
   - Dynamic zoom levels (`pxPerDay` or `pxPerMonth`) with smooth mouse-wheel zoom support
   - Current time indicator line with date badge (auto-refresh support)
   - Working-day calculation modes (`calendarMode: 'calendar' | 'weekends' | 'weekends-holidays'`), custom regular off-days (`nonWorkingDays`), and custom holiday detection (`isHoliday`) supporting per-holiday `{ name, color }` metadata
@@ -58,7 +63,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - `task-progress-change` custom event
   - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
-- 🧩 **Plugin Architecture**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while allowing rich extensions like exports.
+- 🧩 **Plugin Architecture & Custom Overlay Slot**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while exposing cancellable `before*` / `after*` lifecycle hooks for task updates, dependency creation/deletion, and grid cell edits, `onViewportChange` hooks, and a custom timeline `renderOverlay` slot.
 - 📷 **Image & PDF Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with automatic zoom normalization `normalizeZoom`, scroll position preservation, and auto-download support).
 - 📊 **Excel Spreadsheet Export Plugin**: Styled Excel (.xlsx) schedule and timeline export powered by `@mogura/moguchart-plugin-excel` (multi-language support `ja`/`en`/`zh`, WBS hierarchy preservation, cell-shaded task duration bars, and holiday formatting).
 - ✨ **Advanced Integration**:
@@ -71,7 +76,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Row layout coordinates inspection (`getRowPositions`)
 - 🌳 **WBS (Hierarchical Tree & Collapsible Rows)**:
   - Unlimited parent-child hierarchy via `parentId`
-  - Indented display with expand/collapse toggle buttons (▶/▼)
+  - Indented display with crisp inline SVG expand/collapse toggle buttons (▶/▼)
   - Automatically calculated summary task bars (bracket style) from child tasks
   - Configurable summary task bar colors (chart default `summaryColor` and row-level `summaryColor` overrides)
   - Coexistence of summary task bars and normal tasks within parent rows (two-lane rendering)
@@ -92,11 +97,11 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Display and interact with the row header area as a full-featured multi-column data table
   - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), working days (`workingDays`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
   - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
-  - **Inline Cell Editing** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
+  - **Inline Cell Editing & Continuous Keyboard Navigation** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, spreadsheet-style `Tab` / `Shift+Tab` (next/previous editable cell with row wrap) and `Enter` / `Shift+Enter` (same column down/up) navigation (`navigateCellEdit`) that automatically skips read-only cells, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
   - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes) and 2-tier layout coexistence with `customRendering.cornerContent`
-  - Column header drag-resizing with `column-resize` custom events
+  - Column header drag-resizing (`column-resize` event) and **drag-and-drop column reordering** (`reorderable`, `column-reorder` event)
   - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area (via trackpad swipe, Shift+wheel, or wheel over grid headers)
-- ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
+- ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` inline grid cell navigation, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
 
@@ -557,6 +562,69 @@ const option = {
 }
 ```
 
+#### Quarter (`Q1`–`Q4`) Header & Fiscal Year Configuration (`showQuarters` / `quarterStartMonth`)
+
+Set `calendar.showQuarters: true` to display a top-tier quarter (`Q1`–`Q4`) header row. Use `quarterStartMonth` (`1` = Jan calendar year, `4` = April FY, `10` = October FY, etc.) to align quarters with your organization's fiscal year.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2027-03-31'),
+    pxPerDay: 20,
+    showQuarters: true, // Display quarter header row (default: false)
+    quarterStartMonth: 4, // April fiscal year start (FY2026 Q1–Q4)
+    quarterTextAlign: 'center', // 'left' | 'center' | 'right'
+    // quarterFormat: (q, fy) => `FY${fy} Q${q}`, // Custom label formatter
+  },
+}
+```
+
+#### Viewport Edge Auto-Scroll & Automatic Calendar Range Extension (`autoScrollOnDrag` / `autoExtend`)
+
+Dragging a task bar, resize handle, or dependency connector near viewport edges automatically scrolls the chart (`autoScrollOnDrag: true`). Enabling `autoExtend` automatically expands `calendar.start` / `calendar.end` when tasks are dragged or edited near/beyond timeline boundaries.
+
+```javascript
+const option = {
+  calendar: {
+    start: new Date('2026-04-01'),
+    end: new Date('2026-04-30'),
+    pxPerDay: 40,
+    virtualScrollX: true, // Horizontal (X-axis) virtual scrolling (default: true)
+    autoScrollOnDrag: true, // Auto-scroll viewport at edges during drag (default: true)
+    autoExtend: {
+      enabled: true,
+      extendDays: 7, // Days added per extension in day/week mode (default: 7)
+      extendMonths: 1, // Months added per extension in monthly mode (default: 1)
+      edgeThresholdPx: 40, // Edge proximity threshold in px (default: 40)
+    },
+  },
+}
+
+// Listen to automatic calendar range extensions
+chart.addEventListener('calendar-range-change', (e) => {
+  const { start, end, previousStart, previousEnd, direction } = e.detail
+  console.log(`Calendar range extended (${direction}):`, start, 'to', end)
+})
+```
+
+### Touch Device (Tablet & Mobile) Optimization (`option.touch`)
+
+On touch screens, Moguchart automatically distinguishes between normal 1-finger swipe scrolling and long-press task bar dragging, and supports smooth 2-finger pinch-in / pinch-out zooming anchored at the midpoint between fingers.
+
+```javascript
+const option = {
+  zoom: { enabled: true },
+  touch: {
+    enabled: true, // Enable touch optimizations (default: true)
+    longPressDelay: 250, // Long-press delay (ms) before starting task drag (default: 250)
+    moveSlop: 8, // Movement threshold (px) to treat as scroll before long-press (default: 8)
+    pinchZoom: true, // Enable 2-finger pinch-to-zoom (defaults to zoom.enabled)
+    hapticFeedback: false, // Trigger navigator.vibrate feedback on long-press (default: false)
+  },
+}
+```
+
 ### Font Scaling (`fontScale`)
 
 Use the `fontScale` option (or the CSS custom property `--moguchart-font-scale`) to scale all text font sizes throughout the Gantt chart uniformly.
@@ -906,6 +974,8 @@ console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTas
 
 Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns. Set `editable: true` to enable inline cell editing via double-click (or single-click) (editable cells receive `.grid-cell-editable`, while read-only cells such as summary/multi-task aggregated cells and the `wbs` column receive `.grid-cell-readonly` for visual distinction; single-task date, duration, and progress cells also automatically respect `task.movable`, `task.resizable`, and `task.progressResizable`).
 
+While inline editing a cell, press `Tab` / `Shift+Tab` (move right/left across editable cells with automatic row wrapping) or `Enter` / `Shift+Enter` (move down/up in the same column) for spreadsheet-style continuous entry that automatically skips read-only cells. You can also reorder columns via drag & drop on column headers (`reorderable: true`).
+
 Depending on the active view mode, `startDate` and `endDate` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode). When used together with `customRendering.cornerContent`, the top-left corner renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row.
 
 ```javascript
@@ -915,11 +985,12 @@ const option = {
     enabled: true, // Enable grid mode (default: true if columns is defined)
     width: 700, // Total initial width of grid area (px)
     splitterResizable: true, // Allow resizing grid area width via splitter (default: true)
+    reorderable: true, // Allow drag-and-drop column reordering (default: true)
     showBorders: true, // Display cell borders (default: true)
     editable: true, // Enable inline cell editing (default: false)
     editTrigger: 'dblclick', // Trigger to start editing ('dblclick' | 'click', default: 'dblclick')
     columns: [
-      { id: 'wbs', width: 60 }, // WBS code (1, 1.1, 1.2, etc.)
+      { id: 'wbs', width: 60, reorderable: false }, // WBS code (lock column position with reorderable: false)
       { id: 'name', width: 220 }, // Task name (includes tree indent, collapse toggle, and text editing)
       { id: 'startDate', width: 125 }, // Start date (adapts to date/month/datetime editor)
       { id: 'endDate', width: 125 }, // End date (adapts to date/month/datetime editor)
@@ -963,9 +1034,16 @@ chart.addEventListener('column-resize', (event) => {
   }
 })
 
-// Programmatic cell editing control
+// Listen to column reorder events
+chart.addEventListener('column-reorder', (event) => {
+  const { columnId, targetColumnId, position, columnIds } = event.detail
+  console.log(`Column ${columnId} moved ${position} of ${targetColumnId}:`, columnIds)
+})
+
+// Programmatic cell editing & navigation control
 chart.startCellEdit('row-1', 'name') // Start editing
-chart.commitCellEdit('Updated Task Name') // Commit edit
+chart.navigateCellEdit('row-1', 'name', 'next') // Move to adjacent editable cell ('next' | 'prev' | 'down' | 'up')
+chart.commitCellEdit('Updated Task Name', 'down') // Commit edit and move to next row in same column
 chart.cancelCellEdit() // Cancel edit
 ```
 
@@ -1229,13 +1307,15 @@ import {
   // Baseline (plan vs actual) calculations
   calculateTaskDelay,
   calculateProjectBaselineSummary,
-  // Multi-Column Grid calculations & inline editing helpers
+  // Multi-Column Grid calculations, inline editing & column reordering helpers
   calculateRowSummaryDates,
   normalizeGridColumns,
+  reorderGridColumns,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,
   isGridCellEditable,
+  findAdjacentEditableCell,
   formatGridCellEditValue,
   applyGridCellEdit,
 } from '@mogura/moguchart-core'

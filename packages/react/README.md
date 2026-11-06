@@ -16,9 +16,10 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - ⚡ **Imperative API Access**: Directly access methods like `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` via `ref`
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
-- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing and inline cell editing (`onCellEdit`, `onColumnResize`)
+- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing, drag-and-drop column reordering (`onColumnReorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`onCellEdit`, `onColumnResize`)
 - 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
 - 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`)
+- 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`onCalendarRangeChange`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`)
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---
@@ -145,10 +146,10 @@ export function GanttToolbar() {
 The following methods can be invoked directly on `ref.current`:
 
 - **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
-- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
+- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
 - **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
 - **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
@@ -327,7 +328,9 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onRowHeaderContextMenu` | Fired on row header right-click | `CustomEvent<RowHeaderContextMenuEventDetail>` |
 | `onRowHeaderResize` | Fired when a row header is resized | `CustomEvent<RowHeaderResizeEventDetail>` |
 | `onColumnResize` | Fired when a grid column is resized | `CustomEvent<ColumnResizeEventDetail>` |
+| `onColumnReorder` | Fired when a grid column is reordered via drag & drop | `CustomEvent<ColumnReorderEventDetail>` |
 | `onCellEdit` | Fired when an inline grid cell edit is committed | `CustomEvent<CellEditEventDetail>` |
+| `onCalendarRangeChange` | Fired when the calendar display range is auto-extended during drag operations | `CustomEvent<CalendarRangeChangeEventDetail>` |
 | `onRowsChange` | Fired when row data changes | `CustomEvent<RowsChangeEventDetail>` |
 | `onRowReordered` | Fired when rows are reordered | `CustomEvent<RowReorderEventDetail>` |
 | `onRowSelectionChange` | Fired when row selection changes | `CustomEvent<RowSelectionChangeEventDetail>` |

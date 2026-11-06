@@ -68,6 +68,10 @@ interface GanttChartOption {
     weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // First day of the week (0=Sun ~ 6=Sat, default: 1=Mon)
     weekFormat?: (weekNumber: number, startDate: Date) => string // Custom week number format function
     weekTextAlign?: 'left' | 'center' | 'right' // Week cell text alignment (default: 'center')
+    showQuarters?: boolean // Whether to show quarter (Q1–Q4) headers (default: false)
+    quarterStartMonth?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 // Fiscal year start month (1=Jan ~ 12=Dec, e.g., 4=April fiscal year; default: 1)
+    quarterFormat?: (quarter: 1 | 2 | 3 | 4, fiscalYear: number, startDate: Date) => string // Custom quarter label format function
+    quarterTextAlign?: 'left' | 'center' | 'right' // Quarter cell text alignment (default: 'center')
     showMonthsRow?: boolean // Enable two-row month view (top=year, bottom=month)
     monthTextAlign?: 'left' | 'center' | 'right' // Month cell text alignment (default: 'center')
     milestones?: GanttChartMilestone[] // Array of milestones
@@ -76,6 +80,9 @@ interface GanttChartOption {
     calendarMode?: AutoScheduleCalendarMode // Chart-wide working-day calculation mode ('calendar' | 'weekends' | 'weekends-holidays', default: 'calendar')
     nonWorkingDays?: number[] // Non-working day-of-week indices (0=Sun, 1=Mon, ..., 6=Sat; default: [0, 6])
     preserveWorkingDaysOnDrag?: boolean // Whether dragging a task bar preserves its original working-day duration by stretching/shrinking its end date (default: false)
+    virtualScrollX?: boolean // Whether to enable horizontal (X-axis) virtual scrolling for calendar headers and background grid (default: true)
+    autoScrollOnDrag?: boolean // Whether to automatically scroll the viewport when dragging a task bar or dependency connector near viewport edges (default: true)
+    autoExtend?: boolean | GanttCalendarAutoExtendOption // Whether to automatically extend the calendar range (start / end) when dragging near timeline boundaries (default: false)
   }
   /** Whether the chart is read-only */
   readOnly?: boolean
@@ -112,6 +119,8 @@ interface GanttChartOption {
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
     /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult. */
     cornerContent?: () => string | unknown
+    /** Function to render calendar quarter cells. Return an HTMLElement or HTML string. */
+    calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
     /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
     calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
     /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
@@ -150,6 +159,8 @@ interface GanttChartOption {
   grid?: GanttChartOptionGrid
   /** Operation history and Undo/Redo configuration */
   history?: GanttChartOptionHistory
+  /** Touch device interaction optimization settings */
+  touch?: GanttChartOptionTouch
   /** Extension plugins */
   plugins?: GanttPlugin[]
 }
@@ -176,7 +187,9 @@ Custom events dispatched by the component.
 | `task-drop`              | `TaskDropEventDetail`             | Fired when an external element is dropped. Can be used for creating new tasks.       |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header (or grid area) width is resized.                            |
 | `column-resize`          | `ColumnResizeEventDetail`         | Fired when a multi-column grid column width is resized by dragging.                  |
+| `column-reorder`         | `ColumnReorderEventDetail`        | Fired when a multi-column grid column is reordered via drag & drop.                  |
 | `cell-edit`              | `CellEditEventDetail`             | Fired when an inline cell edit in the multi-column grid is committed.                |
+| `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | Fired when the calendar display range is automatically extended during drag operations (`calendar.autoExtend`). |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
@@ -198,38 +211,40 @@ Custom events dispatched by the component.
 
 Public methods that can be called on the component instance.
 
-| Method                    | Signature                                                                                   | Description                                                                                                                                                                                     |
-| :------------------------ | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `undo`                    | `() => Promise<boolean>`                                                                    | Reverts the most recent user operation (Undo). Returns `true` on success.                                                                                                                       |
-| `redo`                    | `() => Promise<boolean>`                                                                    | Re-executes the most recently undone operation (Redo). Returns `true` on success.                                                                                                               |
-| `clearHistory`            | `() => void`                                                                                | Clears the entire operation history stack.                                                                                                                                                      |
-| `recordCommand`           | `(command: GanttCommand) => void`                                                           | Manually records a custom command to the history stack and dispatches the `command` event.                                                                                                      |
-| `zoomToPercent`           | `(percent: number) => void`                                                                 | Sets the zoom magnification percentage (e.g. `100` = 100%, clamped to `minPercent`..`maxPercent`). Synchronizes calendar width, row header, bar height, and font scale.                         |
-| `zoomToScale`             | `(scale: number) => void`                                                                   | Sets the zoom magnification scale factor (e.g. `1.0` = 100%, `0.75` = 75%).                                                                                                              |
-| `zoomIn`                  | `(step?: number) => void`                                                                   | Zooms in by one preset level or specified custom delta.                                                                                                                                         |
-| `zoomOut`                 | `(step?: number) => void`                                                                   | Zooms out by one preset level or specified custom delta.                                                                                                                                        |
-| `getZoomPercent`          | `() => number`                                                                              | Returns the current zoom percentage (e.g. `100`).                                                                                                                                               |
-| `getZoomScale`            | `() => number`                                                                              | Returns the current effective zoom scale factor (e.g. `1.0`).                                                                                                                                   |
-| `zoomTo`                  | `(value: number) => void`                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode) (backward compatibility).                                                                                               |
-| `zoomToFit`               | `() => void`                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
-| `resetZoom`               | `() => void`                                                                                | Resets zoom back to 100% standard magnification.                                                                                                                                                |
-| `triggerDependencyDelete` | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | Programmatically deletes the dependency connection between two tasks, emitting `dependency-delete` and recording the undoable command.                                                         |
-| `autoSchedule`            | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                    | Recalculates and cascades successor task dates in topological order based on dependency constraints and lag. Records an undoable command if changes occur and returns updated task IDs.         |
-| `selectTask`              | `(taskId: string) => boolean`                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
-| `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
-| `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
-| `exportImage`             | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
-| `exportExcel`             | `(options?: ExportExcelOptions) => Promise<void>`                                           | Exports the Gantt chart into a styled Excel (`.xlsx`) file (**requires `@mogura/moguchart-plugin-excel`**). Supports multi-language output (`ja`, `en`, `zh`, custom locales) and auto-download. |
-| `getRowPositions`         | `() => { top: number; height: number; bottom: number }[]`                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
-| `toggleRowCollapse`       | `(rowId: string, collapsed?: boolean) => boolean`                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
-| `collapseAll`             | `() => void`                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
-| `expandAll`               | `() => void`                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
-| `resetScroll`             | `() => void`                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
-| `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
-| `scrollToTask`            | `(taskId: string) => void`                                                                  | Smoothly scrolls the chart to ensure the specified task is visible within the viewport (centered vertically, and adjusted horizontally with row header width and margin).                       |
-| `startCellEdit`           | `(rowId: string, columnId: string) => boolean`                                              | Programmatically starts inline editing for the specified grid cell. Returns `true` if editing started.                                                                                          |
-| `commitCellEdit`          | `(overrideValue?: any) => boolean`                                                          | Commits and closes the currently active inline cell edit. Returns `true` if a change was applied.                                                                                               |
-| `cancelCellEdit`          | `() => void`                                                                                | Cancels the currently active inline cell edit without saving changes.                                                                                                                           |
+| Method                    | Signature                                                                                                   | Description                                                                                                                                                                                     |
+| :------------------------ | :---------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `undo`                    | `() => Promise<boolean>`                                                                                    | Reverts the most recent user operation (Undo). Returns `true` on success.                                                                                                                       |
+| `redo`                    | `() => Promise<boolean>`                                                                                    | Re-executes the most recently undone operation (Redo). Returns `true` on success.                                                                                                               |
+| `clearHistory`            | `() => void`                                                                                                | Clears the entire operation history stack.                                                                                                                                                      |
+| `recordCommand`           | `(command: GanttCommand) => void`                                                                           | Manually records a custom command to the history stack and dispatches the `command` event.                                                                                                      |
+| `zoomToPercent`           | `(percent: number) => void`                                                                                 | Sets the zoom magnification percentage (e.g. `100` = 100%, clamped to `minPercent`..`maxPercent`). Synchronizes calendar width, row header, bar height, and font scale.                         |
+| `zoomToPercentAtPoint`    | `(percent: number, clientX: number, anchorUnits?: number) => boolean`                                       | Zooms to the specified percentage while keeping the timeline point under `clientX` (e.g. cursor or pinch center) anchored in place. Returns `true` if zoom changed.                             |
+| `zoomToScale`             | `(scale: number) => void`                                                                                   | Sets the zoom magnification scale factor (e.g. `1.0` = 100%, `0.75` = 75%).                                                                                                              |
+| `zoomIn`                  | `(step?: number) => void`                                                                                   | Zooms in by one preset level or specified custom delta.                                                                                                                                         |
+| `zoomOut`                 | `(step?: number) => void`                                                                                   | Zooms out by one preset level or specified custom delta.                                                                                                                                        |
+| `getZoomPercent`          | `() => number`                                                                                              | Returns the current zoom percentage (e.g. `100`).                                                                                                                                               |
+| `getZoomScale`            | `() => number`                                                                                              | Returns the current effective zoom scale factor (e.g. `1.0`).                                                                                                                                   |
+| `zoomTo`                  | `(value: number) => void`                                                                                   | Sets the zoom to the specified pxPerDay (or pxPerMonth in monthly mode) (backward compatibility).                                                                                               |
+| `zoomToFit`               | `() => void`                                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
+| `resetZoom`               | `() => void`                                                                                                | Resets zoom back to 100% standard magnification.                                                                                                                                                |
+| `triggerDependencyDelete` | `(sourceTaskId: string, targetTaskId: string) => boolean`                                                   | Programmatically deletes the dependency connection between two tasks, emitting `dependency-delete` and recording the undoable command.                                                         |
+| `autoSchedule`            | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                                    | Recalculates and cascades successor task dates in topological order based on dependency constraints and lag. Records an undoable command if changes occur and returns updated task IDs.         |
+| `selectTask`              | `(taskId: string) => boolean`                                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
+| `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`                               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
+| `exportImage`             | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>`                 | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
+| `exportExcel`             | `(options?: ExportExcelOptions) => Promise<void>`                                                           | Exports the Gantt chart into a styled Excel (`.xlsx`) file (**requires `@mogura/moguchart-plugin-excel`**). Supports multi-language output (`ja`, `en`, `zh`, custom locales) and auto-download. |
+| `getRowPositions`         | `() => { top: number; height: number; bottom: number }[]`                                                   | Returns Y-coordinate layout information for each row (relative to the top of the row area, excluding the calendar header). Useful for calculating split positions during export.                 |
+| `toggleRowCollapse`       | `(rowId: string, collapsed?: boolean) => boolean`                                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
+| `collapseAll`             | `() => void`                                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
+| `expandAll`               | `() => void`                                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
+| `resetScroll`             | `() => void`                                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
+| `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`                             | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
+| `scrollToTask`            | `(taskId: string) => void`                                                                                  | Smoothly scrolls the chart to ensure the specified task is visible within the viewport (centered vertically, and adjusted horizontally with row header width and margin).                       |
+| `startCellEdit`           | `(rowId: string, columnId: string) => boolean`                                                              | Programmatically starts inline editing for the specified grid cell. Returns `true` if editing started.                                                                                          |
+| `commitCellEdit`          | `(overrideValue?: any, navigationDirection?: GridCellNavigationDirection) => boolean`                       | Commits and closes the currently active inline cell edit. When `navigationDirection` (`'next' \| 'prev' \| 'down' \| 'up'`) is passed, automatically advances to the adjacent editable cell.    |
+| `cancelCellEdit`          | `() => void`                                                                                                | Cancels the currently active inline cell edit without saving changes.                                                                                                                           |
+| `navigateCellEdit`        | `(fromRowId: string, fromColumnId: string, direction: GridCellNavigationDirection) => boolean`              | Finds the next editable cell from `(fromRowId, fromColumnId)` in `direction` (`'next' \| 'prev' \| 'down' \| 'up'`) and opens its inline editor. Returns `true` if a target cell was activated. |
 
 ### Usage Examples
 
@@ -576,6 +591,8 @@ interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** Function to render the top-left corner cell of the row header. Can return a string or Lit TemplateResult (when `option.grid` is enabled, renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row). */
   cornerContent?: () => string | unknown
+  /** Function to render calendar quarter cells. Return an HTMLElement or HTML string. */
+  calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
   /** Function to render calendar month cells. Return an HTMLElement or HTML string. */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
   /** Function to render calendar day cells. Return an HTMLElement or HTML string. */
@@ -588,6 +605,20 @@ interface GanttChartOptionCustomRendering {
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
   /** Function to render row header tooltip content. Called on mouse hover. Can return a string, HTMLElement, or Lit TemplateResult. */
   rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
+}
+```
+
+### CalendarQuarterCellContext
+
+Context passed when custom rendering calendar quarter cells.
+
+```typescript
+interface CalendarQuarterCellContext {
+  quarter: 1 | 2 | 3 | 4 // Quarter number (1–4)
+  fiscalYear: number // Fiscal year
+  startDate: Date // Start date of this quarter segment
+  width: number // Cell width (px)
+  defaultLabel: string // Default label text (e.g., "Q1" or "2026 Q1")
 }
 ```
 
@@ -1463,6 +1494,8 @@ interface GanttChartOptionGrid {
   editable?: boolean
   /** User action that triggers inline editing (default: 'dblclick') */
   editTrigger?: 'dblclick' | 'click'
+  /** Whether to allow reordering columns via header drag & drop (default: true) */
+  reorderable?: boolean
 }
 ```
 
@@ -1472,6 +1505,9 @@ Definition for each grid column. Built-in column presets (`wbs`, `name`, `startD
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
+
+/** Keyboard navigation direction during inline cell editing */
+type GridCellNavigationDirection = 'next' | 'prev' | 'down' | 'up'
 
 interface GanttColumnSelectOption {
   label: string
@@ -1487,8 +1523,8 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
   tasks: TTask[]
   /** Column definition */
   column: GanttColumn<TRow, TTask>
-  /** Callback to commit the edited value */
-  commit: (newValue: any) => void
+  /** Callback to commit the edited value (passing navigationDirection advances to the adjacent editable cell) */
+  commit: (newValue: any, navigationDirection?: GridCellNavigationDirection) => void
   /** Callback to cancel editing */
   cancel: () => void
 }
@@ -1508,6 +1544,8 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   align?: 'left' | 'center' | 'right'
   /** Whether to allow user dragging to resize column width (default: true) */
   resizable?: boolean
+  /** Whether to allow user dragging of the column header to reorder columns (default: true) */
+  reorderable?: boolean
   /** Whether the column is visible (default: true) */
   visible?: boolean
   /** Whether to place the hierarchy tree indent and expand/collapse toggle in this column (default: 'name' column) */
@@ -1548,7 +1586,7 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
 }
 ```
 
-#### ColumnResizeEventDetail / CellEditEventDetail
+#### ColumnResizeEventDetail / ColumnReorderEventDetail / CellEditEventDetail
 
 ```typescript
 interface ColumnResizeEventDetail {
@@ -1562,6 +1600,19 @@ interface ColumnResizeEventDetail {
   columns: GanttColumn[]
   /** Whether the drag resize operation is finalized (mouseup) */
   isFinal?: boolean
+}
+
+interface ColumnReorderEventDetail {
+  /** Dragged source column ID */
+  columnId: string
+  /** Drop target column ID */
+  targetColumnId: string
+  /** Drop position relative to target column */
+  position: 'left' | 'right'
+  /** Updated array of all column definitions after reordering */
+  columns: GanttColumn[]
+  /** Ordered array of column IDs after reordering */
+  columnIds: string[]
 }
 
 interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
@@ -1583,6 +1634,117 @@ interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
   task?: TTask
   /** Updated array of all rows */
   rows: TRow[]
+}
+```
+
+### GanttCalendarAutoExtendOption / CalendarRangeChangeEventDetail
+
+Configuration and event detail payload for automatic calendar range extension when dragging near the start or end boundaries of the timeline.
+
+```typescript
+interface GanttCalendarAutoExtendOption {
+  /** Whether automatic range extension is enabled (default: true) */
+  enabled?: boolean
+  /** Number of days to extend per step in day/time view modes (default: 14) */
+  extendDays?: number
+  /** Number of months to extend per step in monthly view mode (default: 3) */
+  extendMonths?: number
+  /** Distance in px from the timeline edge within which auto-extension triggers (default: 60) */
+  edgeThresholdPx?: number
+}
+
+interface CalendarRangeChangeEventDetail {
+  /** New extended start date */
+  start: Date
+  /** New extended end date */
+  end: Date
+  /** Previous start date before extension */
+  previousStart: Date
+  /** Previous end date before extension */
+  previousEnd: Date
+  /** Direction in which the calendar range was extended ('start' | 'end' | 'both') */
+  direction: 'start' | 'end' | 'both'
+}
+```
+
+### GanttChartOptionTouch
+
+Touch device interaction optimization settings for tablets and smartphones.
+
+```typescript
+interface GanttChartOptionTouch {
+  /** Whether touch optimization is enabled (default: true) */
+  enabled?: boolean
+  /** Long-press hold duration (ms) to distinguish drag/contextmenu from single-finger scrolling (default: 250) */
+  longPressDelay?: number
+  /** Movement tolerance (px) before long-press is cancelled as a scroll gesture (default: 8) */
+  moveSlop?: number
+  /** Whether two-finger pinch-to-zoom is enabled (default: true) */
+  pinchZoom?: boolean
+  /** Whether to trigger haptic vibration feedback (navigator.vibrate) on long-press activation (default: true) */
+  hapticFeedback?: boolean
+}
+```
+
+### GanttPlugin / GanttOverlayRenderContext / GanttViewportState
+
+Plugin architecture interface definitions, providing lifecycle hooks (including pre-action cancellation and payload mutation) and a custom chart overlay rendering slot.
+
+```typescript
+interface GanttViewportState {
+  scrollLeft: number
+  scrollTop: number
+  viewportWidth: number
+  viewportHeight: number
+  zoomPercent: number
+  zoomScale: number
+  pxPerDay: number
+}
+
+interface GanttOverlayRenderContext<TChart = any> {
+  chart: TChart
+  rows: GanttRow[]
+  displayRows: GanttRow[]
+  option: GanttChartOption
+  viewport: GanttViewportState
+}
+
+interface BeforeCellEditHookDetail<TRow = GanttRow, TTask = GanttTask> {
+  rowId: string
+  columnId: string
+  column: GanttColumn<TRow, TTask>
+  row: TRow
+  tasks: TTask[]
+  oldValue: any
+  rawInputValue: any
+}
+
+interface GanttPlugin<TConfig = any, TChart = any> {
+  /** Unique plugin identifier */
+  readonly name: string
+  /** Optional version string */
+  readonly version?: string
+  /** Called when registered via chart.use(plugin, config) or option.plugins */
+  install(chart: TChart, config?: TConfig): void
+  /** Optional cleanup called when the chart disconnects or plugins are re-initialized */
+  uninstall?(chart: TChart): void
+  /** Custom overlay rendered above the chart area (can return a Lit TemplateResult, HTMLElement, SVGElement, etc.) */
+  renderOverlay?(context: GanttOverlayRenderContext<TChart>): unknown
+  /** Lifecycle hooks */
+  hooks?: {
+    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail>
+    afterTaskUpdate?: (detail: TaskUpdateEventDetail) => void
+    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail>
+    afterDependencyCreate?: (detail: DependencyCreateEventDetail) => void
+    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void
+    afterDependencyDelete?: (detail: DependencyDeleteEventDetail) => void
+    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any }
+    afterCellEdit?: (detail: CellEditEventDetail) => void
+    onViewportChange?: (viewport: GanttViewportState) => void
+    onZoomChange?: (detail: ZoomChangeEventDetail) => void
+    onCommand?: (command: GanttCommand) => void
+    renderOverlay?: (context: GanttOverlayRenderContext<TChart>) => unknown
+  }
 }
 ```
 
@@ -2207,7 +2369,7 @@ const projectProgress = calculateProjectProgress(rows)
 
 By specifying `parentId` on individual rows, you can seamlessly build an unlimited parent-child hierarchy (e.g. Project > Phase > Sub-task).
 
-- **Indentation & Toggle Icons**: Child rows are indented according to their depth level, and parent rows automatically render an interactive expand/collapse toggle button (▶/▼).
+- **Indentation & Toggle Icons**: Child rows are indented according to their depth level, and parent rows automatically render an interactive expand/collapse toggle button using an OS/font-independent inline SVG chevron (`svg.tree-toggle-icon`).
 - **Automated Summary Tasks**: When `option.tree.autoSummary: true` (default), parent rows automatically compute the earliest start date, latest end date, and duration-weighted average progress across all child tasks, rendering a distinct bracket-style summary bar.
 - **Coexistence with Normal Tasks**: If a parent row also contains its own direct tasks, both summary bars and normal tasks are rendered together (summary task on the top lane, normal tasks below).
 - **Custom Summary Colors**: Define a chart-wide summary bar color via `option.tree.summaryColor`, or customize colors per row via `row.summaryColor`.
@@ -2255,6 +2417,8 @@ import {
   // Multi-Column Grid calculations & inline editing helpers
   calculateRowSummaryDates,
   normalizeGridColumns,
+  reorderGridColumns,
+  findAdjacentEditableCell,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,
@@ -2437,9 +2601,9 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: Complete array of row data
 - **Returns**: `true` if drop is permitted, `false` if circular reference would occur
 
-### Multi-Column Grid Helpers (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
+### Multi-Column Grid Helpers (`calculateRowSummaryDates`, `normalizeGridColumns`, `reorderGridColumns`, `findAdjacentEditableCell`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
 
-Helper utilities for resolving, formatting, validating editability, and applying inline edits to Multi-Column Data Grid cells:
+Helper utilities for resolving, formatting, reordering columns, validating editability, finding adjacent editable cells, and applying inline edits to Multi-Column Data Grid cells:
 
 ```typescript
 // Aggregate earliest start, latest end, calendar days, duration (ms), and weighted progress across a task list
@@ -2458,6 +2622,25 @@ function normalizeGridColumns(
   isMonthMode?: boolean,
   isTimeMode?: boolean
 ): GanttColumn[]
+
+// Reorder a column definition array by moving sourceColumnId to the 'left' or 'right' of targetColumnId
+function reorderGridColumns<TRow = GanttRow, TTask = GanttTask>(
+  columns: GanttColumn<TRow, TTask>[],
+  sourceColumnId: string,
+  targetColumnId: string,
+  position: 'left' | 'right'
+): GanttColumn<TRow, TTask>[]
+
+// Find the next editable cell from (currentRowId, currentColumnId) in direction ('next' | 'prev' | 'down' | 'up')
+function findAdjacentEditableCell<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  displayRows: TRow[],
+  allRows: TRow[],
+  columns: GanttColumn<TRow, TTask>[],
+  currentRowId: string,
+  currentColumnId: string,
+  direction: GridCellNavigationDirection,
+  gridEditable?: boolean
+): { rowId: string; columnId: string } | null
 
 // Resolve raw cell value for a row and column
 function getGridCellValue(

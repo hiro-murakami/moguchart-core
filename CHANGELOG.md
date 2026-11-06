@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-11-04
+
+### Added
+
+- **Multi-Column Data Grid: Column Drag-and-Drop Reordering (`option.grid.reorderable` / `column-reorder`)**:
+  - Added drag-and-drop column header reordering so users can rearrange grid columns interactively.
+  - Added `option.grid.reorderable?: boolean` (default: `true`) for grid-wide control and `GanttColumn.reorderable?: boolean` (default: `true`) for per-column lock control.
+  - Rendered synchronized vertical drop indicator lines (`.drop-target-left` / `.drop-target-right`) across both calendar column headers and grid row cells during column drag.
+  - Added `column-reorder` custom event (`ColumnReorderEventDetail`: `{ columnId, targetColumnId, position, columns, columnIds }`) on `GanttChartElement`, `@mogura/moguchart-react` (`onColumnReorder`), and `@mogura/moguchart-vue` (`@column-reorder`).
+  - Exported pure helper utility `reorderGridColumns(columns, sourceColumnId, targetColumnId, position)`.
+- **Multi-Column Data Grid: Continuous Keyboard Cell Edit Navigation (`Tab` / `Shift+Tab` / `Enter` / `Shift+Enter` & `navigateCellEdit`)**:
+  - Added spreadsheet-style keyboard navigation while inline editing grid cells:
+    - `Tab` (`'next'`): Commit current edit and move to the next editable cell to the right (wrapping to the first editable cell of the next row at row end).
+    - `Shift + Tab` (`'prev'`): Commit current edit and move to the previous editable cell to the left (wrapping to the last editable cell of the previous row at row start).
+    - `Enter` (`'down'`): Commit current edit and move to the editable cell in the same column on the next row below.
+    - `Shift + Enter` (`'up'`): Commit current edit and move to the editable cell in the same column on the previous row above.
+  - Automatically skips read-only cells (`wbs`, summary/multi-task aggregated cells, milestone `duration`/`workingDays`/`progress`, or `editable: false` columns) and automatically scrolls both the grid horizontally and the chart vertically (`scrollGridCellIntoView`) to bring off-screen or virtualized target cells into view before starting inline editing.
+  - Added `chart.navigateCellEdit(fromRowId, fromColumnId, direction)` public method on `GanttChartElement` and `@mogura/moguchart-vue` (`GanttChartPublicApi`).
+  - Extended `chart.commitCellEdit(overrideValue?, navigationDirection?)` and `GanttCellEditorContext.commit(newValue, navigationDirection?)` to support optional `GridCellNavigationDirection` (`'next' | 'prev' | 'down' | 'up'`).
+  - Exported `findAdjacentEditableCell(displayRows, allRows, columns, currentRowId, currentColumnId, direction, gridEditable?)` helper utility.
+- **X-Axis (Horizontal Timeline) Virtual Scrolling & Sparse Background Rendering (`option.calendar.virtualScrollX`)**:
+  - Added `option.calendar.virtualScrollX?: boolean` (default: `true`) to maintain smooth rendering performance across multi-year timelines.
+  - Automatically culls off-screen calendar header cells (quarters, months, weeks, days, hours), row background cells, task bars, markers, and vertical milestone lines outside the horizontal viewport + overscan range (automatically disabled during image/PDF exports when `isExporting: true`).
+  - Introduced sparse DOM rendering in `GanttRowBackgroundElement` so standard mode only renders colored cells (weekends, holidays, custom non-working weekdays) with absolute positioning, drastically reducing DOM node count.
+- **Quarter (`Q1`–`Q4`) Calendar Header & Fiscal Year Configuration**:
+  - Added top-tier quarter header options to `option.calendar`:
+    - `showQuarters?: boolean` (default: `false`)
+    - `quarterStartMonth?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12` (fiscal year start month: e.g., `1` for calendar year, `4` for April FY, `10` for October FY; default: `1`)
+    - `quarterFormat?: (quarter: 1 | 2 | 3 | 4, fiscalYear: number, startDate: Date) => string` (custom label formatter)
+    - `quarterTextAlign?: 'left' | 'center' | 'right'` (default: `'center'`)
+  - Added `option.customRendering.calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown` for custom quarter cell rendering.
+- **Viewport Auto-Scroll on Drag & Calendar Range Auto-Extension (`autoScrollOnDrag` / `autoExtend` / `calendar-range-change`)**:
+  - Added `option.calendar.autoScrollOnDrag?: boolean` (default: `true`) to continuously auto-scroll the viewport when dragging task bars, resize handles, or dependency connectors near viewport edges.
+  - Added `option.calendar.autoExtend?: boolean | GanttCalendarAutoExtendOption` (default: `false`) to automatically expand `option.calendar.start` / `option.calendar.end` when tasks are dragged, dropped, or inline-edited near or beyond timeline boundaries (with automatic scroll offset compensation when extending `start` into the past).
+  - Added `calendar-range-change` custom event (`CalendarRangeChangeEventDetail`: `{ start, end, previousStart, previousEnd, direction }`) on `GanttChartElement`, `@mogura/moguchart-react` (`onCalendarRangeChange`), and `@mogura/moguchart-vue` (`@calendar-range-change`).
+- **Touch Device (Tablet & Mobile) Interaction Optimization (`option.touch` / Pinch Zoom / Long-Press Drag)**:
+  - Added `option.touch?: GanttChartOptionTouch`:
+    - `enabled?: boolean` (default: `true`)
+    - `longPressDelay?: number` (long-press duration in ms before initiating task drag on 1-finger touch, default: `250`; normal 1-finger swipes scroll the chart naturally)
+    - `moveSlop?: number` (movement threshold in px to cancel long-press and treat as scroll, default: `8`)
+    - `pinchZoom?: boolean` (enable 2-finger pinch-in / pinch-out smooth zoom; defaults to `option.zoom?.enabled`)
+    - `hapticFeedback?: boolean` (trigger `navigator.vibrate` haptic feedback upon long-press activation, default: `false`)
+  - Enlarged touch hit areas and displayed visual handle indicators on touch-selected task bars (`touch-active` attribute and `@media (pointer: coarse)`), while keeping resize/progress indicators hidden on desktop mouse selection.
+  - Added `chart.zoomToPercentAtPoint(percent, clientX, anchorUnits?)` public method on `GanttChartElement` and `@mogura/moguchart-vue`.
+- **Expanded Plugin Lifecycle Hooks & Custom Overlay Rendering Slot (`GanttPlugin`)**:
+  - Extended `GanttPlugin.hooks` with:
+    - `beforeDependencyCreate` / `afterDependencyCreate` (return `false` in `beforeDependencyCreate` to cancel link creation)
+    - `beforeDependencyDelete` / `afterDependencyDelete` (return `false` in `beforeDependencyDelete` to cancel link deletion)
+    - `beforeCellEdit` (`BeforeCellEditHookDetail`) / `afterCellEdit` (`CellEditEventDetail`) (return `false` in `beforeCellEdit` to cancel inline grid edit)
+    - `onViewportChange` (`GanttViewportState`) (invoked on scroll or zoom updates)
+  - Added `renderOverlay?: (context: GanttOverlayRenderContext) => unknown` on `GanttPlugin` (and `GanttPlugin.hooks`) to render custom overlay layers (e.g., collaborative cursors, heatmaps, custom SVG annotations) inside `.plugin-overlay-layer`.
+
+### Changed
+
+- **Inline SVG Tree Toggle Icons in WBS Rows**:
+  - Replaced platform-dependent Unicode triangle characters (`▶` / `▼`) in `.tree-toggle-btn` with crisp inline SVG icons (`svg.tree-toggle-icon`) and refined font scaling across single-column and multi-column grid modes.
+
+---
+
 ## [1.7.0] - 2026-10-31
 
 ### Added

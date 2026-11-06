@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-11-04
+
+### Added
+
+- **マルチカラムデータグリッド：カラム（列）のドラッグ＆ドロップ並び替え (`option.grid.reorderable` / `column-reorder`)**:
+  - グリッドのカラムヘッダーをドラッグ＆ドロップして列の表示順序を自由に入れ替えられる機能を追加
+  - グリッド全体の有効・無効切り替え `option.grid.reorderable?: boolean`（デフォルト: `true`）およびカラム個別の並び替え可否 `GanttColumn.reorderable?: boolean`（デフォルト: `true`）を追加
+  - ドラッグ中にドロップ先の左右位置を示す青い縦ラインインジケーター（`.drop-target-left` / `.drop-target-right`）をカレンダーヘッダーおよび各行のグリッドセルに連動表示
+  - 並び替え確定時に発火するカスタムイベント `column-reorder`（`ColumnReorderEventDetail`: `{ columnId, targetColumnId, position, columns, columnIds }`）を `GanttChartElement`、`@mogura/moguchart-react`（`onColumnReorder`）、および `@mogura/moguchart-vue`（`@column-reorder`）に追加
+  - カラム配列を並び替える純粋ユーティリティ関数 `reorderGridColumns(columns, sourceColumnId, targetColumnId, position)` を公開エクスポート
+- **マルチカラムデータグリッド：連続セル編集ナビゲーション (`Tab` / `Shift+Tab` / `Enter` / `Shift+Enter` ＆ `navigateCellEdit`)**:
+  - インラインセル編集中にキーボード操作で編集を確定しつつ隣接する編集可能セルへ連続移動できるスプレッドシート風のナビゲーション機能を追加:
+    - `Tab` (`'next'`): 現在の編集を確定し、右側の次の編集可能セルへ移動（行末では次の行の先頭編集可能セルへ折り返し）
+    - `Shift + Tab` (`'prev'`): 現在の編集を確定し、左側の前の編集可能セルへ移動（行頭では前の行の末尾編集可能セルへ折り返し）
+    - `Enter` (`'down'`): 現在の編集を確定し、同じカラムの下の編集可能行へ移動
+    - `Shift + Enter` (`'up'`): 現在の編集を確定し、同じカラムの上の編集可能行へ移動
+  - 移動時は読み取り専用セル（`wbs` 列、サマリー行や複数タスク行の集計セル、マイルストーン行の期間・稼働日・進捗、または `editable: false` のセル）を自動的にスキップし、移動先セルが表示領域外（または仮想スクロールの未描画領域）にある場合はグリッド横スクロールおよびチャート縦スクロールを自動調整してインライン編集を開始
+  - プログラムから隣接セルへ移動して編集を開始するパブリックメソッド `chart.navigateCellEdit(fromRowId, fromColumnId, direction)`（および `@mogura/moguchart-vue` の `GanttChartPublicApi.navigateCellEdit`）を追加
+  - `chart.commitCellEdit(overrideValue?, navigationDirection?)` およびカスタムエディタ用の `GanttCellEditorContext.commit(newValue, navigationDirection?)` を拡張し、確定と同時に指定方向（`GridCellNavigationDirection`: `'next' | 'prev' | 'down' | 'up'`）へ移動する指定に対応
+  - 隣接する編集可能セルを検索するユーティリティ関数 `findAdjacentEditableCell(displayRows, allRows, columns, currentRowId, currentColumnId, direction, gridEditable?)` を公開エクスポート
+- **X軸（タイムライン横方向）仮想スクロール ＆ スパース背景レンダリング (`option.calendar.virtualScrollX`)**:
+  - 長期間（数年規模）のタイムラインでも高速な描画を維持する横方向の仮想スクロールオプション `option.calendar.virtualScrollX?: boolean`（デフォルト: `true`）を追加
+  - 可視範囲（＋オーバースキャン領域）外のカレンダーヘッダーセル（四半期・年月・週・日・時間）、行背景セル、タスクバー、マーカー、および縦線マイルストーンの DOM 生成を自動的にカリング（画像・PDFエクスポート実行時 `isExporting: true` は自動的に全期間を描画）
+  - `GanttRowBackgroundElement` にスパース（疎）描画モードを導入し、標準表示時は着色が必要なセル（週末・祝日・カスタム非営業曜日）のみを絶対配置で描画することで DOM ノード数を大幅に削減
+- **四半期（Q1〜Q4）カレンダーヘッダー ＆ 会計年度設定**:
+  - カレンダー最上段に四半期（Q1〜Q4）ヘッダーを表示するオプションを追加:
+    - `option.calendar.showQuarters?: boolean`（デフォルト: `false`）
+    - `option.calendar.quarterStartMonth?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12`（会計年度の開始月。`1`=暦年、`4`=4月始まり日本年度、`10`=10月始まり米国年度など、デフォルト: `1`）
+    - `option.calendar.quarterFormat?: (quarter: 1 | 2 | 3 | 4, fiscalYear: number, startDate: Date) => string`（カスタムラベルフォーマット関数）
+    - `option.calendar.quarterTextAlign?: 'left' | 'center' | 'right'`（デフォルト: `'center'`）
+  - `option.customRendering.calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown` による四半期セルのカスタムレンダリングに対応
+- **ドラッグ時の端オートスクロール ＆ カレンダー表示期間の自動拡張 (`autoScrollOnDrag` / `autoExtend` / `calendar-range-change`)**:
+  - `option.calendar.autoScrollOnDrag?: boolean`（デフォルト: `true`）：タスクバーの移動・期間リサイズ・依存関係コネクタのドラッグ中にビューポート端へ近づいた際、タイムラインを自動的に連続スクロール
+  - `option.calendar.autoExtend?: boolean | GanttCalendarAutoExtendOption`（デフォルト: `false`）：タスクをカレンダー期間の左右端へドラッグ／ドロップ（またはグリッドから日付編集）した際に、`option.calendar.start` / `option.calendar.end` を自動的に拡張（過去方向への拡張時はスクロール位置を自動補正）
+  - カレンダー期間が自動拡張された際に発火するカスタムイベント `calendar-range-change`（`CalendarRangeChangeEventDetail`: `{ start, end, previousStart, previousEnd, direction }`）を `GanttChartElement`、`@mogura/moguchart-react`（`onCalendarRangeChange`）、および `@mogura/moguchart-vue`（`@calendar-range-change`）に追加
+- **タッチデバイス（タブレット・モバイル）操作最適化 (`option.touch` / ピンチズーム / ロングプレス移動)**:
+  - タッチ操作に関する設定オプション `option.touch?: GanttChartOptionTouch` を追加:
+    - `enabled?: boolean`（タッチ最適化の有効化、デフォルト: `true`）
+    - `longPressDelay?: number`（1本指タッチでタスク移動を開始するまでのロングプレス待機時間 ms、デフォルト: `250`。通常の1本指スワイプはチャートスクロールとして動作）
+    - `moveSlop?: number`（ロングプレス成立前にスクロールとみなしてキャンセルする移動閾値 px、デフォルト: `8`）
+    - `pinchZoom?: boolean`（2本指ピンチイン・ピンチアウトによるスムーズズームの有効化、未指定時は `option.zoom?.enabled` に準拠）
+    - `hapticFeedback?: boolean`（ロングプレス確定時の `navigator.vibrate` 微振動フィードバック、デフォルト: `false`）
+  - タッチ操作で選択されたタスクバー（`touch-active` 属性および `@media (pointer: coarse)`）に対して、リサイズハンドル・依存関係コネクタ・進捗ノブのヒット領域拡大と視覚インジケーター表示を適用（マウス選択時はインジケーターを非表示に維持）
+  - 指定したクライアントX座標のタイムライン位置をアンカーとして維持しながらズーム倍率を変更するパブリックメソッド `chart.zoomToPercentAtPoint(percent, clientX, anchorUnits?)` を `GanttChartElement` および `@mogura/moguchart-vue` に追加
+- **プラグインライフサイクルフックの拡充 ＆ カスタムオーバーレイ描画スロット (`GanttPlugin`)**:
+  - `GanttPlugin.hooks` に以下のライフサイクルフックを追加:
+    - `beforeDependencyCreate` / `afterDependencyCreate`: 依存関係リンク作成の直前（`false` を返すと作成キャンセル）・直後フック
+    - `beforeDependencyDelete` / `afterDependencyDelete`: 依存関係リンク削除の直前（`false` を返すと削除キャンセル）・直後フック
+    - `beforeCellEdit` (`BeforeCellEditHookDetail`) / `afterCellEdit` (`CellEditEventDetail`): グリッドのインラインセル編集確定の直前（`false` を返すと編集キャンセル）・直後フック
+    - `onViewportChange` (`GanttViewportState`): スクロールやズームによるビューポート状態変化時のフック
+  - タイムライン上にカスタムオーバーレイ（共同編集プレゼンスカーソル、ヒートマップ、SVG注釈レイヤー等）を描画できるスロット関数 `renderOverlay?: (context: GanttOverlayRenderContext) => unknown` を `GanttPlugin`（および `GanttPlugin.hooks`）に追加
+
+### Changed
+
+- **WBS ツリー展開・折りたたみトグルアイコンのインライン SVG 化**:
+  - `.tree-toggle-btn` のアイコンを OS・フォント依存の Unicode 三角文字（`▶` / `▼`）からインライン SVG（`svg.tree-toggle-icon`）に変更し、シングルカラムヘッダーおよびマルチカラムグリッド双方での視認性と配置精度を向上
+
+---
+
 ## [1.7.0] - 2026-11-01
 
 ### Added

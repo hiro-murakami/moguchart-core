@@ -68,6 +68,10 @@ interface GanttChartOption {
     weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6 // 週の始まりの曜日 (0=日曜〜6=土曜、デフォルト: 1=月曜)
     weekFormat?: (weekNumber: number, startDate: Date) => string // 週番号の表示フォーマット関数
     weekTextAlign?: 'left' | 'center' | 'right' // 週番号セルのテキスト配置 (デフォルト: 'center')
+    showQuarters?: boolean // 四半期 (Q1〜Q4) ヘッダーを表示するかどうか (デフォルト: false)
+    quarterStartMonth?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 // 会計年度の開始月 (1=1月始まり〜12=12月始まり、4=4月始まり会計年度。デフォルト: 1)
+    quarterFormat?: (quarter: 1 | 2 | 3 | 4, fiscalYear: number, startDate: Date) => string // 四半期ラベルの表示フォーマット関数
+    quarterTextAlign?: 'left' | 'center' | 'right' // 四半期セルのテキスト配置 (デフォルト: 'center')
     showMonthsRow?: boolean // 月単位表示（上段=年、下段=月）を有効にするかどうか
     monthTextAlign?: 'left' | 'center' | 'right' // 月セルのテキスト配置 (デフォルト: 'center')
     milestones?: GanttChartMilestone[] // マイルストーンの配列
@@ -76,6 +80,9 @@ interface GanttChartOption {
     calendarMode?: AutoScheduleCalendarMode // チャート全体の稼働日（休日除外）計算モード ('calendar' | 'weekends' | 'weekends-holidays'、デフォルト: 'calendar')
     nonWorkingDays?: number[] // 非営業日とする曜日配列 (0=日曜, 1=月曜, ..., 6=土曜。デフォルト: [0, 6])
     preserveWorkingDaysOnDrag?: boolean // タスクバーのドラッグ移動時に元の実稼働日数を維持して終了日を伸縮させるか (デフォルト: false)
+    virtualScrollX?: boolean // カレンダーヘッダー・背景グリッドの横方向（X軸）仮想スクロールを有効にするか (デフォルト: true)
+    autoScrollOnDrag?: boolean // タスクバーまたは依存関係コネクタのドラッグ中にビューポート端へ近づいた際、自動的にスクロールするか (デフォルト: true)
+    autoExtend?: boolean | GanttCalendarAutoExtendOption // ドラッグ中にカレンダー表示期間（start / end）の端へ到達した際、カレンダー期間を自動拡張するか (デフォルト: false)
   }
   /** 読み取り専用モードかどうか */
   readOnly?: boolean
@@ -112,6 +119,8 @@ interface GanttChartOption {
     dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
     /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます（`option.grid` 有効時は上段に cornerContent、下段にグリッドカラムヘッダーの2段構成で表示されます）。 */
     cornerContent?: () => string | unknown
+    /** カレンダーの四半期セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+    calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
     /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
     calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
     /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
@@ -150,6 +159,8 @@ interface GanttChartOption {
   baseline?: GanttChartOptionBaseline
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
+  /** タッチデバイス（タブレット・スマートフォン）操作の最適化設定 */
+  touch?: GanttChartOptionTouch
   /** 拡張プラグインの配列 */
   plugins?: GanttPlugin[]
 }
@@ -176,7 +187,9 @@ interface GanttChartOption {
 | `task-drop`              | `TaskDropEventDetail`             | 外部から要素がドロップされたときに発火します。新しいタスクの作成などに使用できます。         |
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダー（またはグリッド領域）の幅がリサイズされたときに発火します。                       |
 | `column-resize`          | `ColumnResizeEventDetail`         | マルチカラムグリッドのカラム幅がドラッグリサイズされたときに発火します。                     |
+| `column-reorder`         | `ColumnReorderEventDetail`        | マルチカラムグリッドのカラムがドラッグ＆ドロップで並び替えられたときに発火します。           |
 | `cell-edit`              | `CellEditEventDetail`             | マルチカラムグリッドのインラインセル編集が確定されたときに発火します。                       |
+| `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | `calendar.autoExtend` 有効時にドラッグ操作でカレンダー表示期間が自動拡張されたときに発火します。 |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
@@ -198,38 +211,40 @@ interface GanttChartOption {
 
 コンポーネントのインスタンスに対して呼び出すことができるパブリックメソッドです。
 
-| メソッド名                 | シグネチャ                                                                                  | 説明                                                                                                                                                                                                        |
-| :------------------------- | :------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `undo`                     | `() => Promise<boolean>`                                                                    | 直前の操作を取り消し (Undo) ます。成功した場合は `true` を返します。                                                                                                                                        |
-| `redo`                     | `() => Promise<boolean>`                                                                    | 直前に Undo した操作をやり直し (Redo) ます。成功した場合は `true` を返します。                                                                                                                              |
-| `clearHistory`             | `() => void`                                                                                | 操作履歴スタックをすべて消去します。                                                                                                                                                                        |
-| `recordCommand`            | `(command: GanttCommand) => void`                                                           | 外部からカスタムコマンドを履歴スタックに記録して `command` イベントを発行します。                                                                                                                           |
-| `zoomToPercent`            | `(percent: number) => void`                                                                 | 指定したパーセンテージ（例: `100` = 100%、`minPercent`〜`maxPercent`）にズーム倍率を設定します。カレンダー幅・行ヘッダー幅・バー高さ・フォントサイズが一括連動します。                                    |
-| `zoomToScale`              | `(scale: number) => void`                                                                   | 指定した倍率（例: `1.0` = 100%、`0.75` = 75%）にズームを設定します。                                                                                                                                      |
-| `zoomIn`                   | `(step?: number) => void`                                                                   | ズームレベルを1段階拡大（または指定ステップ拡大）します。                                                                                                                                                   |
-| `zoomOut`                  | `(step?: number) => void`                                                                   | ズームレベルを1段階縮小（または指定ステップ縮小）します。                                                                                                                                                   |
-| `getZoomPercent`           | `() => number`                                                                              | 現在のズームパーセンテージ（50〜200など）を取得します。                                                                                                                                                     |
-| `getZoomScale`             | `() => number`                                                                              | 現在の実効ズーム倍率（`1.0` = 100%）を取得します。                                                                                                                                                          |
-| `zoomTo`                   | `(value: number) => void`                                                                   | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します（後方互換用）。                                                                                                                    |
-| `zoomToFit`                | `() => void`                                                                                | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
-| `resetZoom`                | `() => void`                                                                                | ズームを100%（標準倍率）にリセットします。                                                                                                                                                                  |
-| `triggerDependencyDelete`  | `(sourceTaskId: string, targetTaskId: string) => boolean`                                   | 指定した接続元・接続先タスク間の依存関係線を削除し、`dependency-delete` イベントおよび履歴コマンドを記録します。                                                                                            |
-| `autoSchedule`             | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                    | 依存関係制約およびラグに基づいて後続タスクの日程をトポロジカルソート順で再計算・カスケード更新します。変更があった場合は Undo / Redo 履歴コマンドを記録し、更新されたタスクID配列を返します。                |
-| `selectTask`               | `(taskId: string) => boolean`                                                               | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
-| `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                   | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
-| `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`               | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
-| `exportImage`              | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>` | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
-| `exportExcel`              | `(options?: ExportExcelOptions) => Promise<void>`                                           | ガントチャートをスタイリングされた Excel（`.xlsx`）ファイルとしてエクスポートします（**`@mogura/moguchart-plugin-excel` プラグインの登録が必要**）。多言語対応（`ja`, `en`, `zh`）やカスタムロケールに対応。デフォルトで自動ダウンロードされます。 |
-| `getRowPositions`          | `() => { top: number; height: number; bottom: number }[]`                                   | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
-| `toggleRowCollapse`        | `(rowId: string, collapsed?: boolean) => boolean`                                           | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。                                       |
-| `collapseAll`              | `() => void`                                                                                | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                                                             |
-| `expandAll`                | `() => void`                                                                                | すべての行を一括で展開します。                                                                                                                                                                             |
-| `resetScroll`              | `() => void`                                                                                | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
-| `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`            | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
-| `scrollToTask`             | `(taskId: string) => void`                                                                  | 指定したIDのタスクが表示範囲外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は画面中央付近、横方向は行ヘッダー幅とマージンを考慮してスクロール）。                                    |
-| `startCellEdit`            | `(rowId: string, columnId: string) => boolean`                                              | マルチカラムグリッドの指定セルのインライン編集をプログラムから開始します。編集可能な場合は `true` を返します。                                                                                              |
-| `commitCellEdit`           | `(overrideValue?: any) => boolean`                                                          | 現在編集中のセルの値を確定して閉じます。変更が適用された場合は `true` を返します。                                                                                                                          |
-| `cancelCellEdit`           | `() => void`                                                                                | 現在編集中のセルの変更を破棄して編集モードを終了します。                                                                                                                                                    |
+| メソッド名                 | シグネチャ                                                                                                   | 説明                                                                                                                                                                                                        |
+| :------------------------- | :----------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `undo`                     | `() => Promise<boolean>`                                                                                     | 直前の操作を取り消し (Undo) ます。成功した場合は `true` を返します。                                                                                                                                        |
+| `redo`                     | `() => Promise<boolean>`                                                                                     | 直前に Undo した操作をやり直し (Redo) ます。成功した場合は `true` を返します。                                                                                                                              |
+| `clearHistory`             | `() => void`                                                                                                 | 操作履歴スタックをすべて消去します。                                                                                                                                                                        |
+| `recordCommand`            | `(command: GanttCommand) => void`                                                                            | 外部からカスタムコマンドを履歴スタックに記録して `command` イベントを発行します。                                                                                                                           |
+| `zoomToPercent`            | `(percent: number) => void`                                                                                  | 指定したパーセンテージ（例: `100` = 100%、`minPercent`〜`maxPercent`）にズーム倍率を設定します。カレンダー幅・行ヘッダー幅・バー高さ・フォントサイズが一括連動します。                                    |
+| `zoomToPercentAtPoint`     | `(percent: number, clientX: number, anchorUnits?: number) => boolean`                                        | 指定したクライアントX座標（マウス位置やピンチ中心座標）を基準位置として維持したまま、指定パーセンテージへズームします。倍率が変化した場合は `true` を返します。                                              |
+| `zoomToScale`              | `(scale: number) => void`                                                                                    | 指定した倍率（例: `1.0` = 100%、`0.75` = 75%）にズームを設定します。                                                                                                                                      |
+| `zoomIn`                   | `(step?: number) => void`                                                                                    | ズームレベルを1段階拡大（または指定ステップ拡大）します。                                                                                                                                                   |
+| `zoomOut`                  | `(step?: number) => void`                                                                                    | ズームレベルを1段階縮小（または指定ステップ縮小）します。                                                                                                                                                   |
+| `getZoomPercent`           | `() => number`                                                                                               | 現在のズームパーセンテージ（50〜200など）を取得します。                                                                                                                                                     |
+| `getZoomScale`             | `() => number`                                                                                               | 現在の実効ズーム倍率（`1.0` = 100%）を取得します。                                                                                                                                                          |
+| `zoomTo`                   | `(value: number) => void`                                                                                    | 指定した pxPerDay（月単位モードの場合は pxPerMonth）にズームを設定します（後方互換用）。                                                                                                                    |
+| `zoomToFit`                | `() => void`                                                                                                 | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
+| `resetZoom`                | `() => void`                                                                                                 | ズームを100%（標準倍率）にリセットします。                                                                                                                                                                  |
+| `triggerDependencyDelete`  | `(sourceTaskId: string, targetTaskId: string) => boolean`                                                    | 指定した接続元・接続先タスク間の依存関係線を削除し、`dependency-delete` イベントおよび履歴コマンドを記録します。                                                                                            |
+| `autoSchedule`             | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                                     | 依存関係制約およびラグに基づいて後続タスクの日程をトポロジカルソート順で再計算・カスケード更新します。変更があった場合は Undo / Redo 履歴コマンドを記録し、更新されたタスクID配列を返します。                |
+| `selectTask`               | `(taskId: string) => boolean`                                                                                | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                                    | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
+| `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`                                | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
+| `exportImage`              | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>`                  | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
+| `exportExcel`              | `(options?: ExportExcelOptions) => Promise<void>`                                                            | ガントチャートをスタイリングされた Excel（`.xlsx`）ファイルとしてエクスポートします（**`@mogura/moguchart-plugin-excel` プラグインの登録が必要**）。多言語対応（`ja`, `en`, `zh`）やカスタムロケールに対応。デフォルトで自動ダウンロードされます。 |
+| `getRowPositions`          | `() => { top: number; height: number; bottom: number }[]`                                                    | 各行のY座標レイアウト情報（カレンダーヘッダーを含まない行領域の上端からの相対位置）を取得します。エクスポート時の分割位置計算などに使用します。                                                          |
+| `toggleRowCollapse`        | `(rowId: string, collapsed?: boolean) => boolean`                                                            | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。                                       |
+| `collapseAll`              | `() => void`                                                                                                 | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                                                             |
+| `expandAll`                | `() => void`                                                                                                 | すべての行を一括で展開します。                                                                                                                                                                             |
+| `resetScroll`              | `() => void`                                                                                                 | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
+| `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`                             | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
+| `scrollToTask`             | `(taskId: string) => void`                                                                                   | 指定したIDのタスクが表示範囲外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は画面中央付近、横方向は行ヘッダー幅とマージンを考慮してスクロール）。                                    |
+| `startCellEdit`            | `(rowId: string, columnId: string) => boolean`                                                               | マルチカラムグリッドの指定セルのインライン編集をプログラムから開始します。編集可能な場合は `true` を返します。                                                                                              |
+| `commitCellEdit`           | `(overrideValue?: any, navigationDirection?: GridCellNavigationDirection) => boolean`                        | 現在編集中のセルの値を確定して閉じます。`navigationDirection`（`'next' \| 'prev' \| 'down' \| 'up'`）を指定すると、確定後に隣接する編集可能セルへフォーカスを移動します。                                   |
+| `cancelCellEdit`           | `() => void`                                                                                                 | 現在編集中のセルの変更を破棄して編集モードを終了します。                                                                                                                                                    |
+| `navigateCellEdit`         | `(fromRowId: string, fromColumnId: string, direction: GridCellNavigationDirection) => boolean`               | 指定したセル位置から指定方向（`'next' \| 'prev' \| 'down' \| 'up'`）にある次の編集可能セルを検索し、インライン編集を開始します。移動先が見つかった場合は `true` を返します。                                |
 
 ### 使用例
 
@@ -576,6 +591,8 @@ interface GanttChartOptionCustomRendering {
   dragInfo?: (task: GanttTask, newStart: Date, newEnd: Date, targetRow?: GanttRow) => string | unknown
   /** 行ヘッダーの左上コーナーセルのコンテンツをレンダリングする関数。文字列または Lit の TemplateResult を返すことができます（`option.grid` 有効時は上段に cornerContent、下段にグリッドカラムヘッダーの2段構成で表示されます）。 */
   cornerContent?: () => string | unknown
+  /** カレンダーの四半期セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
+  calendarQuarterContent?: (context: CalendarQuarterCellContext) => string | unknown
   /** カレンダーの月セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
   calendarMonthContent?: (context: CalendarMonthCellContext) => string | unknown
   /** カレンダーの日セルをレンダリングする関数。HTMLElement または HTML文字列を返します。 */
@@ -588,6 +605,20 @@ interface GanttChartOptionCustomRendering {
   chartBackground?: (context: ChartBackgroundCellContext) => string | unknown
   /** 行ヘッダーのツールチップコンテンツをレンダリングする関数。マウスホバー時に呼ばれ、文字列・HTMLElement・TemplateResult を返すことができます。 */
   rowHeaderTooltip?: (row: GanttRow) => string | HTMLElement | unknown
+}
+```
+
+### CalendarQuarterCellContext
+
+カレンダー四半期セルのカスタムレンダリング時に渡されるコンテキストです。
+
+```typescript
+interface CalendarQuarterCellContext {
+  quarter: 1 | 2 | 3 | 4 // 四半期番号 (1〜4)
+  fiscalYear: number // 会計年度（年）
+  startDate: Date // この四半期の開始日
+  width: number // セルの幅 (px)
+  defaultLabel: string // デフォルトのラベルテキスト (例: "Q1" または "2026 Q1")
 }
 ```
 
@@ -1463,6 +1494,8 @@ interface GanttChartOptionGrid {
   editable?: boolean
   /** インライン編集を開始するトリガー操作 (デフォルト: 'dblclick') */
   editTrigger?: 'dblclick' | 'click'
+  /** カラムヘッダーのドラッグ＆ドロップによる列の並び替えを許可するか (デフォルト: true) */
+  reorderable?: boolean
 }
 ```
 
@@ -1472,6 +1505,9 @@ interface GanttChartOptionGrid {
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
+
+/** インラインセル編集時のキーボードナビゲーション方向 */
+type GridCellNavigationDirection = 'next' | 'prev' | 'down' | 'up'
 
 interface GanttColumnSelectOption {
   label: string
@@ -1487,8 +1523,8 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
   tasks: TTask[]
   /** カラム定義 */
   column: GanttColumn<TRow, TTask>
-  /** 編集を確定するコールバック */
-  commit: (newValue: any) => void
+  /** 編集を確定するコールバック（navigationDirection を渡すと確定後に隣接セルへ連続移動します） */
+  commit: (newValue: any, navigationDirection?: GridCellNavigationDirection) => void
   /** 編集をキャンセルするコールバック */
   cancel: () => void
 }
@@ -1508,6 +1544,8 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   align?: 'left' | 'center' | 'right'
   /** ユーザーによる幅ドラッグリサイズを許可するか (デフォルト: true) */
   resizable?: boolean
+  /** ユーザーによるカラムヘッダーのドラッグ＆ドロップ並び替えを許可するか (デフォルト: true) */
+  reorderable?: boolean
   /** カラムを表示するか (デフォルト: true) */
   visible?: boolean
   /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
@@ -1548,7 +1586,7 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
 }
 ```
 
-#### ColumnResizeEventDetail / CellEditEventDetail
+#### ColumnResizeEventDetail / ColumnReorderEventDetail / CellEditEventDetail
 
 ```typescript
 interface ColumnResizeEventDetail {
@@ -1562,6 +1600,19 @@ interface ColumnResizeEventDetail {
   columns: GanttColumn[]
   /** ドラッグ完了による確定イベントかどうか */
   isFinal?: boolean
+}
+
+interface ColumnReorderEventDetail {
+  /** ドラッグされた移動元カラムID */
+  columnId: string
+  /** ドロップ対象の移動先カラムID */
+  targetColumnId: string
+  /** ドロップ位置（ターゲットカラムの左または右） */
+  position: 'left' | 'right'
+  /** 並び替え後の全カラム定義配列 */
+  columns: GanttColumn[]
+  /** 並び替え後のカラムID配列 */
+  columnIds: string[]
 }
 
 interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
@@ -1583,6 +1634,117 @@ interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
   task?: TTask
   /** 更新後の全行データ配列 */
   rows: TRow[]
+}
+```
+
+### GanttCalendarAutoExtendOption / CalendarRangeChangeEventDetail
+
+ドラッグ操作中にカレンダー表示期間の端へ到達した際の自動拡張設定およびイベント詳細です。
+
+```typescript
+interface GanttCalendarAutoExtendOption {
+  /** 自動拡張を有効にするか (デフォルト: true) */
+  enabled?: boolean
+  /** 日・時間単位モード時に1回の拡張で広げる日数 (デフォルト: 14) */
+  extendDays?: number
+  /** 月単位モード (pxPerMonth 指定時) に1回の拡張で広げる月数 (デフォルト: 3) */
+  extendMonths?: number
+  /** カレンダー端から何px以内に到達したら拡張を発動するか (デフォルト: 60) */
+  edgeThresholdPx?: number
+}
+
+interface CalendarRangeChangeEventDetail {
+  /** 拡張後の新しい開始日 */
+  start: Date
+  /** 拡張後の新しい終了日 */
+  end: Date
+  /** 拡張前の開始日 */
+  previousStart: Date
+  /** 拡張前の終了日 */
+  previousEnd: Date
+  /** 拡張された方向 ('start' | 'end' | 'both') */
+  direction: 'start' | 'end' | 'both'
+}
+```
+
+### GanttChartOptionTouch
+
+タブレット・スマートフォン等のタッチデバイス向け操作設定です。
+
+```typescript
+interface GanttChartOptionTouch {
+  /** タッチ最適化機能を有効にするか (デフォルト: true) */
+  enabled?: boolean
+  /** 1本指のスクロール操作と区別し、タスクドラッグやコンテキストメニューを開始する長押し判定時間 (ms、デフォルト: 250) */
+  longPressDelay?: number
+  /** 長押し成立前にスクロール操作とみなして長押しをキャンセルする移動許容距離 (px、デフォルト: 8) */
+  moveSlop?: number
+  /** 2本指ピンチイン・ピンチアウトによる連続ズームを有効にするか (デフォルト: true) */
+  pinchZoom?: boolean
+  /** 長押し成立時にバイブレーション (navigator.vibrate) による触覚フィードバックを行うか (デフォルト: true) */
+  hapticFeedback?: boolean
+}
+```
+
+### GanttPlugin / GanttOverlayRenderContext / GanttViewportState
+
+プラグインアーキテクチャのインターフェース定義です。ライフサイクルフック（前処理でのキャンセル・ペイロード書き換えを含む）およびチャート上へのオーバーレイ描画スロットを提供します。
+
+```typescript
+interface GanttViewportState {
+  scrollLeft: number
+  scrollTop: number
+  viewportWidth: number
+  viewportHeight: number
+  zoomPercent: number
+  zoomScale: number
+  pxPerDay: number
+}
+
+interface GanttOverlayRenderContext<TChart = any> {
+  chart: TChart
+  rows: GanttRow[]
+  displayRows: GanttRow[]
+  option: GanttChartOption
+  viewport: GanttViewportState
+}
+
+interface BeforeCellEditHookDetail<TRow = GanttRow, TTask = GanttTask> {
+  rowId: string
+  columnId: string
+  column: GanttColumn<TRow, TTask>
+  row: TRow
+  tasks: TTask[]
+  oldValue: any
+  rawInputValue: any
+}
+
+interface GanttPlugin<TConfig = any, TChart = any> {
+  /** プラグインの一意な識別名 */
+  readonly name: string
+  /** バージョン文字列 (任意) */
+  readonly version?: string
+  /** chart.use(plugin, config) または option.plugins で登録された際に呼ばれる初期化処理 */
+  install(chart: TChart, config?: TConfig): void
+  /** チャート破棄時または再登録時に呼ばれるクリーンアップ処理 */
+  uninstall?(chart: TChart): void
+  /** チャート領域上に重ねて描画するカスタムオーバーレイ（Lit TemplateResult、HTMLElement、SVGElement 等を返却可能） */
+  renderOverlay?(context: GanttOverlayRenderContext<TChart>): unknown
+  /** 各種ライフサイクルフック */
+  hooks?: {
+    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail>
+    afterTaskUpdate?: (detail: TaskUpdateEventDetail) => void
+    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail>
+    afterDependencyCreate?: (detail: DependencyCreateEventDetail) => void
+    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void
+    afterDependencyDelete?: (detail: DependencyDeleteEventDetail) => void
+    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any }
+    afterCellEdit?: (detail: CellEditEventDetail) => void
+    onViewportChange?: (viewport: GanttViewportState) => void
+    onZoomChange?: (detail: ZoomChangeEventDetail) => void
+    onCommand?: (command: GanttCommand) => void
+    renderOverlay?: (context: GanttOverlayRenderContext<TChart>) => unknown
+  }
 }
 ```
 
@@ -2181,7 +2343,7 @@ const projectProgress = calculateProjectProgress(rows) // プロジェクト全�
 
 `parentId` を各行に設定することで、無制限の親子階層（大工程 ＞ 中工程 ＞ 詳細タスク）を簡単に構築できます。
 
-- **インデント表示と開閉トグル**: 親行の左側には階層レベルに応じたインデントと開閉トグルアイコン（▶/▼）が自動描画されます。
+- **インデント表示と開閉トグル**: 親行の左側には階層レベルに応じたインデントと開閉トグルアイコン（OS・フォントに依存しないインラインSVGシェブロン `svg.tree-toggle-icon`）が自動描画されます。
 - **サマリータスク自動計算**: `option.tree.autoSummary: true`（デフォルト）の場合、配下の全子孫タスクから最小開始日・最大終了日・期間加重平均進捗率が自動集計され、親行にサマリータスクバー（ブラケット形状）が描画されます。
 - **通常タスクとの共存描画**: 親行自身に通常タスクが登録されている場合、上段にサマリータスク、下段に通常タスクが2段で並んで描画されます。
 - **サマリータスクの色設定**: `option.tree.summaryColor` で全体の既定色を指定でき、行側の `row.summaryColor` で個別上書きが可能です。
@@ -2229,6 +2391,8 @@ import {
   // マルチカラムグリッド計算・インライン編集ヘルパー
   calculateRowSummaryDates,
   normalizeGridColumns,
+  reorderGridColumns,
+  findAdjacentEditableCell,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,
@@ -2411,9 +2575,9 @@ function canDropRow(sourceId: string, targetId: string, rows: GanttRow[]): boole
 - **`rows`**: 全行データ配列
 - **戻り値**: ドロップ可能な場合は `true`、循環参照となる場合は `false`
 
-### マルチカラムグリッド用ヘルパー (`calculateRowSummaryDates`, `normalizeGridColumns`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
+### マルチカラムグリッド用ヘルパー (`calculateRowSummaryDates`, `normalizeGridColumns`, `reorderGridColumns`, `findAdjacentEditableCell`, `getGridCellValue`, `formatGridCellValue`, `resolveColumnEditorType`, `isGridCellEditable`, `formatGridCellEditValue`, `applyGridCellEdit`)
 
-マルチカラムデータグリッドの各セル値の解決・フォーマット・編集可否判定・編集結果の反映を行うヘルパー関数群です。
+マルチカラムデータグリッドの各セル値の解決・フォーマット・カラム並び替え・編集可否判定・隣接編集セル検索・編集結果の反映を行うヘルパー関数群です。
 
 ```typescript
 // タスク配列から最小開始日・最大終了日・カレンダー期間日数・期間（ミリ秒）・加重平均進捗率を集計
@@ -2432,6 +2596,25 @@ function normalizeGridColumns(
   isMonthMode?: boolean,
   isTimeMode?: boolean
 ): GanttColumn[]
+
+// カラム定義配列内で指定カラムをターゲットカラムの左または右へ移動した新しい配列を返す
+function reorderGridColumns<TRow = GanttRow, TTask = GanttTask>(
+  columns: GanttColumn<TRow, TTask>[],
+  sourceColumnId: string,
+  targetColumnId: string,
+  position: 'left' | 'right'
+): GanttColumn<TRow, TTask>[]
+
+// 現在のセルから指定方向 ('next' | 'prev' | 'down' | 'up') にある次の編集可能セルを検索
+function findAdjacentEditableCell<TRow extends GanttRow = GanttRow, TTask extends GanttTask = GanttTask>(
+  displayRows: TRow[],
+  allRows: TRow[],
+  columns: GanttColumn<TRow, TTask>[],
+  currentRowId: string,
+  currentColumnId: string,
+  direction: GridCellNavigationDirection,
+  gridEditable?: boolean
+): { rowId: string; columnId: string } | null
 
 // 指定カラム・行の生のセル値を取得
 function getGridCellValue(

@@ -17,9 +17,10 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
-- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays` 列対応）・列幅リサイズ・セル直接編集（`@cell-edit`, `@column-resize`）に対応
+- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays` 列対応）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）に対応
 - 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 - 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
+- 🗓️ **四半期ヘッダー・自動拡張・タッチ操作最適化**: 会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`@calendar-range-change`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）に対応
 
 ---
 
@@ -189,10 +190,10 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 ### 利用可能な主なメソッド・ゲッター
 
 - **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
-- **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
+- **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **依存関係・自動スケジュール操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **グリッド・インラインセル編集**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?)`, `cancelCellEdit()`
+- **グリッド・インラインセル編集**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
 - **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
@@ -376,7 +377,9 @@ const handleExportExcel = async () => {
 | `@row-reordered` | 行のドラッグ＆ドロップ並び替え完了時 | `RowReorderEventDetail` |
 | `@row-header-resize` | 行ヘッダー幅のリサイズ完了時 | `RowHeaderResizeEventDetail` |
 | `@column-resize` | マルチカラムグリッドの列幅リサイズ完了時 | `ColumnResizeEventDetail` |
+| `@column-reorder` | マルチカラムグリッドの列ドラッグ＆ドロップ並び替え完了時 | `ColumnReorderEventDetail` |
 | `@cell-edit` | マルチカラムグリッドのインラインセル編集確定時 | `CellEditEventDetail` |
+| `@calendar-range-change` | ドラッグ操作によりカレンダー表示期間が自動拡張された時 | `CalendarRangeChangeEventDetail` |
 | `@rows-change` | 行データの変更時 | `RowsChangeEventDetail` |
 | `@row-selection-change` | 行の選択状態変更時 | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | タスクの選択状態変更時 | `BarSelectionChangeEventDetail` |
