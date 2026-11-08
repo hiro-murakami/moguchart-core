@@ -5,6 +5,8 @@ import type {
   GanttRow,
   GanttTask,
   GridCellNavigationDirection,
+  GridSortDirection,
+  GridCellRange,
 } from './types'
 import type { MoguchartLocale } from './i18n'
 import { jaLocale } from './i18n'
@@ -195,6 +197,7 @@ export function normalizeGridColumns(
     const align = col.align ?? builtinConfig?.align ?? 'left'
     const resizable = col.resizable !== false
     const reorderable = col.reorderable !== false
+    const sortable = col.sortable !== false
     const visible = col.visible !== false
     const isTreeColumn = col.isTreeColumn ?? (builtinConfig?.isTreeColumn || false)
 
@@ -243,6 +246,7 @@ export function normalizeGridColumns(
       align,
       resizable,
       reorderable,
+      sortable,
       visible,
       isTreeColumn,
     }
@@ -691,11 +695,22 @@ function formatDateTimeInputString(d: Date): string {
 }
 
 function parseDateInputString(str: string, refDate?: Date | null): Date | null {
-  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(str.trim())
-  if (!match) return null
-  const year = Number(match[1])
-  const month = Number(match[2]) - 1
-  const day = Number(match[3])
+  const trimmed = str.trim()
+  let year: number
+  let month: number
+  let day: number
+  const ymdMatch = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(trimmed)
+  if (ymdMatch) {
+    year = Number(ymdMatch[1])
+    month = Number(ymdMatch[2]) - 1
+    day = Number(ymdMatch[3])
+  } else {
+    const mdyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed)
+    if (!mdyMatch) return null
+    month = Number(mdyMatch[1]) - 1
+    day = Number(mdyMatch[2])
+    year = Number(mdyMatch[3])
+  }
   const hours = refDate ? refDate.getHours() : 0
   const minutes = refDate ? refDate.getMinutes() : 0
   const seconds = refDate ? refDate.getSeconds() : 0
@@ -706,7 +721,7 @@ function parseDateInputString(str: string, refDate?: Date | null): Date | null {
 }
 
 function parseMonthInputString(str: string, isEndMonth: boolean): Date | null {
-  const match = /^(\d{4})-(\d{1,2})$/.exec(str.trim())
+  const match = /^(\d{4})[-/](\d{1,2})$/.exec(str.trim())
   if (!match) return null
   const year = Number(match[1])
   const monthIndex = Number(match[2]) - 1
@@ -717,19 +732,55 @@ function parseMonthInputString(str: string, isEndMonth: boolean): Date | null {
 }
 
 function parseDateTimeInputString(str: string): Date | null {
-  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(
-    str.trim(),
+  const trimmed = str.trim()
+  const match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(
+    trimmed,
   )
-  if (!match) return null
-  const year = Number(match[1])
-  const month = Number(match[2]) - 1
-  const day = Number(match[3])
-  const hours = Number(match[4])
-  const minutes = Number(match[5])
-  const seconds = match[6] ? Number(match[6]) : 0
+  if (match) {
+    const year = Number(match[1])
+    const month = Number(match[2]) - 1
+    const day = Number(match[3])
+    const hours = Number(match[4])
+    const minutes = Number(match[5])
+    const seconds = match[6] ? Number(match[6]) : 0
+    const d = new Date(year, month, day, hours, minutes, seconds)
+    if (Number.isNaN(d.getTime())) return null
+    return d
+  }
+  const mdyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(
+    trimmed,
+  )
+  if (!mdyMatch) return null
+  const month = Number(mdyMatch[1]) - 1
+  const day = Number(mdyMatch[2])
+  const year = Number(mdyMatch[3])
+  const hours = Number(mdyMatch[4])
+  const minutes = Number(mdyMatch[5])
+  const seconds = mdyMatch[6] ? Number(mdyMatch[6]) : 0
   const d = new Date(year, month, day, hours, minutes, seconds)
   if (Number.isNaN(d.getTime())) return null
   return d
+}
+
+function parseGridNumericInput(val: any): number {
+  if (typeof val === 'number') return val
+  if (typeof val !== 'string') return NaN
+  const trimmed = val.trim()
+  if (!trimmed) return NaN
+  const direct = Number(trimmed)
+  if (!Number.isNaN(direct)) return direct
+  const hmMatch = /^(\d+(?:\.\d+)?)\s*(?:時間|hours?|hrs?|h)\s*(?:(\d+(?:\.\d+)?)\s*(?:分|minutes?|mins?|m))?$/i.exec(
+    trimmed,
+  )
+  if (hmMatch) {
+    return Number(hmMatch[1]) + (hmMatch[2] ? Number(hmMatch[2]) / 60 : 0)
+  }
+  const minMatch = /^(\d+(?:\.\d+)?)\s*(?:分|minutes?|mins?|m)$/i.exec(trimmed)
+  if (minMatch) {
+    return Number(minMatch[1]) / 60
+  }
+  const unitMatch = /^([+-]?\d+(?:\.\d+)?)\s*(?:%|日|days?|d)?$/i.exec(trimmed)
+  return unitMatch ? Number(unitMatch[1]) : NaN
 }
 
 /**
@@ -822,7 +873,7 @@ export function applyGridCellEdit(
     let parsedCustomValue: any = rawInputValue
     if (typeof rawInputValue === 'string') {
       if (editorType === 'number') {
-        const n = Number(rawInputValue)
+        const n = parseGridNumericInput(rawInputValue)
         if (Number.isNaN(n)) {
           return { changed: false, oldValue, newValue: oldValue }
         }
@@ -1011,7 +1062,7 @@ export function applyGridCellEdit(
       if (!singleTask || !singleTask.start || isMilestoneTask(singleTask)) {
         return { changed: false, oldValue, newValue: oldValue }
       }
-      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      const numVal = parseGridNumericInput(rawInputValue)
       if (Number.isNaN(numVal) || numVal <= 0) {
         return { changed: false, oldValue, newValue: oldValue }
       }
@@ -1051,7 +1102,7 @@ export function applyGridCellEdit(
       if (!singleTask || !singleTask.start || isMilestoneTask(singleTask)) {
         return { changed: false, oldValue, newValue: oldValue }
       }
-      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      const numVal = parseGridNumericInput(rawInputValue)
       if (Number.isNaN(numVal) || numVal <= 0) {
         return { changed: false, oldValue, newValue: oldValue }
       }
@@ -1085,7 +1136,7 @@ export function applyGridCellEdit(
       if (!singleTask) {
         return { changed: false, oldValue, newValue: oldValue }
       }
-      const numVal = typeof rawInputValue === 'number' ? rawInputValue : Number(rawInputValue)
+      const numVal = parseGridNumericInput(rawInputValue)
       if (Number.isNaN(numVal)) {
         return { changed: false, oldValue, newValue: oldValue }
       }
@@ -1105,7 +1156,7 @@ export function applyGridCellEdit(
           if (rawInputValue.trim() === '') {
             nextVal = undefined
           } else {
-            const parsed = Number(rawInputValue)
+            const parsed = parseGridNumericInput(rawInputValue)
             if (Number.isNaN(parsed)) {
               return { changed: false, oldValue, newValue: oldValue }
             }
@@ -1123,4 +1174,488 @@ export function applyGridCellEdit(
     }
   }
 }
+
+// ============================================================
+// カラムソート（WBS階層維持ソート）
+// ============================================================
+
+/**
+ * WBSコード文字列（例: "1.2", "1.10"）を数値セグメント単位で比較する
+ */
+export function compareWbsCodes(a: string, b: string): number {
+  if (a === b) return 0
+  if (!a) return 1
+  if (!b) return -1
+  const partsA = a.split('.').map((p) => Number(p))
+  const partsB = b.split('.').map((p) => Number(p))
+  const len = Math.max(partsA.length, partsB.length)
+  for (let i = 0; i < len; i++) {
+    const valA = partsA[i]
+    const valB = partsB[i]
+    if (valA === undefined) return -1
+    if (valB === undefined) return 1
+    if (!Number.isNaN(valA) && !Number.isNaN(valB)) {
+      if (valA !== valB) return valA - valB
+    } else {
+      const cmp = String(partsA[i]).localeCompare(String(partsB[i]))
+      if (cmp !== 0) return cmp
+    }
+  }
+  return 0
+}
+
+function isEmptyGridSortValue(val: any): boolean {
+  if (val === null || val === undefined || val === '') return true
+  if (typeof val === 'number' && Number.isNaN(val)) return true
+  if (val instanceof Date && Number.isNaN(val.getTime())) return true
+  return false
+}
+
+/**
+ * 2つの行の特定カラム値を比較する（空値は昇順・降順ともに末尾へ配置）
+ */
+export function compareGridRowValues(
+  rowA: GanttRow,
+  rowB: GanttRow,
+  column: GanttColumn,
+  direction: GridSortDirection,
+  wbsCodes?: Map<string, string>,
+  calendarOptions?: AutoScheduleOptions,
+): number {
+  const tasksA = rowA.tasks ?? []
+  const tasksB = rowB.tasks ?? []
+  const valA = getGridCellValue(column, rowA, tasksA, wbsCodes?.get(rowA.id), calendarOptions)
+  const valB = getGridCellValue(column, rowB, tasksB, wbsCodes?.get(rowB.id), calendarOptions)
+
+  const emptyA = isEmptyGridSortValue(valA)
+  const emptyB = isEmptyGridSortValue(valB)
+  if (emptyA && emptyB) return 0
+  if (emptyA) return 1
+  if (emptyB) return -1
+
+  const sign = direction === 'desc' ? -1 : 1
+
+  if (column.comparator) {
+    return column.comparator(valA, valB, rowA, rowB) * sign
+  }
+
+  if (column.id === 'wbs') {
+    return compareWbsCodes(String(valA), String(valB)) * sign
+  }
+
+  if (valA instanceof Date && valB instanceof Date) {
+    return (valA.getTime() - valB.getTime()) * sign
+  }
+
+  if (typeof valA === 'number' && typeof valB === 'number') {
+    return (valA - valB) * sign
+  }
+
+  return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' }) * sign
+}
+
+/**
+ * WBS親子階層構造を維持したまま、同一親（同じ階層レベル）の兄弟行同士をソートする
+ */
+export function sortGridRowsHierarchically(
+  rows: GanttRow[],
+  column: GanttColumn,
+  direction: GridSortDirection,
+  options?: {
+    wbsCodes?: Map<string, string>
+    calendarOptions?: AutoScheduleOptions
+  },
+): GanttRow[] {
+  if (!rows || rows.length <= 1) return [...(rows ?? [])]
+
+  const rowIds = new Set(rows.map((r) => r.id))
+  const originalIndex = new Map<string, number>()
+  rows.forEach((r, idx) => originalIndex.set(r.id, idx))
+
+  const rootRows: GanttRow[] = []
+  const childrenMap = new Map<string, GanttRow[]>()
+
+  for (const row of rows) {
+    if (row.parentId && rowIds.has(row.parentId)) {
+      let siblings = childrenMap.get(row.parentId)
+      if (!siblings) {
+        siblings = []
+        childrenMap.set(row.parentId, siblings)
+      }
+      siblings.push(row)
+    } else {
+      rootRows.push(row)
+    }
+  }
+
+  const sortSiblings = (siblings: GanttRow[]): GanttRow[] => {
+    return [...siblings].sort((a, b) => {
+      const cmp = compareGridRowValues(
+        a,
+        b,
+        column,
+        direction,
+        options?.wbsCodes,
+        options?.calendarOptions,
+      )
+      if (cmp !== 0) return cmp
+      return (originalIndex.get(a.id) ?? 0) - (originalIndex.get(b.id) ?? 0)
+    })
+  }
+
+  const result: GanttRow[] = []
+  const visited = new Set<string>()
+
+  const traverse = (siblings: GanttRow[]) => {
+    const sorted = sortSiblings(siblings)
+    for (const row of sorted) {
+      if (visited.has(row.id)) continue
+      visited.add(row.id)
+      result.push(row)
+      const children = childrenMap.get(row.id)
+      if (children && children.length > 0) {
+        traverse(children)
+      }
+    }
+  }
+
+  traverse(rootRows)
+
+  // 万一循環参照等で未訪問の行があれば元の順序で末尾に追加
+  if (result.length < rows.length) {
+    for (const row of rows) {
+      if (!visited.has(row.id)) {
+        result.push(row)
+      }
+    }
+  }
+
+  return result
+}
+
+// ============================================================
+// 固定フッター集計行（最小開始日・最大終了日・合計期間・加重平均進捗率）
+// ============================================================
+
+export interface GridFooterSummary {
+  rowCount: number
+  leafRowCount: number
+  taskCount: number
+  start: Date | null
+  end: Date | null
+  durationDays: number
+  durationMs: number
+  workingDays: number
+  progress: number
+}
+
+/**
+ * 全行（親行の重複集計を避けるため、葉タスクまたは通常タスク）からフッター集計値を算出する
+ */
+export function calculateGridFooterSummary(
+  rows: GanttRow[],
+  calendarOptions?: AutoScheduleOptions,
+): GridFooterSummary {
+  if (!rows || rows.length === 0) {
+    return {
+      rowCount: 0,
+      leafRowCount: 0,
+      taskCount: 0,
+      start: null,
+      end: null,
+      durationDays: 0,
+      durationMs: 0,
+      workingDays: 0,
+      progress: 0,
+    }
+  }
+
+  const parentIds = new Set<string>()
+  for (const r of rows) {
+    if (r.parentId) parentIds.add(r.parentId)
+  }
+
+  const leafRows = rows.filter((r) => !parentIds.has(r.id))
+  const targetRows = leafRows.length > 0 ? leafRows : rows
+
+  const allNormalTasks: GanttTask[] = []
+  for (const row of targetRows) {
+    const tasks = row.tasks ?? []
+    for (const t of tasks) {
+      if (t.type !== 'summary' && !(t as any).isSummary) {
+        allNormalTasks.push(t)
+      }
+    }
+  }
+
+  const summary = calculateRowSummaryDates(allNormalTasks)
+  const workingDays =
+    summary.start && summary.end
+      ? countWorkingDays(summary.start, summary.end, calendarOptions)
+      : 0
+
+  return {
+    rowCount: rows.length,
+    leafRowCount: leafRows.length,
+    taskCount: allNormalTasks.length,
+    start: summary.start,
+    end: summary.end,
+    durationDays: summary.durationDays,
+    durationMs: summary.durationMs,
+    workingDays,
+    progress: summary.progress ?? 0,
+  }
+}
+
+/**
+ * フッターセルの集計値を取得する
+ */
+export function getGridFooterCellValue(
+  column: GanttColumn,
+  rows: GanttRow[],
+  footerSummary: GridFooterSummary,
+  footerLabel?: string,
+  locale?: MoguchartLocale,
+): any {
+  if (column.footerValueGetter) {
+    return column.footerValueGetter(rows, column)
+  }
+
+  switch (column.id) {
+    case 'wbs':
+      return ''
+    case 'name':
+      return footerLabel ?? locale?.grid?.footerLabel ?? '集計'
+    case 'startDate':
+    case 'startMonth':
+    case 'startDateTime':
+      return footerSummary.start
+    case 'endDate':
+    case 'endMonth':
+    case 'endDateTime':
+      return footerSummary.end
+    case 'duration':
+      return footerSummary.start && footerSummary.end ? footerSummary.durationDays : null
+    case 'workingDays':
+      return footerSummary.start && footerSummary.end ? footerSummary.workingDays : null
+    case 'progress':
+      return footerSummary.taskCount > 0 ? footerSummary.progress : null
+    default:
+      return ''
+  }
+}
+
+/**
+ * フッターセルの表示文字列をフォーマットする
+ */
+export function formatGridFooterCellValue(
+  column: GanttColumn,
+  value: any,
+  rows: GanttRow[],
+  footerSummary: GridFooterSummary,
+  locale?: MoguchartLocale,
+  isMonthMode?: boolean,
+  isTimeMode?: boolean,
+): string {
+  const currentLocale = locale ?? jaLocale
+
+  if (column.footerFormatter) {
+    return column.footerFormatter(value, rows, column)
+  }
+
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+
+  if (column.id === 'name') {
+    return String(value)
+  }
+
+  if (column.id === 'duration' && typeof value === 'number') {
+    if (isTimeMode && footerSummary.start && footerSummary.end) {
+      return formatDuration(footerSummary.start, footerSummary.end, currentLocale)
+    }
+    return currentLocale.duration.days(value)
+  }
+
+  if (column.id === 'workingDays' && typeof value === 'number') {
+    return currentLocale.duration.days(value)
+  }
+
+  if (column.id === 'progress' && typeof value === 'number') {
+    return `${Math.round(value)}%`
+  }
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return ''
+    if (
+      column.id === 'startMonth' ||
+      column.id === 'endMonth' ||
+      (isMonthMode && (column.id === 'startDate' || column.id === 'endDate'))
+    ) {
+      const isEndCol = column.id === 'endMonth' || (isMonthMode && column.id === 'endDate')
+      const targetDate = isEndCol
+        ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
+        : value
+      return currentLocale.yearMonthFormat
+        ? currentLocale.yearMonthFormat(targetDate)
+        : `${targetDate.getFullYear()}/${targetDate.getMonth() + 1}`
+    }
+    if (
+      column.id === 'startDateTime' ||
+      column.id === 'endDateTime' ||
+      (isTimeMode && (column.id === 'startDate' || column.id === 'endDate'))
+    ) {
+      const dateStr = currentLocale.dateFormat(value)
+      const h = value.getHours().toString().padStart(2, '0')
+      const m = value.getMinutes().toString().padStart(2, '0')
+      return `${dateStr} ${h}:${m}`
+    }
+    if (column.id === 'endDate') {
+      if (
+        value.getHours() === 0 &&
+        value.getMinutes() === 0 &&
+        (!footerSummary.start || footerSummary.start.getTime() < value.getTime())
+      ) {
+        return currentLocale.dateFormat(
+          new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
+        )
+      }
+    }
+    return currentLocale.dateFormat(value)
+  }
+
+  return String(value)
+}
+
+// ============================================================
+// セル範囲選択 ＆ TSV クリップボード連携
+// ============================================================
+
+export interface ResolvedGridCellRange {
+  startRowIndex: number
+  endRowIndex: number
+  startColumnIndex: number
+  endColumnIndex: number
+  rowIds: string[]
+  columnIds: string[]
+  rowIdSet: Set<string>
+  columnIdSet: Set<string>
+  anchorRowId: string
+  anchorColumnId: string
+}
+
+/**
+ * セル選択範囲（アンカー〜フォーカス）を表示行・表示カラムのインデックス範囲へ解決する
+ */
+export function resolveGridCellRange(
+  displayRows: GanttRow[],
+  columns: GanttColumn[],
+  range: GridCellRange | null | undefined,
+): ResolvedGridCellRange | null {
+  if (!range) return null
+
+  const r1 = displayRows.findIndex((r) => r.id === range.start.rowId)
+  const r2 = displayRows.findIndex((r) => r.id === range.end.rowId)
+  const c1 = columns.findIndex((c) => c.id === range.start.columnId)
+  const c2 = columns.findIndex((c) => c.id === range.end.columnId)
+
+  if (r1 === -1 || r2 === -1 || c1 === -1 || c2 === -1) {
+    return null
+  }
+
+  const startRowIndex = Math.min(r1, r2)
+  const endRowIndex = Math.max(r1, r2)
+  const startColumnIndex = Math.min(c1, c2)
+  const endColumnIndex = Math.max(c1, c2)
+
+  const rowIds: string[] = []
+  for (let i = startRowIndex; i <= endRowIndex; i++) {
+    rowIds.push(displayRows[i].id)
+  }
+
+  const columnIds: string[] = []
+  for (let j = startColumnIndex; j <= endColumnIndex; j++) {
+    columnIds.push(columns[j].id)
+  }
+
+  return {
+    startRowIndex,
+    endRowIndex,
+    startColumnIndex,
+    endColumnIndex,
+    rowIds,
+    columnIds,
+    rowIdSet: new Set(rowIds),
+    columnIdSet: new Set(columnIds),
+    anchorRowId: range.start.rowId,
+    anchorColumnId: range.start.columnId,
+  }
+}
+
+/**
+ * 選択範囲のセル群をタブ区切りテキスト（TSV）に変換する
+ */
+export function formatGridRangeToTsv(
+  displayRows: GanttRow[],
+  columns: GanttColumn[],
+  range: GridCellRange,
+  options?: {
+    locale?: MoguchartLocale
+    isMonthMode?: boolean
+    isTimeMode?: boolean
+    wbsCodes?: Map<string, string>
+    calendarOptions?: AutoScheduleOptions
+  },
+): { tsv: string; rowIds: string[]; columnIds: string[] } {
+  const resolved = resolveGridCellRange(displayRows, columns, range)
+  if (!resolved) {
+    return { tsv: '', rowIds: [], columnIds: [] }
+  }
+
+  const lines: string[] = []
+  for (let r = resolved.startRowIndex; r <= resolved.endRowIndex; r++) {
+    const row = displayRows[r]
+    const tasks = row.tasks ?? []
+    const wbsCode = options?.wbsCodes?.get(row.id)
+    const cells: string[] = []
+    for (let c = resolved.startColumnIndex; c <= resolved.endColumnIndex; c++) {
+      const col = columns[c]
+      const val = getGridCellValue(col, row, tasks, wbsCode, options?.calendarOptions)
+      const formatted = formatGridCellValue(
+        col,
+        val,
+        row,
+        tasks,
+        options?.locale,
+        options?.isMonthMode,
+        options?.isTimeMode,
+      )
+      // TSV 内でタブや改行が含まれる場合はスペースに置換
+      cells.push(String(formatted ?? '').replace(/[\t\r\n]+/g, ' '))
+    }
+    lines.push(cells.join('\t'))
+  }
+
+  return {
+    tsv: lines.join('\n'),
+    rowIds: resolved.rowIds,
+    columnIds: resolved.columnIds,
+  }
+}
+
+/**
+ * クリップボード等のTSV文字列を2次元配列にパースする
+ */
+export function parseTsvString(tsv: string): string[][] {
+  if (!tsv) return []
+  const normalized = tsv.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const rawLines = normalized.split('\n')
+  // スプレッドシートからのコピー時に末尾に空改行が付与されるケースを除去
+  if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
+    rawLines.pop()
+  }
+  return rawLines.map((line) => line.split('\t'))
+}
+
 

@@ -217,6 +217,62 @@ export const ganttChartStyles = css`
     pointer-events: none;
     z-index: 65;
   }
+  .grid-footer-row {
+    display: flex;
+    width: fit-content;
+    min-width: 100%;
+    box-sizing: border-box;
+    position: sticky;
+    bottom: 0;
+    z-index: 450;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .grid-footer-header {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    position: sticky;
+    left: 0;
+    z-index: 100;
+    overflow: hidden;
+    font-size: calc(12px * var(--moguchart-font-scale, 1));
+    font-weight: 700;
+  }
+  .grid-footer-cells-container {
+    display: flex;
+    height: 100%;
+    box-sizing: border-box;
+  }
+  .grid-footer-cell {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  .grid-footer-timeline {
+    flex: none;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .grid-footer-summary-bar {
+    position: absolute;
+    height: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 4px;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.85;
+  }
+  .grid-footer-summary-bar-progress {
+    height: 100%;
+    border-radius: 4px 0 0 4px;
+  }
 `
 
 /**

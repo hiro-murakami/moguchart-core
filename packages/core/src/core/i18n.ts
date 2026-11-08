@@ -68,6 +68,8 @@ export interface MoguchartLocale {
       workingDays?: string
       progress: string
     }
+    /** 固定フッター集計行のラベル (例: "集計" / "Summary") */
+    footerLabel?: string
   }
 }
 
@@ -122,6 +124,7 @@ export const jaLocale: MoguchartLocale = {
       workingDays: '稼働日',
       progress: '進捗率',
     },
+    footerLabel: '集計',
   },
 }
 
@@ -179,5 +182,6 @@ export const enLocale: MoguchartLocale = {
       workingDays: 'Working Days',
       progress: 'Progress',
     },
+    footerLabel: 'Summary',
   },
 }

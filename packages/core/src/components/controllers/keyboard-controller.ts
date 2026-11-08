@@ -4,6 +4,7 @@ import type {
   GanttChartOption,
   GanttRow,
   GanttTaskMoveMode,
+  GridCellRange,
   TaskDeleteEventDetail,
 } from '../../core/types'
 import { propagateAutoSchedule } from '../../core/auto-schedule'
@@ -14,6 +15,16 @@ export interface KeyboardControllerHost extends ReactiveControllerHost, HTMLElem
   displayRows: GanttRow[]
   selectedTasks: Set<string>
   selectedDependency: { sourceTaskId: string; targetTaskId: string } | null
+  selectedCellRange?: GridCellRange | null
+  moveGridCellSelection?: (
+    dRow: number,
+    dCol: number,
+    extendRange: boolean,
+    wrapRow?: boolean,
+  ) => boolean
+  startCellEdit?: (rowId: string, columnId: string) => boolean
+  copySelectedCellsToTsv?: () => string
+  pasteTsvToCells?: (tsv: string) => number
   undo(): Promise<boolean>
   redo(): Promise<boolean>
   resetZoom(): void
@@ -80,8 +91,37 @@ export class KeyboardController implements ReactiveController {
       }
     }
 
+    // グリッドセル選択時のコピー＆ペースト (Cmd/Ctrl + C / V)
+    const isCmdOrCtrl = e.metaKey || e.ctrlKey
+    if (isCmdOrCtrl && this.host.selectedCellRange) {
+      if (e.key.toLowerCase() === 'c') {
+        this.host.copySelectedCellsToTsv?.()
+        e.preventDefault()
+        return
+      } else if (e.key.toLowerCase() === 'v') {
+        if (!this.host.option.readOnly && typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+          e.preventDefault()
+          navigator.clipboard
+            .readText()
+            .then((text) => {
+              if (text) {
+                this.host.pasteTsvToCells?.(text)
+              }
+            })
+            .catch(() => {
+              // クリップボード権限がない環境では paste イベントに委ねる
+            })
+          return
+        }
+      }
+    }
+
     switch (e.key) {
       case 'ArrowRight':
+        if (this.host.selectedCellRange && this.host.moveGridCellSelection?.(0, 1, e.shiftKey)) {
+          e.preventDefault()
+          break
+        }
         if (e.shiftKey && !this.host.option.readOnly) {
           this.moveSelectedTasksByKeyboard(1)
         } else {
@@ -91,6 +131,10 @@ export class KeyboardController implements ReactiveController {
         break
 
       case 'ArrowLeft':
+        if (this.host.selectedCellRange && this.host.moveGridCellSelection?.(0, -1, e.shiftKey)) {
+          e.preventDefault()
+          break
+        }
         if (e.shiftKey && !this.host.option.readOnly) {
           this.moveSelectedTasksByKeyboard(-1)
         } else {
@@ -100,17 +144,51 @@ export class KeyboardController implements ReactiveController {
         break
 
       case 'ArrowDown':
+        if (this.host.selectedCellRange && this.host.moveGridCellSelection?.(1, 0, e.shiftKey)) {
+          e.preventDefault()
+          break
+        }
         this.moveFocusVertical(1)
         e.preventDefault()
         break
 
       case 'ArrowUp':
+        if (this.host.selectedCellRange && this.host.moveGridCellSelection?.(-1, 0, e.shiftKey)) {
+          e.preventDefault()
+          break
+        }
         this.moveFocusVertical(-1)
         e.preventDefault()
         break
 
+      case 'Tab':
+        if (
+          this.host.selectedCellRange &&
+          this.host.moveGridCellSelection?.(0, e.shiftKey ? -1 : 1, false, true)
+        ) {
+          e.preventDefault()
+          break
+        }
+        break
+
+      case 'F2':
+        if (this.host.selectedCellRange && !this.host.option.readOnly) {
+          const { rowId, columnId } = this.host.selectedCellRange.start
+          if (this.host.startCellEdit?.(rowId, columnId)) {
+            e.preventDefault()
+          }
+        }
+        break
+
       case 'Enter':
       case ' ':
+        if (e.key === 'Enter' && this.host.selectedCellRange && !this.host.option.readOnly && !this.focusedTaskId) {
+          const { rowId, columnId } = this.host.selectedCellRange.start
+          if (this.host.startCellEdit?.(rowId, columnId)) {
+            e.preventDefault()
+            break
+          }
+        }
         if (this.focusedTaskId) {
           if (e.ctrlKey || e.metaKey) {
             this.toggleTaskSelection(this.focusedTaskId)

@@ -1101,4 +1101,305 @@ describe('GanttChartElement Multi-Column Grid Inline Editing', () => {
     expect(row2El.editingColumnId).toBeNull()
     expect(row1El.editingColumnId).toBe('name')
   })
+
+  it('sorts rows hierarchically when clicking column headers (asc -> desc -> null) and emits column-sort', async () => {
+    chart.rows = [
+      ...chart.rows,
+      {
+        id: 'row-2',
+        parentId: 'parent-1',
+        name: 'Task 2',
+        assignee: 'Bob',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'Task 2',
+            start: new Date(2026, 9, 10),
+            end: new Date(2026, 9, 15),
+            progress: 90,
+          },
+        ],
+      } as any,
+    ]
+    await chart.updateComplete
+
+    const sortEvents: any[] = []
+    chart.addEventListener('column-sort', ((e: CustomEvent) => {
+      sortEvents.push(e.detail)
+    }) as EventListener)
+
+    const calendar = chart.shadowRoot?.querySelector('gantt-calendar')
+    await calendar?.updateComplete
+    const progressHeader = calendar?.shadowRoot?.querySelector(
+      '.grid-header-cell-progress',
+    ) as HTMLElement
+    expect(progressHeader).toBeTruthy()
+
+    // 1st click -> asc (row-1 has 50%, row-2 has 90%)
+    progressHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    await chart.updateComplete
+    await calendar?.updateComplete
+
+    expect(sortEvents.length).toBe(1)
+    expect(sortEvents[0].columnId).toBe('progress')
+    expect(sortEvents[0].direction).toBe('asc')
+    expect(chart.displayRows.map((r) => r.id)).toEqual(['parent-1', 'row-1', 'row-2'])
+    expect(progressHeader.dataset.sortDirection).toBe('asc')
+
+    // 2nd click -> desc (row-2 90% comes before row-1 50%, while parent-1 stays at root)
+    progressHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    await chart.updateComplete
+    await calendar?.updateComplete
+
+    expect(sortEvents.length).toBe(2)
+    expect(sortEvents[1].direction).toBe('desc')
+    expect(chart.displayRows.map((r) => r.id)).toEqual(['parent-1', 'row-2', 'row-1'])
+    expect(progressHeader.dataset.sortDirection).toBe('desc')
+
+    // 3rd click -> null (restores original order)
+    progressHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
+    await chart.updateComplete
+    await calendar?.updateComplete
+
+    expect(sortEvents.length).toBe(3)
+    expect(sortEvents[2].direction).toBeNull()
+    expect(chart.displayRows.map((r) => r.id)).toEqual(['parent-1', 'row-1', 'row-2'])
+    expect(progressHeader.dataset.sortDirection).toBe('')
+  })
+
+  it('renders sticky footer summary row when option.grid.showFooter is enabled', async () => {
+    chart.rows = [
+      ...chart.rows,
+      {
+        id: 'row-2',
+        parentId: 'parent-1',
+        name: 'Task 2',
+        assignee: 'Bob',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'Task 2',
+            start: new Date(2026, 9, 5),
+            end: new Date(2026, 9, 9), // 4 days, progress 100%
+            progress: 100,
+          },
+        ],
+      } as any,
+    ]
+    chart.option = {
+      ...chart.option,
+      grid: {
+        ...chart.option.grid,
+        showFooter: true,
+      },
+    }
+    await chart.updateComplete
+
+    const footerRow = chart.shadowRoot?.querySelector('.grid-footer-row') as HTMLElement
+    expect(footerRow).toBeTruthy()
+
+    const nameFooter = footerRow.querySelector('.grid-footer-cell-name')?.textContent?.trim()
+    const startFooter = footerRow.querySelector('.grid-footer-cell-startDate')?.textContent?.trim()
+    const endFooter = footerRow.querySelector('.grid-footer-cell-endDate')?.textContent?.trim()
+    const durFooter = footerRow.querySelector('.grid-footer-cell-duration')?.textContent?.trim()
+    const progFooter = footerRow.querySelector('.grid-footer-cell-progress')?.textContent?.trim()
+
+    expect(nameFooter).toBe('集計')
+    expect(startFooter).toBe('2026/10/1')
+    expect(endFooter).toBe('2026/10/8')
+    expect(durFooter).toBe('8日')
+    // row-1 (4 days @ 50%) + row-2 (4 days @ 100%) = weighted avg 75%
+    expect(progFooter).toBe('75%')
+  })
+
+  it('supports cell range selection, TSV copy, and TSV batch paste with single Undo/Redo command', async () => {
+    chart.rows = [
+      ...chart.rows,
+      {
+        id: 'row-2',
+        parentId: 'parent-1',
+        name: 'Task 2',
+        assignee: 'Bob',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'Task 2',
+            start: new Date(2026, 9, 6),
+            end: new Date(2026, 9, 10),
+            progress: 20,
+          },
+        ],
+      } as any,
+    ]
+    await chart.updateComplete
+
+    let selectionDetail: any = null
+    let copyDetail: any = null
+    let pasteDetail: any = null
+    chart.addEventListener('cell-selection-change', ((e: CustomEvent) => {
+      selectionDetail = e.detail
+    }) as EventListener)
+    chart.addEventListener('cell-copy', ((e: CustomEvent) => {
+      copyDetail = e.detail
+    }) as EventListener)
+    chart.addEventListener('cell-paste', ((e: CustomEvent) => {
+      pasteDetail = e.detail
+    }) as EventListener)
+
+    chart.selectGridCells({
+      start: { rowId: 'row-1', columnId: 'name' },
+      end: { rowId: 'row-2', columnId: 'progress' },
+    })
+    await chart.updateComplete
+
+    expect(selectionDetail).toBeTruthy()
+    expect(selectionDetail.rowIds).toEqual(['row-1', 'row-2'])
+    expect(selectionDetail.columnIds).toEqual([
+      'name',
+      'startDate',
+      'endDate',
+      'duration',
+      'progress',
+    ])
+
+    const row1El = chart.shadowRoot?.querySelectorAll('gantt-row')?.[1] as any
+    await row1El.updateComplete
+    const row1NameCell = row1El.shadowRoot?.querySelector('.grid-cell-name') as HTMLElement
+    expect(row1NameCell.classList.contains('grid-cell-selected')).toBe(true)
+    expect(row1NameCell.classList.contains('grid-cell-anchor')).toBe(true)
+
+    const tsv = chart.copySelectedCellsToTsv()
+    expect(tsv).toBe(
+      'Task 1\t2026/10/1\t2026/10/4\t4日\t50%\nTask 2\t2026/10/6\t2026/10/9\t4日\t20%',
+    )
+    expect(copyDetail?.tsv).toBe(tsv)
+
+    // Select starting cell (row-1, name) and paste 2 rows x 2 columns (name + startDate)
+    chart.selectGridCells({
+      start: { rowId: 'row-1', columnId: 'name' },
+      end: { rowId: 'row-1', columnId: 'name' },
+    })
+    const changedCount = chart.pasteTsvToCells('Pasted Task A\t2026/10/03\nPasted Task B\t2026/10/08')
+    await chart.updateComplete
+
+    expect(changedCount).toBe(4)
+    expect(pasteDetail?.changes.length).toBe(4)
+    expect(chart.rows[1].name).toBe('Pasted Task A')
+    expect(chart.rows[1].tasks[0].start).toEqual(new Date(2026, 9, 3))
+    expect(chart.rows[2].name).toBe('Pasted Task B')
+    expect(chart.rows[2].tasks[0].start).toEqual(new Date(2026, 9, 8))
+
+    // Single Undo restores all 4 pasted cells at once
+    await chart.undo()
+    await chart.updateComplete
+    expect(chart.rows[1].name).toBe('Task 1')
+    expect(chart.rows[1].tasks[0].start).toEqual(new Date(2026, 9, 1))
+    expect(chart.rows[2].name).toBe('Task 2')
+    expect(chart.rows[2].tasks[0].start).toEqual(new Date(2026, 9, 6))
+
+    // Single Redo re-applies all 4 pasted cells at once
+    await chart.redo()
+    await chart.updateComplete
+    expect(chart.rows[1].name).toBe('Pasted Task A')
+    expect(chart.rows[2].name).toBe('Pasted Task B')
+  })
+
+  it('restores focus and cell selection after cancelling inline edit with Escape so arrow keys move selection', async () => {
+    chart.rows = [
+      ...chart.rows,
+      {
+        id: 'row-2',
+        parentId: 'parent-1',
+        name: 'Task 2',
+        assignee: 'Bob',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'Task 2',
+            start: new Date(2026, 9, 6),
+            end: new Date(2026, 9, 10),
+            progress: 20,
+          },
+        ],
+      } as any,
+    ]
+    await chart.updateComplete
+
+    // 1. Select cell (row-1, name) and focus chart
+    chart.focus()
+    chart.selectGridCells({
+      start: { rowId: 'row-1', columnId: 'name' },
+      end: { rowId: 'row-1', columnId: 'name' },
+    })
+    await chart.updateComplete
+
+    // 2. Press Enter on chart to enter inline edit mode
+    chart.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
+    await chart.updateComplete
+    const row1El = Array.from(chart.shadowRoot?.querySelectorAll('gantt-row') ?? []).find(
+      (el: any) => el.row?.id === 'row-1',
+    ) as any
+    await row1El.updateComplete
+    expect(row1El.editingColumnId).toBe('name')
+
+    const inputEl = row1El.shadowRoot?.querySelector('.grid-cell-editor') as HTMLInputElement
+    expect(inputEl).toBeTruthy()
+    inputEl.focus()
+
+    // 3. Press Escape inside the editor to cancel editing
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }))
+    await row1El.updateComplete
+    await chart.updateComplete
+
+    expect(row1El.editingColumnId).toBeNull()
+    expect(document.activeElement).toBe(chart)
+    expect(chart.getSelectedGridCells()).toEqual({
+      start: { rowId: 'row-1', columnId: 'name' },
+      end: { rowId: 'row-1', columnId: 'name' },
+    })
+
+    // 4. Press ArrowDown and ArrowRight on the active element to verify cell selection moves
+    ;(document.activeElement as HTMLElement)?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }),
+    )
+    expect(chart.getSelectedGridCells()).toEqual({
+      start: { rowId: 'row-2', columnId: 'name' },
+      end: { rowId: 'row-2', columnId: 'name' },
+    })
+    ;(document.activeElement as HTMLElement)?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true }),
+    )
+    expect(chart.getSelectedGridCells()).toEqual({
+      start: { rowId: 'row-2', columnId: 'startDate' },
+      end: { rowId: 'row-2', columnId: 'startDate' },
+    })
+
+    // 5. Press Tab and Shift+Tab while a cell is selected to move horizontally (and prevent default)
+    const tabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    })
+    ;(document.activeElement as HTMLElement)?.dispatchEvent(tabEvent)
+    expect(tabEvent.defaultPrevented).toBe(true)
+    expect(chart.getSelectedGridCells()).toEqual({
+      start: { rowId: 'row-2', columnId: 'endDate' },
+      end: { rowId: 'row-2', columnId: 'endDate' },
+    })
+
+    const shiftTabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    })
+    ;(document.activeElement as HTMLElement)?.dispatchEvent(shiftTabEvent)
+    expect(shiftTabEvent.defaultPrevented).toBe(true)
+    expect(chart.getSelectedGridCells()).toEqual({
+      start: { rowId: 'row-2', columnId: 'startDate' },
+      end: { rowId: 'row-2', columnId: 'startDate' },
+    })
+  })
 })

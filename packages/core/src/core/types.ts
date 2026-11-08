@@ -1401,6 +1401,51 @@ export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
    * false を返した場合は編集をキャンセル（無効値として破棄）する。
    */
   valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
+  /** カラムヘッダークリックによるソートを許可するか (デフォルト: true) */
+  sortable?: boolean
+  /** カスタムソート比較関数（負数: aが先、正数: bが先、0: 同順位） */
+  comparator?: (aValue: any, bValue: any, rowA: TRow, rowB: TRow, direction?: GridSortDirection) => number
+  /** 固定フッター集計行用のカスタム値取得関数 */
+  footerValueGetter?: (rows: TRow[], column: GanttColumn<TRow, TTask>) => any
+  /** 固定フッター集計行用のカスタム表示フォーマッター */
+  footerFormatter?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => string
+  /** 固定フッター集計行用のHTML/DOMカスタムレンダラー */
+  renderFooterCell?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => HTMLElement | string | unknown
+}
+
+/**
+ * グリッドカラムのソート方向
+ */
+export type GridSortDirection = 'asc' | 'desc'
+
+/**
+ * グリッドカラムのソート状態
+ */
+export interface GridSortState {
+  /** ソート対象のカラムID */
+  columnId: string
+  /** ソート方向 ('asc' | 'desc') */
+  direction: GridSortDirection
+}
+
+/**
+ * グリッドセルの座標識別子
+ */
+export interface GridCellCoord {
+  /** 行ID */
+  rowId: string
+  /** カラムID */
+  columnId: string
+}
+
+/**
+ * グリッドセルの範囲選択状態
+ */
+export interface GridCellRange {
+  /** 選択起点（アンカー）のセル座標 */
+  start: GridCellCoord
+  /** 選択終点（フォーカス）のセル座標 */
+  end: GridCellCoord
 }
 
 /**
@@ -1417,6 +1462,16 @@ export interface GanttChartOptionGrid {
   splitterResizable?: boolean
   /** ドラッグ＆ドロップによるカラム（列）の並び替えを許可するか (デフォルト: true) */
   reorderable?: boolean
+  /** カラムヘッダークリックによる階層内ソートを許可するか (デフォルト: true) */
+  sortable?: boolean
+  /** 現在のカラムソート状態（外部制御または初期値指定用） */
+  sortState?: GridSortState | null
+  /** グリッド最下部に固定集計フッター行を表示するか (デフォルト: false) */
+  showFooter?: boolean
+  /** 固定フッター集計行のラベルテキスト (未指定時はロケールの footerLabel または '集計') */
+  footerLabel?: string
+  /** セル選択・範囲選択およびTSVコピー＆ペーストを有効にするか (デフォルト: true) */
+  cellSelection?: boolean
   /** セルの境界線を表示するか (デフォルト: true) */
   showBorders?: boolean
   /** セルのパディング (px)。デフォルト: 4 */
@@ -1425,6 +1480,65 @@ export interface GanttChartOptionGrid {
   editable?: boolean
   /** インライン編集を開始するトリガー ('dblclick' | 'click'。デフォルト: 'dblclick') */
   editTrigger?: 'dblclick' | 'click'
+}
+
+/**
+ * カラムソート変更イベントの詳細データ
+ */
+export interface ColumnSortEventDetail {
+  /** ソートされたカラムID（ソート解除時は null） */
+  columnId: string | null
+  /** ソート方向（ソート解除時は null） */
+  direction: GridSortDirection | null
+  /** 更新後のソート状態（ソート解除時は null） */
+  sortState: GridSortState | null
+  /** 対象のカラム定義 */
+  column?: GanttColumn
+}
+
+/**
+ * グリッドセル選択変更イベントの詳細データ
+ */
+export interface CellSelectionChangeEventDetail {
+  /** 選択されたセル範囲（選択解除時は null） */
+  range: GridCellRange | null
+  /** 選択範囲に含まれる行ID配列 */
+  rowIds: string[]
+  /** 選択範囲に含まれるカラムID配列 */
+  columnIds: string[]
+}
+
+/**
+ * グリッドセルのTSVコピーイベントの詳細データ
+ */
+export interface CellCopyEventDetail {
+  /** コピー対象のセル範囲 */
+  range: GridCellRange
+  /** コピーされたTSV文字列 */
+  tsv: string
+  /** コピーされた行ID配列 */
+  rowIds: string[]
+  /** コピーされたカラムID配列 */
+  columnIds: string[]
+}
+
+/**
+ * グリッドセルへのTSV貼り付けイベントの詳細データ
+ */
+export interface CellPasteEventDetail<TRow = GanttRow> {
+  /** 貼り付け起点のセル座標 */
+  start: GridCellCoord
+  /** 貼り付けられたTSV文字列 */
+  tsv: string
+  /** 変更されたセルの編集詳細リスト */
+  changes: Array<{
+    rowId: string
+    columnId: string
+    oldValue: any
+    newValue: any
+  }>
+  /** 更新後の全行配列 */
+  rows: TRow[]
 }
 
 /**

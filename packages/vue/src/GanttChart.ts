@@ -42,6 +42,10 @@ import {
   type HistoryChangeEventDetail,
   type ColumnResizeEventDetail,
   type ColumnReorderEventDetail,
+  type ColumnSortEventDetail,
+  type CellSelectionChangeEventDetail,
+  type CellCopyEventDetail,
+  type CellPasteEventDetail,
   type CellEditEventDetail,
   type RowsChangeEventDetail,
   type CalendarRangeChangeEventDetail,
@@ -118,6 +122,10 @@ export const ganttChartEmits = {
   'history-change': (_detail: HistoryChangeEventDetail, _e: CustomEvent<HistoryChangeEventDetail>) => true,
   'column-resize': (_detail: ColumnResizeEventDetail, _e: CustomEvent<ColumnResizeEventDetail>) => true,
   'column-reorder': (_detail: ColumnReorderEventDetail, _e: CustomEvent<ColumnReorderEventDetail>) => true,
+  'column-sort': (_detail: ColumnSortEventDetail, _e: CustomEvent<ColumnSortEventDetail>) => true,
+  'cell-selection-change': (_detail: CellSelectionChangeEventDetail, _e: CustomEvent<CellSelectionChangeEventDetail>) => true,
+  'cell-copy': (_detail: CellCopyEventDetail, _e: CustomEvent<CellCopyEventDetail>) => true,
+  'cell-paste': (_detail: CellPasteEventDetail, _e: CustomEvent<CellPasteEventDetail>) => true,
   'cell-edit': (_detail: CellEditEventDetail, _e: CustomEvent<CellEditEventDetail>) => true,
   'rows-change': (_detail: RowsChangeEventDetail, _e: CustomEvent<RowsChangeEventDetail>) => true,
   'calendar-range-change': (_detail: CalendarRangeChangeEventDetail, _e: CustomEvent<CalendarRangeChangeEventDetail>) => true,
@@ -298,6 +306,13 @@ export const GanttChart = defineComponent({
       navigateCellEdit: (...args: Parameters<GanttChartElement['navigateCellEdit']>) => elRef.value?.navigateCellEdit(...args),
       commitCellEdit: (...args: Parameters<GanttChartElement['commitCellEdit']>) => elRef.value?.commitCellEdit(...args),
       cancelCellEdit: (...args: Parameters<GanttChartElement['cancelCellEdit']>) => elRef.value?.cancelCellEdit(...args),
+      sortByColumn: (...args: Parameters<GanttChartElement['sortByColumn']>) => elRef.value?.sortByColumn(...args),
+      getSortState: () => elRef.value?.getSortState() ?? null,
+      selectGridCells: (...args: Parameters<GanttChartElement['selectGridCells']>) => elRef.value?.selectGridCells(...args),
+      getSelectedGridCells: () => elRef.value?.getSelectedGridCells() ?? null,
+      moveGridCellSelection: (...args: Parameters<GanttChartElement['moveGridCellSelection']>) => elRef.value?.moveGridCellSelection(...args) ?? false,
+      copySelectedCellsToTsv: () => elRef.value?.copySelectedCellsToTsv() ?? '',
+      pasteTsvToCells: (...args: Parameters<GanttChartElement['pasteTsvToCells']>) => elRef.value?.pasteTsvToCells(...args) ?? 0,
     }
 
     expose(publicMethods)
@@ -352,6 +367,13 @@ export interface GanttChartPublicApi {
   navigateCellEdit: GanttChartElement['navigateCellEdit']
   commitCellEdit: GanttChartElement['commitCellEdit']
   cancelCellEdit: GanttChartElement['cancelCellEdit']
+  sortByColumn: GanttChartElement['sortByColumn']
+  getSortState: GanttChartElement['getSortState']
+  selectGridCells: GanttChartElement['selectGridCells']
+  getSelectedGridCells: GanttChartElement['getSelectedGridCells']
+  moveGridCellSelection: GanttChartElement['moveGridCellSelection']
+  copySelectedCellsToTsv: GanttChartElement['copySelectedCellsToTsv']
+  pasteTsvToCells: GanttChartElement['pasteTsvToCells']
   /** コンポーネントのルートDOM要素 */
   $el?: HTMLElement
 }

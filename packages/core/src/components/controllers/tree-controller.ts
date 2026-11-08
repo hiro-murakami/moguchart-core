@@ -1,14 +1,26 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
-import type { GanttChartOption, GanttRow, RowToggleCollapseEventDetail } from '../../core/types'
+import type {
+  GanttChartOption,
+  GanttColumn,
+  GanttRow,
+  GridSortState,
+  RowToggleCollapseEventDetail,
+} from '../../core/types'
 import {
   computeChildRowIds,
+  computeRowWbsCodes,
   computeSummaryTask,
   computeVisibleTreeRows,
 } from '../../core/wbs'
+import { sortGridRowsHierarchically } from '../../core/grid'
+import type { AutoScheduleOptions } from '../../core/auto-schedule'
 
 export interface TreeControllerHost extends ReactiveControllerHost, HTMLElement {
   rows: GanttRow[]
   option: GanttChartOption
+  getEffectiveSortState?: () => GridSortState | null
+  getGridColumnById?: (columnId: string) => GanttColumn | undefined
+  getAutoScheduleOptions?: () => AutoScheduleOptions
 }
 
 export class TreeController implements ReactiveController {
@@ -76,7 +88,7 @@ export class TreeController implements ReactiveController {
 
     const autoSummary = this.host.option?.tree?.autoSummary !== false
     if (!treeEnabled || !autoSummary) {
-      return baseRows
+      return this.applyHierarchicalSortIfNeeded(baseRows)
     }
 
     // 子を持つ行を特定
@@ -85,7 +97,7 @@ export class TreeController implements ReactiveController {
       if (r.parentId) rowsWithChildren.add(r.parentId)
     }
 
-    return baseRows.map((row) => {
+    const resultRows = baseRows.map((row) => {
       const isParent = rowsWithChildren.has(row.id)
       const needsSummary = row.isSummary || isParent
       if (needsSummary && isParent) {
@@ -141,6 +153,25 @@ export class TreeController implements ReactiveController {
         }
       }
       return row
+    })
+
+    return this.applyHierarchicalSortIfNeeded(resultRows)
+  }
+
+  private applyHierarchicalSortIfNeeded(rows: GanttRow[]): GanttRow[] {
+    const sortState = this.host.getEffectiveSortState?.()
+    if (!sortState || !sortState.columnId || !sortState.direction) {
+      return rows
+    }
+    const column = this.host.getGridColumnById?.(sortState.columnId)
+    if (!column) {
+      return rows
+    }
+    const wbsCodes = computeRowWbsCodes(this.host.rows)
+    const calendarOptions = this.host.getAutoScheduleOptions?.()
+    return sortGridRowsHierarchically(rows, column, sortState.direction, {
+      wbsCodes,
+      calendarOptions,
     })
   }
 

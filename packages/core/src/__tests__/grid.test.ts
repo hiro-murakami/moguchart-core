@@ -9,6 +9,14 @@ import {
   formatGridCellEditValue,
   applyGridCellEdit,
   findAdjacentEditableCell,
+  compareWbsCodes,
+  sortGridRowsHierarchically,
+  calculateGridFooterSummary,
+  getGridFooterCellValue,
+  formatGridFooterCellValue,
+  resolveGridCellRange,
+  formatGridRangeToTsv,
+  parseTsvString,
 } from '../core/grid'
 import type { GanttColumn, GanttRow, GanttTask } from '../core/types'
 import { jaLocale, enLocale } from '../core/i18n'
@@ -607,6 +615,172 @@ describe('grid calculation & formatting', () => {
       expect(
         findAdjacentEditableCell(allRows, allRows, columns, 'child-1', 'name', 'up', true),
       ).toEqual({ rowId: 'parent-1', columnId: 'name' })
+    })
+
+    it('parses slash-formatted dates and formatted numeric strings (e.g. "5日", "80%") during applyGridCellEdit', () => {
+      const row: GanttRow = {
+        id: 'r-fmt',
+        name: 'Formatted',
+        tasks: [
+          {
+            id: 't-fmt',
+            name: 'Formatted',
+            start: new Date(2026, 9, 1),
+            end: new Date(2026, 9, 5),
+            progress: 10,
+          },
+        ],
+      }
+
+      expect(applyGridCellEdit({ id: 'startDate' }, row, '2026/10/03', false, false).changed).toBe(true)
+      expect(row.tasks[0].start).toEqual(new Date(2026, 9, 3))
+
+      expect(applyGridCellEdit({ id: 'endDate' }, row, '2026/10/07', false, false).changed).toBe(true)
+      expect(row.tasks[0].end).toEqual(new Date(2026, 9, 8))
+
+      expect(applyGridCellEdit({ id: 'duration' }, row, '10日', false, false).changed).toBe(true)
+      expect(row.tasks[0].end).toEqual(new Date(2026, 9, 13))
+
+      expect(applyGridCellEdit({ id: 'progress' }, row, '85%', false, false).changed).toBe(true)
+      expect(row.tasks[0].progress).toBe(85)
+    })
+  })
+
+  describe('hierarchical sorting, footer summary, and TSV range utilities', () => {
+    it('compareWbsCodes compares numeric WBS segments accurately', () => {
+      expect(compareWbsCodes('1.2', '1.10')).toBeLessThan(0)
+      expect(compareWbsCodes('2.1', '1.9')).toBeGreaterThan(0)
+      expect(compareWbsCodes('1.1', '1.1.1')).toBeLessThan(0)
+      expect(compareWbsCodes('1.1', '1.1')).toBe(0)
+    })
+
+    it('sortGridRowsHierarchically sorts siblings within each parent level while keeping WBS hierarchy intact', () => {
+      const treeRows: GanttRow[] = [
+        {
+          id: 'p1',
+          name: 'Phase B',
+          tasks: [{ id: 'tp1', start: new Date(2026, 9, 10), end: new Date(2026, 9, 20), progress: 30 }],
+        },
+        {
+          id: 'c1-1',
+          parentId: 'p1',
+          name: 'Task B-2',
+          tasks: [{ id: 'tc11', start: new Date(2026, 9, 15), end: new Date(2026, 9, 20), progress: 80 }],
+        },
+        {
+          id: 'c1-2',
+          parentId: 'p1',
+          name: 'Task B-1',
+          tasks: [{ id: 'tc12', start: new Date(2026, 9, 10), end: new Date(2026, 9, 14), progress: 20 }],
+        },
+        {
+          id: 'p2',
+          name: 'Phase A',
+          tasks: [{ id: 'tp2', start: new Date(2026, 9, 1), end: new Date(2026, 9, 8), progress: 60 }],
+        },
+        {
+          id: 'c2-1',
+          parentId: 'p2',
+          name: 'Task A-1',
+          tasks: [{ id: 'tc21', start: new Date(2026, 9, 1), end: new Date(2026, 9, 8), progress: 60 }],
+        },
+      ]
+
+      const ascByStart = sortGridRowsHierarchically(treeRows, { id: 'startDate' }, 'asc')
+      expect(ascByStart.map((r) => r.id)).toEqual(['p2', 'c2-1', 'p1', 'c1-2', 'c1-1'])
+
+      const descByProgress = sortGridRowsHierarchically(treeRows, { id: 'progress' }, 'desc')
+      expect(descByProgress.map((r) => r.id)).toEqual(['p2', 'c2-1', 'p1', 'c1-1', 'c1-2'])
+    })
+
+    it('calculateGridFooterSummary aggregates leaf tasks without double-counting parent rows', () => {
+      const rows: GanttRow[] = [
+        {
+          id: 'p1',
+          name: 'Parent',
+          tasks: [
+            {
+              id: 'p1-sum',
+              type: 'summary',
+              start: new Date(2026, 9, 1),
+              end: new Date(2026, 9, 11),
+              progress: 50,
+            },
+          ],
+        },
+        {
+          id: 'c1',
+          parentId: 'p1',
+          name: 'Child 1',
+          tasks: [{ id: 't1', start: new Date(2026, 9, 1), end: new Date(2026, 9, 6), progress: 100 }], // 5 days
+        },
+        {
+          id: 'c2',
+          parentId: 'p1',
+          name: 'Child 2',
+          tasks: [{ id: 't2', start: new Date(2026, 9, 6), end: new Date(2026, 9, 11), progress: 0 }], // 5 days
+        },
+      ]
+
+      const summary = calculateGridFooterSummary(rows)
+      expect(summary.leafRowCount).toBe(2)
+      expect(summary.taskCount).toBe(2)
+      expect(summary.start).toEqual(new Date(2026, 9, 1))
+      expect(summary.end).toEqual(new Date(2026, 9, 11))
+      expect(summary.durationDays).toBe(10)
+      expect(summary.progress).toBe(50)
+
+      expect(getGridFooterCellValue({ id: 'name' }, rows, summary, undefined, jaLocale)).toBe('集計')
+      expect(
+        formatGridFooterCellValue({ id: 'startDate' }, summary.start, rows, summary, jaLocale),
+      ).toBe('2026/10/1')
+      expect(
+        formatGridFooterCellValue({ id: 'endDate' }, summary.end, rows, summary, jaLocale),
+      ).toBe('2026/10/10')
+      expect(
+        formatGridFooterCellValue({ id: 'duration' }, summary.durationDays, rows, summary, jaLocale),
+      ).toBe('10日')
+      expect(
+        formatGridFooterCellValue({ id: 'progress' }, summary.progress, rows, summary, jaLocale),
+      ).toBe('50%')
+    })
+
+    it('resolves cell range and formats / parses TSV strings accurately', () => {
+      const cols = normalizeGridColumns([
+        { id: 'name' },
+        { id: 'startDate' },
+        { id: 'duration' },
+        { id: 'progress' },
+      ])
+      const rows: GanttRow[] = [
+        {
+          id: 'r1',
+          name: 'Task 1',
+          tasks: [{ id: 't1', start: new Date(2026, 9, 1), end: new Date(2026, 9, 5), progress: 25 }],
+        },
+        {
+          id: 'r2',
+          name: 'Task 2',
+          tasks: [{ id: 't2', start: new Date(2026, 9, 6), end: new Date(2026, 9, 10), progress: 75 }],
+        },
+      ]
+
+      const range = {
+        start: { rowId: 'r2', columnId: 'progress' },
+        end: { rowId: 'r1', columnId: 'name' },
+      }
+      const resolved = resolveGridCellRange(rows, cols, range)
+      expect(resolved?.rowIds).toEqual(['r1', 'r2'])
+      expect(resolved?.columnIds).toEqual(['name', 'startDate', 'duration', 'progress'])
+
+      const { tsv } = formatGridRangeToTsv(rows, cols, range, { locale: jaLocale })
+      expect(tsv).toBe('Task 1\t2026/10/1\t4日\t25%\nTask 2\t2026/10/6\t4日\t75%')
+
+      const parsed = parseTsvString(tsv + '\n')
+      expect(parsed).toEqual([
+        ['Task 1', '2026/10/1', '4日', '25%'],
+        ['Task 2', '2026/10/6', '4日', '75%'],
+      ])
     })
   })
 })

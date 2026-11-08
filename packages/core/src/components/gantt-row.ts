@@ -22,6 +22,7 @@ import {
   isGridCellEditable,
   resolveColumnEditorType,
   formatGridCellEditValue,
+  type ResolvedGridCellRange,
 } from '../core/grid'
 import { LitElement, css, html, nothing, render, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
@@ -79,6 +80,7 @@ export class GanttRowElement extends LitElement {
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
   @property({ type: Object }) columnDropTarget: { columnId: string; position: 'left' | 'right' } | null = null
+  @property({ type: Object }) resolvedCellRange: ResolvedGridCellRange | null = null
   @property({ type: Number }) visibleStartX = 0
   @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
 
@@ -454,6 +456,25 @@ export class GanttRowElement extends LitElement {
       min-width: 0;
       user-select: text;
       -webkit-user-select: text;
+    }
+    .grid-cell-selected {
+      background-color: rgba(59, 130, 246, 0.14) !important;
+    }
+    :host([theme='dark']) .grid-cell-selected {
+      background-color: rgba(96, 165, 250, 0.22) !important;
+    }
+    .grid-cell-anchor {
+      box-shadow: inset 0 0 0 2px #2563eb;
+      z-index: 4;
+    }
+    :host([theme='dark']) .grid-cell-anchor {
+      box-shadow: inset 0 0 0 2px #60a5fa;
+    }
+    :host([isexporting]) .grid-cell-selected {
+      background-color: transparent !important;
+    }
+    :host([isexporting]) .grid-cell-anchor {
+      box-shadow: none !important;
     }
   `
 
@@ -903,6 +924,11 @@ export class GanttRowElement extends LitElement {
     )
 
     this._isCommittingEdit = false
+    this.updateComplete.then(() => {
+      if (!this._editingColumnId) {
+        this._restoreChartFocus()
+      }
+    })
     return true
   }
 
@@ -918,6 +944,25 @@ export class GanttRowElement extends LitElement {
     if (!this._editingColumnId) return
     this._editingColumnId = null
     this._editingValue = ''
+    this._restoreChartFocus()
+    this.updateComplete.then(() => {
+      if (!this._editingColumnId) {
+        this._restoreChartFocus()
+      }
+    })
+  }
+
+  private _restoreChartFocus(): void {
+    const root = this.getRootNode() as ShadowRoot | null
+    if (!root) return
+    const anyEditing = Array.from(root.querySelectorAll('gantt-row')).some((el: any) =>
+      Boolean(el.editingColumnId),
+    )
+    if (anyEditing) return
+    const chartHost = root.host as HTMLElement | undefined
+    if (chartHost && typeof chartHost.focus === 'function') {
+      chartHost.focus({ preventScroll: true })
+    }
   }
 
   private _handleEditorKeyDown = (e: KeyboardEvent) => {
@@ -1438,9 +1483,20 @@ export class GanttRowElement extends LitElement {
                           this.columnDropTarget?.columnId === col.id &&
                           this.columnDropTarget.position === 'right'
 
+                        const isCellSelected = Boolean(
+                          this.resolvedCellRange &&
+                            this.resolvedCellRange.rowIdSet.has(this.row.id) &&
+                            this.resolvedCellRange.columnIdSet.has(col.id),
+                        )
+                        const isCellAnchor = Boolean(
+                          isCellSelected &&
+                            this.resolvedCellRange?.anchorRowId === this.row.id &&
+                            this.resolvedCellRange?.anchorColumnId === col.id,
+                        )
+
                         return html`
                           <div
-                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isCellSelected ? 'grid-cell-selected' : ''} ${isCellAnchor ? 'grid-cell-anchor' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
                             data-column-id="${col.id}"
                             draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
                             style="
@@ -1463,6 +1519,37 @@ export class GanttRowElement extends LitElement {
                           "
                             @mouseenter="${isNameOrTreeCell ? this.handleHeaderMouseEnter : undefined}"
                             @mouseleave="${isNameOrTreeCell ? this.handleHeaderMouseLeave : undefined}"
+                            @pointerdown="${(e: PointerEvent) => {
+                              if (e.button !== undefined && e.button !== 0) return
+                              const target = e.target as HTMLElement | null
+                              if (target?.closest?.('.tree-toggle-btn')) return
+                              if (this._editingColumnId === col.id) return
+                              this.dispatchEvent(
+                                new CustomEvent('row-cell-pointerdown', {
+                                  detail: {
+                                    rowId: this.row.id,
+                                    columnId: col.id,
+                                    isNameOrTreeCell,
+                                    event: e,
+                                  },
+                                  bubbles: true,
+                                  composed: true,
+                                }),
+                              )
+                            }}"
+                            @pointerenter="${(e: PointerEvent) => {
+                              this.dispatchEvent(
+                                new CustomEvent('row-cell-pointerenter', {
+                                  detail: {
+                                    rowId: this.row.id,
+                                    columnId: col.id,
+                                    event: e,
+                                  },
+                                  bubbles: true,
+                                  composed: true,
+                                }),
+                              )
+                            }}"
                             @click="${(e: MouseEvent) => {
                               if (!isEditable || editTrigger !== 'click') return
                               const target = e.target as HTMLElement | null

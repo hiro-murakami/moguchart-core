@@ -10,6 +10,9 @@ import type {
   GanttColumn,
   ColumnResizeEventDetail,
   ColumnReorderEventDetail,
+  ColumnSortEventDetail,
+  GridSortDirection,
+  GridSortState,
 } from '../core/types'
 import { jaLocale } from '../core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
@@ -125,6 +128,7 @@ export class GanttCalendarElement extends LitElement {
   @property({ attribute: false }) calendarHourContent?: (context: CalendarHourCellContext) => string | unknown
   @property({ type: Number }) gridScrollLeft = 0
   @property({ type: Array }) gridColumns?: GanttColumn[]
+  @property({ type: Object }) sortState: GridSortState | null = null
   @property({ type: Number }) visibleStartX = 0
   @property({ type: Number }) visibleEndX = Number.POSITIVE_INFINITY
 
@@ -132,6 +136,7 @@ export class GanttCalendarElement extends LitElement {
   @state() private _dragOverColumnId: string | null = null
   @state() private _dragOverColumnPosition: 'left' | 'right' | null = null
   private _columnDragGhostEl: HTMLElement | null = null
+  private _suppressHeaderClickUntil = 0
 
   disconnectedCallback(): void {
     super.disconnectedCallback()
@@ -577,6 +582,10 @@ export class GanttCalendarElement extends LitElement {
 
       cleanup()
 
+      if (wasDragging) {
+        this._suppressHeaderClickUntil = Date.now() + 20
+      }
+
       if (!wasDragging || !finalTarget) return
 
       const reordered = reorderGridColumns(
@@ -610,6 +619,47 @@ export class GanttCalendarElement extends LitElement {
   }
 
   /**
+   * カラムヘッダークリックによるソート切替ハンドラー（'asc' -> 'desc' -> null）
+   */
+  private handleColumnHeaderClick(e: MouseEvent, col: GanttColumn) {
+    if (this._suppressHeaderClickUntil > Date.now()) {
+      this._suppressHeaderClickUntil = 0
+      return
+    }
+    const eventTarget = e.target as HTMLElement | null
+    if (eventTarget?.closest?.('.column-resizer')) return
+    if (this.option?.grid?.sortable === false || col.sortable === false) return
+
+    const currentSort = this.sortState ?? this.option?.grid?.sortState ?? null
+    const isSameCol = currentSort?.columnId === col.id
+    let nextDirection: GridSortDirection | null = 'asc'
+    if (isSameCol) {
+      if (currentSort?.direction === 'asc') {
+        nextDirection = 'desc'
+      } else if (currentSort?.direction === 'desc') {
+        nextDirection = null
+      }
+    }
+
+    const nextSortState: GridSortState | null = nextDirection
+      ? { columnId: col.id, direction: nextDirection }
+      : null
+
+    this.dispatchEvent(
+      new CustomEvent<ColumnSortEventDetail>('column-sort', {
+        detail: {
+          columnId: nextDirection ? col.id : null,
+          direction: nextDirection,
+          sortState: nextSortState,
+          column: col,
+        },
+        bubbles: true,
+        composed: false,
+      }),
+    )
+  }
+
+  /**
    * マルチカラムグリッドのヘッダーを描画する
    */
   private renderGridHeaders(colors: ReturnType<typeof getThemeColors>) {
@@ -627,6 +677,8 @@ export class GanttCalendarElement extends LitElement {
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const hasCornerTop = Boolean(this.cornerContent)
     const gridReorderable = this.option.grid?.reorderable !== false && visibleColumns.length >= 2
+    const gridSortable = this.option.grid?.sortable !== false
+    const activeSort = this.sortState ?? this.option.grid?.sortState ?? null
 
     return html`
       <div
@@ -642,6 +694,9 @@ export class GanttCalendarElement extends LitElement {
       >
         ${visibleColumns.map((col) => {
           const isReorderable = gridReorderable && col.reorderable !== false
+          const isSortable = gridSortable && col.sortable !== false
+          const sortDir: GridSortDirection | null =
+            isSortable && activeSort?.columnId === col.id ? activeSort.direction : null
           const isDragging = this._draggingColumnId === col.id
           const isDropLeft =
             this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'left'
@@ -649,8 +704,9 @@ export class GanttCalendarElement extends LitElement {
             this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'right'
           return html`
             <div
-              class="grid-header-cell grid-header-cell-${col.id} ${isReorderable ? 'is-reorderable' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+              class="grid-header-cell grid-header-cell-${col.id} ${isReorderable ? 'is-reorderable' : ''} ${isSortable ? 'is-sortable' : ''} ${sortDir ? `is-sorted is-sorted-${sortDir}` : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
               data-column-id="${col.id}"
+              data-sort-direction="${sortDir ?? ''}"
               style="
                 width: ${col.width}px;
                 min-width: ${col.minWidth ?? 40}px;
@@ -659,6 +715,7 @@ export class GanttCalendarElement extends LitElement {
                 display: flex;
                 align-items: center;
                 justify-content: ${col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'};
+                gap: 3px;
                 padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
                 ${this.option.grid?.showBorders !== false ? `border-right: 1px solid ${colors.border};` : ''}
                 position: relative;
@@ -671,10 +728,38 @@ export class GanttCalendarElement extends LitElement {
                 flex-shrink: 0;
               "
               @pointerdown="${(e: PointerEvent) => this.handleColumnDragStart(e, col.id)}"
+              @click="${(e: MouseEvent) => this.handleColumnHeaderClick(e, col)}"
             >
               <span class="grid-header-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${col.title}
               </span>
+              ${sortDir === 'asc'
+                ? html`
+                    <svg
+                      class="grid-sort-icon grid-sort-icon-asc"
+                      width="10"
+                      height="10"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path d="M6 2.5L10 8.5H2L6 2.5Z" fill="currentColor" />
+                    </svg>
+                  `
+                : sortDir === 'desc'
+                  ? html`
+                      <svg
+                        class="grid-sort-icon grid-sort-icon-desc"
+                        width="10"
+                        height="10"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path d="M6 9.5L2 3.5H10L6 9.5Z" fill="currentColor" />
+                      </svg>
+                    `
+                  : ''}
               ${col.resizable !== false
                 ? html`
                     <div
@@ -833,11 +918,22 @@ export class GanttCalendarElement extends LitElement {
     .column-resizer:active {
       background-color: #3b82f6;
     }
-    .grid-header-cell.is-reorderable {
-      cursor: grab;
+    .grid-header-cell.is-sortable {
+      cursor: pointer;
+    }
+    .grid-header-cell.is-reorderable.is-sortable {
+      cursor: pointer;
     }
     .grid-header-cell.is-reorderable:active {
       cursor: grabbing;
+    }
+    .grid-header-cell.is-sorted {
+      background-color: rgba(59, 130, 246, 0.08);
+    }
+    .grid-sort-icon {
+      flex-shrink: 0;
+      color: #3b82f6;
+      pointer-events: none;
     }
     .grid-header-cell.is-dragging {
       opacity: 0.45;
