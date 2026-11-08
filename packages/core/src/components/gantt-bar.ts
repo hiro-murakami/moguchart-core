@@ -304,7 +304,8 @@ export class GanttBarElement extends LitElement {
       left: calc(100% + 6px);
       top: 50%;
       transform: translateY(-50%);
-      color: inherit;
+      color: inherit !important;
+      text-shadow: none !important;
       max-width: none;
       overflow: visible;
       text-overflow: clip;
@@ -314,7 +315,8 @@ export class GanttBarElement extends LitElement {
       right: calc(100% + 6px);
       top: 50%;
       transform: translateY(-50%);
-      color: inherit;
+      color: inherit !important;
+      text-shadow: none !important;
       max-width: none;
       overflow: visible;
       text-overflow: clip;
