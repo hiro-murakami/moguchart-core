@@ -10,6 +10,7 @@ import type {
   GanttHolidayResult,
   GanttRow,
   GanttTask,
+  TaskConstraintType,
 } from './types'
 
 /**
@@ -606,6 +607,8 @@ export function propagateAutoSchedule(
       durationMs: number
       workingDurationMs: number
       links: Required<GanttDependencyLink>[]
+      constraintType?: TaskConstraintType
+      constraintDateMs: number | null
     }
   >()
   const successors = new Map<string, string[]>()
@@ -622,6 +625,18 @@ export function propagateAutoSchedule(
         ? computeWorkingDurationMs(startMs, endMs, isNonWorkingDay)
         : durationMs
       const links = (task.dependencies ?? []).map(normalizeDependencyLink)
+      const rawConstraintMs =
+        task.constraintDate instanceof Date
+          ? task.constraintDate.getTime()
+          : task.constraintDate
+            ? new Date(task.constraintDate as any).getTime()
+            : NaN
+      const constraintDateMs = !Number.isNaN(rawConstraintMs) ? rawConstraintMs : null
+      const constraintType =
+        (task.constraintType === 'SNET' || task.constraintType === 'FNLT') && constraintDateMs !== null
+          ? task.constraintType
+          : undefined
+
       taskMap.set(task.id, {
         task,
         startMs,
@@ -629,11 +644,13 @@ export function propagateAutoSchedule(
         durationMs,
         workingDurationMs,
         links,
+        constraintType,
+        constraintDateMs: constraintType ? constraintDateMs : null,
       })
     }
   }
 
-  if (taskMap.size < 2) {
+  if (taskMap.size === 0) {
     return { rows, updatedTaskIds: [], hasChanges: false }
   }
 
@@ -657,14 +674,18 @@ export function propagateAutoSchedule(
   if (changedSet && changedSet.size > 0) {
     const bfsQueue: string[] = []
     for (const id of changedSet) {
-      if (taskMap.has(id)) {
+      const entry = taskMap.get(id)
+      if (entry) {
+        if (entry.constraintType && entry.constraintDateMs !== null) {
+          downstreamSet.add(id)
+        }
         bfsQueue.push(id)
       }
     }
     while (bfsQueue.length > 0) {
       const currentId = bfsQueue.shift()!
       for (const succId of successors.get(currentId) ?? []) {
-        if (changedSet.has(succId)) continue
+        if (changedSet.has(succId) && !downstreamSet.has(succId)) continue
         if (!downstreamSet.has(succId)) {
           downstreamSet.add(succId)
           bfsQueue.push(succId)
@@ -672,10 +693,21 @@ export function propagateAutoSchedule(
       }
     }
   } else {
-    // 起点指定なしの場合は、有効な先行タスクを持つすべてのタスクを対象とする
+    // 起点指定なしの場合は、有効な先行タスクまたはスケジュール制約を持つタスクとその下流タスクをすべて対象とする
+    const bfsQueue: string[] = []
     for (const [taskId, entry] of taskMap) {
-      if (entry.links.length > 0) {
+      if (entry.links.length > 0 || (entry.constraintType && entry.constraintDateMs !== null)) {
         downstreamSet.add(taskId)
+        bfsQueue.push(taskId)
+      }
+    }
+    while (bfsQueue.length > 0) {
+      const currentId = bfsQueue.shift()!
+      for (const succId of successors.get(currentId) ?? []) {
+        if (!downstreamSet.has(succId)) {
+          downstreamSet.add(succId)
+          bfsQueue.push(succId)
+        }
       }
     }
   }
@@ -725,7 +757,9 @@ export function propagateAutoSchedule(
 
   for (const taskId of topoOrder) {
     const entry = taskMap.get(taskId)
-    if (!entry || entry.links.length === 0) continue
+    if (!entry) continue
+    const hasConstraint = Boolean(entry.constraintType && entry.constraintDateMs !== null)
+    if (entry.links.length === 0 && !hasConstraint) continue
 
     // movable 設定のチェック
     if (
@@ -754,10 +788,45 @@ export function propagateAutoSchedule(
       }
     }
 
-    if (maxRequiredStartMs === -Infinity) continue
+    if (maxRequiredStartMs === -Infinity && !hasConstraint) continue
 
-    const rawTargetStartMs =
-      mode === 'strict' ? maxRequiredStartMs : Math.max(entry.startMs, maxRequiredStartMs)
+    const isDirectChangedOrigin = Boolean(changedSet && changedSet.has(taskId))
+    let rawTargetStartMs = entry.startMs
+    if (maxRequiredStartMs > -Infinity && !isDirectChangedOrigin) {
+      rawTargetStartMs =
+        mode === 'strict' ? maxRequiredStartMs : Math.max(entry.startMs, maxRequiredStartMs)
+    }
+
+    if (hasConstraint && entry.constraintDateMs !== null) {
+      if (entry.constraintType === 'SNET') {
+        const snetStartMs = isNonWorkingDay
+          ? snapToWorkingStartMs(entry.constraintDateMs, isNonWorkingDay)
+          : entry.constraintDateMs
+        rawTargetStartMs = Math.max(rawTargetStartMs, snetStartMs)
+      } else if (entry.constraintType === 'FNLT') {
+        let fnltMaxStartMs: number
+        if (!isNonWorkingDay) {
+          fnltMaxStartMs = entry.constraintDateMs - entry.durationMs
+        } else if (effectiveDurationMs > 0) {
+          fnltMaxStartMs = addWorkingTimeMs(
+            entry.constraintDateMs,
+            -effectiveDurationMs,
+            isNonWorkingDay,
+          )
+        } else {
+          let cursor = entry.constraintDateMs
+          let dayStart = getStartOfDayMs(cursor)
+          let guard = 0
+          while (isNonWorkingDay(dayStart) && guard < 3660) {
+            guard++
+            dayStart = getStartOfPrevDayMs(dayStart)
+            cursor = dayStart
+          }
+          fnltMaxStartMs = cursor
+        }
+        rawTargetStartMs = Math.min(rawTargetStartMs, fnltMaxStartMs)
+      }
+    }
 
     if (!isNonWorkingDay) {
       if (rawTargetStartMs !== entry.startMs) {
@@ -769,7 +838,7 @@ export function propagateAutoSchedule(
           end: new Date(targetEndMs),
         })
       }
-    } else if (mode === 'strict' || rawTargetStartMs > entry.startMs) {
+    } else if ((mode === 'strict' && !isDirectChangedOrigin) || rawTargetStartMs !== entry.startMs) {
       const targetStartMs = snapToWorkingStartMs(rawTargetStartMs, isNonWorkingDay)
       const targetEndMs =
         effectiveDurationMs > 0

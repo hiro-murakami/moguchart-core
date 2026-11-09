@@ -43,6 +43,14 @@ export interface MoguchartLocale {
     ahead?: (days: number) => string
     /** 計画通りの表示 (例: "計画通り" / "On schedule") */
     onSchedule?: string
+    /** デッドライン（期限）の表示 (例: "期限: 2024/1/15") */
+    deadline?: (dateStr: string) => string
+    /** 期限超過の表示 (例: "期限超過 +2日") */
+    overdue?: (days: number) => string
+    /** 期限までの残日数の表示 (例: "残り3日") */
+    deadlineRemaining?: (days: number) => string
+    /** 期限内の表示 (例: "期限内") */
+    deadlineOnTime?: string
   }
   /** ドラッグオーバーレイの文字列 */
   dragOverlay: {
@@ -67,6 +75,7 @@ export interface MoguchartLocale {
       duration: string
       workingDays?: string
       progress: string
+      deadline?: string
     }
     /** 固定フッター集計行のラベル (例: "集計" / "Summary") */
     footerLabel?: string
@@ -104,6 +113,10 @@ export const jaLocale: MoguchartLocale = {
     delay: (days) => `+${days}日遅れ`,
     ahead: (days) => `-${days}日前倒し`,
     onSchedule: '計画通り',
+    deadline: (dateStr) => `期限: ${dateStr}`,
+    overdue: (days) => `期限超過 +${days}日`,
+    deadlineRemaining: (days) => `残り${days}日`,
+    deadlineOnTime: '期限内',
   },
   dragOverlay: {
     noTitle: 'タイトルなし',
@@ -123,6 +136,7 @@ export const jaLocale: MoguchartLocale = {
       duration: '期間',
       workingDays: '稼働日',
       progress: '進捗率',
+      deadline: '期限',
     },
     footerLabel: '集計',
   },
@@ -162,6 +176,10 @@ export const enLocale: MoguchartLocale = {
     delay: (days) => `+${days}d delay`,
     ahead: (days) => `-${days}d ahead`,
     onSchedule: 'On schedule',
+    deadline: (dateStr) => `Deadline: ${dateStr}`,
+    overdue: (days) => `Overdue +${days}d`,
+    deadlineRemaining: (days) => `${days}d left`,
+    deadlineOnTime: 'On time',
   },
   dragOverlay: {
     noTitle: 'No Title',
@@ -181,6 +199,7 @@ export const enLocale: MoguchartLocale = {
       duration: 'Duration',
       workingDays: 'Working Days',
       progress: 'Progress',
+      deadline: 'Deadline',
     },
     footerLabel: 'Summary',
   },

@@ -3,7 +3,7 @@ import { html, render } from 'lit'
 import { countWorkingDays } from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import type { BarHoverEventDetail, GanttChartOption } from '../../core/types'
-import { calculateTaskDelay, isMilestoneTask } from '../../core/utils'
+import { calculateTaskDelay, calculateTaskDeadline, isMilestoneTask } from '../../core/utils'
 
 export type TooltipState = BarHoverEventDetail & {
   visible: boolean
@@ -187,6 +187,65 @@ export class TooltipController implements ReactiveController {
         `
       }
 
+      const deadline = this.tooltip.task.deadline
+      const hasDeadline =
+        !!deadline &&
+        !isNaN(new Date(deadline).getTime()) &&
+        this.host.option.deadline?.enabled !== false &&
+        this.host.option.deadline?.showTooltip !== false
+      let deadlineRow: any = ''
+
+      if (hasDeadline) {
+        const { isOverdue, overdueDays, remainingDays } = calculateTaskDeadline(this.tooltip.task)
+        const dForDisplay = new Date(deadline!)
+        let dStr = ''
+        if (isMonthlyMode) {
+          if (!isMilestone) {
+            dForDisplay.setMonth(dForDisplay.getMonth() - 1)
+          }
+          dStr = locale.yearMonthFormat(dForDisplay)
+        } else {
+          const isHourlyMode = !!this.host.option.calendar.showTime
+          if (
+            !isHourlyMode &&
+            !isMilestone &&
+            dForDisplay.getHours() === 0 &&
+            dForDisplay.getMinutes() === 0
+          ) {
+            dForDisplay.setDate(dForDisplay.getDate() - 1)
+          }
+          dStr = isHourlyMode ? locale.dateTimeFormat(dForDisplay) : locale.dateFormat(dForDisplay)
+        }
+
+        const deadlineText = locale.tooltip.deadline
+          ? locale.tooltip.deadline(dStr)
+          : `期限: ${dStr}`
+
+        let statusText = ''
+        let statusColor = '#f59e0b'
+        if (isOverdue) {
+          statusText = locale.tooltip.overdue
+            ? locale.tooltip.overdue(overdueDays)
+            : `期限超過 +${overdueDays}日`
+          statusColor = this.host.option.deadline?.overdueColor ?? '#ef4444'
+        } else if (remainingDays > 0) {
+          statusText = locale.tooltip.deadlineRemaining
+            ? locale.tooltip.deadlineRemaining(remainingDays)
+            : `残り${remainingDays}日`
+          statusColor = '#10b981'
+        } else {
+          statusText = locale.tooltip.deadlineOnTime ?? '期限内'
+          statusColor = '#10b981'
+        }
+
+        deadlineRow = html`
+          <div class="tooltip-row" style="color: #cbd5e1; font-size: 11px; margin-top: 3px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 3px;">
+            ${deadlineText}
+            <span style="color: ${statusColor}; font-weight: 600; margin-left: 4px;">(${statusText})</span>
+          </div>
+        `
+      }
+
       if (isMonthlyMode) {
         const endForDisplay = new Date(this.tooltip.task.end)
         if (!isMilestone) {
@@ -203,6 +262,7 @@ export class TooltipController implements ReactiveController {
             ${isMilestone ? '' : html`<div class="tooltip-row">${locale.tooltip.duration(duration)}</div>`}
             ${progressRow}
             ${baselineRow}
+            ${deadlineRow}
           `,
           tooltipEl,
         )
@@ -251,6 +311,7 @@ export class TooltipController implements ReactiveController {
             ${isMilestone ? '' : html`<div class="tooltip-row">${durationText}</div>`}
             ${progressRow}
             ${baselineRow}
+            ${deadlineRow}
           `,
           tooltipEl,
         )

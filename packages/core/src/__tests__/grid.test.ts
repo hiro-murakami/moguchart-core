@@ -782,6 +782,38 @@ describe('grid calculation & formatting', () => {
         ['Task 2', '2026/10/6', '4日', '75%'],
       ])
     })
+
+    it('supports built-in deadline column formatting and inline editing', () => {
+      const deadlineCol = normalizeGridColumns([{ id: 'deadline' }], jaLocale)[0]
+      expect(deadlineCol.title).toBe('期限')
+      expect(resolveColumnEditorType(deadlineCol)).toBe('date')
+
+      const row: GanttRow = {
+        id: 'r-dl',
+        name: 'Deadline Row',
+        tasks: [
+          {
+            id: 't-dl',
+            start: new Date(2026, 9, 1),
+            end: new Date(2026, 9, 5),
+            deadline: new Date(2026, 9, 11), // 2026-10-10 inclusive (exclusive 10-11 00:00)
+          },
+        ],
+      }
+
+      const val = getGridCellValue(deadlineCol, row, row.tasks)
+      expect(val).toEqual(new Date(2026, 9, 11))
+      expect(formatGridCellValue(deadlineCol, val, row, row.tasks, jaLocale)).toBe('2026/10/10')
+      expect(formatGridCellEditValue(deadlineCol, val, row, row.tasks)).toBe('2026-10-10')
+
+      const editRes = applyGridCellEdit(deadlineCol, row, '2026-10-15')
+      expect(editRes.changed).toBe(true)
+      expect(row.tasks[0].deadline).toEqual(new Date(2026, 9, 16))
+
+      const clearRes = applyGridCellEdit(deadlineCol, row, '')
+      expect(clearRes.changed).toBe(true)
+      expect(row.tasks[0].deadline).toBeUndefined()
+    })
   })
 })
 

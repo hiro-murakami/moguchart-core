@@ -551,3 +551,78 @@ export function calculateProjectBaselineSummary(rows: GanttRow[]): {
   }
 }
 
+/**
+ * タスクのデッドライン（期限）に対する超過・残日数の状況を計算します。
+ *
+ * @param task 対象タスク
+ * @returns デッドライン状況オブジェクト
+ */
+export function calculateTaskDeadline(task: GanttTask): {
+  hasDeadline: boolean
+  isOverdue: boolean
+  overdueMs: number
+  overdueDays: number
+  remainingMs: number
+  remainingDays: number
+} {
+  if (!task || !task.deadline || !task.end) {
+    return {
+      hasDeadline: false,
+      isOverdue: false,
+      overdueMs: 0,
+      overdueDays: 0,
+      remainingMs: 0,
+      remainingDays: 0,
+    }
+  }
+
+  const actualEndTime = task.end instanceof Date ? task.end.getTime() : new Date(task.end).getTime()
+  const deadlineTime =
+    task.deadline instanceof Date ? task.deadline.getTime() : new Date(task.deadline).getTime()
+
+  if (Number.isNaN(actualEndTime) || Number.isNaN(deadlineTime)) {
+    return {
+      hasDeadline: false,
+      isOverdue: false,
+      overdueMs: 0,
+      overdueDays: 0,
+      remainingMs: 0,
+      remainingDays: 0,
+    }
+  }
+
+  const diffMs = actualEndTime - deadlineTime
+  const oneDayMs = 1000 * 60 * 60 * 24
+
+  if (diffMs > 0) {
+    return {
+      hasDeadline: true,
+      isOverdue: true,
+      overdueMs: diffMs,
+      overdueDays: Math.round((diffMs / oneDayMs) * 10) / 10,
+      remainingMs: 0,
+      remainingDays: 0,
+    }
+  } else if (diffMs < 0) {
+    const remainingMs = -diffMs
+    return {
+      hasDeadline: true,
+      isOverdue: false,
+      overdueMs: 0,
+      overdueDays: 0,
+      remainingMs,
+      remainingDays: Math.round((remainingMs / oneDayMs) * 10) / 10,
+    }
+  }
+
+  return {
+    hasDeadline: true,
+    isOverdue: false,
+    overdueMs: 0,
+    overdueDays: 0,
+    remainingMs: 0,
+    remainingDays: 0,
+  }
+}
+
+

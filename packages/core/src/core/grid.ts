@@ -42,6 +42,7 @@ export const DEFAULT_GRID_COLUMN_CONFIGS: Record<
   duration: { width: 80, minWidth: 50, align: 'right' },
   workingDays: { width: 80, minWidth: 50, align: 'right' },
   progress: { width: 80, minWidth: 50, align: 'right' },
+  deadline: { width: 100, minWidth: 70, align: 'center' },
 }
 
 /**
@@ -53,6 +54,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   durationDays: number
   durationMs: number
   progress: number | undefined
+  deadline: Date | null
 } {
   if (!tasks || tasks.length === 0) {
     return {
@@ -61,6 +63,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
       durationDays: 0,
       durationMs: 0,
       progress: undefined,
+      deadline: null,
     }
   }
 
@@ -69,8 +72,15 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   let totalDurationMs = 0
   let weightedProgressSum = 0
   let hasAnyProgress = false
+  let maxDeadline = -Infinity
 
   for (const task of tasks) {
+    if (task.deadline) {
+      const dl = task.deadline instanceof Date ? task.deadline.getTime() : new Date(task.deadline).getTime()
+      if (!Number.isNaN(dl) && dl > maxDeadline) {
+        maxDeadline = dl
+      }
+    }
     if (!task.start || !task.end) continue
     const s = task.start.getTime()
     const e = task.end.getTime()
@@ -88,6 +98,8 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
     }
   }
 
+  const deadlineDate = maxDeadline !== -Infinity ? new Date(maxDeadline) : null
+
   if (minStart === Infinity || maxEnd === -Infinity) {
     return {
       start: null,
@@ -95,6 +107,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
       durationDays: 0,
       durationMs: 0,
       progress: undefined,
+      deadline: deadlineDate,
     }
   }
 
@@ -124,6 +137,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
     durationDays,
     durationMs,
     progress: calculatedProgress,
+    deadline: deadlineDate,
   }
 }
 
@@ -160,6 +174,7 @@ export function normalizeGridColumns(
     duration: currentLocale.grid?.columns.duration ?? '期間',
     workingDays: currentLocale.grid?.columns.workingDays ?? '稼働日',
     progress: currentLocale.grid?.columns.progress ?? '進捗率',
+    deadline: currentLocale.grid?.columns.deadline ?? '期限',
   }
 
   // カラム未指定時のデフォルト組み込みカラムセット
@@ -183,7 +198,13 @@ export function normalizeGridColumns(
     let defaultMinWidth = builtinConfig?.minWidth ?? 40
 
     if (isTimeMode) {
-      if (col.id === 'startDate' || col.id === 'endDate' || col.id === 'startDateTime' || col.id === 'endDateTime') {
+      if (
+        col.id === 'startDate' ||
+        col.id === 'endDate' ||
+        col.id === 'startDateTime' ||
+        col.id === 'endDateTime' ||
+        col.id === 'deadline'
+      ) {
         defaultWidth = 130
         defaultMinWidth = 80
       } else if (col.id === 'duration') {
@@ -338,6 +359,8 @@ export function getGridCellValue(
       return countWorkingDays(summary.start, summary.end, calendarOptions)
     case 'progress':
       return summary.progress
+    case 'deadline':
+      return summary.deadline
     default:
       if (column.field && (row as any)[column.field] !== undefined) {
         return (row as any)[column.field]
@@ -374,10 +397,12 @@ export function formatGridCellValue(
       return String(value)
     case 'startDate':
     case 'endDate':
+    case 'deadline':
       if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const allMilestones = tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))
         if (isMonthMode) {
           const targetDate =
-            column.id === 'endDate'
+            column.id === 'endDate' || (column.id === 'deadline' && !allMilestones)
               ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
               : value
           return currentLocale.yearMonthFormat
@@ -397,6 +422,12 @@ export function formatGridCellValue(
             value.getMinutes() === 0 &&
             (!summary.start || summary.start.getTime() < value.getTime())
           ) {
+            return currentLocale.dateFormat(
+              new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
+            )
+          }
+        } else if (column.id === 'deadline') {
+          if (!allMilestones && value.getHours() === 0 && value.getMinutes() === 0) {
             return currentLocale.dateFormat(
               new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
             )
@@ -472,6 +503,7 @@ const TASK_BOUND_COLUMN_IDS = new Set<string>([
   'duration',
   'workingDays',
   'progress',
+  'deadline',
 ])
 
 /**
@@ -489,6 +521,7 @@ export function resolveColumnEditorType(
   switch (column.id) {
     case 'startDate':
     case 'endDate':
+    case 'deadline':
       if (isMonthMode) return 'month'
       if (isTimeMode) return 'datetime'
       return 'date'
@@ -819,8 +852,12 @@ export function formatGridCellEditValue(
   }
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const allMilestones = tasks.length > 0 && tasks.every((t) => isMilestoneTask(t))
     if (editorType === 'month') {
-      const isEndCol = column.id === 'endMonth' || (column.id === 'endDate' && Boolean(isMonthMode))
+      const isEndCol =
+        column.id === 'endMonth' ||
+        ((column.id === 'endDate' || (column.id === 'deadline' && !allMilestones)) &&
+          Boolean(isMonthMode))
       const target = isEndCol
         ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
         : value
@@ -836,6 +873,12 @@ export function formatGridCellEditValue(
         value.getMinutes() === 0 &&
         (!summary.start || summary.start.getTime() < value.getTime())
       ) {
+        return formatDateInputString(
+          new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
+        )
+      }
+    } else if (editorType === 'date' && column.id === 'deadline') {
+      if (!allMilestones && value.getHours() === 0 && value.getMinutes() === 0) {
         return formatDateInputString(
           new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),
         )
@@ -1149,6 +1192,58 @@ export function applyGridCellEdit(
       return { changed: true, oldValue: prevProgress, newValue: clamped }
     }
 
+    case 'deadline': {
+      if (!singleTask) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      if (
+        rawInputValue === null ||
+        rawInputValue === undefined ||
+        (typeof rawInputValue === 'string' && rawInputValue.trim() === '')
+      ) {
+        if (!singleTask.deadline) {
+          return { changed: false, oldValue, newValue: undefined }
+        }
+        const prevDeadline = new Date(singleTask.deadline.getTime())
+        singleTask.deadline = undefined
+        return { changed: true, oldValue: prevDeadline, newValue: undefined }
+      }
+
+      let nextDeadline: Date | null = null
+      if (rawInputValue instanceof Date) {
+        nextDeadline = new Date(rawInputValue.getTime())
+      } else if (typeof rawInputValue === 'string') {
+        if (editorType === 'month') {
+          nextDeadline = parseMonthInputString(rawInputValue, !isMilestoneTask(singleTask))
+        } else if (editorType === 'datetime') {
+          nextDeadline = parseDateTimeInputString(rawInputValue)
+        } else {
+          const parsed = parseDateInputString(rawInputValue, singleTask.deadline)
+          if (parsed) {
+            if (isMilestoneTask(singleTask)) {
+              nextDeadline = parsed
+            } else if (
+              !singleTask.deadline ||
+              (singleTask.deadline.getHours() === 0 && singleTask.deadline.getMinutes() === 0)
+            ) {
+              nextDeadline = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate() + 1)
+            } else {
+              nextDeadline = parsed
+            }
+          }
+        }
+      }
+      if (!nextDeadline || Number.isNaN(nextDeadline.getTime())) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      if (singleTask.deadline && singleTask.deadline.getTime() === nextDeadline.getTime()) {
+        return { changed: false, oldValue, newValue: oldValue }
+      }
+      const prevDeadline = singleTask.deadline ? new Date(singleTask.deadline.getTime()) : null
+      singleTask.deadline = nextDeadline
+      return { changed: true, oldValue: prevDeadline, newValue: nextDeadline }
+    }
+
     default: {
       if (column.field) {
         let nextVal: any = rawInputValue
@@ -1347,6 +1442,7 @@ export interface GridFooterSummary {
   durationMs: number
   workingDays: number
   progress: number
+  deadline: Date | null
 }
 
 /**
@@ -1367,6 +1463,7 @@ export function calculateGridFooterSummary(
       durationMs: 0,
       workingDays: 0,
       progress: 0,
+      deadline: null,
     }
   }
 
@@ -1404,6 +1501,7 @@ export function calculateGridFooterSummary(
     durationMs: summary.durationMs,
     workingDays,
     progress: summary.progress ?? 0,
+    deadline: summary.deadline,
   }
 }
 
@@ -1440,6 +1538,8 @@ export function getGridFooterCellValue(
       return footerSummary.start && footerSummary.end ? footerSummary.workingDays : null
     case 'progress':
       return footerSummary.taskCount > 0 ? footerSummary.progress : null
+    case 'deadline':
+      return footerSummary.deadline
     default:
       return ''
   }
@@ -1491,9 +1591,10 @@ export function formatGridFooterCellValue(
     if (
       column.id === 'startMonth' ||
       column.id === 'endMonth' ||
-      (isMonthMode && (column.id === 'startDate' || column.id === 'endDate'))
+      (isMonthMode && (column.id === 'startDate' || column.id === 'endDate' || column.id === 'deadline'))
     ) {
-      const isEndCol = column.id === 'endMonth' || (isMonthMode && column.id === 'endDate')
+      const isEndCol =
+        column.id === 'endMonth' || (isMonthMode && (column.id === 'endDate' || column.id === 'deadline'))
       const targetDate = isEndCol
         ? new Date(value.getFullYear(), value.getMonth() - 1, 1)
         : value
@@ -1504,18 +1605,18 @@ export function formatGridFooterCellValue(
     if (
       column.id === 'startDateTime' ||
       column.id === 'endDateTime' ||
-      (isTimeMode && (column.id === 'startDate' || column.id === 'endDate'))
+      (isTimeMode && (column.id === 'startDate' || column.id === 'endDate' || column.id === 'deadline'))
     ) {
       const dateStr = currentLocale.dateFormat(value)
       const h = value.getHours().toString().padStart(2, '0')
       const m = value.getMinutes().toString().padStart(2, '0')
       return `${dateStr} ${h}:${m}`
     }
-    if (column.id === 'endDate') {
+    if (column.id === 'endDate' || column.id === 'deadline') {
       if (
         value.getHours() === 0 &&
         value.getMinutes() === 0 &&
-        (!footerSummary.start || footerSummary.start.getTime() < value.getTime())
+        (column.id === 'deadline' || !footerSummary.start || footerSummary.start.getTime() < value.getTime())
       ) {
         return currentLocale.dateFormat(
           new Date(value.getFullYear(), value.getMonth(), value.getDate() - 1),

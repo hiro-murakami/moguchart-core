@@ -8,7 +8,14 @@ import type {
   TaskProgressChangeEventDetail,
 } from '../core/types'
 import { getPatternStyle } from '../core/patterns'
-import { dateToX, xToDate, clampProgress, calculateTaskDelay, isMilestoneTask } from '../core/utils'
+import {
+  dateToX,
+  xToDate,
+  clampProgress,
+  calculateTaskDelay,
+  calculateTaskDeadline,
+  isMilestoneTask,
+} from '../core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
 
 /**
@@ -575,6 +582,79 @@ export class GanttBarElement extends LitElement {
     }
     .task-group.task-delayed.filtered-out::after {
       opacity: 0.2;
+    }
+    .task-group.task-overdue .bar {
+      box-shadow:
+        0 0 0 2px var(--moguchart-overdue-color, #ef4444),
+        0 0 8px rgba(239, 68, 68, 0.35);
+    }
+    .task-group.task-overdue .bar.milestone-bar {
+      box-shadow:
+        0 0 0 2px var(--moguchart-overdue-color, #ef4444),
+        0 0 8px rgba(239, 68, 68, 0.45);
+    }
+    .deadline-connector {
+      position: absolute;
+      height: 0;
+      border-top: 1.5px dashed var(--moguchart-deadline-color, #f59e0b);
+      opacity: 0.75;
+      pointer-events: none;
+      z-index: 2;
+      transform: translateY(-50%);
+    }
+    .deadline-connector.overdue {
+      border-top: 2px dashed var(--moguchart-overdue-color, #ef4444);
+      opacity: 0.9;
+      z-index: 4;
+    }
+    .deadline-connector.filtered-out,
+    .deadline-marker.filtered-out {
+      opacity: 0.2;
+    }
+    .deadline-marker {
+      position: absolute;
+      width: 8px;
+      margin-left: -6px;
+      box-sizing: border-box;
+      border-right: 2.5px solid var(--moguchart-deadline-color, #f59e0b);
+      border-top: 2px solid var(--moguchart-deadline-color, #f59e0b);
+      border-bottom: 2px solid var(--moguchart-deadline-color, #f59e0b);
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px;
+      pointer-events: auto;
+      cursor: pointer;
+      z-index: 7;
+    }
+    .deadline-marker::before {
+      content: '';
+      position: absolute;
+      right: 1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 5px solid var(--moguchart-deadline-color, #f59e0b);
+    }
+    .deadline-marker.overdue {
+      --moguchart-deadline-color: var(--moguchart-overdue-color, #ef4444);
+      filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.45));
+    }
+    .deadline-overdue-badge {
+      position: absolute;
+      top: -13px;
+      right: -2px;
+      background-color: var(--moguchart-overdue-color, #ef4444);
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 2px 3.5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
     }
   `
 
@@ -1957,6 +2037,34 @@ export class GanttBarElement extends LitElement {
     const isDelayed = delayInfo?.isDelayed && (this.option.baseline?.highlightDelay !== false)
     const delayColor = this.option.baseline?.delayColor ?? '#ef4444'
 
+    const isDeadlineFeatureEnabled = this.option.deadline?.enabled !== false
+    const deadlineDate = this.task.deadline
+    const hasValidDeadline =
+      isDeadlineFeatureEnabled &&
+      !!deadlineDate &&
+      !isNaN(new Date(deadlineDate).getTime())
+    const deadlineInfo = hasValidDeadline ? calculateTaskDeadline(this.task) : null
+    const isOverdue = Boolean(
+      deadlineInfo?.isOverdue && (this.option.deadline?.highlightOverdue !== false),
+    )
+    const overdueColor = this.option.deadline?.overdueColor ?? '#ef4444'
+    const deadlineColor = isOverdue
+      ? overdueColor
+      : (this.option.deadline?.color ?? '#f59e0b')
+    const deadlineX = hasValidDeadline ? this.getX(new Date(deadlineDate!)) : 0
+    const barEndEdgeX = isMilestone ? rawX : rawX + rawWidth
+    const connectorLeft = Math.min(barEndEdgeX, deadlineX)
+    const connectorWidth = Math.abs(deadlineX - barEndEdgeX)
+    const showDeadlineConnector =
+      hasValidDeadline &&
+      this.option.deadline?.showConnector !== false &&
+      connectorWidth > 4
+    const showOverdueBadge =
+      hasValidDeadline &&
+      isOverdue &&
+      this.option.deadline?.showOverdueBadge !== false &&
+      (deadlineInfo?.overdueDays ?? 0) > 0
+
     const isProgressFeatureEnabled = this.option.progress?.enabled !== false && !isMilestone
     const isProgressEditable =
       isProgressFeatureEnabled &&
@@ -2031,13 +2139,14 @@ export class GanttBarElement extends LitElement {
           `
         : ''}
       <div
-        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isMilestone ? 'milestone-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isFiltered ? 'filtered-out' : ''}"
+        class="task-group ${isSummary ? 'summary-task-group' : ''} ${isMilestone ? 'milestone-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isOverdue ? 'task-overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
         style="
           left: ${x}px;
           top: ${groupTop}px;
           width: ${width}px;
           height: ${groupHeight}px;
           ${isDelayed ? `--moguchart-delay-color: ${delayColor};` : ''}
+          ${isOverdue ? `--moguchart-overdue-color: ${overdueColor};` : ''}
         "
         @pointerdown="${this.onTaskGroupPointerDown}"
         @mouseenter="${this.onMouseEnter}"
@@ -2103,6 +2212,42 @@ export class GanttBarElement extends LitElement {
             `
           : ''}
       </div>
+      ${showDeadlineConnector
+        ? html`
+            <div
+              class="deadline-connector ${isOverdue ? 'overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
+              style="
+                left: ${connectorLeft}px;
+                top: ${actualBarY + actualBarHeight / 2}px;
+                width: ${connectorWidth}px;
+                --moguchart-deadline-color: ${deadlineColor};
+                --moguchart-overdue-color: ${overdueColor};
+              "
+            ></div>
+          `
+        : ''}
+      ${hasValidDeadline
+        ? html`
+            <div
+              class="deadline-marker ${isOverdue ? 'overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
+              style="
+                left: ${deadlineX}px;
+                top: ${actualBarY - 2}px;
+                height: ${actualBarHeight + 4}px;
+                --moguchart-deadline-color: ${deadlineColor};
+                --moguchart-overdue-color: ${overdueColor};
+              "
+              @mouseenter="${this.onMouseEnter}"
+              @mouseleave="${this.onMouseLeave}"
+              @click="${this.onClick}"
+              @dblclick="${this.onDblClick}"
+            >
+              ${showOverdueBadge && deadlineInfo
+                ? html`<span class="deadline-overdue-badge">+${deadlineInfo.overdueDays}d</span>`
+                : ''}
+            </div>
+          `
+        : ''}
     `
   }
 }

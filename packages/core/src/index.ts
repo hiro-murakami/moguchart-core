@@ -16,6 +16,7 @@ export {
   calculateWeightedRowProgress,
   calculateProjectProgress,
   calculateTaskDelay,
+  calculateTaskDeadline,
   calculateProjectBaselineSummary,
   getThemeColors,
   isMilestoneTask,

@@ -8,6 +8,7 @@ import {
   createDependencyEntry,
 } from '../core/auto-schedule'
 import { GanttChartElement } from '../components/gantt-chart'
+import { calculateTaskDeadline } from '../core/utils'
 import type { GanttChartOption, GanttRow } from '../core/types'
 
 // Mock ResizeObserver
@@ -322,6 +323,77 @@ describe('propagateAutoSchedule', () => {
     const taskB = result.rows[0].tasks[1]
     expect(taskB.start).toEqual(d(2026, 10, 20))
     expect(taskB.end).toEqual(d(2026, 10, 22))
+  })
+
+  it('スケジュール制約 SNET (指定日以降に開始) と FNLT (指定日までに終了) を適用し後続へ伝播する', () => {
+    const rows: GanttRow[] = [
+      {
+        id: 'r1',
+        name: 'Row 1',
+        tasks: [
+          // SNET: 1/10 以降に開始する制約があるが現在 1/3〜1/6 -> 1/10〜1/13 に押し出されるべき
+          {
+            id: 'A',
+            name: 'A',
+            start: d(2025, 1, 3),
+            end: d(2025, 1, 6),
+            constraintType: 'SNET',
+            constraintDate: d(2025, 1, 10),
+          },
+          // B は A に FS 依存 -> A の移動に伴って 1/13〜1/16 に押し出されるべき
+          {
+            id: 'B',
+            name: 'B',
+            start: d(2025, 1, 6),
+            end: d(2025, 1, 9),
+            dependencies: ['A'],
+          },
+          // C は FNLT: 1/20 までに終了する制約があるが現在 1/18〜1/23 (5日間) -> 1/15〜1/20 に前倒しされるべき
+          {
+            id: 'C',
+            name: 'C',
+            start: d(2025, 1, 18),
+            end: d(2025, 1, 23),
+            constraintType: 'FNLT',
+            constraintDate: d(2025, 1, 20),
+          },
+        ],
+      },
+    ]
+
+    const result = propagateAutoSchedule(rows)
+    expect(result.hasChanges).toBe(true)
+    const tasks = result.rows[0].tasks
+    expect(tasks[0].start).toEqual(d(2025, 1, 10))
+    expect(tasks[0].end).toEqual(d(2025, 1, 13))
+    expect(tasks[1].start).toEqual(d(2025, 1, 13))
+    expect(tasks[1].end).toEqual(d(2025, 1, 16))
+    expect(tasks[2].start).toEqual(d(2025, 1, 15))
+    expect(tasks[2].end).toEqual(d(2025, 1, 20))
+  })
+})
+
+describe('calculateTaskDeadline & deadline bar rendering', () => {
+  it('calculateTaskDeadline が期限超過・期限内・残日数を正しく計算する', () => {
+    const overdue = calculateTaskDeadline({
+      id: 't1',
+      start: d(2025, 1, 1),
+      end: d(2025, 1, 12),
+      deadline: d(2025, 1, 10),
+    })
+    expect(overdue.hasDeadline).toBe(true)
+    expect(overdue.isOverdue).toBe(true)
+    expect(overdue.overdueDays).toBe(2)
+
+    const remaining = calculateTaskDeadline({
+      id: 't2',
+      start: d(2025, 1, 1),
+      end: d(2025, 1, 8),
+      deadline: d(2025, 1, 10),
+    })
+    expect(remaining.hasDeadline).toBe(true)
+    expect(remaining.isOverdue).toBe(false)
+    expect(remaining.remainingDays).toBe(2)
   })
 })
 

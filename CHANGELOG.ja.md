@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **タスクのデッドライン（期限マーカー）＆ スケジュール制約 (`task.deadline`, `task.constraintType`, `task.constraintDate`)**:
+  - **デッドライン（期限マーカー）の描画 ＆ 期限超過ハイライト (`option.deadline` / `task.deadline`)**:
+    - `GanttTask.deadline?: Date` を追加し、タイムライン上に期限日を示す縦型ブラケット／矢印マーカー（`⇥`、`.deadline-marker`）およびタスクバー終端からの破線コネクタ（`.deadline-connector`）を描画
+    - タスク終了日が期限を超過している場合（`task.end > task.deadline`）、タスクバーに超過ハイライト（`.task-overdue`）および超過日数バッジ（`+Xd`、`.deadline-overdue-badge`）を自動表示
+    - `option.deadline?: GanttChartOptionDeadline`（`enabled`, `color`, `overdueColor`, `highlightOverdue`, `showConnector`, `showOverdueBadge`, `showTooltip`）による表示制御に対応
+    - 期限判定・超過／残日数計算ユーティリティ関数 `calculateTaskDeadline(task)` を公開エクスポート
+    - WBS サマリータスク自動集計（`computeSummaryTask`）において、配下タスクの最大デッドラインを親サマリータスクの `deadline` として自動集約
+    - 標準ツールチップ（`tooltip-controller.ts`）および多言語辞書（`jaLocale` / `enLocale`）にデッドライン・超過日数・残日数の表示を追加
+  - **スケジュール制約（`SNET` / `FNLT`）の自動スケジューリング統合 (`task.constraintType` / `task.constraintDate`)**:
+    - `TaskConstraintType = 'SNET' | 'FNLT'`（`SNET`: 指定日以降に開始 / Start No Earlier Than、`FNLT`: 指定日までに終了 / Finish No Later Than）および `task.constraintDate?: Date` を `GanttTask` に追加
+    - `propagateAutoSchedule` において先行タスクの依存関係計算と併せてタスク自身の `SNET` / `FNLT` 制約（カレンダー通りおよび営業日ベース双方）を評価・適用し、後続タスクへカスケード伝播するよう拡張
+  - **マルチカラムデータグリッド標準組み込みカラム `'deadline'`（期限）**:
+    - `GanttBuiltinColumnId` に `'deadline'`（見出し: `期限` / `Deadline`）を追加。日・月・時間粒度に応じた日付フォーマット表示、超過時の赤字強調表示、ソート、フッター集計（最大期限日）、TSV コピー＆ペースト、およびダブルクリックによるインライン日付編集（空欄確定による期限クリア含む）に対応
+
+---
+
 ## [1.8.0] - 2026-11-07
 
 ### Added

@@ -127,6 +127,13 @@ export type AutoScheduleMode = 'push-only' | 'strict'
 export type AutoScheduleCalendarMode = 'calendar' | 'weekends' | 'weekends-holidays'
 
 /**
+ * タスクのスケジュール制約種別
+ * - 'SNET': Start No Earlier Than（指定日以降に開始）
+ * - 'FNLT': Finish No Later Than（指定日までに終了）
+ */
+export type TaskConstraintType = 'SNET' | 'FNLT'
+
+/**
  * タスクバーのラベル（タスク名）の表示位置
  * - 'inside': バー内部に表示（デフォルト）
  * - 'right': バーの右外側に表示
@@ -199,6 +206,12 @@ export interface GanttTask {
   type?: 'task' | 'summary' | 'milestone'
   /** 当初計画（ベースライン）の日程情報 */
   baseline?: GanttTaskBaseline
+  /** タスクのデッドライン（期限）日時 */
+  deadline?: Date
+  /** 自動スケジューリング時のスケジュール制約種別 ('SNET': 指定日以降に開始, 'FNLT': 指定日までに終了) */
+  constraintType?: TaskConstraintType
+  /** スケジュール制約の基準日時 */
+  constraintDate?: Date
 }
 
 /**
@@ -628,10 +641,32 @@ export interface GanttChartOption {
   history?: GanttChartOptionHistory
   /** 予実管理（ベースライン）の設定 */
   baseline?: GanttChartOptionBaseline
+  /** デッドライン（期限）表示の設定 */
+  deadline?: GanttChartOptionDeadline
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
   /** タッチデバイス（タブレット・モバイル）操作に関する設定 */
   touch?: GanttChartOptionTouch
+}
+
+/**
+ * デッドライン（期限）機能に関するオプション
+ */
+export interface GanttChartOptionDeadline {
+  /** デッドラインマーカー表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** デッドラインマーカーの通常色 (CSSカラー文字列、デフォルト: '#f59e0b') */
+  color?: string
+  /** 期限超過時の強調色 (CSSカラー文字列、デフォルト: '#ef4444') */
+  overdueColor?: string
+  /** 期限超過タスク（終了日 > デッドライン）のハイライトを行うかどうか (デフォルト: true) */
+  highlightOverdue?: boolean
+  /** タスクバーとデッドラインマーカー間の補助線（点線）を表示するかどうか (デフォルト: true) */
+  showConnector?: boolean
+  /** 期限超過時に超過日数バッジを表示するかどうか (デフォルト: true) */
+  showOverdueBadge?: boolean
+  /** ツールチップにデッドライン情報を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
 }
 
 /**
@@ -1299,6 +1334,7 @@ export type GanttBuiltinColumnId =
   | 'duration'
   | 'workingDays'
   | 'progress'
+  | 'deadline'
 
 /**
  * インラインエディタの種類
