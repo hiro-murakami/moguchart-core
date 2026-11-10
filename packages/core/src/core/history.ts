@@ -6,6 +6,7 @@ export type GanttCommandType =
   | 'task-move'
   | 'task-resize'
   | 'task-progress'
+  | 'task-deadline'
   | 'task-delete'
   | 'row-reorder'
   | 'dependency-create'

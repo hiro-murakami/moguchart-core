@@ -667,6 +667,8 @@ export interface GanttChartOptionDeadline {
   showOverdueBadge?: boolean
   /** ツールチップにデッドライン情報を表示するかどうか (デフォルト: true) */
   showTooltip?: boolean
+  /** デッドラインマーカーのドラッグによる期限変更を許可するかどうか (デフォルト: true、readOnly 時は無効) */
+  editable?: boolean
 }
 
 /**
@@ -1285,6 +1287,20 @@ export interface TaskProgressChangeEventDetail {
   progress: number
   /** 変更前の進捗率 */
   originalProgress?: number
+  /** キャンセルされたかどうか */
+  cancelled?: boolean
+}
+
+/**
+ * タスク期限（デッドライン）変更イベントの詳細データ
+ */
+export interface TaskDeadlineChangeEventDetail {
+  /** 対象のタスク */
+  task: GanttTask
+  /** 新しい期限日時 */
+  deadline: Date
+  /** 変更前の期限日時 */
+  originalDeadline?: Date
   /** キャンセルされたかどうか */
   cancelled?: boolean
 }

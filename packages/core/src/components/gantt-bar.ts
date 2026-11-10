@@ -6,7 +6,9 @@ import type {
   GanttBarLabelPosition,
   DependencyEndpoint,
   TaskProgressChangeEventDetail,
+  TaskDeadlineChangeEventDetail,
 } from '../core/types'
+import { jaLocale } from '../core/i18n'
 import { getPatternStyle } from '../core/patterns'
 import {
   dateToX,
@@ -47,6 +49,8 @@ export class GanttBarElement extends LitElement {
   @property({ type: Boolean, reflect: true, attribute: 'touch-active' }) touchActive = false
   @state() private _dragProgress: number | null = null
   @state() private _isDraggingProgress = false
+  @state() private _dragDeadline: Date | null = null
+  @state() private _isDraggingDeadline = false
   private _currentDragCursor: string | null = null
   private _dragAnimationFrame: number | null = null
   private _autoScrollTimer: number | null = null
@@ -623,7 +627,22 @@ export class GanttBarElement extends LitElement {
       border-bottom-right-radius: 2px;
       pointer-events: auto;
       cursor: pointer;
-      z-index: 7;
+      z-index: 12;
+      transition: transform 0.1s ease;
+    }
+    .deadline-marker.editable {
+      cursor: ew-resize;
+      touch-action: none;
+    }
+    .deadline-marker.editable::after {
+      content: '';
+      position: absolute;
+      inset: -4px -5px;
+    }
+    .deadline-marker.editable:hover,
+    .deadline-marker.dragging {
+      transform: scaleX(1.15);
+      z-index: 55;
     }
     .deadline-marker::before {
       content: '';
@@ -655,6 +674,23 @@ export class GanttBarElement extends LitElement {
       white-space: nowrap;
       pointer-events: none;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+    .deadline-drag-badge {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #1e293b;
+      color: #f8fafc;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      z-index: 60;
     }
   `
 
@@ -1952,6 +1988,130 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onDeadlineDragStart(e: PointerEvent) {
+    if (e.button === 2) return
+    e.stopPropagation()
+    this.syncTouchActive(e)
+    if (e.pointerType === 'touch' && e.cancelable) {
+      e.preventDefault()
+    }
+    const target = e.currentTarget as HTMLElement
+    if (!target) return
+
+    const isReadOnly = this.option?.readOnly
+    const isSummary = this.task?.type === 'summary'
+    const movable = this.task?.movable ?? 'both'
+    const editable =
+      !isReadOnly &&
+      !isSummary &&
+      this.option?.deadline?.editable !== false &&
+      movable !== 'none'
+    if (!editable || !this.task?.deadline) return
+
+    const originalDeadline = new Date(this.task.deadline)
+    if (Number.isNaN(originalDeadline.getTime())) return
+
+    this.safeSetPointerCapture(target, e.pointerId)
+    const chartEl = this.getGanttChartElement()
+    const scrollContainer = chartEl?.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null
+    const initialScrollLeft = scrollContainer?.scrollLeft ?? 0
+
+    const startX = e.clientX
+    let currentDeadline = new Date(originalDeadline)
+    let hasMoved = false
+
+    const applyDeadlineAt = (clientX: number) => {
+      const scrollDeltaX = (scrollContainer?.scrollLeft ?? 0) - initialScrollLeft
+      const deltaX = clientX - startX + scrollDeltaX
+
+      if (!hasMoved && Math.abs(deltaX) < GanttBarElement.DRAG_THRESHOLD) {
+        return
+      }
+      if (!hasMoved) {
+        hasMoved = true
+        this._wasDragging = true
+        this._isDraggingDeadline = true
+        this.dispatchEvent(
+          new CustomEvent('bar-mouseleave', {
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+
+      const pxPerDay = this.option.calendar.pxPerDay ?? 50
+      const pxPerMonth = this.option.calendar.pxPerMonth
+      const snapDuration = Math.max(this.option.snapDuration ?? 1440, 1)
+
+      let newDeadline: Date
+      if (!pxPerMonth) {
+        const pxPerMinute = pxPerDay / (24 * 60)
+        const snapPx = pxPerMinute * snapDuration
+        const snappedDeltaX = Math.round(deltaX / snapPx) * snapPx
+        const minutesDiff = Math.round(snappedDeltaX / pxPerMinute)
+        newDeadline = new Date(originalDeadline.getTime() + minutesDiff * 60 * 1000)
+      } else {
+        const originalDeadlineXBase = this.getX(originalDeadline)
+        const rawNewDeadline = xToDate(
+          originalDeadlineXBase + deltaX,
+          this.option.calendar.start,
+          pxPerDay,
+          pxPerMonth,
+        )
+        if (rawNewDeadline.getDate() > 15) rawNewDeadline.setMonth(rawNewDeadline.getMonth() + 1)
+        rawNewDeadline.setDate(1)
+        rawNewDeadline.setHours(0, 0, 0, 0)
+        newDeadline = rawNewDeadline
+      }
+
+      currentDeadline = newDeadline
+      this._dragDeadline = newDeadline
+      this.requestUpdate()
+    }
+
+    this.startEdgeAutoScroll(
+      e.clientX,
+      e.clientY,
+      { allowX: true, allowY: false },
+      (cx) => applyDeadlineAt(cx),
+    )
+
+    this.setupDragEvents(
+      target,
+      e.pointerId,
+      (moveEvent) => {
+        this.updateAutoScrollPointer(moveEvent.clientX, moveEvent.clientY)
+        applyDeadlineAt(moveEvent.clientX)
+      },
+      (isCancel) => {
+        if (!hasMoved) {
+          this._isDraggingDeadline = false
+          this._dragDeadline = null
+          return
+        }
+        const finalDeadline = isCancel
+          ? originalDeadline
+          : (this._dragDeadline ?? currentDeadline)
+        this._isDraggingDeadline = false
+        this._dragDeadline = null
+
+        this.dispatchEvent(
+          new CustomEvent<TaskDeadlineChangeEventDetail>('task-deadline-change', {
+            detail: {
+              task: this.task,
+              deadline: finalDeadline,
+              originalDeadline,
+              cancelled: isCancel,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+        this.requestUpdate()
+      },
+    )
+  }
+
   private onContextMenu(e: MouseEvent) {
     // MacなどでCtrl+ドラッグ（コピー操作）を行おうとした際にコンテキストメニューが出ないようにする
     if (e.ctrlKey) {
@@ -2069,13 +2229,23 @@ export class GanttBarElement extends LitElement {
     const delayColor = this.option.baseline?.delayColor ?? '#ef4444'
 
     const isDeadlineFeatureEnabled = this.option.deadline?.enabled !== false
-    const deadlineDate = this.task.deadline
+    const deadlineDate =
+      this._isDraggingDeadline && this._dragDeadline ? this._dragDeadline : this.task.deadline
     const hasValidDeadline =
       !isSummary &&
       isDeadlineFeatureEnabled &&
       !!deadlineDate &&
       !isNaN(new Date(deadlineDate).getTime())
-    const deadlineInfo = hasValidDeadline ? calculateTaskDeadline(this.task) : null
+    const isDeadlineEditable =
+      hasValidDeadline &&
+      !isReadOnly &&
+      this.option.deadline?.editable !== false &&
+      movable !== 'none'
+    const effectiveTaskForDeadline =
+      this._isDraggingDeadline && this._dragDeadline
+        ? { ...this.task, deadline: this._dragDeadline }
+        : this.task
+    const deadlineInfo = hasValidDeadline ? calculateTaskDeadline(effectiveTaskForDeadline) : null
     const isOverdue = Boolean(
       deadlineInfo?.isOverdue && (this.option.deadline?.highlightOverdue !== false),
     )
@@ -2092,10 +2262,41 @@ export class GanttBarElement extends LitElement {
       this.option.deadline?.showConnector !== false &&
       connectorWidth > 4
     const showOverdueBadge =
+      !this._isDraggingDeadline &&
       hasValidDeadline &&
       isOverdue &&
       this.option.deadline?.showOverdueBadge !== false &&
       (deadlineInfo?.overdueDays ?? 0) > 0
+
+    let dragDeadlineLabel = ''
+    if (this._isDraggingDeadline && hasValidDeadline && deadlineDate) {
+      const locale = this.option.locale ?? jaLocale
+      const dForDisplay = new Date(deadlineDate)
+      if (this.option.calendar?.pxPerMonth) {
+        if (!isMilestone) {
+          dForDisplay.setMonth(dForDisplay.getMonth() - 1)
+        }
+        dragDeadlineLabel = locale.yearMonthFormat
+          ? locale.yearMonthFormat(dForDisplay)
+          : `${dForDisplay.getFullYear()}/${dForDisplay.getMonth() + 1}`
+      } else {
+        const isHourlyMode = !!this.option.calendar?.showTime
+        if (
+          !isHourlyMode &&
+          !isMilestone &&
+          dForDisplay.getHours() === 0 &&
+          dForDisplay.getMinutes() === 0
+        ) {
+          dForDisplay.setDate(dForDisplay.getDate() - 1)
+        }
+        dragDeadlineLabel = isHourlyMode
+          ? locale.dateTimeFormat(dForDisplay)
+          : locale.dateFormat(dForDisplay)
+      }
+      if (isOverdue && deadlineInfo && deadlineInfo.overdueDays > 0) {
+        dragDeadlineLabel += ` (+${deadlineInfo.overdueDays}d)`
+      }
+    }
 
     const isProgressFeatureEnabled = this.option.progress?.enabled !== false && !isMilestone
     const isProgressEditable =
@@ -2261,7 +2462,7 @@ export class GanttBarElement extends LitElement {
       ${hasValidDeadline
         ? html`
             <div
-              class="deadline-marker ${isOverdue ? 'overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
+              class="deadline-marker ${isDeadlineEditable ? 'editable' : ''} ${this._isDraggingDeadline ? 'dragging' : ''} ${isOverdue ? 'overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
               style="
                 left: ${deadlineX}px;
                 top: ${actualBarY - 2}px;
@@ -2269,11 +2470,15 @@ export class GanttBarElement extends LitElement {
                 --moguchart-deadline-color: ${deadlineColor};
                 --moguchart-overdue-color: ${overdueColor};
               "
+              @pointerdown="${isDeadlineEditable ? this.onDeadlineDragStart : undefined}"
               @mouseenter="${this.onDeadlineMouseEnter}"
               @mouseleave="${this.onDeadlineMouseLeave}"
               @click="${this.onClick}"
               @dblclick="${this.onDblClick}"
             >
+              ${this._isDraggingDeadline && dragDeadlineLabel
+                ? html`<span class="deadline-drag-badge">${dragDeadlineLabel}</span>`
+                : ''}
               ${showOverdueBadge && deadlineInfo
                 ? html`<span class="deadline-overdue-badge">+${deadlineInfo.overdueDays}d</span>`
                 : ''}

@@ -500,4 +500,50 @@ describe('GanttChartElement auto-schedule & advanced dependency integration', ()
     expect(chart.rows[0].tasks[1].start).toEqual(d(2025, 1, 10))
     expect(chart.rows[0].tasks[2].start).toEqual(d(2025, 1, 13))
   })
+
+  it('task-deadline-change イベントで期限が更新され、Undo / Redo で元に戻せる', async () => {
+    chart.option = createDefaultOption()
+    chart.rows = [
+      {
+        id: 'r1',
+        name: 'Row 1',
+        tasks: [
+          {
+            id: 't1',
+            name: 'T1',
+            start: d(2025, 1, 1),
+            end: d(2025, 1, 6),
+            deadline: d(2025, 1, 8),
+          },
+        ],
+      },
+    ]
+    document.body.appendChild(chart)
+    await chart.updateComplete
+
+    chart.dispatchEvent(
+      new CustomEvent('task-deadline-change', {
+        detail: {
+          task: chart.rows[0].tasks[0],
+          deadline: d(2025, 1, 12),
+          originalDeadline: d(2025, 1, 8),
+          cancelled: false,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    await chart.updateComplete
+
+    expect(chart.rows[0].tasks[0].deadline).toEqual(d(2025, 1, 12))
+    expect(chart.canUndo).toBe(true)
+
+    chart.undo()
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].deadline).toEqual(d(2025, 1, 8))
+
+    chart.redo()
+    await chart.updateComplete
+    expect(chart.rows[0].tasks[0].deadline).toEqual(d(2025, 1, 12))
+  })
 })

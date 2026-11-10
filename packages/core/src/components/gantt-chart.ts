@@ -15,6 +15,7 @@ import type {
   RowToggleCollapseEventDetail,
   TaskUpdateEventDetail,
   TaskProgressChangeEventDetail,
+  TaskDeadlineChangeEventDetail,
   CommandEventDetail,
   HistoryChangeEventDetail,
   GanttColumn,
@@ -532,6 +533,7 @@ export class GanttChartElement extends LitElement {
     this.addEventListener('paste', this.handleClipboardPaste as EventListener)
     this.addEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.addEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.addEventListener('task-deadline-change', this.handleTaskDeadlineChange as EventListener)
     this.addEventListener('zoom-change', this.handleInternalZoomChange as EventListener)
     this.addEventListener('wheel', this.handleWheel, { passive: false })
     // 初期テーマ設定
@@ -571,6 +573,7 @@ export class GanttChartElement extends LitElement {
     this.removeEventListener('paste', this.handleClipboardPaste as EventListener)
     this.removeEventListener('pointerdown', this._handlePointerDownFocus, true)
     this.removeEventListener('task-progress-change', this.handleTaskProgressChange as EventListener)
+    this.removeEventListener('task-deadline-change', this.handleTaskDeadlineChange as EventListener)
     this.removeEventListener('zoom-change', this.handleInternalZoomChange as EventListener)
     this.removeEventListener('wheel', this.handleWheel)
     this._scrollContainer?.removeEventListener('wheel', this.handleWheel)
@@ -1365,6 +1368,37 @@ export class GanttChartElement extends LitElement {
     this.applyRowsChangeWithCommand(previousRows, newRows, {
       type: 'task-progress',
       description: `進捗率の変更 (${progress}%)`,
+    })
+  }
+
+  private handleTaskDeadlineChange = (e: CustomEvent<TaskDeadlineChangeEventDetail>) => {
+    if (e.detail.cancelled) return
+    const { task, deadline, originalDeadline } = e.detail
+    if (this.option.readOnly || this.option.deadline?.editable === false) return
+    if (task.movable === 'none' || task.type === 'summary') return
+    if (!deadline || Number.isNaN(new Date(deadline).getTime())) return
+
+    const nextDeadline = new Date(deadline)
+    if (originalDeadline && new Date(originalDeadline).getTime() === nextDeadline.getTime()) {
+      return
+    }
+
+    let taskFound = false
+    const previousRows = this.rows
+    const newRows = this.rows.map((row) => {
+      const taskIndex = row.tasks.findIndex((t) => t.id === task.id)
+      if (taskIndex === -1) return row
+      taskFound = true
+      const updatedTasks = [...row.tasks]
+      updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], deadline: nextDeadline }
+      return { ...row, tasks: updatedTasks }
+    })
+
+    if (!taskFound) return
+
+    this.applyRowsChangeWithCommand(previousRows, newRows, {
+      type: 'task-deadline',
+      description: '期限の変更',
     })
   }
 
