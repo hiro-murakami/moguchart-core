@@ -198,9 +198,6 @@ export function computeSummaryTask(
   let hasAnyBaseline = false
   let hasAnyBaselineProgress = false
 
-  let maxDeadline = -Infinity
-  let hasAnyDeadline = false
-
   for (const task of childTasks) {
     const s = task.start.getTime()
     const e = task.end.getTime()
@@ -232,14 +229,6 @@ export function computeSummaryTask(
         }
       }
     }
-
-    if (task.deadline) {
-      const dl = task.deadline instanceof Date ? task.deadline.getTime() : new Date(task.deadline).getTime()
-      if (!Number.isNaN(dl)) {
-        hasAnyDeadline = true
-        if (dl > maxDeadline) maxDeadline = dl
-      }
-    }
   }
 
   const calculatedProgress =
@@ -262,10 +251,6 @@ export function computeSummaryTask(
         }
       : undefined)
 
-  const deadline =
-    template?.deadline ??
-    (hasAnyDeadline && maxDeadline !== -Infinity ? new Date(maxDeadline) : undefined)
-
   return {
     id: template?.id ?? 'summary-task',
     name: template?.name ?? '',
@@ -276,7 +261,6 @@ export function computeSummaryTask(
     resizable: false,
     progress: calculatedProgress,
     baseline,
-    deadline,
     ...template,
     // type, movable, resizable はサマリー固定
     style: template?.style,

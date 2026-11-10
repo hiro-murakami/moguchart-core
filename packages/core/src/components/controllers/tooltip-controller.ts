@@ -189,6 +189,7 @@ export class TooltipController implements ReactiveController {
 
       const deadline = this.tooltip.task.deadline
       const hasDeadline =
+        this.tooltip.task.type !== 'summary' &&
         !!deadline &&
         !isNaN(new Date(deadline).getTime()) &&
         this.host.option.deadline?.enabled !== false &&

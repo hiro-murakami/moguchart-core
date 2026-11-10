@@ -75,7 +75,7 @@ export function calculateRowSummaryDates(tasks: GanttTask[]): {
   let maxDeadline = -Infinity
 
   for (const task of tasks) {
-    if (task.deadline) {
+    if (task.type !== 'summary' && task.deadline) {
       const dl = task.deadline instanceof Date ? task.deadline.getTime() : new Date(task.deadline).getTime()
       if (!Number.isNaN(dl) && dl > maxDeadline) {
         maxDeadline = dl

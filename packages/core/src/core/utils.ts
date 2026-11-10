@@ -565,7 +565,7 @@ export function calculateTaskDeadline(task: GanttTask): {
   remainingMs: number
   remainingDays: number
 } {
-  if (!task || !task.deadline || !task.end) {
+  if (!task || task.type === 'summary' || !task.deadline || !task.end) {
     return {
       hasDeadline: false,
       isOverdue: false,

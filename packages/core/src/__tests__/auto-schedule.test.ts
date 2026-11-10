@@ -9,6 +9,7 @@ import {
 } from '../core/auto-schedule'
 import { GanttChartElement } from '../components/gantt-chart'
 import { calculateTaskDeadline } from '../core/utils'
+import { computeSummaryTask } from '../core/wbs'
 import type { GanttChartOption, GanttRow } from '../core/types'
 
 // Mock ResizeObserver
@@ -394,6 +395,25 @@ describe('calculateTaskDeadline & deadline bar rendering', () => {
     expect(remaining.hasDeadline).toBe(true)
     expect(remaining.isOverdue).toBe(false)
     expect(remaining.remainingDays).toBe(2)
+
+    // サマリータスクは子タスクに期限があっても期限超過とならない
+    const summaryTask = computeSummaryTask([
+      {
+        id: 'c1',
+        start: d(2025, 1, 1),
+        end: d(2025, 1, 10),
+        deadline: d(2025, 1, 10),
+      },
+      {
+        id: 'c2',
+        start: d(2025, 1, 10),
+        end: d(2025, 1, 20),
+      },
+    ])
+    expect(summaryTask?.deadline).toBeUndefined()
+    const summaryDeadlineInfo = calculateTaskDeadline(summaryTask!)
+    expect(summaryDeadlineInfo.hasDeadline).toBe(false)
+    expect(summaryDeadlineInfo.isOverdue).toBe(false)
   })
 })
 

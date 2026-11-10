@@ -1728,6 +1728,37 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onDeadlineMouseEnter(e: MouseEvent) {
+    const connLeft = this.shadowRoot?.querySelector('.connector-left')
+    const connRight = this.shadowRoot?.querySelector('.connector-right')
+    if (connLeft) connLeft.classList.remove('show-connector')
+    if (connRight) connRight.classList.remove('show-connector')
+
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseenter', {
+        detail: {
+          task: this.task,
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+          barBottom: rect.bottom,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
+  private onDeadlineMouseLeave() {
+    this.dispatchEvent(
+      new CustomEvent('bar-mouseleave', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   private onDblClick(e: MouseEvent) {
     this.dispatchEvent(
       new CustomEvent('task-dblclick', {
@@ -2040,6 +2071,7 @@ export class GanttBarElement extends LitElement {
     const isDeadlineFeatureEnabled = this.option.deadline?.enabled !== false
     const deadlineDate = this.task.deadline
     const hasValidDeadline =
+      !isSummary &&
       isDeadlineFeatureEnabled &&
       !!deadlineDate &&
       !isNaN(new Date(deadlineDate).getTime())
@@ -2237,8 +2269,8 @@ export class GanttBarElement extends LitElement {
                 --moguchart-deadline-color: ${deadlineColor};
                 --moguchart-overdue-color: ${overdueColor};
               "
-              @mouseenter="${this.onMouseEnter}"
-              @mouseleave="${this.onMouseLeave}"
+              @mouseenter="${this.onDeadlineMouseEnter}"
+              @mouseleave="${this.onDeadlineMouseLeave}"
               @click="${this.onClick}"
               @dblclick="${this.onDblClick}"
             >
