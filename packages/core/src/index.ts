@@ -20,6 +20,9 @@ export {
   calculateProjectBaselineSummary,
   getThemeColors,
   isMilestoneTask,
+  MAX_CALENDAR_DAYS,
+  sanitizeCssValue,
+  sanitizeInlineStyle,
 } from './core/utils'
 export { computeCriticalPath } from './core/critical-path'
 export * from './core/auto-schedule'

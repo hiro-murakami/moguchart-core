@@ -239,6 +239,60 @@ export function calculateTaskLanes(tasks: GanttTask[]): {
   }
 }
 
+/** カレンダー描画で許容する最大日数上限（約100年分、極端な日付によるタブフリーズ・OOM防止） */
+export const MAX_CALENDAR_DAYS = 36525
+
+const UNSAFE_CSS_TOKEN_RE = /[;{}<>\\\r\n]/
+const UNSAFE_CSS_KEYWORD_RE =
+  /(\/\*|\*\/|url\s*\(|expression\s*\(|@import|javascript\s*:|-moz-binding|behavior\s*:)/i
+const SAFE_CSS_PROP_RE = /^(--[a-zA-Z0-9_-]+|[a-zA-Z][a-zA-Z0-9-]*)$/
+
+/**
+ * 単一のCSSプロパティ値（色指定など）をサニタイズし、CSSインジェクションや外部リクエスト(`url(...)`)を防止します。
+ * 不正なトークンが含まれる場合は `fallback` を返します。
+ */
+export function sanitizeCssValue(value: string | undefined, fallback = ''): string {
+  if (typeof value !== 'string') return fallback
+  const trimmed = value.trim()
+  if (!trimmed) return fallback
+  if (UNSAFE_CSS_TOKEN_RE.test(trimmed) || UNSAFE_CSS_KEYWORD_RE.test(trimmed)) {
+    return fallback
+  }
+  return trimmed
+}
+
+/**
+ * インラインstyle属性文字列（`prop: value; ...`）を宣言単位で検証・サニタイズします。
+ * 構文破壊文字、`url(...)` 等の外部参照、およびビューポート固定によるUI偽装（`position: fixed/sticky`）を除去します。
+ */
+export function sanitizeInlineStyle(style: string | undefined): string {
+  if (typeof style !== 'string') return ''
+  const trimmed = style.trim()
+  if (!trimmed) return ''
+  if (/[{}<>\\\r\n]/.test(trimmed) || /(\/\*|\*\/)/.test(trimmed)) {
+    return ''
+  }
+
+  const safeDeclarations: string[] = []
+  for (const rawPart of trimmed.split(';')) {
+    const part = rawPart.trim()
+    if (!part) continue
+    const colonIdx = part.indexOf(':')
+    if (colonIdx <= 0) continue
+    const prop = part.slice(0, colonIdx).trim()
+    const rawVal = part.slice(colonIdx + 1).trim()
+    if (!SAFE_CSS_PROP_RE.test(prop)) continue
+    if (prop.toLowerCase() === 'position' && /^(fixed|sticky)\b/i.test(rawVal)) {
+      continue
+    }
+    const safeVal = sanitizeCssValue(rawVal, '')
+    if (!safeVal) continue
+    safeDeclarations.push(`${prop}: ${safeVal}`)
+  }
+
+  return safeDeclarations.join('; ')
+}
+
 /**
  * 現在のテーマ設定とカスタムテーマをマージして、最終的なカラーパレットを生成します。
  * @param theme ベースとなるテーマ名 ('light' | 'dark')
@@ -250,7 +304,19 @@ export const getThemeColors = (
   customTheme?: Partial<ThemeColorPalette>,
 ): ThemeColorPalette => {
   const base = THEME_COLORS[theme] || THEME_COLORS.light
-  return { ...base, ...customTheme }
+  if (!customTheme) return { ...base }
+  const merged: ThemeColorPalette = { ...base }
+  for (const key of Object.keys(customTheme) as Array<keyof ThemeColorPalette>) {
+    if (key === ('__proto__' as any) || key === ('constructor' as any) || key === ('prototype' as any)) {
+      continue
+    }
+    const raw = customTheme[key]
+    if (typeof raw === 'string') {
+      const fallback = base[key] ?? ''
+      ;(merged as any)[key] = raw === '' ? '' : sanitizeCssValue(raw, fallback)
+    }
+  }
+  return merged
 }
 
 export interface CalendarColorHolidayOptions {
@@ -273,7 +339,8 @@ export const getCalendarColor = (
 ): string => {
   const holidayMeta = isHoliday ? resolveHolidayMeta(isHoliday(date)) : null
   if (holidayMeta) {
-    return holidayMeta.color || colors.holiday
+    const safeHolidayColor = holidayMeta.color ? sanitizeCssValue(holidayMeta.color, '') : ''
+    return safeHolidayColor || colors.holiday
   }
 
   const dayOfWeek = date.getDay()
@@ -303,14 +370,18 @@ export const getCalendarColor = (
 
 /**
  * 開始日と終了日から日数を計算します。
+ * 不正な日付や逆転した期間に対しては 0 を返し、上限 `MAX_CALENDAR_DAYS` でクランプします。
  * @param start 開始日
  * @param end 終了日
  * @returns 日数
  */
 export function getTotalDays(start: Date, end: Date): number {
-  const diffTime = end.getTime() - start.getTime()
-  const diffDays = diffTime / (1000 * 60 * 60 * 24)
-  return diffDays
+  if (!(start instanceof Date) || !(end instanceof Date)) return 0
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return 0
+  const diffDays = (endMs - startMs) / (1000 * 60 * 60 * 24)
+  return Math.min(diffDays, MAX_CALENDAR_DAYS)
 }
 
 /**

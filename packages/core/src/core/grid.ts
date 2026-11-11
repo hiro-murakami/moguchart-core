@@ -322,6 +322,30 @@ export function reorderGridColumns(
   return next
 }
 
+const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+/**
+ * プロトタイプ汚染を引き起こす危険なオブジェクトキーかどうかを判定する
+ */
+export function isUnsafePropertyKey(key: string): boolean {
+  return UNSAFE_OBJECT_KEYS.has(key)
+}
+
+const FORMULA_TRIGGER_RE = /^[ \t]*(?:[=@]|[+-](?=\S))/
+const SAFE_SIGNED_NUMBER_RE = /^[ \t]*[+-]?\d+(?:\.\d+)?%?$/
+
+/**
+ * スプレッドシート（Excel / Google Sheets 等）への貼り付け・出力時の数式インジェクションを防止する
+ */
+export function sanitizeSpreadsheetFormula(text: string): string {
+  if (!text) return text
+  if (SAFE_SIGNED_NUMBER_RE.test(text)) return text
+  if (FORMULA_TRIGGER_RE.test(text)) {
+    return `'${text}`
+  }
+  return text
+}
+
 /**
  * 指定されたカラムのセル生値を行およびタスク群から取得する
  */
@@ -362,7 +386,12 @@ export function getGridCellValue(
     case 'deadline':
       return summary.deadline
     default:
-      if (column.field && (row as any)[column.field] !== undefined) {
+      if (
+        column.field &&
+        !isUnsafePropertyKey(column.field) &&
+        Object.prototype.hasOwnProperty.call(row, column.field) &&
+        (row as any)[column.field] !== undefined
+      ) {
         return (row as any)[column.field]
       }
       return undefined
@@ -940,7 +969,11 @@ export function applyGridCellEdit(
       return { changed: false, oldValue, newValue: oldValue }
     }
     if (setterResult && typeof setterResult === 'object') {
-      Object.assign(row, setterResult)
+      for (const key of Object.keys(setterResult)) {
+        if (!isUnsafePropertyKey(key)) {
+          ;(row as any)[key] = (setterResult as any)[key]
+        }
+      }
     }
     const newValue = getGridCellValue(column, row, normalTasks, wbsCode, calendarOptions)
     const isSame =
@@ -1245,7 +1278,7 @@ export function applyGridCellEdit(
     }
 
     default: {
-      if (column.field) {
+      if (column.field && !isUnsafePropertyKey(column.field)) {
         let nextVal: any = rawInputValue
         if (editorType === 'number' && typeof rawInputValue === 'string') {
           if (rawInputValue.trim() === '') {
@@ -1258,7 +1291,9 @@ export function applyGridCellEdit(
             nextVal = parsed
           }
         }
-        const prevVal = (row as any)[column.field]
+        const prevVal = Object.prototype.hasOwnProperty.call(row, column.field)
+          ? (row as any)[column.field]
+          : undefined
         if (prevVal === nextVal) {
           return { changed: false, oldValue: prevVal, newValue: nextVal }
         }
@@ -1707,6 +1742,7 @@ export function formatGridRangeToTsv(
     isTimeMode?: boolean
     wbsCodes?: Map<string, string>
     calendarOptions?: AutoScheduleOptions
+    sanitizeFormulas?: boolean
   },
 ): { tsv: string; rowIds: string[]; columnIds: string[] } {
   const resolved = resolveGridCellRange(displayRows, columns, range)
@@ -1714,6 +1750,7 @@ export function formatGridRangeToTsv(
     return { tsv: '', rowIds: [], columnIds: [] }
   }
 
+  const shouldSanitize = options?.sanitizeFormulas !== false
   const lines: string[] = []
   for (let r = resolved.startRowIndex; r <= resolved.endRowIndex; r++) {
     const row = displayRows[r]
@@ -1732,8 +1769,9 @@ export function formatGridRangeToTsv(
         options?.isMonthMode,
         options?.isTimeMode,
       )
-      // TSV 内でタブや改行が含まれる場合はスペースに置換
-      cells.push(String(formatted ?? '').replace(/[\t\r\n]+/g, ' '))
+      // TSV 内でタブや改行が含まれる場合はスペースに置換し、必要に応じて数式プレフィックスを無害化
+      const normalizedCell = String(formatted ?? '').replace(/[\t\r\n]+/g, ' ')
+      cells.push(shouldSanitize ? sanitizeSpreadsheetFormula(normalizedCell) : normalizedCell)
     }
     lines.push(cells.join('\t'))
   }
@@ -1748,15 +1786,26 @@ export function formatGridRangeToTsv(
 /**
  * クリップボード等のTSV文字列を2次元配列にパースする
  */
-export function parseTsvString(tsv: string): string[][] {
+export function parseTsvString(
+  tsv: string,
+  options?: { unescapeFormulas?: boolean },
+): string[][] {
   if (!tsv) return []
+  const shouldUnescape = options?.unescapeFormulas !== false
   const normalized = tsv.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const rawLines = normalized.split('\n')
   // スプレッドシートからのコピー時に末尾に空改行が付与されるケースを除去
   if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
     rawLines.pop()
   }
-  return rawLines.map((line) => line.split('\t'))
+  return rawLines.map((line) =>
+    line.split('\t').map((cell) => {
+      if (shouldUnescape && cell.startsWith("'") && FORMULA_TRIGGER_RE.test(cell.slice(1))) {
+        return cell.slice(1)
+      }
+      return cell
+    }),
+  )
 }
 
 

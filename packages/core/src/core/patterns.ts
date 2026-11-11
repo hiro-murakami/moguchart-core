@@ -1,4 +1,5 @@
 import type { GanttTaskPattern, BarPattern } from './types'
+import { sanitizeCssValue } from './utils'
 
 // ============================================================
 // パターン定数
@@ -83,7 +84,7 @@ export const PATTERN_DOTS_DENSE: GanttTaskPattern = {
  */
 export function getPatternStyle(pattern?: GanttTaskPattern): string {
   if (!pattern?.type) return ''
-  const color = pattern.color || 'rgba(255, 255, 255, 0.3)'
+  const color = sanitizeCssValue(pattern.color, 'rgba(255, 255, 255, 0.3)')
   const defaultSize = pattern.type === 'dots' ? '6px' : '8px'
   // sizeプロパティは廃止されたため、パターンタイプごとに固定サイズを定義
   let size = defaultSize

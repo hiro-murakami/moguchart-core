@@ -1609,6 +1609,88 @@ describe('exportGanttToExcel', () => {
     expect(frDef?.sheets?.gantt).toBe('Diagramme de Gantt')
     expect(frDef?.columns?.taskName).toBe('Nom de la tâche')
   })
+
+  it('[CORE-M01] should sanitize formula triggers and block raw ExcelJS formula/hyperlink object injection', async () => {
+    const maliciousChart: any = {
+      rows: [
+        {
+          id: 'p1',
+          name: '=CMD|\' /C calc\'!A0',
+          tasks: [],
+        },
+        {
+          id: 'c1',
+          parentId: 'p1',
+          name: 'Child Row',
+          tasks: [
+            {
+              id: 't1',
+              name: '=HYPERLINK("https://evil.example","Click")',
+              start: new Date(2026, 8, 1),
+              end: new Date(2026, 8, 3),
+              attribute: {
+                formulaObj: { formula: 'SUM(1,2)', result: 3 },
+                linkObj: { text: 'Click', hyperlink: 'javascript:alert(1)' },
+                plusFormula: '+SUM(A1:A2)',
+                signedNumber: '-42.5',
+              },
+            },
+          ],
+        },
+      ],
+      option: {
+        calendar: {
+          start: new Date(2026, 8, 1),
+          end: new Date(2026, 8, 5),
+        },
+      },
+    }
+
+    const blob = await exportGanttToExcel(maliciousChart, {
+      download: false,
+      columns: (defaults) => [
+        ...defaults,
+        { key: 'formulaObj', header: '=BadHeader' },
+        { key: 'linkObj', header: 'LinkCol' },
+        { key: 'plusFormula', header: 'PlusCol' },
+        { key: 'signedNumber', header: 'SignedNumCol' },
+      ],
+    })
+
+    const readBlob = (b: Blob): Promise<Uint8Array> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+        reader.onerror = reject
+        reader.readAsArrayBuffer(b)
+      })
+
+    const buf = await readBlob(blob)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+    const ws = wb.getWorksheet('工程表')!
+
+    // Header formula prefix escaped
+    expect(ws.getCell(1, 10).value).toBe("'=BadHeader")
+    // Row 3: parent row name escaped
+    expect(ws.getCell(3, 3).value).toBe("'=CMD|' /C calc'!A0")
+    // Row 4: indented child taskName with '=' escaped
+    expect(ws.getCell(4, 4).value).toBe('\'　=HYPERLINK("https://evil.example","Click")')
+    // Object attributes serialized as plain text, NOT interpreted as Excel formula or hyperlink
+    expect(ws.getCell(4, 10).formula).toBeUndefined()
+    expect(typeof ws.getCell(4, 10).value).toBe('string')
+    expect(typeof ws.getCell(4, 11).value).toBe('string')
+    expect(ws.getCell(4, 12).value).toBe("'+SUM(A1:A2)")
+    expect(ws.getCell(4, 13).value).toBe('-42.5')
+  })
+
+  it('[CORE-M02] should reject extreme timeline column counts and handle invalid/inverted dates safely', () => {
+    expect(generateTimelineList(new Date('invalid'), new Date(2026, 8, 5), 'day')).toEqual([])
+    expect(generateTimelineList(new Date(2026, 8, 10), new Date(2026, 8, 1), 'day')).toEqual([])
+    expect(() =>
+      generateTimelineList(new Date('0001-01-01T00:00:00Z'), new Date('9999-12-31T00:00:00Z'), 'day'),
+    ).toThrow(RangeError)
+  })
 })
 
 

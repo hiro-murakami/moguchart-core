@@ -14,7 +14,13 @@ import type {
   GanttColumn,
   GridCellNavigationDirection,
 } from '../core/types'
-import { calculateTaskLanes, getThemeColors, dateToX } from '../core/utils'
+import {
+  calculateTaskLanes,
+  getThemeColors,
+  dateToX,
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+} from '../core/utils'
 import {
   normalizeGridColumns,
   getGridCellValue,
@@ -1247,13 +1253,18 @@ export class GanttRowElement extends LitElement {
       currentMonthStart.setDate(1)
       currentMonthStart.setHours(0, 0, 0, 0)
 
-      while (currentMonthStart <= calEndNextMonth) {
-        const x = this.getDateX(currentMonthStart)
-        if (x > startX && x <= endX) {
-          const isYearBoundary = currentMonthStart.getMonth() === 0
-          monthBoundaries.push({ left: x, isYearBoundary })
+      const maxMonthIterations = 12000
+      let monthIterations = 0
+      if (!Number.isNaN(currentMonthStart.getTime()) && !Number.isNaN(calEndNextMonth.getTime())) {
+        while (currentMonthStart <= calEndNextMonth && monthIterations < maxMonthIterations) {
+          monthIterations++
+          const x = this.getDateX(currentMonthStart)
+          if (x > startX && x <= endX) {
+            const isYearBoundary = currentMonthStart.getMonth() === 0
+            monthBoundaries.push({ left: x, isYearBoundary })
+          }
+          currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
         }
-        currentMonthStart.setMonth(currentMonthStart.getMonth() + 1)
       }
       this._cachedMonthGridLines = monthBoundaries
     }
@@ -1267,7 +1278,7 @@ export class GanttRowElement extends LitElement {
       const snapMinutes = this.option.snapDuration ?? 60
       const snapWidth = (this.option.calendar.pxPerDay / (24 * 60)) * snapMinutes
       const dayWidth = this.option.calendar.pxPerDay
-      const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.gridLine
+      const dayLineColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.gridLine
 
       // 開始時刻が0時でない場合、背景グリッドをオフセットして日区切り線位置を合わせる
       const startDate = this.option.calendar.start
@@ -1787,7 +1798,8 @@ export class GanttRowElement extends LitElement {
             if (useVirtualX && !isSelected && (x < this.visibleStartX - 400 || x > this.visibleEndX + 400)) {
               return ''
             }
-            const markerColor = marker.color ?? '#ef4444'
+            const markerColor = sanitizeCssValue(marker.color, '#ef4444')
+            const safeMarkerStyle = sanitizeInlineStyle(marker.style)
             // フォントサイズからシンボルサイズを算出（フォントサイズに連動）
             const fontSize = this.resolveMarkerFontSize(marker.fontSize)
             const individualMarkerSize = Math.min(barHeight, Math.max(8, Math.round(fontSize * 1.2)))
@@ -1859,7 +1871,7 @@ export class GanttRowElement extends LitElement {
                   style="
                     flex-shrink: 0;
                     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-                    ${marker.style ?? ''}
+                    ${safeMarkerStyle ? `${safeMarkerStyle};` : ''}
                   "
                 >
                   <path d="${this.getMarkerPath(marker.type, individualMarkerSize)}" fill="${markerColor}" />

@@ -50,7 +50,14 @@ import {
   formatGridRangeToTsv,
   parseTsvString,
 } from '../core/grid'
-import { calculateTaskLanes, getThemeColors, dateToX, xToDate } from '../core/utils'
+import {
+  calculateTaskLanes,
+  getThemeColors,
+  dateToX,
+  xToDate,
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+} from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
 import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule'
 import { LitElement, html, type PropertyValues } from 'lit'
@@ -3228,12 +3235,15 @@ export class GanttChartElement extends LitElement {
         }
       : null
 
+    const safeSummaryBarColor = sanitizeCssValue(this.option?.tree?.summaryColor, '')
+    const safeSummaryProgressColor = sanitizeCssValue(this.option?.progress?.summaryColor, '')
+
     return html`
       <style>${buildDynamicStyles(this.theme, this.option.customTheme)}
         :host {
           --critical-path-color: ${colors.criticalPath ?? 'rgba(220, 38, 38, 0.85)'};
-          ${this.option?.tree?.summaryColor ? `--moguchart-summary-bar-color: ${this.option.tree.summaryColor};` : ''}
-          ${this.option?.progress?.summaryColor ? `--moguchart-summary-progress-color: ${this.option.progress.summaryColor};` : ''}
+          ${safeSummaryBarColor ? `--moguchart-summary-bar-color: ${safeSummaryBarColor};` : ''}
+          ${safeSummaryProgressColor ? `--moguchart-summary-progress-color: ${safeSummaryProgressColor};` : ''}
           ${this.effectiveFontScale !== undefined ? `--moguchart-font-scale: ${this.effectiveFontScale};` : ''}
         }
       </style>
@@ -3345,8 +3355,10 @@ export class GanttChartElement extends LitElement {
               ></div>
             `
         : ''}
-        ${visibleMilestones.map(
-          (ms) => html`
+        ${visibleMilestones.map((ms) => {
+          const safeMsColor = sanitizeCssValue(ms.color, '#8b5cf6')
+          const safeMsStyle = sanitizeInlineStyle(ms.style)
+          return html`
             <div
               class="milestone-line ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
@@ -3354,9 +3366,9 @@ export class GanttChartElement extends LitElement {
                 left: ${this.getDateX(ms.start) + labelWidth}px;
                 height: ${totalHeight}px;
                 width: ${ms.width ?? 2}px;
-                background-color: ${ms.color};
+                background-color: ${safeMsColor};
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
-                ${ms.style ?? ''}
+                ${safeMsStyle ? `${safeMsStyle};` : ''}
               "
               @mouseenter="${() => {
               this.hoveredMilestoneId = ms.id
@@ -3365,8 +3377,8 @@ export class GanttChartElement extends LitElement {
               this.hoveredMilestoneId = null
             }}"
             ></div>
-          `,
-        )}
+          `
+        })}
         ${overlayRenderContext
           ? html`
               <div

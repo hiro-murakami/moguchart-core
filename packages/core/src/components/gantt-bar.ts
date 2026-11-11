@@ -17,6 +17,8 @@ import {
   calculateTaskDelay,
   calculateTaskDeadline,
   isMilestoneTask,
+  sanitizeCssValue,
+  sanitizeInlineStyle,
 } from '../core/utils'
 import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
 
@@ -2200,7 +2202,7 @@ export class GanttBarElement extends LitElement {
     const width = isMilestone ? diamondSize : rawWidth
     const groupTop = isMilestone ? actualBarY + (actualBarHeight - diamondSize) / 2 : actualBarY
     const groupHeight = isMilestone ? diamondSize : actualBarHeight
-    const milestoneColor = this.option.bar?.milestoneColor ?? '#8b5cf6'
+    const milestoneColor = sanitizeCssValue(this.option.bar?.milestoneColor, '#8b5cf6')
 
     const rawBarLabelPos: GanttBarLabelPosition =
       this.task.labelPosition ??
@@ -2215,8 +2217,11 @@ export class GanttBarElement extends LitElement {
 
     const bx = hasValidBaseline ? this.getX(baselineData!.start) : 0
     const bwidth = hasValidBaseline ? Math.max(1, this.getX(baselineData!.end) - bx) : 0
-    const baselineColor =
-      baselineData?.color ?? this.option.baseline?.color ?? (isSummary ? '#64748b' : '#94a3b8')
+    const defaultBaselineColor = isSummary ? '#64748b' : '#94a3b8'
+    const baselineColor = sanitizeCssValue(
+      baselineData?.color ?? this.option.baseline?.color,
+      defaultBaselineColor,
+    )
     const baselineCornerRadius = this.option.baseline?.cornerRadius ?? 2
     const hasBaselineProgress =
       hasValidBaseline &&
@@ -2226,7 +2231,7 @@ export class GanttBarElement extends LitElement {
 
     const delayInfo = hasValidBaseline ? calculateTaskDelay(this.task) : null
     const isDelayed = delayInfo?.isDelayed && (this.option.baseline?.highlightDelay !== false)
-    const delayColor = this.option.baseline?.delayColor ?? '#ef4444'
+    const delayColor = sanitizeCssValue(this.option.baseline?.delayColor, '#ef4444')
 
     const isDeadlineFeatureEnabled = this.option.deadline?.enabled !== false
     const deadlineDate =
@@ -2249,10 +2254,10 @@ export class GanttBarElement extends LitElement {
     const isOverdue = Boolean(
       deadlineInfo?.isOverdue && (this.option.deadline?.highlightOverdue !== false),
     )
-    const overdueColor = this.option.deadline?.overdueColor ?? '#ef4444'
+    const overdueColor = sanitizeCssValue(this.option.deadline?.overdueColor, '#ef4444')
     const deadlineColor = isOverdue
       ? overdueColor
-      : (this.option.deadline?.color ?? '#f59e0b')
+      : sanitizeCssValue(this.option.deadline?.color, '#f59e0b')
     const deadlineX = hasValidDeadline ? this.getX(new Date(deadlineDate!)) : 0
     const barEndEdgeX = isMilestone ? rawX : rawX + rawWidth
     const connectorLeft = Math.min(barEndEdgeX, deadlineX)
@@ -2323,15 +2328,18 @@ export class GanttBarElement extends LitElement {
           ? this.option.progress.labelFormatter(progressVal, this.task)
           : `${Math.round(progressVal)}%`
         : ''
+    const safeSummaryProgressColor = sanitizeCssValue(this.option.progress?.summaryColor, '')
+    const safeTaskProgressColor = sanitizeCssValue(
+      this.task.progressColor ?? this.option.progress?.color,
+      '',
+    )
     const progressColorStyle = isSummary
-      ? (this.option.progress?.summaryColor
-          ? `background-color: ${this.option.progress.summaryColor};`
-          : '')
-      : (this.task.progressColor
-          ? `background-color: ${this.task.progressColor};`
-          : this.option.progress?.color
-            ? `background-color: ${this.option.progress.color};`
-            : '')
+      ? (safeSummaryProgressColor ? `background-color: ${safeSummaryProgressColor};` : '')
+      : (safeTaskProgressColor ? `background-color: ${safeTaskProgressColor};` : '')
+    const safeBaselineStyle = sanitizeInlineStyle(baselineData?.style)
+    const safeTaskStyle = sanitizeInlineStyle(this.task.style)
+    const safeProgressStyle = sanitizeInlineStyle(this.task.progressStyle)
+    const safeLabelStyle = sanitizeInlineStyle(this.task.labelStyle)
 
     const isFiltered =
       (this.task as any)._isFilteredOut === true ||
@@ -2358,7 +2366,7 @@ export class GanttBarElement extends LitElement {
                 style="
                   border-radius: ${isSummary ? 0 : baselineCornerRadius}px;
                   background-color: ${baselineColor};
-                  ${baselineData?.style || ''};
+                  ${safeBaselineStyle ? `${safeBaselineStyle};` : ''}
                 "
               >
                 ${hasBaselineProgress && baselineProgressVal !== null
@@ -2392,7 +2400,7 @@ export class GanttBarElement extends LitElement {
           class="bar ${isSummary ? 'summary-bar' : ''} ${isMilestone ? 'milestone-bar' : ''}"
           style="border-radius: ${isSummary ? 0 : isMilestone ? 2 : barCornerRadius}px; ${isMilestone
             ? `background-color: ${milestoneColor};`
-            : ''} ${this.task.style || ''}; ${getPatternStyle(
+            : ''} ${safeTaskStyle ? `${safeTaskStyle};` : ''} ${getPatternStyle(
             this.task.pattern,
           )}; ${!canMove ? 'cursor: pointer;' : ''}"
           @pointerdown="${canMove ? this.onMoveStart : undefined}"
@@ -2402,7 +2410,7 @@ export class GanttBarElement extends LitElement {
                 class="progress-bar ${indicatorPosition !== 'full'
                   ? `indicator-${indicatorPosition}`
                   : ''} ${this._isDraggingProgress ? 'dragging' : ''}"
-                style="width: ${progressVal}%; ${progressColorStyle} ${this.task.progressStyle || ''}"
+                style="width: ${progressVal}%; ${progressColorStyle} ${safeProgressStyle ? `${safeProgressStyle};` : ''}"
               ></div>`
             : ''}
           ${this.option.customRendering?.barContent ? this.option.customRendering.barContent(this.task) : ''}
@@ -2410,7 +2418,7 @@ export class GanttBarElement extends LitElement {
         ${!this.option.customRendering?.barContent && this.task.name
           ? html`<div
               class="bar-label pos-${effectiveBarLabelPos}"
-              style="${this.task.labelStyle || ''}; ${isFiltered ? 'opacity: 0.2;' : ''}"
+              style="${safeLabelStyle ? `${safeLabelStyle}; ` : ''}${isFiltered ? 'opacity: 0.2;' : ''}"
             >${this.task.name}</div>`
           : ''}
         ${showProgressLabel && progressLabelText

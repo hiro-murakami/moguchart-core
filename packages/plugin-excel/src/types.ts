@@ -70,6 +70,8 @@ export interface ExportExcelOptions {
   endDate?: Date
   /** 出力カラムのカスタム定義配列、または標準カラム配列を受け取ってカスタマイズする関数 (指定しない場合は標準カラムが出力されます) */
   columns?: ExcelExportColumn[] | ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])
+  /** 文字列セルの先頭数式文字（=, +, -, @）を無害化するか (デフォルト: true) */
+  sanitizeFormulas?: boolean
   /** 自動ダウンロードを実行するか (デフォルト: true。ブラウザ環境のみ有効) */
   download?: boolean
 }
@@ -106,6 +108,8 @@ export interface ExcelPluginConfig {
   isHoliday?: GanttHolidayChecker
   /** デフォルトの祝祭日背景色 */
   holidayColor?: string
+  /** 文字列セルの先頭数式文字（=, +, -, @）を無害化するか (デフォルト: true) */
+  sanitizeFormulas?: boolean
 }
 
 declare module '@mogura/moguchart-core' {

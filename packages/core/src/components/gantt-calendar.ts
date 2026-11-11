@@ -17,7 +17,14 @@ import type {
 import { jaLocale } from '../core/i18n'
 import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
 import { createCustomHolidayResolver } from '../core/auto-schedule'
-import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
+import {
+  getCalendarColor,
+  getThemeColors,
+  getTotalDays,
+  dateToX,
+  MAX_CALENDAR_DAYS,
+  sanitizeCssValue,
+} from '../core/utils'
 import { normalizeGridColumns, reorderGridColumns } from '../core/grid'
 import dayjs from 'dayjs'
 
@@ -1253,7 +1260,8 @@ export class GanttCalendarElement extends LitElement {
       this._cachedPxPerDay = pxPerDay
       this._cachedPxPerMonth = pxPerMonth
 
-      const days = Array.from({ length: Math.ceil(this.totalDays) }, (_, i) => {
+      const safeDayCount = Math.min(MAX_CALENDAR_DAYS, Math.max(0, Math.ceil(this.totalDays)))
+      const days = Array.from({ length: safeDayCount }, (_, i) => {
         const d = new Date(this.option.calendar.start)
         d.setDate(d.getDate() + i)
         return d
@@ -1380,7 +1388,7 @@ export class GanttCalendarElement extends LitElement {
 
     const hourWidth = this.option.calendar.pxPerDay / 24
     const dayWidth = this.option.calendar.pxPerDay
-    const dayLineColor = this.option.customTheme?.showTimeDateLine ?? colors.monthGridLine ?? colors.border
+    const dayLineColor = colors.showTimeDateLine ?? colors.monthGridLine ?? colors.border
     // 開始時刻が0時でない場合、背景グリッドをオフセットする
     const startDate = this.option.calendar.start
     const startOffsetMs =
@@ -1403,27 +1411,29 @@ export class GanttCalendarElement extends LitElement {
       cur.setHours(0, 0, 0, 0)
       let accShowTimeLeft = 0
       let segIdx = 0
-      while (cur.getTime() < calEnd.getTime()) {
-        const segStart = cur.getTime() < calStart.getTime() ? calStart : cur
-        const nextDay = new Date(cur)
-        nextDay.setDate(nextDay.getDate() + 1)
-        const segEnd = nextDay.getTime() > calEnd.getTime() ? calEnd : nextDay
-        const hStart = segStart.getHours()
-        const hEndRaw = segEnd.getHours()
-        const hasFraction = segEnd.getMinutes() > 0 || segEnd.getSeconds() > 0 || segEnd.getMilliseconds() > 0
-        const hEnd = hEndRaw === 0 && !hasFraction ? 24 : hasFraction ? hEndRaw + 1 : hEndRaw
-        const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
-        const widthPx = durationHours * hourWidth
-        showTimeDays.push({
-          date: new Date(cur),
-          hStart,
-          hEnd,
-          left: accShowTimeLeft,
-          width: widthPx,
-          segIndex: segIdx++,
-        })
-        accShowTimeLeft += widthPx
-        cur = new Date(nextDay)
+      if (!Number.isNaN(cur.getTime()) && !Number.isNaN(calEnd.getTime())) {
+        while (cur.getTime() < calEnd.getTime() && segIdx < MAX_CALENDAR_DAYS) {
+          const segStart = cur.getTime() < calStart.getTime() ? calStart : cur
+          const nextDay = new Date(cur)
+          nextDay.setDate(nextDay.getDate() + 1)
+          const segEnd = nextDay.getTime() > calEnd.getTime() ? calEnd : nextDay
+          const hStart = segStart.getHours()
+          const hEndRaw = segEnd.getHours()
+          const hasFraction = segEnd.getMinutes() > 0 || segEnd.getSeconds() > 0 || segEnd.getMilliseconds() > 0
+          const hEnd = hEndRaw === 0 && !hasFraction ? 24 : hasFraction ? hEndRaw + 1 : hEndRaw
+          const durationHours = (segEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60)
+          const widthPx = durationHours * hourWidth
+          showTimeDays.push({
+            date: new Date(cur),
+            hStart,
+            hEnd,
+            left: accShowTimeLeft,
+            width: widthPx,
+            segIndex: segIdx++,
+          })
+          accShowTimeLeft += widthPx
+          cur = new Date(nextDay)
+        }
       }
     }
 
@@ -1747,13 +1757,14 @@ export class GanttCalendarElement extends LitElement {
           if (useVirtualX && (msX < this.visibleStartX - 200 || msX > this.visibleEndX + 200)) {
             return ''
           }
+          const safeMsColor = sanitizeCssValue(ms.color, '#8b5cf6')
           return html`
             <div
               class="milestone-connector ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
                 left: ${msX + 1}px;
                 width: ${ms.width ?? 2}px;
-                background-color: ${ms.color};
+                background-color: ${safeMsColor};
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
               "
               @mouseenter="${() => {
@@ -1779,7 +1790,7 @@ export class GanttCalendarElement extends LitElement {
               class="milestone-badge ${this.hoveredMilestoneId === ms.id ? 'milestone-hovered' : ''}"
               style="
                 left: ${msX}px;
-                background-color: ${ms.color};
+                background-color: ${safeMsColor};
                 opacity: ${this.hoveredMilestoneId === ms.id ? 1 : 0.5};
               "
               @mouseenter="${() => {

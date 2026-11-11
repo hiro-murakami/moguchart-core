@@ -43,6 +43,7 @@ export function excelPlugin(config?: ExcelPluginConfig): GanttPlugin<ExcelPlugin
           isHoliday: opts.isHoliday ?? mergedConfig.isHoliday,
           holidayColor: opts.holidayColor ?? mergedConfig.holidayColor,
           columns: opts.columns ?? mergedConfig.defaultColumns,
+          sanitizeFormulas: opts.sanitizeFormulas ?? mergedConfig.sanitizeFormulas,
           ...opts,
         }
 

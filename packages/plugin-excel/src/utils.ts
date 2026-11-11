@@ -476,6 +476,24 @@ export function detectColumnsPerUnit(
   return 1
 }
 
+/** Excel (.xlsx) シートの最大列数制限(16,384列)およびメモリ枯渇を防ぐタイムライン列上限 */
+export const MAX_EXCEL_TIMELINE_COLUMNS = 16000
+
+const EXCEL_FORMULA_TRIGGER_RE = /^[\s\u3000]*(?:[=@]|[+-](?=\S))/
+const EXCEL_SAFE_SIGNED_NUMBER_RE = /^[\s\u3000]*[+-]?\d+(?:\.\d+)?%?$/
+
+/**
+ * Excel セル文字列の先頭数式トリガー文字（=, +, -, @）を無害化する
+ */
+export function sanitizeExcelFormulaString(text: string): string {
+  if (!text) return text
+  if (EXCEL_SAFE_SIGNED_NUMBER_RE.test(text)) return text
+  if (EXCEL_FORMULA_TRIGGER_RE.test(text)) {
+    return `'${text}`
+  }
+  return text
+}
+
 /**
  * 各スケール（日・週・月・時間）に応じたタイムライン列リストを生成する
  */
@@ -489,7 +507,25 @@ export function generateTimelineList(
   isHoliday?: GanttHolidayChecker,
   locale: ExcelLocale = 'ja'
 ): TimelineItem[] {
+  if (
+    !(startDate instanceof Date) ||
+    !(endDate instanceof Date) ||
+    Number.isNaN(startDate.getTime()) ||
+    Number.isNaN(endDate.getTime()) ||
+    endDate.getTime() < startDate.getTime()
+  ) {
+    return []
+  }
+
   const items: TimelineItem[] = []
+  const pushItem = (item: TimelineItem) => {
+    if (items.length >= MAX_EXCEL_TIMELINE_COLUMNS) {
+      throw new RangeError(
+        `Timeline range exceeds maximum supported Excel columns (${MAX_EXCEL_TIMELINE_COLUMNS})`
+      )
+    }
+    items.push(item)
+  }
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTime = today.getTime()
@@ -532,7 +568,7 @@ export function generateTimelineList(
 
       const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month
 
-      items.push({
+      pushItem({
         key: `month-${year}-${month}`,
         startDate: mStart,
         endDate: mEnd,
@@ -565,7 +601,7 @@ export function generateTimelineList(
       const day = wStart.getDate()
       const monthName = monthNames[month - 1] ?? `${month}月`
 
-      items.push({
+      pushItem({
         key: `week-${year}-${month}-${day}`,
         startDate: wStart,
         endDate: wEnd,
@@ -609,7 +645,7 @@ export function generateTimelineList(
         const groupLabel = yearMonthDayFormat(year, month, day, '', monthName)
 
         if (validCols === 1) {
-          items.push({
+          pushItem({
             key: `hour-${year}-${month}-${day}-${hour}`,
             startDate: hStart,
             endDate: new Date(cur.getTime() + 60 * 60 * 1000 - 1),
@@ -626,7 +662,7 @@ export function generateTimelineList(
             const slotStart = new Date(hStart.getTime() + sIdx * slotMinutes * 60 * 1000)
             const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60 * 1000 - 1)
 
-            items.push({
+            pushItem({
               key: `hour-${year}-${month}-${day}-${hour}-${sIdx}`,
               startDate: slotStart,
               endDate: slotEnd,
@@ -668,7 +704,7 @@ export function generateTimelineList(
       if (validCols === 1) {
         const dStart = new Date(cur)
         const dEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999)
-        items.push({
+        pushItem({
           key: `day-${year}-${month}-${day}`,
           startDate: dStart,
           endDate: dEnd,
@@ -687,7 +723,7 @@ export function generateTimelineList(
           const startHour = slotStart.getHours()
           const startMin = slotStart.getMinutes()
 
-          items.push({
+          pushItem({
             key: `day-${year}-${month}-${day}-${sIdx}`,
             startDate: slotStart,
             endDate: slotEnd,

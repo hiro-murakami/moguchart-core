@@ -1,7 +1,13 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { createCustomHolidayResolver } from '../core/auto-schedule'
-import { getCalendarColor, getThemeColors, getTotalDays, dateToX } from '../core/utils'
+import {
+  getCalendarColor,
+  getThemeColors,
+  getTotalDays,
+  dateToX,
+  MAX_CALENDAR_DAYS,
+} from '../core/utils'
 import type { GanttChartOption, ChartBackgroundCellContext, GanttHolidayChecker } from '../core/types'
 
 interface CachedBgCell {
@@ -125,7 +131,7 @@ export class GanttRowBackgroundElement extends LitElement {
       this._cachedIsHoliday = this.option.calendar.isHoliday
       this._cachedNonWorkingDays = this.option.calendar.nonWorkingDays
 
-      const dayCount = Math.max(0, Math.ceil(this.totalDays))
+      const dayCount = Math.min(MAX_CALENDAR_DAYS, Math.max(0, Math.ceil(this.totalDays)))
       const allCells: CachedBgCell[] = new Array(dayCount)
       const coloredCells: CachedBgCell[] = []
 

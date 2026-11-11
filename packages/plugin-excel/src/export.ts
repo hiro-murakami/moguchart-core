@@ -9,6 +9,7 @@ import type {
 import {
   hexToArgb,
   sanitizeSheetName,
+  sanitizeExcelFormulaString,
   getTimelineRange,
   generateTimelineList,
   detectTimelineScale,
@@ -217,10 +218,14 @@ function buildTimelineSheet(
   // --- ヘッダー行 1 (テーブルヘッダー & グループヘッダーマージ) ---
   const headerRow1 = ws.getRow(1)
   headerRow1.height = 22
+  const shouldSanitizeFormulas = options.sanitizeFormulas !== false
 
   columns.forEach((col, idx) => {
     const cell = headerRow1.getCell(idx + 1)
-    cell.value = col.header
+    cell.value =
+      shouldSanitizeFormulas && typeof col.header === 'string'
+        ? sanitizeExcelFormulaString(col.header)
+        : col.header
     applyHeaderStyle(cell, themeArgb)
   })
 
@@ -295,7 +300,18 @@ function buildTimelineSheet(
     if (tasks.length === 0) {
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 20
-      renderTableRowCells(excelRow, columns, item, null, null, taskIdToNoMap, depth, isParent, scale)
+      renderTableRowCells(
+        excelRow,
+        columns,
+        item,
+        null,
+        null,
+        taskIdToNoMap,
+        depth,
+        isParent,
+        scale,
+        shouldSanitizeFormulas
+      )
       applyTimelineEmptyCells(excelRow, columns.length, timelineList, holidayArgb, scale)
       currentRowIndex++
       continue
@@ -305,7 +321,18 @@ function buildTimelineSheet(
       const excelRow = ws.getRow(currentRowIndex)
       excelRow.height = 22
       const taskNo = taskToNoMap.get(task) ?? null
-      renderTableRowCells(excelRow, columns, item, task, taskNo, taskIdToNoMap, depth, isParent, scale)
+      renderTableRowCells(
+        excelRow,
+        columns,
+        item,
+        task,
+        taskNo,
+        taskIdToNoMap,
+        depth,
+        isParent,
+        scale,
+        shouldSanitizeFormulas
+      )
 
       // タイムラインのセル塗りつぶし描画
       renderTimelineTaskBar(excelRow, columns.length, timelineList, task, isParent, themeArgb, holidayArgb, scale)
@@ -360,7 +387,8 @@ function renderTableRowCells(
   taskIdToNoMap: Map<string | number, number>,
   depth: number,
   isParent: boolean,
-  scale: ExcelTimelineScale = 'day'
+  scale: ExcelTimelineScale = 'day',
+  sanitizeFormulas = true
 ): void {
   const { row, wbsNumber } = item
 
@@ -484,10 +512,27 @@ function renderTableRowCells(
           break
         }
         default: {
-          if (task && col.key) {
-            const attrValue = (task as any).attribute?.[col.key] ?? (task as any)[col.key]
+          if (
+            task &&
+            col.key &&
+            col.key !== '__proto__' &&
+            col.key !== 'constructor' &&
+            col.key !== 'prototype'
+          ) {
+            const attrObj = (task as any).attribute
+            const attrValue =
+              attrObj && Object.prototype.hasOwnProperty.call(attrObj, col.key)
+                ? attrObj[col.key]
+                : Object.prototype.hasOwnProperty.call(task, col.key)
+                  ? (task as any)[col.key]
+                  : undefined
             if (Array.isArray(attrValue)) {
-              value = attrValue.filter(Boolean).join(', ')
+              value = attrValue.filter((v) => v !== undefined && v !== null && v !== '').join(', ')
+            } else if (attrValue instanceof Date) {
+              value = Number.isNaN(attrValue.getTime()) ? '' : toExcelDate(attrValue)
+            } else if (typeof attrValue === 'object' && attrValue !== null) {
+              // ExcelJS の { formula, hyperlink } オブジェクトセル記述子注入を防止
+              value = JSON.stringify(attrValue)
             } else if (attrValue !== undefined && attrValue !== null) {
               value = attrValue
             } else {
@@ -498,6 +543,10 @@ function renderTableRowCells(
           }
         }
       }
+    }
+
+    if (sanitizeFormulas && typeof value === 'string') {
+      value = sanitizeExcelFormulaString(value)
     }
 
     cell.value = value
