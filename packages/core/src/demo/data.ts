@@ -1,4 +1,5 @@
 import type { GanttRow, GanttTask, GanttTaskPattern } from '../core/types'
+import { isHoliday } from './holidays'
 import type { DemoTexts } from './i18n'
 
 const chartStart = new Date()
@@ -9,6 +10,39 @@ chartStart.setHours(0, 0, 0, 0)
  */
 const d = (base: Date, offset: number): Date =>
   new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset)
+
+/**
+ * デモの標準非営業日（土日・祝日・カスタム休業日 +3, +10, +11）かどうかを判定
+ */
+const isDemoNonWorkingOffset = (base: Date, offset: number): boolean => {
+  if (offset === 3 || offset === 10 || offset === 11) return true
+  const dt = d(base, offset)
+  const day = dt.getDay()
+  if (day === 0 || day === 6) return true
+  return Boolean(isHoliday(dt))
+}
+
+/** 指定オフセット以降で最初の営業日オフセットを返す */
+const nextWorkingOffset = (base: Date, minOffset: number): number => {
+  let cur = minOffset
+  while (isDemoNonWorkingOffset(base, cur) && cur < minOffset + 14) {
+    cur++
+  }
+  return cur
+}
+
+/** 開始オフセットから指定営業日数分の期間をとった exclusive end オフセットを返す */
+const addWorkingDaysOffset = (base: Date, startOffset: number, workingDays: number): number => {
+  let cur = startOffset
+  let count = 0
+  while (count < workingDays && cur < startOffset + 30) {
+    if (!isDemoNonWorkingOffset(base, cur)) {
+      count++
+    }
+    cur++
+  }
+  return cur
+}
 
 /**
  * 日単位モードのデモデータを生成します。
@@ -459,6 +493,136 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
   })
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // スケジュール制約 (SNET / FNLT) ショーケースエリア
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const snetLimitOffset = nextWorkingOffset(start, 6)
+  const snetTaskStart = nextWorkingOffset(start, snetLimitOffset + 3)
+  const snetTaskEnd = addWorkingDaysOffset(start, snetTaskStart, 4)
+
+  rows.push({
+    id: 'constraint-snet',
+    name: t.constraintSnetRow,
+    tasks: [
+      {
+        id: 't-constraint-snet',
+        name: t.constraintSnetTask,
+        start: d(start, snetTaskStart),
+        end: d(start, snetTaskEnd),
+        style: `background-color: ${colors.blue};`,
+        progress: 25,
+        constraintType: 'SNET',
+        constraintDate: d(start, snetLimitOffset), // この日以降に開始（左へドラッグしても押し戻される）
+      },
+    ],
+    markers: [
+      {
+        id: 'marker-snet',
+        date: d(start, snetLimitOffset),
+        anchor: 'end',
+        type: 'triangle-right',
+        color: colors.blue,
+        name: 'SNET',
+      },
+    ],
+  })
+
+  const fnltTaskStart = nextWorkingOffset(start, 12)
+  const fnltTaskEnd = addWorkingDaysOffset(start, fnltTaskStart, 4)
+  const fnltLimitOffset = nextWorkingOffset(start, Math.max(21, fnltTaskEnd + 3)) + 1
+
+  rows.push({
+    id: 'constraint-fnlt',
+    name: t.constraintFnltRow,
+    tasks: [
+      {
+        id: 't-constraint-fnlt',
+        name: t.constraintFnltTask,
+        start: d(start, fnltTaskStart),
+        end: d(start, fnltTaskEnd),
+        style: `background-color: ${colors.orange};`,
+        progress: 40,
+        deadline: d(start, fnltLimitOffset),
+        constraintType: 'FNLT',
+        constraintDate: d(start, fnltLimitOffset), // この日までに終了（右へドラッグしても引き戻される）
+      },
+    ],
+    markers: [
+      {
+        id: 'marker-fnlt',
+        date: d(start, fnltLimitOffset),
+        anchor: 'start',
+        type: 'triangle-left',
+        color: colors.red,
+        name: 'FNLT',
+      },
+    ],
+  })
+
+  const chainPredStart = nextWorkingOffset(start, 1)
+  const chainPredEnd = addWorkingDaysOffset(start, chainPredStart, 3)
+  const chainSnetOffset = nextWorkingOffset(start, 12)
+  const chainSnetEnd = addWorkingDaysOffset(start, chainSnetOffset, 4)
+  const chainFnltStart = nextWorkingOffset(start, chainSnetEnd + 1)
+  const chainFnltEnd = addWorkingDaysOffset(start, chainFnltStart, 3)
+  const chainFnltLimitOffset = nextWorkingOffset(start, chainFnltEnd + 4) + 1
+
+  rows.push({
+    id: 'constraint-chain',
+    name: t.constraintChainRow,
+    tasks: [
+      {
+        id: 't-chain-1',
+        name: t.constraintChainPred,
+        start: d(start, chainPredStart),
+        end: d(start, chainPredEnd),
+        style: `background-color: ${colors.cyan};`,
+        progress: 100,
+      },
+      {
+        id: 't-chain-2',
+        name: t.constraintChainSnet,
+        start: d(start, chainSnetOffset),
+        end: d(start, chainSnetEnd),
+        style: `background-color: ${colors.purple};`,
+        dependencies: ['t-chain-1'],
+        progress: 50,
+        constraintType: 'SNET',
+        constraintDate: d(start, chainSnetOffset),
+      },
+      {
+        id: 't-chain-3',
+        name: t.constraintChainFnlt,
+        start: d(start, chainFnltStart),
+        end: d(start, chainFnltEnd),
+        style: `background-color: ${colors.pink};`,
+        dependencies: ['t-chain-2'],
+        progress: 10,
+        deadline: d(start, chainFnltLimitOffset),
+        constraintType: 'FNLT',
+        constraintDate: d(start, chainFnltLimitOffset),
+      },
+    ],
+    markers: [
+      {
+        id: 'marker-chain-snet',
+        date: d(start, chainSnetOffset),
+        anchor: 'end',
+        type: 'triangle-right',
+        color: colors.purple,
+        name: 'SNET',
+      },
+      {
+        id: 'marker-chain-fnlt',
+        date: d(start, chainFnltLimitOffset),
+        anchor: 'start',
+        type: 'triangle-left',
+        color: colors.red,
+        name: 'FNLT',
+      },
+    ],
+  })
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // 単一タスク（1行1タスク）ショーケースエリア
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   rows.push({
@@ -787,23 +951,31 @@ export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
       : [
           {
             id: `w${i}-1`,
-            name: i <= 5 ? t.planning : t.requirementsDefinition,
+            name: i === 4 ? `${t.planning} [SNET]` : i <= 5 ? t.planning : t.requirementsDefinition,
             start: d(start, offset),
             end: d(start, offset + 7),
             style: `background-color: ${barColors[colorIdx]};`,
             pattern: hasPattern
               ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
               : undefined,
+            constraintType: i === 4 ? 'SNET' : undefined,
+            constraintDate: i === 4 ? d(start, offset) : undefined,
           },
           {
             id: `w${i}-2`,
-            name: i <= 5 ? t.development : t.design,
+            name: i === 4 ? `${t.development} [FNLT]` : i <= 5 ? t.development : t.design,
             start: d(start, offset + 7),
             end: d(start, offset + 21),
             style: `background-color: ${barColors[(colorIdx + 2) % barColors.length]};`,
             dependencies: [`w${i}-1`, ...extraDeps],
             deadline:
-              weekDeadlineDelta !== undefined ? d(start, offset + 21 + weekDeadlineDelta) : undefined,
+              i === 4
+                ? d(start, offset + 28)
+                : weekDeadlineDelta !== undefined
+                  ? d(start, offset + 21 + weekDeadlineDelta)
+                  : undefined,
+            constraintType: i === 4 ? 'FNLT' : undefined,
+            constraintDate: i === 4 ? d(start, offset + 28) : undefined,
           },
         ]
 
@@ -851,11 +1023,13 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
         },
         {
           id: `h${i}-2`,
-          name: t.taskA,
+          name: i === 4 ? `${t.taskA} [SNET]` : t.taskA,
           start: setTime(start, 10 + shift, 0),
           end: setTime(start, 12 + shift, 0),
           style: `background-color: ${barColors[colorIdx]};`,
           deadline: i === 1 ? setTime(start, 11, 30) : undefined,
+          constraintType: i === 4 ? 'SNET' : undefined,
+          constraintDate: i === 4 ? setTime(start, 10 + shift, 0) : undefined,
         },
         {
           id: `h${i}-3`,
@@ -866,7 +1040,7 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
         },
         {
           id: `h${i}-4`,
-          name: t.taskB,
+          name: i === 4 ? `${t.taskB} [FNLT]` : t.taskB,
           start: setTime(start, 13, 0),
           end: setTime(start, 16 + shift, 30),
           style: `background-color: ${barColors[(colorIdx + 3) % barColors.length]};`,
@@ -880,6 +1054,8 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
                   : i % 4 === 0
                     ? setTime(start, 17 + shift, 30)
                     : undefined,
+          constraintType: i === 4 ? 'FNLT' : undefined,
+          constraintDate: i === 4 ? setTime(start, 17 + shift, 30) : undefined,
         },
       ],
     })
@@ -1070,21 +1246,26 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
       },
       {
         id: 'm4-2',
-        name: t.prototyping,
+        name: `${t.prototyping} [SNET]`,
         start: m(start, 3),
         end: m(start, 7),
         style: `background-color: ${colors.purple};`,
         pattern: { type: 'diagonal-stripe-reverse', color: 'rgba(255,255,255,0.4)' },
         dependencies: ['m4-1'],
+        constraintType: 'SNET',
+        constraintDate: m(start, 3),
       },
       {
         id: 'm4-3',
-        name: t.review,
+        name: `${t.review} [FNLT]`,
         start: m(start, 7),
         end: m(start, 9),
         style: `background-color: ${colors.green};`,
         pattern: { type: 'diagonal-stripe-thin', color: 'rgba(255,255,255,0.5)' },
         dependencies: ['m4-2'],
+        deadline: m(start, 11),
+        constraintType: 'FNLT',
+        constraintDate: m(start, 11),
       },
     ],
   })

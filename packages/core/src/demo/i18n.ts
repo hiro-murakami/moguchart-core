@@ -148,6 +148,15 @@ export interface DemoTexts {
   singleTask1: string
   singleTask2: string
   singleTask3: string
+  // スケジュール制約 (SNET / FNLT) ショーケース用テキスト
+  constraintSnetRow: string
+  constraintFnltRow: string
+  constraintChainRow: string
+  constraintSnetTask: string
+  constraintFnltTask: string
+  constraintChainPred: string
+  constraintChainSnet: string
+  constraintChainFnlt: string
   // コンテキストメニュー
   edit: string
   duplicate: string
@@ -368,6 +377,14 @@ export const jaTexts: DemoTexts = {
   singleTask1: 'インフラ設計・クラウド環境構築',
   singleTask2: 'セキュリティ脆弱性診断',
   singleTask3: '運用マニュアル・手順書作成',
+  constraintSnetRow: '🔒 SNET制約 (指定日以降に開始)',
+  constraintFnltRow: '🔒 FNLT制約 (指定日までに終了)',
+  constraintChainRow: '🔒 制約連動チェーン (SNET ➔ FNLT)',
+  constraintSnetTask: '外部API仕様待ち [SNET]',
+  constraintFnltTask: '法改正対応リリース [FNLT]',
+  constraintChainPred: '要件確定',
+  constraintChainSnet: '実装 [SNET]',
+  constraintChainFnlt: '検収 [FNLT]',
   edit: '編集',
   duplicate: '複製',
   delete_: '削除',
@@ -587,6 +604,14 @@ export const enTexts: DemoTexts = {
   singleTask1: 'Cloud Infrastructure Setup',
   singleTask2: 'Security Vulnerability Assessment',
   singleTask3: 'Operations Manual Documentation',
+  constraintSnetRow: '🔒 SNET Constraint (Start No Earlier Than)',
+  constraintFnltRow: '🔒 FNLT Constraint (Finish No Later Than)',
+  constraintChainRow: '🔒 Constraint Chain (SNET ➔ FNLT)',
+  constraintSnetTask: 'Wait for API Spec [SNET]',
+  constraintFnltTask: 'Compliance Release [FNLT]',
+  constraintChainPred: 'Requirements',
+  constraintChainSnet: 'Implement [SNET]',
+  constraintChainFnlt: 'Acceptance [FNLT]',
   edit: 'Edit',
   duplicate: 'Duplicate',
   delete_: 'Delete',

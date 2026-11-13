@@ -95,5 +95,80 @@ describe('Demo data deadline showcase', () => {
     expect(generateLargeScaleData(jaTexts).flatMap((r) => r.tasks).some((t) => t.deadline instanceof Date)).toBe(true)
     expect(generateUnassignedTasks(jaTexts).some((t) => t.deadline instanceof Date)).toBe(true)
   })
+
+  it('SNET / FNLT スケジュール制約が確認できるデモデータが含まれ、自動スケジューリングで機能する', async () => {
+    const { jaTexts, enTexts } = await import('../demo/i18n')
+    const {
+      generateDayModeData,
+      generateWeekModeData,
+      generateMonthModeData,
+      generateHourModeData,
+      chartStart,
+    } = await import('../demo/data')
+    const { propagateAutoSchedule } = await import('../core/auto-schedule')
+    const { isHoliday } = await import('../demo/holidays')
+
+    expect(jaTexts.constraintSnetRow).toContain('SNET')
+    expect(enTexts.constraintSnetRow).toContain('SNET')
+    expect(jaTexts.constraintFnltRow).toContain('FNLT')
+    expect(enTexts.constraintFnltRow).toContain('FNLT')
+
+    const dayRows = generateDayModeData(jaTexts)
+    const dayTasks = dayRows.flatMap((r) => r.tasks)
+    expect(dayTasks.some((t) => t.constraintType === 'SNET' && t.constraintDate instanceof Date)).toBe(true)
+    expect(dayTasks.some((t) => t.constraintType === 'FNLT' && t.constraintDate instanceof Date)).toBe(true)
+
+    // SNET 単体行を制約日より前へ移動した際に制約日へ押し戻されることを確認
+    const snetRow = dayRows.find((r) => r.id === 'constraint-snet')!
+    const snetTask = snetRow.tasks[0]
+    const movedEarlyRows = dayRows.map((r) =>
+      r.id === 'constraint-snet'
+        ? {
+            ...r,
+            tasks: [
+              {
+                ...snetTask,
+                start: new Date(chartStart),
+                end: new Date(chartStart.getTime() + 3 * 24 * 60 * 60 * 1000),
+              },
+            ],
+          }
+        : r,
+    )
+    const snetScheduled = propagateAutoSchedule(movedEarlyRows, [snetTask.id], {
+      calendarMode: 'weekends-holidays',
+      isHoliday,
+    })
+    const updatedSnetTask = snetScheduled.rows.find((r) => r.id === 'constraint-snet')!.tasks[0]
+    expect(updatedSnetTask.start.getTime()).toBe(snetTask.constraintDate!.getTime())
+
+    // FNLT 単体行を制約日より後ろへ移動した際に制約日以内に引き戻されることを確認
+    const fnltRow = dayRows.find((r) => r.id === 'constraint-fnlt')!
+    const fnltTask = fnltRow.tasks[0]
+    const lateStart = new Date(fnltTask.constraintDate!.getTime() + 4 * 24 * 60 * 60 * 1000)
+    const lateEnd = new Date(lateStart.getTime() + (fnltTask.end.getTime() - fnltTask.start.getTime()))
+    const movedLateRows = dayRows.map((r) =>
+      r.id === 'constraint-fnlt'
+        ? {
+            ...r,
+            tasks: [{ ...fnltTask, start: lateStart, end: lateEnd }],
+          }
+        : r,
+    )
+    const fnltScheduled = propagateAutoSchedule(movedLateRows, [fnltTask.id], {
+      calendarMode: 'weekends-holidays',
+      isHoliday,
+    })
+    const updatedFnltTask = fnltScheduled.rows.find((r) => r.id === 'constraint-fnlt')!.tasks[0]
+    expect(updatedFnltTask.end.getTime()).toBe(fnltTask.constraintDate!.getTime())
+
+    // 週・月・時間モードにも SNET / FNLT が含まれることを確認
+    expect(generateWeekModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'SNET')).toBe(true)
+    expect(generateWeekModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'FNLT')).toBe(true)
+    expect(generateMonthModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'SNET')).toBe(true)
+    expect(generateMonthModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'FNLT')).toBe(true)
+    expect(generateHourModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'SNET')).toBe(true)
+    expect(generateHourModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.constraintType === 'FNLT')).toBe(true)
+  })
 })
 
