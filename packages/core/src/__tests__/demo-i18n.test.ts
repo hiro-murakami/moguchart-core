@@ -53,6 +53,47 @@ describe('DemoTexts (collapse/expand)', () => {
     expect(enTexts.autoExtendTimeline).toBe('Auto-Extend Timeline')
     expect(jaTexts.largeScaleMode).toBe('大規模データ (3年・200行)')
     expect(enTexts.largeScaleMode).toBe('Large Scale (3yr · 200 rows)')
+
+    expect(jaTexts.sectionDeadline).toBe('デッドライン (Deadline)')
+    expect(enTexts.sectionDeadline).toBe('Deadline Management')
+    expect(jaTexts.enableDeadline).toBe('デッドラインを表示')
+    expect(enTexts.enableDeadline).toBe('Show Deadlines')
+    expect(jaTexts.deadlineTaskTemplate).toBe('期限付きタスク')
+    expect(enTexts.deadlineTaskTemplate).toBe('Task with Deadline')
+  })
+})
+
+describe('Demo data deadline showcase', () => {
+  it('各表示モードのデモデータに期限超過・期限内・余裕ありのデッドラインが含まれている', async () => {
+    const { jaTexts } = await import('../demo/i18n')
+    const {
+      generateDayModeData,
+      generateWeekModeData,
+      generateMonthModeData,
+      generateHourModeData,
+      generateLargeScaleData,
+      generateUnassignedTasks,
+    } = await import('../demo/data')
+    const { calculateTaskDeadline } = await import('../core/utils')
+
+    const dayTasks = generateDayModeData(jaTexts).flatMap((r) => r.tasks)
+    const dayWithDeadline = dayTasks.filter((t) => t.deadline instanceof Date)
+    expect(dayWithDeadline.length).toBeGreaterThanOrEqual(10)
+    expect(dayWithDeadline.some((t) => calculateTaskDeadline(t).isOverdue)).toBe(true)
+    expect(dayWithDeadline.some((t) => calculateTaskDeadline(t).remainingDays > 0)).toBe(true)
+    expect(
+      dayWithDeadline.some((t) => {
+        const info = calculateTaskDeadline(t)
+        return info.hasDeadline && !info.isOverdue && info.remainingMs === 0
+      }),
+    ).toBe(true)
+    expect(dayWithDeadline.some((t) => t.type === 'milestone')).toBe(true)
+
+    expect(generateWeekModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.deadline instanceof Date)).toBe(true)
+    expect(generateMonthModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.deadline instanceof Date)).toBe(true)
+    expect(generateHourModeData(jaTexts).flatMap((r) => r.tasks).some((t) => t.deadline instanceof Date)).toBe(true)
+    expect(generateLargeScaleData(jaTexts).flatMap((r) => r.tasks).some((t) => t.deadline instanceof Date)).toBe(true)
+    expect(generateUnassignedTasks(jaTexts).some((t) => t.deadline instanceof Date)).toBe(true)
   })
 })
 

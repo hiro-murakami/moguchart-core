@@ -20,6 +20,7 @@ import type {
   DependencyDeleteEventDetail,
   DependencySelectEventDetail,
   TaskProgressChangeEventDetail,
+  TaskDeadlineChangeEventDetail,
   HistoryChangeEventDetail,
   ZoomChangeEventDetail,
   GanttColumn,
@@ -268,24 +269,34 @@ let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
 let enableBaseline = false
+let enableDeadline = true
+let editableDeadline = true
+let highlightOverdue = true
+let showDeadlineConnector = true
 let enableGrid = false
 let enableGridEdit = true
+let showDeadlineColumn = true
 let demoGridColumns: GanttColumn[] = [
   { id: 'wbs', width: 55 },
   { id: 'name', width: 205 },
   { id: 'startDate', width: 120 },
   { id: 'endDate', width: 120 },
+  { id: 'deadline', width: 115 },
   { id: 'duration', width: 70 },
   { id: 'workingDays', width: 75 },
   { id: 'progress', width: 65 },
 ]
 
 const getActiveGridColumns = (): GanttColumn[] => {
-  if (showWorkingDaysColumn) {
-    return demoGridColumns
-  }
-  return demoGridColumns.filter((col) => col.id !== 'workingDays')
+  return demoGridColumns.filter((col) => {
+    if (col.id === 'workingDays' && !showWorkingDaysColumn) return false
+    if (col.id === 'deadline' && !showDeadlineColumn) return false
+    return true
+  })
 }
+
+const getActiveGridTotalWidth = (): number =>
+  getActiveGridColumns().reduce((sum, col) => sum + (col.width ?? 100), 0)
 let baselinePosition: 'bottom' | 'top' | 'overlay' = 'bottom'
 let highlightDelay = true
 let isExporting = false
@@ -506,6 +517,12 @@ const renderApp = () => {
       enabled: enableBaseline,
       position: baselinePosition,
       highlightDelay,
+    },
+    deadline: {
+      enabled: enableDeadline,
+      editable: editableDeadline,
+      highlightOverdue,
+      showConnector: showDeadlineConnector,
     },
     grid: {
       enabled: enableGrid,
@@ -1311,8 +1328,38 @@ const renderApp = () => {
             </div>
           </div>
 
-          <!-- 予実管理 & データグリッド カラム -->
+          <!-- 予実管理 & デッドライン & データグリッド カラム -->
           <div class="ctrl-col">
+            <!-- デッドライン (Deadline) 設定 -->
+            <div class="ctrl-card">
+              <div class="ctrl-card-header">
+                <span class="icon">🏁</span>
+                ${t.sectionDeadline}
+              </div>
+              <div class="ctrl-card-body">
+                <label class="toggle-label">
+                  <input type="checkbox" .checked="${enableDeadline}" @change="${(e: Event) => { enableDeadline = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.enableDeadline}
+                </label>
+                <label class="toggle-label" style="${!enableDeadline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${editableDeadline}" @change="${(e: Event) => { editableDeadline = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.editableDeadline}
+                </label>
+                <label class="toggle-label" style="${!enableDeadline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${highlightOverdue}" @change="${(e: Event) => { highlightOverdue = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.highlightOverdue}
+                </label>
+                <label class="toggle-label" style="${!enableDeadline ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input type="checkbox" .checked="${showDeadlineConnector}" @change="${(e: Event) => { showDeadlineConnector = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                  <span class="toggle-track"></span>
+                  ${t.showDeadlineConnector}
+                </label>
+              </div>
+            </div>
+
             <!-- 予実管理 (Baseline) 設定 -->
             <div class="ctrl-card">
               <div class="ctrl-card-header">
@@ -1357,7 +1404,7 @@ const renderApp = () => {
                     .checked="${enableGrid}"
                     @change="${(e: Event) => {
                       enableGrid = (e.target as HTMLInputElement).checked
-                      rowHeaderWidth = enableGrid ? 760 : 200
+                      rowHeaderWidth = enableGrid ? getActiveGridTotalWidth() : 200
                       renderApp()
                     }}"
                   />
@@ -1375,12 +1422,25 @@ const renderApp = () => {
                     .checked="${showWorkingDaysColumn}"
                     @change="${(e: Event) => {
                       showWorkingDaysColumn = (e.target as HTMLInputElement).checked
-                      rowHeaderWidth = showWorkingDaysColumn ? 760 : 685
+                      rowHeaderWidth = getActiveGridTotalWidth()
                       renderApp()
                     }}"
                   />
                   <span class="toggle-track"></span>
                   ${t.showWorkingDaysColumn}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input
+                    type="checkbox"
+                    .checked="${showDeadlineColumn}"
+                    @change="${(e: Event) => {
+                      showDeadlineColumn = (e.target as HTMLInputElement).checked
+                      rowHeaderWidth = getActiveGridTotalWidth()
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  ${t.showDeadlineColumn}
                 </label>
               </div>
             </div>
@@ -1745,7 +1805,10 @@ const renderApp = () => {
             @task-delete="${handleTaskDelete}"
             @row-header-resize="${handleRowHeaderResize}"
             @column-resize="${(e: CustomEvent<ColumnResizeEventDetail>) => {
-              demoGridColumns = e.detail.columns
+              const resizedMap = new Map(e.detail.columns.map((c) => [c.id, c.width]))
+              demoGridColumns = demoGridColumns.map((c) =>
+                resizedMap.has(c.id) ? { ...c, width: resizedMap.get(c.id) } : c,
+              )
             }}"
             @row-toggle-collapse="${(e: CustomEvent<RowToggleCollapseEventDetail>) => {
               const { rowId, collapsed } = e.detail
@@ -1809,6 +1872,9 @@ const renderApp = () => {
             }}"
             @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
               console.log('Task progress changed:', e.detail)
+            }}"
+            @task-deadline-change="${(e: CustomEvent<TaskDeadlineChangeEventDetail>) => {
+              console.log('Task deadline changed:', e.detail)
             }}"
           />
         </div>
@@ -1888,7 +1954,7 @@ const renderApp = () => {
                               "
                             ></div>
                             <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">
-                              ${isMilestoneTask(task) ? `◆ ${task.name}` : task.name}
+                              ${isMilestoneTask(task) ? `◆ ${task.name}` : task.deadline ? `🏁 ${task.name}` : task.name}
                             </div>
                             <div style="font-size: 12px; opacity: 0.7;">
                               ${t.duration}
@@ -1981,12 +2047,17 @@ const handleTaskDrop = (e: CustomEvent<TaskDropEventDetail>) => {
     }
 
     const newEnd = isMilestoneTask(task) ? new Date(newStart) : new Date(newStart.getTime() + duration)
+    const deadlineOffset = task.deadline
+      ? new Date(task.deadline).getTime() - new Date(task.start).getTime()
+      : null
+    const newDeadline = deadlineOffset !== null ? new Date(newStart.getTime() + deadlineOffset) : undefined
 
     const newTask: GanttTask = {
       ...task,
       id: `${task.id}-${Date.now()}`,
       start: newStart,
       end: newEnd,
+      deadline: newDeadline,
       style: `${task.style || ''}; transform-origin: center; animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;`,
     }
 

@@ -65,6 +65,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.purple};`,
         dependencies: ['t1-1'],
         progress: 75,
+        deadline: d(start, 10), // 期限超過 (+3d) のデモ
         baseline: {
           start: d(start, 5),
           end: d(start, 11),
@@ -136,6 +137,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.pink};`,
         dependencies: ['t2-1', { taskId: 't1-2', type: 'SS', lag: 4 * 1440 }], // UI設計完了後(FS) & Row1設計開始の4日後(SS)
         progress: 45,
+        deadline: d(start, 18), // 期限超過 (+2d) のデモ
       },
       {
         id: 't2-3',
@@ -145,6 +147,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.red};`,
         dependencies: [{ taskId: 't2-2', type: 'FS', lag: 1440 }], // フロントエンド完了の1日後に着手 (FS + 1日ラグ)
         progress: 0,
+        deadline: d(start, 32), // 期限余裕あり (残り4日) のデモ
       },
     ],
     markers: [
@@ -172,6 +175,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.cyan};`,
         dependencies: ['t1-1'], // Row1企画完了後に着手 (FS)
         progress: 60,
+        deadline: d(start, 18), // 期限当日 (On time) のデモ
       },
       {
         id: 't3-2',
@@ -225,6 +229,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.green};`,
         pattern: { type: 'diagonal-stripe-thin', color: 'rgba(255,255,255,0.5)' },
         dependencies: ['t4-2'],
+        deadline: d(start, 23), // パターン付きバー + 期限余裕あり (残り3日)
       },
     ],
   })
@@ -294,6 +299,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.red};`,
         pattern: { type: 'diagonal-grid', color: 'rgba(255,255,255,0.3)' },
         dependencies: ['t6-2'],
+        deadline: d(start, 22), // パターン付きバー + 期限超過 (+3d)
       },
     ],
   })
@@ -362,6 +368,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 28),
         style: `background-color: ${colors.amber};`,
         dependencies: ['t8-2', 't7-3'], // Row7からの行間依存
+        deadline: d(start, 30), // 期限余裕あり (残り2日)
       },
     ],
   })
@@ -465,6 +472,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 12),
         style: `background-color: ${colors.cyan};`,
         progress: 85,
+        deadline: d(start, 10), // 期限超過 (+2d) - グリッド赤字表示・インライン編集確認用
         baseline: {
           start: d(start, 2),
           end: d(start, 10),
@@ -496,6 +504,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.amber};`,
         dependencies: ['t-single-1'],
         progress: 50,
+        deadline: d(start, 25), // 期限余裕あり (残り3日)
         baseline: {
           start: d(start, 12),
           end: d(start, 20),
@@ -517,6 +526,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.lime};`,
         dependencies: ['t-single-2'],
         progress: 15,
+        deadline: d(start, 29), // 期限当日 (On time)
       },
     ],
   })
@@ -548,6 +558,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 7),
         style: `background-color: ${colors.blue};`,
         progress: 100,
+        deadline: d(start, 7), // 期限通り完了
         baseline: {
           start: d(start, 1),
           end: d(start, 6),
@@ -568,6 +579,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.purple};`,
         dependencies: ['t-wbs-1'],
         progress: 80,
+        deadline: d(start, 14), // 期限超過 (+2d)
         baseline: {
           start: d(start, 7),
           end: d(start, 14),
@@ -588,6 +600,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 16),
         style: `background-color: ${colors.purple};`,
         dependencies: ['t-wbs-2'],
+        deadline: d(start, 15), // マイルストーンの期限超過 (+1d)
       },
     ],
   })
@@ -610,6 +623,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.orange};`,
         dependencies: ['t-wbs-ms1'],
         progress: 40,
+        deadline: d(start, 26), // 期限余裕あり (残り2日)
       },
     ],
   })
@@ -626,6 +640,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         style: `background-color: ${colors.pink};`,
         dependencies: ['t-wbs-3'],
         progress: 10,
+        deadline: d(start, 28), // 期限超過 (+2d)
       },
     ],
   })
@@ -642,6 +657,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
         end: d(start, 30),
         style: `background-color: ${colors.green};`,
         dependencies: ['t-wbs-4'],
+        deadline: d(start, 32), // マイルストーンの期限余裕あり (残り2日)
       },
     ],
   })
@@ -676,6 +692,8 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
     const hasPattern = i % 4 === 0
     const patternIdx = (i - 11) % patternTypes.length
     const isSingleTask = i % 2 === 1
+    const hasDeadline = i % 3 === 0
+    const deadlineDelta = i % 9 === 0 ? -2 : i % 9 === 3 ? 3 : 0
 
     const rowTasks: GanttTask[] = isSingleTask
       ? [
@@ -689,6 +707,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
               ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
               : undefined,
             progress: (i * 19) % 100,
+            deadline: hasDeadline ? d(start, offset + 12 + deadlineDelta) : undefined,
           },
         ]
       : [
@@ -711,6 +730,7 @@ export const generateDayModeData = (t: DemoTexts): GanttRow[] => {
             style: `background-color: ${barColors[(colorIdx + 1) % barColors.length]};`,
             dependencies: [`t${i}-1`],
             progress: (i * 13) % 80,
+            deadline: hasDeadline ? d(start, offset + 15 + deadlineDelta) : undefined,
           },
         ]
 
@@ -746,6 +766,8 @@ export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
 
     // 先頭5行は行間依存関係も追加
     const extraDeps = i >= 2 && i <= 5 ? [`w${i - 1}-2`] : []
+    const weekDeadlineDelta =
+      i === 1 ? -3 : i === 2 ? 7 : i === 3 ? 0 : i % 3 === 0 ? (i % 6 === 0 ? -4 : 5) : undefined
 
     const tasks: GanttTask[] = isSingleTask
       ? [
@@ -758,6 +780,8 @@ export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
             pattern: hasPattern
               ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' }
               : undefined,
+            deadline:
+              weekDeadlineDelta !== undefined ? d(start, offset + 14 + weekDeadlineDelta) : undefined,
           },
         ]
       : [
@@ -778,6 +802,8 @@ export const generateWeekModeData = (t: DemoTexts): GanttRow[] => {
             end: d(start, offset + 21),
             style: `background-color: ${barColors[(colorIdx + 2) % barColors.length]};`,
             dependencies: [`w${i}-1`, ...extraDeps],
+            deadline:
+              weekDeadlineDelta !== undefined ? d(start, offset + 21 + weekDeadlineDelta) : undefined,
           },
         ]
 
@@ -829,6 +855,7 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
           start: setTime(start, 10 + shift, 0),
           end: setTime(start, 12 + shift, 0),
           style: `background-color: ${barColors[colorIdx]};`,
+          deadline: i === 1 ? setTime(start, 11, 30) : undefined,
         },
         {
           id: `h${i}-3`,
@@ -843,6 +870,16 @@ export const generateHourModeData = (t: DemoTexts): GanttRow[] => {
           start: setTime(start, 13, 0),
           end: setTime(start, 16 + shift, 30),
           style: `background-color: ${barColors[(colorIdx + 3) % barColors.length]};`,
+          deadline:
+            i === 1
+              ? setTime(start, 17, 30)
+              : i === 2
+                ? setTime(start, 16, 30)
+                : i === 3
+                  ? setTime(start, 18, 30)
+                  : i % 4 === 0
+                    ? setTime(start, 17 + shift, 30)
+                    : undefined,
         },
       ],
     })
@@ -910,6 +947,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
         end: m(start, 11),
         style: `background-color: ${colors.green};`,
         dependencies: ['m1-2'],
+        deadline: m(start, 10), // 月単位の期限超過デモ
       },
       {
         id: 'm1-4',
@@ -967,6 +1005,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
         end: m(start, 13),
         style: `background-color: ${colors.red};`,
         dependencies: ['m2-2'],
+        deadline: m(start, 15), // 月単位の期限余裕ありデモ
       },
     ],
     markers: [
@@ -993,6 +1032,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
         end: m(start, 9),
         style: `background-color: ${colors.cyan};`,
         dependencies: ['m1-1'],
+        deadline: m(start, 9), // 月単位の期限当月デモ
       },
       {
         id: 'm3-2',
@@ -1121,6 +1161,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
         end: m(start, 19),
         style: `background-color: ${colors.green};`,
         dependencies: ['m6-3'],
+        deadline: m(start, 18), // 月単位の期限超過デモ
       },
     ],
   })
@@ -1393,7 +1434,11 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
     const tasks = phases.map((phase, phaseIdx) => {
       const taskStart = m(start, currentMonth)
       const taskEnd = m(start, currentMonth + phase.durationMonths)
+      const endMonthOffset = currentMonth + phase.durationMonths
       currentMonth += phase.durationMonths
+      const isLastPhase = phaseIdx === phases.length - 1
+      const hasMonthDeadline = isLastPhase && i % 3 === 0
+      const monthDeadlineDelta = i % 9 === 0 ? -1 : i % 9 === 3 ? 2 : 0
 
       return {
         id: `m${i}-${phaseIdx + 1}`,
@@ -1405,6 +1450,7 @@ export const generateMonthModeData = (t: DemoTexts): GanttRow[] => {
           ? { type: patternTypes[patternIdx], color: 'rgba(255,255,255,0.35)' } as GanttTaskPattern
           : undefined,
         dependencies: phaseIdx > 0 ? [`m${i}-${phaseIdx}`] : undefined,
+        deadline: hasMonthDeadline ? m(start, endMonthOffset + monthDeadlineDelta) : undefined,
       }
     })
 
@@ -1480,6 +1526,9 @@ export const generateLargeScaleData = (t: DemoTexts, totalGroups = 20, childrenP
         const color = palette[(childIdx + p) % palette.length]
         const progress = p === 0 ? Math.min(100, ((childIdx * 17) % 11) * 10) : p === 1 ? ((childIdx * 7) % 6) * 10 : 0
 
+        const hasLsDeadline = childIdx % 3 === 0 && (p === 0 || p === 3)
+        const lsDeadlineDelta = childIdx % 6 === 0 ? -2 : 4
+
         tasks.push({
           id: taskId,
           name: `${phaseLabels[(c + p) % phaseLabels.length]} Y${p + 1}`,
@@ -1488,6 +1537,7 @@ export const generateLargeScaleData = (t: DemoTexts, totalGroups = 20, childrenP
           style: `background-color: ${color};`,
           progress,
           dependencies: p === 0 && prevTaskId && c <= 4 ? [prevTaskId] : p > 0 ? [`ls-t-${childIdx}-${p}`] : undefined,
+          deadline: hasLsDeadline ? d(start, startOffset + durationDays + lsDeadlineDelta) : undefined,
           baseline: {
             start: taskStart,
             end: d(start, startOffset + Math.max(5, durationDays - (childIdx % 4 === 0 ? 3 : 0))),
@@ -1552,6 +1602,14 @@ export const generateUnassignedTasks = (t: DemoTexts): GanttTask[] => [
     end: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
     style: 'background-color: #3b82f6;',
     labelStyle: 'font-weight: bold; font-size: 14px; color: yellow;',
+  },
+  {
+    id: 'new-deadline',
+    name: t.deadlineTaskTemplate,
+    start: new Date(),
+    end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    style: 'background-color: #06b6d4;',
   },
   {
     id: 'new-milestone',

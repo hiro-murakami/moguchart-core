@@ -42,9 +42,14 @@ export interface DemoTexts {
   showSummaryProgressLabel: string
   enableMarqueeSelection: string
   enableBaseline: string
+  enableDeadline: string
+  editableDeadline: string
+  highlightOverdue: string
+  showDeadlineConnector: string
   enableGrid: string
   enableGridEdit: string
   showWorkingDaysColumn: string
+  showDeadlineColumn: string
   labelPosition: string
   labelInside: string
   labelRight: string
@@ -74,6 +79,7 @@ export interface DemoTexts {
   sectionBehavior: string
   sectionProgress: string
   sectionBaseline: string
+  sectionDeadline: string
   sectionGrid: string
   sectionSize: string
   oneDay: string
@@ -107,6 +113,7 @@ export interface DemoTexts {
   meetingSetup: string
   patternTask: string
   labelStyleTask: string
+  deadlineTaskTemplate: string
   // ショーケース用タスク名
   planning: string
   development: string
@@ -194,9 +201,14 @@ export const jaTexts: DemoTexts = {
   showSummaryProgressLabel: 'サマリー進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
   enableBaseline: '予実管理（ベースライン）を表示',
+  enableDeadline: 'デッドラインを表示',
+  editableDeadline: 'ドラッグで期限変更',
+  highlightOverdue: '期限超過をハイライト',
+  showDeadlineConnector: '補助線を表示',
   enableGrid: 'マルチカラムグリッドを表示',
   enableGridEdit: 'インライン編集を有効化 (ダブルクリック)',
   showWorkingDaysColumn: '稼働日数カラムを表示',
+  showDeadlineColumn: '期限カラムを表示',
   labelPosition: 'ラベル配置:',
   labelInside: '内部 (Inside)',
   labelRight: '右 (Right)',
@@ -225,6 +237,7 @@ export const jaTexts: DemoTexts = {
   sectionBehavior: '動作設定',
   sectionProgress: '進捗管理',
   sectionBaseline: '予実管理 (Baseline)',
+  sectionDeadline: 'デッドライン (Deadline)',
   sectionGrid: 'データグリッド',
   sectionSize: 'サイズ設定',
   oneDay: '1日',
@@ -323,6 +336,7 @@ export const jaTexts: DemoTexts = {
   meetingSetup: '会議設定',
   patternTask: 'パターン付きタスク',
   labelStyleTask: 'ラベルスタイル付き',
+  deadlineTaskTemplate: '期限付きタスク',
   planning: '企画',
   development: '開発',
   testing: 'テスト',
@@ -406,9 +420,14 @@ export const enTexts: DemoTexts = {
   showSummaryProgressLabel: 'Show Summary Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
   enableBaseline: 'Show Baseline (Plan vs Actual)',
+  enableDeadline: 'Show Deadlines',
+  editableDeadline: 'Editable Deadlines (Drag)',
+  highlightOverdue: 'Highlight Overdue',
+  showDeadlineConnector: 'Show Connector Line',
   enableGrid: 'Show Multi-Column Grid',
   enableGridEdit: 'Enable Inline Editing (DblClick)',
   showWorkingDaysColumn: 'Show Working Days Column',
+  showDeadlineColumn: 'Show Deadline Column',
   labelPosition: 'Label Pos:',
   labelInside: 'Inside',
   labelRight: 'Right',
@@ -437,6 +456,7 @@ export const enTexts: DemoTexts = {
   sectionBehavior: 'Behavior',
   sectionProgress: 'Progress Management',
   sectionBaseline: 'Baseline Management',
+  sectionDeadline: 'Deadline Management',
   sectionGrid: 'Data Grid',
   sectionSize: 'Sizing',
   oneDay: '1 day',
@@ -535,6 +555,7 @@ export const enTexts: DemoTexts = {
   meetingSetup: 'Meeting Setup',
   patternTask: 'Patterned Task',
   labelStyleTask: 'Styled Label',
+  deadlineTaskTemplate: 'Task with Deadline',
   planning: 'Planning',
   development: 'Development',
   testing: 'Testing',
