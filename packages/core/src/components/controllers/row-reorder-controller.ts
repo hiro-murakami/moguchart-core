@@ -216,8 +216,19 @@ export class RowReorderController implements ReactiveController {
    */
   public handleContainerDragOver(e: DragEvent): void {
     const isExternalTask = !!(e.dataTransfer && e.dataTransfer.types.includes('application/json'))
+    const draggingId =
+      this._draggingRowId ||
+      (typeof window !== 'undefined' ? ((window as any).__moguchart_dragging_row_id as string | undefined) ?? null : null)
+    const isRowDrag = Boolean(this.host.option.enableRowReordering && draggingId)
 
-    if (!this.host.option.enableRowReordering && !isExternalTask) {
+    // 外部タスクドラッグでも行並び替えドラッグでもない無関係なネイティブドラッグ（選択テキスト等）は無視する
+    if (!isExternalTask && !isRowDrag) {
+      if (this.dragOverRowId !== null || this.dragOverPosition !== null || this.host.dragPreview !== null) {
+        this.dragOverRowId = null
+        this.dragOverPosition = null
+        this.host.dragPreview = null
+        this.host.requestUpdate()
+      }
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = 'none'
       }
@@ -296,18 +307,11 @@ export class RowReorderController implements ReactiveController {
         const position = relativeY < layout.height / 2 ? 'top' : 'bottom'
 
         // 行ドラッグ中の場合、移動可否をチェックして不可ならドロップインジケータを表示せず禁止マークにする
-        let canDrop = true
-        const draggingId =
-          this._draggingRowId ||
-          (typeof window !== 'undefined' ? (window as any).__moguchart_dragging_row_id : null)
-
-        if (draggingId) {
-          const sourceIds =
-            this.host.selectedRows.has(draggingId) && this.host.selectedRows.size > 1
-              ? Array.from(this.host.selectedRows)
-              : [draggingId]
-          canDrop = canDropRow(this.host.rows, sourceIds, row.id, position)
-        }
+        const sourceIds =
+          this.host.selectedRows.has(draggingId!) && this.host.selectedRows.size > 1
+            ? Array.from(this.host.selectedRows)
+            : [draggingId!]
+        const canDrop = canDropRow(this.host.rows, sourceIds, row.id, position)
 
         if (!canDrop) {
           if (this.dragOverRowId !== null || this.dragOverPosition !== null) {
@@ -372,11 +376,11 @@ export class RowReorderController implements ReactiveController {
    * コンテナの drop ハンドラ
    */
   public handleContainerDrop(e: DragEvent): void {
-    e.preventDefault()
-
+    const isExternalTask = !!(e.dataTransfer && e.dataTransfer.types?.includes?.('application/json'))
     const taskJson = e.dataTransfer?.getData('application/json')
-    if (taskJson) {
-      if (this.host.handleExternalTaskDrop) {
+    if (taskJson || isExternalTask) {
+      e.preventDefault()
+      if (taskJson && this.host.handleExternalTaskDrop) {
         this.host.handleExternalTaskDrop(e, taskJson)
       }
       this.dragOverRowId = null
@@ -392,8 +396,22 @@ export class RowReorderController implements ReactiveController {
       return
     }
 
-    if (!this.host.option.enableRowReordering) return
-    const sourceId = e.dataTransfer?.getData('text/plain') || this._draggingRowId
+    const draggingId =
+      this._draggingRowId ||
+      (typeof window !== 'undefined' ? ((window as any).__moguchart_dragging_row_id as string | undefined) ?? null : null)
+
+    if (!this.host.option.enableRowReordering || !draggingId) {
+      if (this.dragOverRowId !== null || this.dragOverPosition !== null || this.host.dragPreview !== null) {
+        this.dragOverRowId = null
+        this.dragOverPosition = null
+        this.host.dragPreview = null
+        this.host.requestUpdate()
+      }
+      return
+    }
+
+    e.preventDefault()
+    const sourceId = draggingId
     const targetId = this.dragOverRowId
     const position = this.dragOverPosition
 

@@ -496,4 +496,48 @@ describe('GanttBar Drag Cancel & Outside Behavior', () => {
     // タスクは移動していないこと
     expect(chart.rows[0].tasks.find((t) => t.id === 'task1')).toBeTruthy()
   })
+
+  it('prevents native HTML5 dragstart on task bar content and clears text selection on dblclick', async () => {
+    chart.option = {
+      ...chart.option,
+      customRendering: {
+        barContent: (task) => {
+          const span = document.createElement('span')
+          span.className = 'custom-task-text'
+          span.textContent = task.name || ''
+          return span
+        },
+      },
+    }
+    await chart.updateComplete
+
+    const rowEl = chart.shadowRoot?.querySelector('gantt-row')
+    await rowEl?.updateComplete
+    const barEl = rowEl?.shadowRoot?.querySelector('gantt-bar')
+    await barEl?.updateComplete
+    expect(barEl).toBeTruthy()
+
+    const customText = barEl?.shadowRoot?.querySelector('.custom-task-text') as HTMLElement
+    expect(customText).toBeTruthy()
+
+    // 1. バー内部のテキスト要素から発火した HTML5 dragstart が preventDefault() されること
+    const dragStartEvent = new Event('dragstart', { bubbles: true, cancelable: true, composed: true })
+    customText.dispatchEvent(dragStartEvent)
+    expect(dragStartEvent.defaultPrevented).toBe(true)
+
+    // 2. ダブルクリック時に残存するブラウザのテキスト選択がクリアされること
+    const selection = window.getSelection()
+    const removeAllRangesSpy = selection ? vi.spyOn(selection, 'removeAllRanges') : null
+    const taskGroup = barEl?.shadowRoot?.querySelector('.task-group') as HTMLElement
+    taskGroup.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, composed: true }))
+    if (removeAllRangesSpy) {
+      expect(removeAllRangesSpy).toHaveBeenCalled()
+      removeAllRangesSpy.mockRestore()
+    }
+
+    // 3. CSS で user-select: none / -webkit-user-select: none が適用されていること
+    const barCssText = (barEl!.constructor as any).styles.cssText as string
+    expect(barCssText).toContain('user-select: none')
+    expect(barCssText).toContain('-webkit-user-select: none')
+  })
 })

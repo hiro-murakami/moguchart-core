@@ -77,4 +77,49 @@ describe('GanttChartElement Row Reorder', () => {
     await (element as any).reorderRows(['row1', 'row3'], 'row4', 'bottom')
     expect(element.rows.map((r) => r.id)).toEqual(['row2', 'row4', 'row1', 'row3'])
   })
+
+  it('should ignore native text dragover/drop when no row drag is active (no blue drop indicator)', async () => {
+    await element.updateComplete
+    const container = element.shadowRoot?.querySelector('.scroll-container') as HTMLElement
+    expect(container).toBeTruthy()
+    container.getBoundingClientRect = () =>
+      ({ top: 0, left: 0, right: 800, bottom: 600, width: 800, height: 600 }) as DOMRect
+
+    const { layouts } = (element as any).calculateLayout()
+    const row2Layout = layouts[1]
+    const targetY = row2Layout.top + 4 + (element as any).calendarHeight
+
+    const preventDefaultSpy = vi.fn()
+    const dataTransfer: any = {
+      types: ['text/plain'],
+      dropEffect: '',
+      getData: (type: string) => (type === 'text/plain' ? 'row1' : ''),
+    }
+
+    ;(element as any).handleContainerDragOver({
+      clientX: 300,
+      clientY: targetY,
+      dataTransfer,
+      preventDefault: preventDefaultSpy,
+    } as any)
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled()
+    expect(dataTransfer.dropEffect).toBe('none')
+    expect((element as any).dragOverRowId).toBeNull()
+    expect((element as any).dragOverPosition).toBeNull()
+
+    const reorderedSpy = vi.fn()
+    element.addEventListener('row-reordered', reorderedSpy)
+
+    const dropPreventDefaultSpy = vi.fn()
+    ;(element as any).handleContainerDrop({
+      clientX: 300,
+      clientY: targetY,
+      dataTransfer,
+      preventDefault: dropPreventDefaultSpy,
+    } as any)
+
+    expect(reorderedSpy).not.toHaveBeenCalled()
+    expect(element.rows.map((r) => r.id)).toEqual(['row1', 'row2', 'row3', 'row4'])
+  })
 })

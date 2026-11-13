@@ -596,7 +596,7 @@ export class GanttChartElement extends LitElement {
   }
 
   private _handleGlobalDragEnd = () => {
-    this._draggingRowId = null
+    this._rowReorderController.handleRowDragEnd()
     const container = this.shadowRoot?.querySelector('.scroll-container') as HTMLElement
     if (container) {
       container.classList.remove('drag-active-valid', 'drag-active-invalid')

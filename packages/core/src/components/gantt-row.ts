@@ -344,6 +344,8 @@ export class GanttRowElement extends LitElement {
     .bars-container {
       flex: none;
       position: relative;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .marker-wrapper {
       transition:
@@ -1669,6 +1671,7 @@ export class GanttRowElement extends LitElement {
         </div>
         <div
           class="bars-container"
+          @dragstart="${(e: DragEvent) => e.preventDefault()}"
           style="width: ${(() => {
             if (this.option.calendar.pxPerMonth !== undefined) {
               const e = this.option.calendar.end

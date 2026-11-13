@@ -69,6 +69,8 @@ export class GanttBarElement extends LitElement {
       width: 100%;
       height: 100%;
       pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
     :host([isexporting]) *,
     :host([isexporting]) .bar,
@@ -80,6 +82,8 @@ export class GanttBarElement extends LitElement {
       box-sizing: border-box;
       pointer-events: auto;
       z-index: 3;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .task-group:hover {
       z-index: 50;
@@ -101,6 +105,8 @@ export class GanttBarElement extends LitElement {
       top: 0;
       left: 0;
       background-color: ${unsafeCSS(DEFAULT_BAR_COLOR)};
+      user-select: none;
+      -webkit-user-select: none;
     }
     .bar.summary-bar {
       cursor: default !important;
@@ -304,6 +310,7 @@ export class GanttBarElement extends LitElement {
       font-size: calc(12px * var(--moguchart-font-scale, 1));
       pointer-events: none;
       user-select: none;
+      -webkit-user-select: none;
       position: absolute;
       top: 2px;
       left: 6px;
@@ -1564,6 +1571,9 @@ export class GanttBarElement extends LitElement {
           }
           // 閾値を超えたのでドラッグを開始
           dragStarted = true
+          if (typeof window !== 'undefined') {
+            window.getSelection?.()?.removeAllRanges()
+          }
           const initialCursor = moveEvent.ctrlKey || moveEvent.altKey ? 'copy' : 'grabbing'
           this._currentDragCursor = initialCursor
           target.style.cursor = initialCursor
@@ -1797,7 +1807,15 @@ export class GanttBarElement extends LitElement {
     )
   }
 
+  private onNativeDragStart = (e: Event) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   private onDblClick(e: MouseEvent) {
+    if (typeof window !== 'undefined') {
+      window.getSelection?.()?.removeAllRanges()
+    }
     this.dispatchEvent(
       new CustomEvent('task-dblclick', {
         detail: {
@@ -2358,6 +2376,7 @@ export class GanttBarElement extends LitElement {
                 width: ${bwidth}px;
                 height: ${baselinePos === 'overlay' ? barHeight : baselineHeight}px;
               "
+              @dragstart="${this.onNativeDragStart}"
               @mouseenter="${this.onBaselineMouseEnter}"
               @mouseleave="${this.onBaselineMouseLeave}"
             >
@@ -2390,6 +2409,7 @@ export class GanttBarElement extends LitElement {
           ${isOverdue ? `--moguchart-overdue-color: ${overdueColor};` : ''}
         "
         @pointerdown="${this.onTaskGroupPointerDown}"
+        @dragstart="${this.onNativeDragStart}"
         @mouseenter="${this.onMouseEnter}"
         @mouseleave="${this.onMouseLeave}"
         @click="${this.onClick}"
@@ -2479,6 +2499,7 @@ export class GanttBarElement extends LitElement {
                 --moguchart-overdue-color: ${overdueColor};
               "
               @pointerdown="${isDeadlineEditable ? this.onDeadlineDragStart : undefined}"
+              @dragstart="${this.onNativeDragStart}"
               @mouseenter="${this.onDeadlineMouseEnter}"
               @mouseleave="${this.onDeadlineMouseLeave}"
               @click="${this.onClick}"
