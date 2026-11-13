@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-11-13
+
+### Added
+
+- **Task Deadlines (Due-Date Markers), Drag Editing & Scheduling Constraints (`task.deadline`, `task.constraintType`, `task.constraintDate`)**:
+  - **Deadline Marker Rendering, Interactive Dragging & Overdue Highlighting (`option.deadline` / `task.deadline`)**:
+    - Added `GanttTask.deadline?: Date` to render vertical bracket/arrow deadline markers (`⇥`, `.deadline-marker`) and dashed connector lines (`.deadline-connector`) on timelines (excluding summary tasks).
+    - Automatically highlights overdue task bars (`.task-overdue`) and displays overdue day badges (`+Xd`, `.deadline-overdue-badge`) when `task.end > task.deadline`.
+    - **Interactive Deadline Drag-and-Drop**: Enabled horizontal dragging of deadline markers directly on the timeline (`option.deadline.editable?: boolean`, default: `true`; disabled in `readOnly` mode), dispatching `task-deadline-change` (`TaskDeadlineChangeEventDetail`, `onTaskDeadlineChange` in `@mogura/moguchart-react`, `@task-deadline-change` in `@mogura/moguchart-vue`) with full Undo / Redo command history (`'task-deadline'`) integration.
+    - Added `option.deadline?: GanttChartOptionDeadline` (`enabled`, `color`, `overdueColor`, `highlightOverdue`, `showConnector`, `showOverdueBadge`, `showTooltip`, `editable`).
+    - Exported `calculateTaskDeadline(task)` utility function and added localized deadline/overdue/remaining-days fields in built-in tooltips (`jaLocale` / `enLocale`).
+  - **Scheduling Constraints (`SNET` / `FNLT`) Integrated with Auto-Scheduling (`task.constraintType` / `task.constraintDate`)**:
+    - Added `TaskConstraintType = 'SNET' | 'FNLT'` (`SNET`: Start No Earlier Than, `FNLT`: Finish No Later Than) and `task.constraintDate?: Date` on `GanttTask`.
+    - Extended `propagateAutoSchedule` to evaluate task-level `SNET` / `FNLT` constraints alongside predecessor dependencies (in both calendar and working-day modes) and cascade updates downstream.
+  - **Built-in `'deadline'` Column in Multi-Column Data Grid**:
+    - Added `'deadline'` (`期限` / `Deadline`) to `GanttBuiltinColumnId`, supporting granularity-aware formatting, red overdue highlighting, hierarchical sorting, footer max-deadline aggregation, TSV copy & paste, and double-click inline date editing (including clearing deadlines when committed empty).
+- **Multi-Column Data Grid Enhancements: Hierarchical Sorting, Sticky Summary Footer & Spreadsheet Cell Selection / TSV Copy-Paste**:
+  - **Hierarchical Column Sorting (`option.grid.sortable` / `sortState` / `column-sort`)**:
+    - Clicking column headers cycles through `asc (▲)` → `desc (▼)` → `none`, sorting sibling rows within each WBS parent hierarchy while preserving tree structure (with natural numeric WBS code sorting via `compareWbsCodes`).
+    - Added `option.grid.sortable?: boolean` (default: `true`), `option.grid.sortState?: GridSortState | null`, per-column `GanttColumn.sortable?: boolean` (default: `true`), and custom `GanttColumn.comparator`.
+    - Added public methods `chart.sortByColumn(columnId, direction?)` and `chart.getSortState()` (also exposed on `@mogura/moguchart-vue` `GanttChartPublicApi`), plus `column-sort` event (`ColumnSortEventDetail`, React `onColumnSort`, Vue `@column-sort`).
+    - Exported `compareWbsCodes`, `compareGridRowValues`, and `sortGridRowsHierarchically` utilities.
+  - **Sticky Summary Footer Row (`option.grid.showFooter` / `footerLabel`)**:
+    - Added `option.grid.showFooter?: boolean` (default: `false`) and `option.grid.footerLabel?: string` to render a sticky summary footer row (`.grid-footer`) aggregating total tasks, earliest start date, latest end date, total duration, total working days, average progress, and latest deadline.
+    - Added per-column `footerValueGetter`, `footerFormatter`, and `renderFooterCell` on `GanttColumn`, and exported `calculateGridFooterSummary`, `getGridFooterCellValue`, and `formatGridFooterCellValue`.
+  - **Spreadsheet-Style Cell Range Selection & Clipboard TSV Copy-Paste (`option.grid.cellSelection`)**:
+    - Added single-cell click selection, `Shift + Click` / drag rectangular range selection, arrow-key (and `Shift + Arrow`) selection movement/extension, `Enter` / `F2` to start inline editing, and `Escape` to clear selection (`option.grid.cellSelection?: boolean`, default: `true`).
+    - Added `Ctrl+C` / `Cmd+C` TSV clipboard copy and `Ctrl+V` / `Cmd+V` batch TSV paste from Excel / Google Sheets (recorded as a single batch Undo / Redo command).
+    - Added public methods `chart.selectGridCells(range)`, `chart.getSelectedGridCells()`, `chart.moveGridCellSelection(dRow, dCol, extendRange, wrapRow?)`, `chart.copySelectedCellsToTsv()`, and `chart.pasteTsvToCells(tsv, targetRowId?, targetColumnId?)` (also exposed on `@mogura/moguchart-vue`).
+    - Added `cell-selection-change` (`CellSelectionChangeEventDetail`), `cell-copy` (`CellCopyEventDetail`), and `cell-paste` (`CellPasteEventDetail`) events across `GanttChartElement`, `@mogura/moguchart-react` (`onCellSelectionChange`, `onCellCopy`, `onCellPaste`), and `@mogura/moguchart-vue` (`@cell-selection-change`, `@cell-copy`, `@cell-paste`).
+    - Exported `resolveGridCellRange`, `formatGridRangeToTsv`, and `parseTsvString` utilities.
+- **Security Hardening & Defensive Validation**:
+  - Added and exported `sanitizeCssValue` and `sanitizeInlineStyle` to strip CSS injection tokens and external references (`url(...)`, etc.) across task bars, markers, custom holiday colors, and grid cell styles.
+  - Added `MAX_CALENDAR_DAYS` (`36525` days) upper bound to prevent memory exhaustion / browser freezes on extreme calendar date ranges.
+  - Added prototype-pollution guards (`isUnsafePropertyKey`) for grid `field` dot-path resolution/updates and spreadsheet formula sanitization (`sanitizeSpreadsheetFormula`) for TSV copy output.
+  - `@mogura/moguchart-plugin-excel`: Added `sanitizeFormulas?: boolean` (default: `true`, `sanitizeExcelFormulaString`) to neutralize leading formula trigger characters (`=`, `+`, `-`, `@`) in string cells, and `MAX_EXCEL_TIMELINE_COLUMNS` (`16000` columns) upper bound.
+
+### Fixed
+
+- **Task Bar Label Text Color Inheritance & Shadow Cleanup**:
+  - Enforced `color: inherit !important` on bar labels and removed redundant `!important` text-shadow declarations for clearer readability.
+- **Dependency Security Overrides**:
+  - Updated `pnpm-workspace.yaml` security overrides (`uuid`, `glob`, `minimatch`) and hardened `.github/workflows/release.yml`.
+
+---
+
 ## [1.8.0] - 2026-11-07
 
 ### Added
@@ -734,6 +780,7 @@ This milestone introduces comprehensive support for **WBS (Hierarchical Tree Str
 - UMD and ESM dual bundle outputs.
 - Bundled TypeScript type definitions.
 
+[1.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.5.0...v1.6.0

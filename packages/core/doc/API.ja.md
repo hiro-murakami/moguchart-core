@@ -157,6 +157,8 @@ interface GanttChartOption {
   history?: GanttChartOptionHistory
   /** 予実管理（ベースライン）の設定 */
   baseline?: GanttChartOptionBaseline
+  /** デッドライン（期限マーカー）の設定 */
+  deadline?: GanttChartOptionDeadline
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
   /** タッチデバイス（タブレット・スマートフォン）操作の最適化設定 */
@@ -181,6 +183,7 @@ interface GanttChartOption {
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-progress-change`   | `TaskProgressChangeEventDetail`   | 進捗バーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。       |
+| `task-deadline-change`   | `TaskDeadlineChangeEventDetail`   | デッドラインマーカーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。 |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | ミニマップがユーザーによってドラッグリサイズされたときに発火します。                         |
 | `minimap-move`           | `MinimapMoveEventDetail`          | ミニマップがユーザーによってドラッグ移動されたときに発火します。                             |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | ミニマップが最小化（折りたたみ）または展開されたときに発火します。                           |
@@ -188,6 +191,10 @@ interface GanttChartOption {
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | 行ヘッダー（またはグリッド領域）の幅がリサイズされたときに発火します。                       |
 | `column-resize`          | `ColumnResizeEventDetail`         | マルチカラムグリッドのカラム幅がドラッグリサイズされたときに発火します。                     |
 | `column-reorder`         | `ColumnReorderEventDetail`        | マルチカラムグリッドのカラムがドラッグ＆ドロップで並び替えられたときに発火します。           |
+| `column-sort`            | `ColumnSortEventDetail`           | マルチカラムグリッドのカラムソート状態が変更または解除されたときに発火します。               |
+| `cell-selection-change`  | `CellSelectionChangeEventDetail`  | マルチカラムグリッドのセル選択範囲が変更または解除されたときに発火します。                   |
+| `cell-copy`              | `CellCopyEventDetail`             | マルチカラムグリッドの選択セル範囲が TSV コピーされたときに発火します。                      |
+| `cell-paste`             | `CellPasteEventDetail`            | マルチカラムグリッドのセルへ TSV データが一括貼り付けされたときに発火します。                |
 | `cell-edit`              | `CellEditEventDetail`             | マルチカラムグリッドのインラインセル編集が確定されたときに発火します。                       |
 | `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | `calendar.autoExtend` 有効時にドラッグ操作でカレンダー表示期間が自動拡張されたときに発火します。 |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
@@ -245,6 +252,13 @@ interface GanttChartOption {
 | `commitCellEdit`           | `(overrideValue?: any, navigationDirection?: GridCellNavigationDirection) => boolean`                        | 現在編集中のセルの値を確定して閉じます。`navigationDirection`（`'next' \| 'prev' \| 'down' \| 'up'`）を指定すると、確定後に隣接する編集可能セルへフォーカスを移動します。                                   |
 | `cancelCellEdit`           | `() => void`                                                                                                 | 現在編集中のセルの変更を破棄して編集モードを終了します。                                                                                                                                                    |
 | `navigateCellEdit`         | `(fromRowId: string, fromColumnId: string, direction: GridCellNavigationDirection) => boolean`               | 指定したセル位置から指定方向（`'next' \| 'prev' \| 'down' \| 'up'`）にある次の編集可能セルを検索し、インライン編集を開始します。移動先が見つかった場合は `true` を返します。                                |
+| `sortByColumn`             | `(columnId: string \| null, direction?: GridSortDirection \| null) => void`                                  | マルチカラムグリッドを指定カラムで階層対応ソート（または `null` でソート解除）します。`direction` 省略時は昇順→降順→解除の順でトグルします。                                                               |
+| `getSortState`             | `() => GridSortState \| null`                                                                                | 現在のマルチカラムグリッドのソート状態を取得します。                                                                                                                                                        |
+| `selectGridCells`          | `(range: GridCellRange \| null) => void`                                                                     | マルチカラムグリッドの指定セル範囲を選択状態（`null` で選択解除）にします。                                                                                                                                 |
+| `getSelectedGridCells`     | `() => GridCellRange \| null`                                                                                | 現在選択されているグリッドセル範囲を取得します。                                                                                                                                                            |
+| `moveGridCellSelection`    | `(dRow: number, dCol: number, extendRange: boolean, wrapRow?: boolean) => boolean`                           | 現在のセル選択位置を行・列方向に移動（`extendRange: true` の場合は範囲拡張）します。                                                                                                                        |
+| `copySelectedCellsToTsv`   | `() => string`                                                                                               | 現在選択されているグリッドセル範囲を TSV 文字列に変換して返します（`cell-copy` イベントも発火）。                                                                                                           |
+| `pasteTsvToCells`          | `(tsv: string, targetRowId?: string, targetColumnId?: string) => number`                                     | 指定セル（省略時は現在の選択起点セル）を起点として TSV 文字列を一括貼り付けし、更新されたセル数を返します（Undo / Redo 対応）。                                                                             |
 
 ### 使用例
 
@@ -530,6 +544,8 @@ interface AutoScheduleResult {
   hasChanges: boolean
 }
 
+type TaskConstraintType = 'SNET' | 'FNLT' // 'SNET': 指定日以降に開始, 'FNLT': 指定日までに終了
+
 interface GanttTask {
   id: string // タスクの一意なID
   name?: string // タスクの表示名
@@ -548,6 +564,9 @@ interface GanttTask {
   progressStyle?: string // 進捗バーのカスタムスタイル (CSS文字列)
   progressResizable?: boolean // 進捗バーのドラッグ編集可否 (未指定時はoption.progress.editableに準拠)
   baseline?: GanttTaskBaseline // 当初計画（ベースライン）の日程情報
+  deadline?: Date // タスクのデッドライン（期限）日時
+  constraintType?: TaskConstraintType // 自動スケジューリング時のスケジュール制約種別 ('SNET' | 'FNLT')
+  constraintDate?: Date // スケジュール制約の基準日時
 }
 ```
 
@@ -1472,6 +1491,42 @@ interface GanttChartOptionBaseline {
 }
 ```
 
+### GanttChartOptionDeadline / TaskDeadlineChangeEventDetail
+
+タスクのデッドライン（期限マーカー）表示・ドラッグ変更・超過ハイライトに関する設定およびイベント詳細です。
+
+```typescript
+interface GanttChartOptionDeadline {
+  /** デッドラインマーカー表示を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** デッドラインマーカーの通常色 (CSSカラー文字列、デフォルト: '#f59e0b') */
+  color?: string
+  /** 期限超過時の強調色 (CSSカラー文字列、デフォルト: '#ef4444') */
+  overdueColor?: string
+  /** 期限超過タスク（終了日 > デッドライン）のハイライトを行うかどうか (デフォルト: true) */
+  highlightOverdue?: boolean
+  /** タスクバーとデッドラインマーカー間の補助線（点線）を表示するかどうか (デフォルト: true) */
+  showConnector?: boolean
+  /** 期限超過時に超過日数バッジを表示するかどうか (デフォルト: true) */
+  showOverdueBadge?: boolean
+  /** ツールチップにデッドライン情報を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
+  /** デッドラインマーカーのドラッグによる期限変更を許可するかどうか (デフォルト: true、readOnly 時は無効) */
+  editable?: boolean
+}
+
+interface TaskDeadlineChangeEventDetail {
+  /** 対象のタスク */
+  task: GanttTask
+  /** 新しい期限日時 */
+  deadline: Date
+  /** 変更前の期限日時 */
+  originalDeadline?: Date
+  /** キャンセルされたかどうか */
+  cancelled?: boolean
+}
+```
+
 ### GanttChartOptionGrid
 
 左側領域を複数カラムのテーブル（WBSデータグリッド）として表示するための設定です。
@@ -1486,6 +1541,18 @@ interface GanttChartOptionGrid {
   width?: number
   /** スプリッターによるグリッド領域全体の幅リサイズを許可するか (デフォルト: true) */
   splitterResizable?: boolean
+  /** カラムヘッダーのドラッグ＆ドロップによる列の並び替えを許可するか (デフォルト: true) */
+  reorderable?: boolean
+  /** カラムヘッダークリックによる階層内ソートを許可するか (デフォルト: true) */
+  sortable?: boolean
+  /** 現在のカラムソート状態（外部制御または初期値指定用） */
+  sortState?: GridSortState | null
+  /** グリッド最下部に固定集計フッター行を表示するか (デフォルト: false) */
+  showFooter?: boolean
+  /** 固定フッター集計行のラベルテキスト (未指定時はロケールの footerLabel または '集計') */
+  footerLabel?: string
+  /** セル選択・範囲選択および TSV コピー＆ペーストを有効にするか (デフォルト: true) */
+  cellSelection?: boolean
   /** セルの境界線を表示するか (デフォルト: true) */
   showBorders?: boolean
   /** セルのパディング (px)。デフォルト: 4 */
@@ -1494,14 +1561,12 @@ interface GanttChartOptionGrid {
   editable?: boolean
   /** インライン編集を開始するトリガー操作 (デフォルト: 'dblclick') */
   editTrigger?: 'dblclick' | 'click'
-  /** カラムヘッダーのドラッグ＆ドロップによる列の並び替えを許可するか (デフォルト: true) */
-  reorderable?: boolean
 }
 ```
 
 #### GanttColumn
 
-各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
+各カラムの定義です。組み込みカラム（`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`, `deadline`）のプリセットに加え、任意のカスタムカラムを自由に追加できます。
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
@@ -1583,12 +1648,65 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
    * - 更新後の `TRow` を返すとその行で置換されます。`false` を返すと編集をキャンセルします。
    */
   valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
+  /** カラムヘッダークリックによるソートを許可するか (デフォルト: true) */
+  sortable?: boolean
+  /** カスタムソート比較関数（負数: aが先、正数: bが先、0: 同順位） */
+  comparator?: (aValue: any, bValue: any, rowA: TRow, rowB: TRow, direction?: GridSortDirection) => number
+  /** 固定フッター集計行用のカスタム値取得関数 */
+  footerValueGetter?: (rows: TRow[], column: GanttColumn<TRow, TTask>) => any
+  /** 固定フッター集計行用のカスタム表示フォーマッター */
+  footerFormatter?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => string
+  /** 固定フッター集計行用のHTML/DOMカスタムレンダラー */
+  renderFooterCell?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => HTMLElement | string | unknown
 }
 ```
 
-#### ColumnResizeEventDetail / ColumnReorderEventDetail / CellEditEventDetail
+#### ColumnResizeEventDetail / ColumnReorderEventDetail / ColumnSortEventDetail / CellSelectionChangeEventDetail / CellCopyEventDetail / CellPasteEventDetail / CellEditEventDetail
 
 ```typescript
+type GridSortDirection = 'asc' | 'desc'
+
+interface GridSortState {
+  columnId: string
+  direction: GridSortDirection
+}
+
+interface GridCellCoord {
+  rowId: string
+  columnId: string
+}
+
+interface GridCellRange {
+  start: GridCellCoord
+  end: GridCellCoord
+}
+
+interface ColumnSortEventDetail {
+  columnId: string | null
+  direction: GridSortDirection | null
+  sortState: GridSortState | null
+  column?: GanttColumn
+}
+
+interface CellSelectionChangeEventDetail {
+  range: GridCellRange | null
+  rowIds: string[]
+  columnIds: string[]
+}
+
+interface CellCopyEventDetail {
+  range: GridCellRange
+  tsv: string
+  rowIds: string[]
+  columnIds: string[]
+}
+
+interface CellPasteEventDetail<TRow = GanttRow> {
+  start: GridCellCoord
+  tsv: string
+  changes: Array<{ rowId: string; columnId: string; oldValue: any; newValue: any }>
+  rows: TRow[]
+}
 interface ColumnResizeEventDetail {
   /** リサイズされたカラムID */
   columnId: string

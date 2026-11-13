@@ -93,15 +93,22 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - WBS parent summary aggregation of descendant task baselines
   - Synchronized bird's-eye rendering on the overview minimap (2D Canvas)
   - Helper functions for individual task variance (`calculateTaskDelay`) and project-wide statistics (`calculateProjectBaselineSummary`)
+- ⏰ **Task Deadlines & Scheduling Constraints**:
+  - Render task due-date markers (`task.deadline`) with dashed connectors on timelines, supporting interactive drag-and-drop deadline editing (`task-deadline-change`, Undo/Redo history)
+  - Automatic overdue highlighting (`.task-overdue`), overdue day badges (`+Xd`), and overdue/remaining day indicators in tooltips
+  - Auto-scheduling constraints (`SNET`: Start No Earlier Than / `FNLT`: Finish No Later Than via `task.constraintType` & `task.constraintDate`)
+  - Deadline status helper (`calculateTaskDeadline`) and built-in `'deadline'` grid column
 - 📋 **Multi-Column Data Grid (WBS Table)**:
   - Display and interact with the row header area as a full-featured multi-column data table
-  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), working days (`workingDays`), progress (`progress`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
-  - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress)
-  - **Inline Cell Editing & Continuous Keyboard Navigation** (`option.grid.editable: true`): Direct editing via double-click or single-click, built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, spreadsheet-style `Tab` / `Shift+Tab` (next/previous editable cell with row wrap) and `Enter` / `Shift+Enter` (same column down/up) navigation (`navigateCellEdit`) that automatically skips read-only cells, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
-  - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, and `renderCell` (supports HTML strings and `HTMLElement` nodes) and 2-tier layout coexistence with `customRendering.cornerContent`
+  - Built-in standard columns: WBS code (`wbs`), task name (`name`), start date/month/datetime (`startDate`/`startMonth`/`startDateTime`), end date/month/datetime (`endDate`/`endMonth`/`endDateTime`), duration (`duration`), working days (`workingDays`), progress (`progress`), and deadline (`deadline`), with automatic header title and format adaptation across Day, Week, Month, and Hourly view modes
+  - Automatic calculations for summary and multi-task rows (earliest start, latest end, calendar duration, weighted average progress) plus an optional **sticky summary footer row** (`option.grid.showFooter`)
+  - **Hierarchical Column Sorting** (`option.grid.sortable: true`, `column-sort` event): Click column headers to sort sibling rows in ascending/descending order while preserving WBS hierarchy (with natural numeric sorting for WBS codes)
+  - **Spreadsheet Cell Range Selection & TSV Copy-Paste** (`option.grid.cellSelection: true`): Click, drag, or `Shift + Arrow` to select rectangular cell ranges, and press `Ctrl/Cmd+C` / `Ctrl/Cmd+V` for Excel / Google Sheets compatible TSV copy & batch paste (with Undo/Redo integration)
+  - **Inline Cell Editing & Continuous Keyboard Navigation** (`option.grid.editable: true`): Direct editing via double-click or single-click (or `Enter` / `F2` on a selected cell), built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, spreadsheet-style `Tab` / `Shift+Tab` (next/previous editable cell with row wrap) and `Enter` / `Shift+Enter` (same column down/up) navigation (`navigateCellEdit`) that automatically skips read-only cells, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
+  - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, `renderCell`, `comparator`, `footerValueGetter`, `footerFormatter`, and `renderFooterCell`, plus 2-tier layout coexistence with `customRendering.cornerContent`
   - Column header drag-resizing (`column-resize` event) and **drag-and-drop column reordering** (`reorderable`, `column-reorder` event)
   - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area (via trackpad swipe, Shift+wheel, or wheel over grid headers)
-- ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` inline grid cell navigation, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
+- ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, grid cell arrow selection & `Ctrl/Cmd+C` / `Ctrl/Cmd+V` TSV copy-paste, `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` inline grid cell navigation, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
 
@@ -970,22 +977,72 @@ const summary = calculateProjectBaselineSummary(rows)
 console.log(`Total: ${summary.totalBaselineTasks}, Delayed: ${summary.delayedTasksCount}, Max delay: ${summary.maxDelayDays} days`)
 ```
 
+### Task Deadlines & Scheduling Constraints (`deadline` / `constraintType`)
+
+Set `task.deadline` to render due-date markers and dashed connectors on the timeline, automatically highlighting overdue tasks (`task.end > task.deadline`) with overdue day badges (`+Xd`). Deadline markers can also be dragged interactively on the timeline (`task-deadline-change` event & Undo/Redo support), and tasks support scheduling constraints (`SNET`: Start No Earlier Than / `FNLT`: Finish No Later Than) integrated with auto-scheduling.
+
+```javascript
+const rows = [
+  {
+    id: 'row-1',
+    name: 'API Implementation',
+    tasks: [
+      {
+        id: 'task-1',
+        name: 'Auth Endpoint Development',
+        start: new Date('2026-04-05'),
+        end: new Date('2026-04-12'),
+        deadline: new Date('2026-04-10'), // Due date (highlighted as 2 days overdue)
+        constraintType: 'SNET', // 'SNET' (Start No Earlier Than) | 'FNLT' (Finish No Later Than)
+        constraintDate: new Date('2026-04-03'),
+      },
+    ],
+  },
+]
+
+const option = {
+  deadline: {
+    enabled: true, // Enable deadline markers (default: true)
+    color: '#f59e0b', // Normal deadline marker color
+    overdueColor: '#ef4444', // Overdue highlight color
+    highlightOverdue: true, // Highlight overdue tasks (default: true)
+    showConnector: true, // Show dashed connector between task bar and marker (default: true)
+    showOverdueBadge: true, // Show overdue badge (+Xd) (default: true)
+    showTooltip: true, // Display deadline & overdue/remaining days in tooltips (default: true)
+    editable: true, // Allow dragging deadline markers on the timeline (default: true)
+  },
+}
+
+// Listen to interactive deadline drag changes
+chart.addEventListener('task-deadline-change', (e) => {
+  const { task, deadline, originalDeadline } = e.detail
+  console.log(`Task ${task.name} deadline changed:`, originalDeadline, '->', deadline)
+})
+```
+
 ### Multi-Column Data Grid (WBS Table & Inline Editing)
 
-Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, progress, and custom columns. Set `editable: true` to enable inline cell editing via double-click (or single-click) (editable cells receive `.grid-cell-editable`, while read-only cells such as summary/multi-task aggregated cells and the `wbs` column receive `.grid-cell-readonly` for visual distinction; single-task date, duration, and progress cells also automatically respect `task.movable`, `task.resizable`, and `task.progressResizable`).
+Display the row header area as an interactive multi-column data table. Configure built-in WBS hierarchy codes, task names, dates, durations, working days, progress, deadlines (`deadline`), and custom columns. Set `editable: true` to enable inline cell editing via double-click, single-click, or pressing `Enter` / `F2` on a selected cell (editable cells receive `.grid-cell-editable`, while read-only cells such as summary/multi-task aggregated cells and the `wbs` column receive `.grid-cell-readonly` for visual distinction; single-task date, duration, and progress cells also automatically respect `task.movable`, `task.resizable`, and `task.progressResizable`).
 
-While inline editing a cell, press `Tab` / `Shift+Tab` (move right/left across editable cells with automatic row wrapping) or `Enter` / `Shift+Enter` (move down/up in the same column) for spreadsheet-style continuous entry that automatically skips read-only cells. You can also reorder columns via drag & drop on column headers (`reorderable: true`).
+Spreadsheet-style grid interactions include:
+- **Continuous Cell Navigation**: Press `Tab` / `Shift+Tab` (right/left with row wrapping) or `Enter` / `Shift+Enter` (down/up in the same column) while editing to commit and move across editable cells automatically skipping read-only cells.
+- **Column Reordering & Hierarchical Sorting**: Reorder columns via drag & drop on headers (`reorderable: true`), and click column headers to sort sibling rows ascending/descending while preserving WBS tree hierarchy (`sortable: true`).
+- **Sticky Summary Footer Row**: Display an aggregated footer row at the bottom of the grid showing total tasks, date span, total duration/working days, average progress, and max deadline (`showFooter: true`).
+- **Cell Range Selection & TSV Copy-Paste**: Select rectangular cell ranges via click, drag, or `Shift + Arrow`, and copy/paste TSV data seamlessly with Excel or Google Sheets via `Ctrl/Cmd+C` / `Ctrl/Cmd+V` (with batch Undo/Redo support).
 
-Depending on the active view mode, `startDate` and `endDate` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode). When used together with `customRendering.cornerContent`, the top-left corner renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row.
+Depending on the active view mode, `startDate`, `endDate`, and `deadline` column titles, display formats, and editor types automatically adapt (`Start Month` / `End Month` in monthly mode; `Start Date/Time` / `End Date/Time` in hourly mode). When used together with `customRendering.cornerContent`, the top-left corner renders in a 2-tier layout with `cornerContent` in the upper row and grid column headers in the lower row.
 
 ```javascript
 const option = {
   // Data Grid configuration
   grid: {
     enabled: true, // Enable grid mode (default: true if columns is defined)
-    width: 700, // Total initial width of grid area (px)
+    width: 780, // Total initial width of grid area (px)
     splitterResizable: true, // Allow resizing grid area width via splitter (default: true)
     reorderable: true, // Allow drag-and-drop column reordering (default: true)
+    sortable: true, // Allow hierarchical column sorting on header click (default: true)
+    showFooter: true, // Display sticky summary footer row at bottom (default: false)
+    cellSelection: true, // Enable cell range selection and TSV copy/paste (default: true)
     showBorders: true, // Display cell borders (default: true)
     editable: true, // Enable inline cell editing (default: false)
     editTrigger: 'dblclick', // Trigger to start editing ('dblclick' | 'click', default: 'dblclick')
@@ -997,6 +1054,7 @@ const option = {
       { id: 'duration', width: 80 }, // Duration in calendar days (numeric editor)
       { id: 'workingDays', width: 80 }, // Working days excluding non-working days & holidays (numeric editor)
       { id: 'progress', width: 70 }, // Progress (0–100% numeric editor)
+      { id: 'deadline', width: 125 }, // Deadline (overdue highlight & date editor)
       {
         id: 'assignee',
         title: 'Assignee',
@@ -1040,11 +1098,15 @@ chart.addEventListener('column-reorder', (event) => {
   console.log(`Column ${columnId} moved ${position} of ${targetColumnId}:`, columnIds)
 })
 
-// Programmatic cell editing & navigation control
+// Programmatic cell editing, sorting, range selection & TSV copy-paste
 chart.startCellEdit('row-1', 'name') // Start editing
 chart.navigateCellEdit('row-1', 'name', 'next') // Move to adjacent editable cell ('next' | 'prev' | 'down' | 'up')
 chart.commitCellEdit('Updated Task Name', 'down') // Commit edit and move to next row in same column
 chart.cancelCellEdit() // Cancel edit
+chart.sortByColumn('startDate', 'asc') // Sort by column ('asc' | 'desc' | null)
+chart.selectGridCells({ start: { rowId: 'row-1', columnId: 'name' }, end: { rowId: 'row-2', columnId: 'endDate' } })
+const tsv = chart.copySelectedCellsToTsv() // Copy selected range as TSV string
+chart.pasteTsvToCells(tsv, 'row-3', 'name') // Batch paste TSV starting at target cell
 ```
 
 ### Public Methods
@@ -1304,13 +1366,26 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
-  // Baseline (plan vs actual) calculations
+  // Baseline (plan vs actual) & deadline calculations
   calculateTaskDelay,
+  calculateTaskDeadline,
   calculateProjectBaselineSummary,
-  // Multi-Column Grid calculations, inline editing & column reordering helpers
+  // Security & style sanitization helpers
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+  // Multi-Column Grid calculations, sorting, footer summary, TSV & inline editing helpers
   calculateRowSummaryDates,
   normalizeGridColumns,
   reorderGridColumns,
+  compareWbsCodes,
+  compareGridRowValues,
+  sortGridRowsHierarchically,
+  calculateGridFooterSummary,
+  getGridFooterCellValue,
+  formatGridFooterCellValue,
+  resolveGridCellRange,
+  formatGridRangeToTsv,
+  parseTsvString,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,

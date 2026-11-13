@@ -15,8 +15,8 @@ Lit 公式の `@lit/react` をベースに設計されており、Web Components
 - 🔄 **ライフサイクル同期**: React の状態変更（State / Props）と Web Components のレンダリングを自動同期
 - ⚡ **命令的メソッドへのアクセス**: `ref` を介して `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` などを直接呼び出し可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
-- 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
-- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays` 列対応）・列幅リサイズ・カラムドラッグ並び替え（`onColumnReorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`onCellEdit`, `onColumnResize`）に対応
+- 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`onTaskDeadlineChange`）・超過検知、およびスケジュール制約（`SNET` / `FNLT`）に対応
+- 📋 **マルチカラムデータグリッド ＆ スプレッドシート操作**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`onColumnSort`）・セル範囲選択＆TSVコピー＆ペースト（`onCellSelectionChange`, `onCellCopy`, `onCellPaste`）・列幅リサイズ・カラムドラッグ並び替え（`onColumnReorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`onCellEdit`, `onColumnResize`）に対応
 - 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 - 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
 - 🗓️ **四半期ヘッダー・自動拡張・タッチ操作最適化**: 会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`onCalendarRangeChange`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）に対応
@@ -149,7 +149,7 @@ export function GanttToolbar() {
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **グリッド・インラインセル編集**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
+- **グリッド・インラインセル編集・ソート・TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
 - **依存関係・自動スケジュール操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
@@ -321,6 +321,7 @@ React では標準のイベント Props としてキャメルケース（`onTask
 | `onTaskDelete` | タスク削除時 | `CustomEvent<TaskDeleteEventDetail>` |
 | `onTaskDrop` | タスクを行間等にドロップした時 | `CustomEvent<TaskDropEventDetail>` |
 | `onTaskProgressChange` | 進捗率変更時 | `CustomEvent<TaskProgressChangeEventDetail>` |
+| `onTaskDeadlineChange` | デッドラインマーカーのドラッグ変更時 | `CustomEvent<TaskDeadlineChangeEventDetail>` |
 | `onBarHover` | タスクバーホバー時 | `CustomEvent<BarHoverEventDetail>` |
 | `onBarSelectionChange` | タスク選択状態の変更時 | `CustomEvent<BarSelectionChangeEventDetail>` |
 | `onRowHeaderClick` | 行ヘッダークリック時 | `CustomEvent<RowHeaderClickEventDetail>` |
@@ -329,6 +330,10 @@ React では標準のイベント Props としてキャメルケース（`onTask
 | `onRowHeaderResize` | 行ヘッダーリサイズ時 | `CustomEvent<RowHeaderResizeEventDetail>` |
 | `onColumnResize` | マルチカラムグリッドの列幅リサイズ時 | `CustomEvent<ColumnResizeEventDetail>` |
 | `onColumnReorder` | マルチカラムグリッドの列ドラッグ＆ドロップ並び替え時 | `CustomEvent<ColumnReorderEventDetail>` |
+| `onColumnSort` | マルチカラムグリッドの列ソート変更・解除時 | `CustomEvent<ColumnSortEventDetail>` |
+| `onCellSelectionChange` | マルチカラムグリッドのセル選択範囲変更時 | `CustomEvent<CellSelectionChangeEventDetail>` |
+| `onCellCopy` | マルチカラムグリッドのセル範囲 TSV コピー時 | `CustomEvent<CellCopyEventDetail>` |
+| `onCellPaste` | マルチカラムグリッドのセルへの TSV ペースト時 | `CustomEvent<CellPasteEventDetail>` |
 | `onCellEdit` | マルチカラムグリッドのインラインセル編集確定時 | `CustomEvent<CellEditEventDetail>` |
 | `onCalendarRangeChange` | ドラッグ操作によりカレンダー表示期間が自動拡張された時 | `CustomEvent<CalendarRangeChangeEventDetail>` |
 | `onRowsChange` | 行データ変更時 | `CustomEvent<RowsChangeEventDetail>` |

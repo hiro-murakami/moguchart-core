@@ -155,6 +155,8 @@ interface GanttChartOption {
   tree?: GanttChartOptionTree
   /** Baseline (plan vs actual) tracking configuration */
   baseline?: GanttChartOptionBaseline
+  /** Task deadline (due-date marker) configuration */
+  deadline?: GanttChartOptionDeadline
   /** Multi-column data grid configuration */
   grid?: GanttChartOptionGrid
   /** Operation history and Undo/Redo configuration */
@@ -181,6 +183,7 @@ Custom events dispatched by the component.
 | `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
 | `task-progress-change`   | `TaskProgressChangeEventDetail`   | Fired when progress drag editing is completed (or cancelled via Esc key).           |
+| `task-deadline-change`   | `TaskDeadlineChangeEventDetail`   | Fired when deadline marker drag editing is completed (or cancelled via Esc key).    |
 | `minimap-resize`         | `MinimapResizeEventDetail`        | Fired when the minimap is resized by user dragging.                                  |
 | `minimap-move`           | `MinimapMoveEventDetail`          | Fired when the minimap is dragged/moved by user.                                     |
 | `minimap-collapse`       | `MinimapCollapseEventDetail`      | Fired when the minimap is collapsed or expanded.                                     |
@@ -188,6 +191,10 @@ Custom events dispatched by the component.
 | `row-header-resize`      | `RowHeaderResizeEventDetail`      | Fired when the row header (or grid area) width is resized.                            |
 | `column-resize`          | `ColumnResizeEventDetail`         | Fired when a multi-column grid column width is resized by dragging.                  |
 | `column-reorder`         | `ColumnReorderEventDetail`        | Fired when a multi-column grid column is reordered via drag & drop.                  |
+| `column-sort`            | `ColumnSortEventDetail`           | Fired when a multi-column grid column sort state changes or is cleared.              |
+| `cell-selection-change`  | `CellSelectionChangeEventDetail`  | Fired when the multi-column grid cell selection range changes or is cleared.         |
+| `cell-copy`              | `CellCopyEventDetail`             | Fired when the selected grid cell range is copied as TSV.                            |
+| `cell-paste`             | `CellPasteEventDetail`            | Fired when TSV data is pasted into multi-column grid cells.                          |
 | `cell-edit`              | `CellEditEventDetail`             | Fired when an inline cell edit in the multi-column grid is committed.                |
 | `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | Fired when the calendar display range is automatically extended during drag operations (`calendar.autoExtend`). |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
@@ -245,6 +252,13 @@ Public methods that can be called on the component instance.
 | `commitCellEdit`          | `(overrideValue?: any, navigationDirection?: GridCellNavigationDirection) => boolean`                       | Commits and closes the currently active inline cell edit. When `navigationDirection` (`'next' \| 'prev' \| 'down' \| 'up'`) is passed, automatically advances to the adjacent editable cell.    |
 | `cancelCellEdit`          | `() => void`                                                                                                | Cancels the currently active inline cell edit without saving changes.                                                                                                                           |
 | `navigateCellEdit`        | `(fromRowId: string, fromColumnId: string, direction: GridCellNavigationDirection) => boolean`              | Finds the next editable cell from `(fromRowId, fromColumnId)` in `direction` (`'next' \| 'prev' \| 'down' \| 'up'`) and opens its inline editor. Returns `true` if a target cell was activated. |
+| `sortByColumn`            | `(columnId: string \| null, direction?: GridSortDirection \| null) => void`                                 | Sorts the multi-column grid hierarchically by `columnId` (or clears sorting when `null`). Cycles `asc` → `desc` → `none` when `direction` is omitted.                                           |
+| `getSortState`            | `() => GridSortState \| null`                                                                               | Returns the current grid sort state.                                                                                                                                                            |
+| `selectGridCells`         | `(range: GridCellRange \| null) => void`                                                                    | Programmatically selects a grid cell range (or clears selection when `null`).                                                                                                                   |
+| `getSelectedGridCells`    | `() => GridCellRange \| null`                                                                               | Returns the currently selected grid cell range.                                                                                                                                                 |
+| `moveGridCellSelection`   | `(dRow: number, dCol: number, extendRange: boolean, wrapRow?: boolean) => boolean`                          | Moves (or extends when `extendRange: true`) the active grid cell selection by row/column deltas.                                                                                                |
+| `copySelectedCellsToTsv`  | `() => string`                                                                                              | Converts the currently selected grid cell range into a TSV string (also dispatching `cell-copy`).                                                                                               |
+| `pasteTsvToCells`         | `(tsv: string, targetRowId?: string, targetColumnId?: string) => number`                                    | Pastes a TSV string starting at the target cell (or current selection start) and returns the number of updated cells (recorded in Undo/Redo history).                                           |
 
 ### Usage Examples
 
@@ -530,6 +544,8 @@ interface AutoScheduleResult {
   hasChanges: boolean
 }
 
+type TaskConstraintType = 'SNET' | 'FNLT' // 'SNET': Start No Earlier Than, 'FNLT': Finish No Later Than
+
 interface GanttTask {
   id: string // Unique task ID
   name?: string // Task display name
@@ -548,6 +564,9 @@ interface GanttTask {
   progressStyle?: string // Custom progress bar CSS style string
   progressResizable?: boolean // Whether progress drag editing is enabled for this task
   baseline?: GanttTaskBaseline // Original planned schedule (baseline)
+  deadline?: Date // Task due-date / deadline timestamp
+  constraintType?: TaskConstraintType // Auto-scheduling constraint type ('SNET' | 'FNLT')
+  constraintDate?: Date // Reference timestamp for the scheduling constraint
 }
 ```
 
@@ -1472,6 +1491,42 @@ interface GanttChartOptionBaseline {
 }
 ```
 
+### GanttChartOptionDeadline / TaskDeadlineChangeEventDetail
+
+Configuration and event detail payload for task deadline markers, interactive drag editing, and overdue highlighting.
+
+```typescript
+interface GanttChartOptionDeadline {
+  /** Whether to enable deadline marker rendering (default: true) */
+  enabled?: boolean
+  /** Normal deadline marker color (CSS color string, default: '#f59e0b') */
+  color?: string
+  /** Overdue highlight color (CSS color string, default: '#ef4444') */
+  overdueColor?: string
+  /** Whether to highlight overdue tasks where end > deadline (default: true) */
+  highlightOverdue?: boolean
+  /** Whether to show dashed connector lines between task bars and deadline markers (default: true) */
+  showConnector?: boolean
+  /** Whether to show overdue day badges (+Xd) when overdue (default: true) */
+  showOverdueBadge?: boolean
+  /** Whether to display deadline info in tooltips (default: true) */
+  showTooltip?: boolean
+  /** Whether to allow dragging deadline markers on the timeline (default: true; disabled when readOnly) */
+  editable?: boolean
+}
+
+interface TaskDeadlineChangeEventDetail {
+  /** Target task */
+  task: GanttTask
+  /** Updated deadline timestamp */
+  deadline: Date
+  /** Previous deadline timestamp */
+  originalDeadline?: Date
+  /** Whether the drag operation was cancelled */
+  cancelled?: boolean
+}
+```
+
 ### GanttChartOptionGrid
 
 Configuration for displaying the left header area as a multi-column data table (WBS Data Grid).
@@ -1486,6 +1541,18 @@ interface GanttChartOptionGrid {
   width?: number
   /** Whether to allow resizing the grid area width via the splitter (default: true) */
   splitterResizable?: boolean
+  /** Whether to allow reordering columns via header drag & drop (default: true) */
+  reorderable?: boolean
+  /** Whether to allow hierarchical sorting when clicking column headers (default: true) */
+  sortable?: boolean
+  /** Current column sort state (for controlled mode or initial state) */
+  sortState?: GridSortState | null
+  /** Whether to display a sticky summary footer row at the bottom of the grid (default: false) */
+  showFooter?: boolean
+  /** Custom label text for the summary footer row (defaults to locale footerLabel or 'Summary') */
+  footerLabel?: string
+  /** Whether to enable cell range selection and TSV copy/paste (default: true) */
+  cellSelection?: boolean
   /** Whether to show cell borders (default: true) */
   showBorders?: boolean
   /** Cell horizontal padding (px). Default: 4 */
@@ -1494,14 +1561,12 @@ interface GanttChartOptionGrid {
   editable?: boolean
   /** User action that triggers inline editing (default: 'dblclick') */
   editTrigger?: 'dblclick' | 'click'
-  /** Whether to allow reordering columns via header drag & drop (default: true) */
-  reorderable?: boolean
 }
 ```
 
 #### GanttColumn
 
-Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`) are supported alongside arbitrary custom columns.
+Definition for each grid column. Built-in column presets (`wbs`, `name`, `startDate`, `endDate`, `startMonth`, `endMonth`, `startDateTime`, `endDateTime`, `duration`, `workingDays`, `progress`, `deadline`) are supported alongside arbitrary custom columns.
 
 ```typescript
 type GanttColumnEditorType = 'text' | 'number' | 'date' | 'datetime' | 'month' | 'select'
@@ -1583,12 +1648,65 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
    * - Returning an updated `TRow` replaces the row; returning `false` cancels the edit.
    */
   valueSetter?: (row: TRow, newValue: any, tasks: TTask[], column: GanttColumn<TRow, TTask>) => TRow | boolean | void
+  /** Whether to allow sorting by clicking this column header (default: true) */
+  sortable?: boolean
+  /** Custom sort comparator (negative: a first, positive: b first, 0: equal) */
+  comparator?: (aValue: any, bValue: any, rowA: TRow, rowB: TRow, direction?: GridSortDirection) => number
+  /** Custom value getter for the sticky summary footer row */
+  footerValueGetter?: (rows: TRow[], column: GanttColumn<TRow, TTask>) => any
+  /** Custom string formatter for the sticky summary footer row */
+  footerFormatter?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => string
+  /** Custom HTML/DOM renderer for the sticky summary footer row */
+  renderFooterCell?: (value: any, rows: TRow[], column: GanttColumn<TRow, TTask>, locale?: MoguchartLocale) => HTMLElement | string | unknown
 }
 ```
 
-#### ColumnResizeEventDetail / ColumnReorderEventDetail / CellEditEventDetail
+#### ColumnResizeEventDetail / ColumnReorderEventDetail / ColumnSortEventDetail / CellSelectionChangeEventDetail / CellCopyEventDetail / CellPasteEventDetail / CellEditEventDetail
 
 ```typescript
+type GridSortDirection = 'asc' | 'desc'
+
+interface GridSortState {
+  columnId: string
+  direction: GridSortDirection
+}
+
+interface GridCellCoord {
+  rowId: string
+  columnId: string
+}
+
+interface GridCellRange {
+  start: GridCellCoord
+  end: GridCellCoord
+}
+
+interface ColumnSortEventDetail {
+  columnId: string | null
+  direction: GridSortDirection | null
+  sortState: GridSortState | null
+  column?: GanttColumn
+}
+
+interface CellSelectionChangeEventDetail {
+  range: GridCellRange | null
+  rowIds: string[]
+  columnIds: string[]
+}
+
+interface CellCopyEventDetail {
+  range: GridCellRange
+  tsv: string
+  rowIds: string[]
+  columnIds: string[]
+}
+
+interface CellPasteEventDetail<TRow = GanttRow> {
+  start: GridCellCoord
+  tsv: string
+  changes: Array<{ rowId: string; columnId: string; oldValue: any; newValue: any }>
+  rows: TRow[]
+}
 interface ColumnResizeEventDetail {
   /** Resized column ID */
   columnId: string

@@ -88,15 +88,22 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - WBSサマリータスクにおける配下子タスクの計画日程・進捗率の自動集計
   - 全体鳥瞰ミニマップ（2D Canvas）との同期描画
   - タスク遅延計算（`calculateTaskDelay`）およびプロジェクト予実統計集計（`calculateProjectBaselineSummary`）関数
+- ⏰ **デッドライン（期限マーカー）＆ スケジュール制約**:
+  - タスクごとの期限日時（`task.deadline`）をタイムライン上にマーカー＆破線コネクタとして描画し、ドラッグ＆ドロップによる期限変更（`task-deadline-change`、Undo/Redo 対応）が可能
+  - 期限超過タスク（`task.end > task.deadline`）の自動ハイライト（`.task-overdue`）、超過日数バッジ（`+Xd`）表示、およびツールチップでの超過・残日数表示
+  - 自動スケジューリングと連動するスケジュール制約（`SNET`: 指定日以降に開始 / `FNLT`: 指定日までに終了、`task.constraintType` / `task.constraintDate`）
+  - 期限判定ユーティリティ関数（`calculateTaskDeadline`）およびグリッド標準組み込み `'deadline'` カラム対応
 - 📋 **マルチカラムデータグリッド（WBS テーブル）**:
   - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
-  - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、稼働日 `workingDays`、進捗率 `progress`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
-  - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出
-  - **インラインセル編集 ＆ 連続セル移動**（`option.grid.editable: true`）：ダブルクリックまたはクリックによる直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、編集中に `Tab` / `Shift+Tab`（左右セル移動・行折り返し）や `Enter` / `Shift+Enter`（上下行の同一カラム移動）で読み取り専用セルを自動スキップして連続入力できるキーボードセルナビゲーション（`navigateCellEdit`）、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
-  - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell` によるHTML/DOMの直接描画）および `customRendering.cornerContent` との上下2段レイアウト共存
+  - 標準組み込みカラム（WBS番号 `wbs`、タスク名 `name`、開始日・開始月・開始日時 `startDate`/`startMonth`/`startDateTime`、終了日・終了月・終了日時 `endDate`/`endMonth`/`endDateTime`、期間 `duration`、稼働日 `workingDays`、進捗率 `progress`、期限 `deadline`）および表示モード（日・週・月・時間）に応じた自動ヘッダー名・フォーマット切り替え
+  - サマリー行・複数タスク行の最小開始日〜最大終了日、カレンダー期間、加重平均進捗率を自動算出するほか、グリッド最下部への **スティッキー固定集計フッター行**（`option.grid.showFooter`）の表示に対応
+  - **階層対応カラムソート**（`option.grid.sortable: true`、`column-sort` イベント）：カラムヘッダークリックで WBS 親子階層構造を保ったまま昇順・降順ソート（WBS 番号の自然順ソート対応）
+  - **スプレッドシート風セル範囲選択 ＆ TSV コピー＆ペースト**（`option.grid.cellSelection: true`）：クリック・ドラッグ・`Shift+矢印キー` による矩形セル選択と、`Ctrl/Cmd+C` / `Ctrl/Cmd+V` による Excel / Google スプレッドシート互換の一括コピー＆ペースト（Undo/Redo 対応）
+  - **インラインセル編集 ＆ 連続セル移動**（`option.grid.editable: true`）：ダブルクリックまたはクリック（または選択セルでの `Enter` / `F2`）による直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、編集中に `Tab` / `Shift+Tab`（左右セル移動・行折り返し）や `Enter` / `Shift+Enter`（上下行の同一カラム移動）で読み取り専用セルを自動スキップして連続入力できるキーボードセルナビゲーション（`navigateCellEdit`）、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
+  - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell`、`comparator`、`footerValueGetter`、`footerFormatter`、`renderFooterCell`）および `customRendering.cornerContent` との上下2段レイアウト共存
   - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）および **カラムヘッダーのドラッグ＆ドロップによる列の並び替え**（`reorderable`、`column-reorder` イベント）
   - グリッド領域とタイムライン領域のスプリッターリサイズ＆グリッド内独立横スクロール同期（トラックパッド横スワイプ、Shift+ホイール、ヘッダー上のホイールに対応）
-- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・グリッド編集中の `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` セル間移動・Undo/Redo・ズームショートカット
+- ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・グリッドセルの矢印移動/範囲選択・`Ctrl/Cmd+C` / `Ctrl/Cmd+V` でのTSVコピー＆ペースト・グリッド編集中の `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` セル間移動・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
 
@@ -948,22 +955,72 @@ const summary = calculateProjectBaselineSummary(rows)
 console.log(`計画タスク数: ${summary.totalBaselineTasks}, 遅延タスク数: ${summary.delayedTasksCount}, 最大遅延: ${summary.maxDelayDays}日`)
 ```
 
+### デッドライン（期限マーカー）＆ スケジュール制約 (`deadline` / `constraintType`)
+
+各タスクに期限日時（`task.deadline`）を設定すると、タイムライン上に期限マーカーと破線コネクタを描画し、期限を超過したタスク（`task.end > task.deadline`）を超過日数バッジ（`+Xd`）付きで自動ハイライトします。タイムライン上のデッドラインマーカーはドラッグ＆ドロップで直接変更でき（`task-deadline-change` イベント・Undo/Redo 対応）、自動スケジューリングと連動するスケジュール制約（`SNET`: 指定日以降に開始 / `FNLT`: 指定日までに終了）も設定可能です。
+
+```javascript
+const rows = [
+  {
+    id: 'row-1',
+    name: 'API実装',
+    tasks: [
+      {
+        id: 'task-1',
+        name: '認証エンドポイント開発',
+        start: new Date('2026-04-05'),
+        end: new Date('2026-04-12'),
+        deadline: new Date('2026-04-10'), // 期限日（2日超過としてハイライト表示）
+        constraintType: 'SNET', // 'SNET' (指定日以降に開始) | 'FNLT' (指定日までに終了)
+        constraintDate: new Date('2026-04-03'),
+      },
+    ],
+  },
+]
+
+const option = {
+  deadline: {
+    enabled: true, // デッドライン表示を有効化 (デフォルト: true)
+    color: '#f59e0b', // 通常の期限マーカー色
+    overdueColor: '#ef4444', // 期限超過時の強調色
+    highlightOverdue: true, // 期限超過タスクのハイライト (デフォルト: true)
+    showConnector: true, // タスクバーとマーカー間の破線コネクタ表示 (デフォルト: true)
+    showOverdueBadge: true, // 超過日数バッジ (+Xd) の表示 (デフォルト: true)
+    showTooltip: true, // ツールチップへの期限・超過/残日数表示 (デフォルト: true)
+    editable: true, // デッドラインマーカーのドラッグ変更を許可 (デフォルト: true)
+  },
+}
+
+// デッドラインマーカーのドラッグ変更イベント
+chart.addEventListener('task-deadline-change', (e) => {
+  const { task, deadline, originalDeadline } = e.detail
+  console.log(`タスク ${task.name} の期限が変更されました:`, originalDeadline, '->', deadline)
+})
+```
+
 ### マルチカラムデータグリッド（WBSテーブル ＆ インライン編集）
 
-行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、進捗率、カスタム列を柔軟に構成できるほか、`editable: true` を設定することでセルのダブルクリック（またはクリック）によるインライン編集が可能です（編集可能セルには `.grid-cell-editable`、サマリー行や複数タスク行の集計セル・`wbs` 列などの読み取り専用セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます。単一タスク行の日付・期間・進捗セルはタスクの `movable` / `resizable` / `progressResizable` 設定とも自動連動します）。
+行ヘッダー領域を本格的な複数カラムのテーブルとして表示できます。WBS階層コード、タスク名、期間、稼働日、進捗率、期限（`deadline`）、カスタム列を柔軟に構成できるほか、`editable: true` を設定することでセルのダブルクリック（またはクリック、選択セルでの `Enter` / `F2`）によるインライン編集が可能です（編集可能セルには `.grid-cell-editable`、サマリー行や複数タスク行の集計セル・`wbs` 列などの読み取り専用セルには `.grid-cell-readonly` クラスが付与され視覚的に区別されます。単一タスク行の日付・期間・進捗セルはタスクの `movable` / `resizable` / `progressResizable` 設定とも自動連動します）。
 
-さらに、インライン編集中はキーボードの `Tab` / `Shift+Tab`（左右の編集可能セルへ移動・行端で次行/前行へ折り返し）および `Enter` / `Shift+Enter`（同じカラムの上下の編集可能行へ移動）により、読み取り専用セルを自動スキップしてスプレッドシートのように連続して値を入力できます。カラムヘッダーのドラッグ＆ドロップによる列の並び替え（`reorderable: true`）にも対応しています。
+さらに、以下のスプレッドシート操作にも対応しています：
+- **連続セル編集ナビゲーション**: インライン編集中に `Tab` / `Shift+Tab`（左右の編集可能セルへ移動・行端で次行/前行へ折り返し）および `Enter` / `Shift+Enter`（同じカラムの上下の編集可能行へ移動）で読み取り専用セルを自動スキップして連続入力
+- **カラム並び替え ＆ 階層対応ソート**: カラムヘッダーのドラッグ＆ドロップによる列の並び替え（`reorderable: true`）と、カラムヘッダークリックによる WBS 階層構造を維持した昇順・降順ソート（`sortable: true`）
+- **固定集計フッター行**: グリッド最下部に総タスク数・期間・稼働日・平均進捗率・最大期限日を集計表示するスティッキーフッター行（`showFooter: true`）
+- **セル範囲選択 ＆ TSV コピー＆ペースト**: クリック・ドラッグ・矢印キー（`Shift+矢印キー`）による矩形セル範囲選択と、`Ctrl/Cmd+C` / `Ctrl/Cmd+V` によるクリップボード TSV コピー＆一括ペースト（Undo/Redo 対応）
 
-表示モードに応じて、`startDate` / `endDate` の列タイトルや表示フォーマット・エディタ種別は自動的に切り替わります（月単位モード時は「開始月」「終了月」、時間単位モード時は「開始日時」「終了日時」）。また、`customRendering.cornerContent` と併用した場合は、左上コーナー領域の上段に `cornerContent`、下段にグリッドカラムヘッダーが2段構成で表示されます。
+表示モードに応じて、`startDate` / `endDate` / `deadline` の列タイトルや表示フォーマット・エディタ種別は自動的に切り替わります（月単位モード時は「開始月」「終了月」、時間単位モード時は「開始日時」「終了日時」）。また、`customRendering.cornerContent` と併用した場合は、左上コーナー領域の上段に `cornerContent`、下段にグリッドカラムヘッダーが2段構成で表示されます。
 
 ```javascript
 const option = {
   // グリッド表示設定
   grid: {
     enabled: true, // グリッド表示を有効化 (デフォルト: columns 指定時は true)
-    width: 700, // グリッド領域全体の初期幅 (px)
+    width: 780, // グリッド領域全体の初期幅 (px)
     splitterResizable: true, // スプリッターによるグリッド幅変更を許可 (デフォルト: true)
     reorderable: true, // ドラッグ＆ドロップによるカラム（列）の並び替えを許可 (デフォルト: true)
+    sortable: true, // カラムヘッダークリックによる階層内ソートを許可 (デフォルト: true)
+    showFooter: true, // グリッド最下部に固定集計フッター行を表示 (デフォルト: false)
+    cellSelection: true, // セル範囲選択および TSV コピー＆ペーストを有効化 (デフォルト: true)
     showBorders: true, // セル罫線を表示 (デフォルト: true)
     editable: true, // セルのインライン編集を有効化 (デフォルト: false)
     editTrigger: 'dblclick', // 編集開始トリガー ('dblclick' | 'click'、デフォルト: 'dblclick')
@@ -975,6 +1032,7 @@ const option = {
       { id: 'duration', width: 80 }, // 期間 (暦日数・数値エディタ)
       { id: 'workingDays', width: 80 }, // 稼働日 (非営業日・祝日を除いた営業日数・数値エディタ)
       { id: 'progress', width: 70 }, // 進捗率 (0〜100% 数値エディタ)
+      { id: 'deadline', width: 125 }, // 期限 (超過時ハイライト・日付エディタ)
       {
         id: 'assignee',
         title: '担当者',
@@ -1018,11 +1076,15 @@ chart.addEventListener('column-reorder', (event) => {
   console.log(`カラム ${columnId} が ${targetColumnId} の ${position} に移動しました:`, columnIds)
 })
 
-// プログラムからのセル編集制御・セル間ナビゲーション
+// プログラムからのセル編集制御・ソート・セル範囲選択・TSVコピー＆ペースト
 chart.startCellEdit('row-1', 'name') // 編集開始
 chart.navigateCellEdit('row-1', 'name', 'next') // 次の編集可能セルへ移動して編集開始 ('next' | 'prev' | 'down' | 'up')
 chart.commitCellEdit('新しいタスク名', 'down') // 編集を確定し、下の行の同一カラムへ移動
 chart.cancelCellEdit() // 編集キャンセル
+chart.sortByColumn('startDate', 'asc') // 指定カラムでソート ('asc' | 'desc' | null)
+chart.selectGridCells({ start: { rowId: 'row-1', columnId: 'name' }, end: { rowId: 'row-2', columnId: 'endDate' } })
+const tsv = chart.copySelectedCellsToTsv() // 選択範囲をTSV文字列として取得
+chart.pasteTsvToCells(tsv, 'row-3', 'name') // 指定セルを起点にTSVデータを一括貼り付け
 ```
 
 ### パブリックメソッド
@@ -1282,13 +1344,26 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
-  // 予実管理（ベースライン）計算
+  // 予実管理（ベースライン）・デッドライン計算
   calculateTaskDelay,
+  calculateTaskDeadline,
   calculateProjectBaselineSummary,
-  // マルチカラムグリッド計算・インライン編集・カラム並び替えヘルパー
+  // セキュリティ・スタイルサニタイズ
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+  // マルチカラムグリッド計算・ソート・フッター集計・TSV・インライン編集ヘルパー
   calculateRowSummaryDates,
   normalizeGridColumns,
   reorderGridColumns,
+  compareWbsCodes,
+  compareGridRowValues,
+  sortGridRowsHierarchically,
+  calculateGridFooterSummary,
+  getGridFooterCellValue,
+  formatGridFooterCellValue,
+  resolveGridCellRange,
+  formatGridRangeToTsv,
+  parseTsvString,
   getGridCellValue,
   formatGridCellValue,
   resolveColumnEditorType,

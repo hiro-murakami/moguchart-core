@@ -114,6 +114,7 @@ await chart.exportExcel({ locale: 'fr' })
 | `isHoliday` | `GanttHolidayChecker` | Auto-detect | Holiday judgment function returning `boolean` or `{ name?, color? }` (auto-detected from `chart.option.calendar.isHoliday`) |
 | `holidayColor` | `string` | `'#FEE2E2'` | Background color for holiday and Sunday columns (applies to day scale only) |
 | `columns` | `ExcelExportColumn[]` | Standard cols | Custom column definitions |
+| `sanitizeFormulas` | `boolean` | `true` | Neutralize leading formula trigger characters (`=`, `+`, `-`, `@`) in string cells |
 | `download` | `boolean` | `true` | Auto-trigger file download |
 
 ## License

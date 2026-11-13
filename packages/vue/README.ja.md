@@ -16,8 +16,8 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🎯 **直感的なイベントバインディング**: Vue 標準のイベントハンドリング（`@task-update="onUpdate"` など）
 - 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
-- 📈 **予実管理 (Baseline) 対応**: `task.baseline` と `option.baseline` による計画 vs 実績の同時可視化と遅延検知に対応
-- 📋 **マルチカラムデータグリッド ＆ インライン編集**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays` 列対応）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）に対応
+- 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`@task-deadline-change`）・超過検知、およびスケジュール制約（`SNET` / `FNLT`）に対応
+- 📋 **マルチカラムデータグリッド ＆ スプレッドシート操作**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`@column-sort`）・セル範囲選択＆TSVコピー＆ペースト（`@cell-selection-change`, `@cell-copy`, `@cell-paste`）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）に対応
 - 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 - 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
 - 🗓️ **四半期ヘッダー・自動拡張・タッチ操作最適化**: 会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`@calendar-range-change`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）に対応
@@ -193,7 +193,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **依存関係・自動スケジュール操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
 - **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **グリッド・インラインセル編集**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
+- **グリッド・インラインセル編集・ソート・TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
 - **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
@@ -370,6 +370,7 @@ const handleExportExcel = async () => {
 | `@task-drop` | タスクドロップ時 | `TaskDropEventDetail` |
 | `@task-delete` | タスク削除キー（Delete/Backspace）押下時 | `TaskDeleteEventDetail` |
 | `@task-progress-change` | タスク進捗率ハンドル操作完了時 | `TaskProgressChangeEventDetail` |
+| `@task-deadline-change` | デッドラインマーカーのドラッグ変更完了時 | `TaskDeadlineChangeEventDetail` |
 | `@bar-hover` | タスクバーホバー時 | `BarHoverEventDetail` |
 | `@row-header-click` | 行ヘッダークリック時 | `RowHeaderClickEventDetail` |
 | `@row-header-dblclick` | 行ヘッダーダブルクリック時（`contentTarget` で行名要素を参照可能） | `RowHeaderDblClickEventDetail` |
@@ -378,6 +379,10 @@ const handleExportExcel = async () => {
 | `@row-header-resize` | 行ヘッダー幅のリサイズ完了時 | `RowHeaderResizeEventDetail` |
 | `@column-resize` | マルチカラムグリッドの列幅リサイズ完了時 | `ColumnResizeEventDetail` |
 | `@column-reorder` | マルチカラムグリッドの列ドラッグ＆ドロップ並び替え完了時 | `ColumnReorderEventDetail` |
+| `@column-sort` | マルチカラムグリッドの列ソート変更・解除時 | `ColumnSortEventDetail` |
+| `@cell-selection-change` | マルチカラムグリッドのセル選択範囲変更時 | `CellSelectionChangeEventDetail` |
+| `@cell-copy` | マルチカラムグリッドのセル範囲 TSV コピー時 | `CellCopyEventDetail` |
+| `@cell-paste` | マルチカラムグリッドのセルへの TSV ペースト時 | `CellPasteEventDetail` |
 | `@cell-edit` | マルチカラムグリッドのインラインセル編集確定時 | `CellEditEventDetail` |
 | `@calendar-range-change` | ドラッグ操作によりカレンダー表示期間が自動拡張された時 | `CalendarRangeChangeEventDetail` |
 | `@rows-change` | 行データの変更時 | `RowsChangeEventDetail` |

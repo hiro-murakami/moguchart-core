@@ -119,6 +119,7 @@ await chart.exportExcel({ locale: 'fr' })
 | `isHoliday` | `GanttHolidayChecker` | 自動判定 | 祝祭日・休日判定関数（`boolean` または `{ name?, color? }` を返却。指定なし時は `chart.option.calendar.isHoliday` を自動参照） |
 | `holidayColor` | `string` | `'#FEE2E2'` | 祝祭日および日曜日の背景色（日単位出力時のみ適用、淡い赤/ピンク） |
 | `columns` | `ExcelExportColumn[]` | 標準カラム | 出力するテーブル列のカスタム定義配列 |
+| `sanitizeFormulas` | `boolean` | `true` | 文字列セルの先頭数式トリガー文字（`=`, `+`, `-`, `@`）を無害化するか |
 | `download` | `boolean` | `true` | ブラウザで自動ダウンロードをトリガーするか |
 
 ## ライセンス

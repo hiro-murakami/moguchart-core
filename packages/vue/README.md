@@ -16,8 +16,8 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🎯 **Vue Event Bindings**: Standard Vue event listening (`@task-update="onUpdate"`, `@task-click="onClick"`, etc.).
 - 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
 - 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
-- 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips.
-- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing, drag-and-drop column reordering (`@column-reorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`@cell-edit`, `@column-resize`).
+- 📈 **Baseline & Deadline Tracking**: Compare planned schedules (`task.baseline`) against actual timelines, plus due-date markers (`task.deadline`), interactive deadline dragging (`@task-deadline-change`), overdue badges, and `SNET`/`FNLT` scheduling constraints.
+- 📋 **Multi-Column Data Grid & Spreadsheet Operations**: WBS data table (`option.grid`, including built-in `workingDays` & `deadline` columns and sticky summary footer `showFooter`) with hierarchical column sorting (`@column-sort`), cell range selection & TSV copy-paste (`@cell-selection-change`, `@cell-copy`, `@cell-paste`), column resizing, drag-and-drop column reordering (`@column-reorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`@cell-edit`, `@column-resize`).
 - 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
 - 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`).
 - 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`@calendar-range-change`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`).
@@ -193,7 +193,7 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
+- **Grid, Inline Editing, Sorting & TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
 - **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
 - **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
@@ -370,6 +370,7 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@task-drop` | Dispatched when a task is dropped | `TaskDropEventDetail` |
 | `@task-delete` | Dispatched when a task is deleted | `TaskDeleteEventDetail` |
 | `@task-progress-change` | Dispatched when task progress changes | `TaskProgressChangeEventDetail` |
+| `@task-deadline-change` | Dispatched when a task deadline marker is dragged | `TaskDeadlineChangeEventDetail` |
 | `@bar-hover` | Dispatched on hovering over a task bar | `BarHoverEventDetail` |
 | `@row-header-click` | Dispatched on clicking a row header | `RowHeaderClickEventDetail` |
 | `@row-header-dblclick` | Dispatched on double clicking a row header (`contentTarget` exposes row name container) | `RowHeaderDblClickEventDetail` |
@@ -378,6 +379,10 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@row-header-resize` | Dispatched when row header width is resized | `RowHeaderResizeEventDetail` |
 | `@column-resize` | Dispatched when a multi-column grid column is resized | `ColumnResizeEventDetail` |
 | `@column-reorder` | Dispatched when a multi-column grid column is reordered via drag & drop | `ColumnReorderEventDetail` |
+| `@column-sort` | Dispatched when a multi-column grid column sort state changes | `ColumnSortEventDetail` |
+| `@cell-selection-change` | Dispatched when multi-column grid cell selection range changes | `CellSelectionChangeEventDetail` |
+| `@cell-copy` | Dispatched when selected grid cells are copied as TSV | `CellCopyEventDetail` |
+| `@cell-paste` | Dispatched when TSV data is pasted into grid cells | `CellPasteEventDetail` |
 | `@cell-edit` | Dispatched when an inline grid cell edit is committed | `CellEditEventDetail` |
 | `@calendar-range-change` | Dispatched when the calendar display range is auto-extended during drag operations | `CalendarRangeChangeEventDetail` |
 | `@rows-change` | Dispatched when row data changes | `RowsChangeEventDetail` |

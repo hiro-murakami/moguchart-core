@@ -15,8 +15,8 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - 🔄 **Lifecycle Synchronization**: Automatic synchronization between React state/props and Web Component rendering
 - ⚡ **Imperative API Access**: Directly access methods like `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` via `ref`
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
-- 📈 **Baseline & Delay Tracking**: Compare planned schedules (`task.baseline`) against actual timelines with automatic delay highlighting and variance tooltips
-- 📋 **Multi-Column Data Grid & Inline Editing**: WBS data table (`option.grid`, including built-in `workingDays` column) with column resizing, drag-and-drop column reordering (`onColumnReorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`onCellEdit`, `onColumnResize`)
+- 📈 **Baseline & Deadline Tracking**: Compare planned schedules (`task.baseline`) against actual timelines, plus due-date markers (`task.deadline`), interactive deadline dragging (`onTaskDeadlineChange`), overdue badges, and `SNET`/`FNLT` scheduling constraints
+- 📋 **Multi-Column Data Grid & Spreadsheet Operations**: WBS data table (`option.grid`, including built-in `workingDays` & `deadline` columns and sticky summary footer `showFooter`) with hierarchical column sorting (`onColumnSort`), cell range selection & TSV copy-paste (`onCellSelectionChange`, `onCellCopy`, `onCellPaste`), column resizing, drag-and-drop column reordering (`onColumnReorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`onCellEdit`, `onColumnResize`)
 - 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
 - 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`)
 - 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`onCalendarRangeChange`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`)
@@ -149,7 +149,7 @@ The following methods can be invoked directly on `ref.current`:
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
 - **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
 - **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
-- **Grid & Inline Cell Editing**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`
+- **Grid, Inline Editing, Sorting & TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
 - **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
 - **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
@@ -321,6 +321,7 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onTaskDelete` | Fired when a task is deleted | `CustomEvent<TaskDeleteEventDetail>` |
 | `onTaskDrop` | Fired when a task is dropped | `CustomEvent<TaskDropEventDetail>` |
 | `onTaskProgressChange` | Fired when task progress percentage changes | `CustomEvent<TaskProgressChangeEventDetail>` |
+| `onTaskDeadlineChange` | Fired when a task deadline marker is dragged | `CustomEvent<TaskDeadlineChangeEventDetail>` |
 | `onBarHover` | Fired when a task bar is hovered | `CustomEvent<BarHoverEventDetail>` |
 | `onBarSelectionChange` | Fired when task bar selection changes | `CustomEvent<BarSelectionChangeEventDetail>` |
 | `onRowHeaderClick` | Fired when a row header is clicked | `CustomEvent<RowHeaderClickEventDetail>` |
@@ -329,6 +330,10 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onRowHeaderResize` | Fired when a row header is resized | `CustomEvent<RowHeaderResizeEventDetail>` |
 | `onColumnResize` | Fired when a grid column is resized | `CustomEvent<ColumnResizeEventDetail>` |
 | `onColumnReorder` | Fired when a grid column is reordered via drag & drop | `CustomEvent<ColumnReorderEventDetail>` |
+| `onColumnSort` | Fired when a grid column sort state changes | `CustomEvent<ColumnSortEventDetail>` |
+| `onCellSelectionChange` | Fired when grid cell selection range changes | `CustomEvent<CellSelectionChangeEventDetail>` |
+| `onCellCopy` | Fired when selected grid cells are copied as TSV | `CustomEvent<CellCopyEventDetail>` |
+| `onCellPaste` | Fired when TSV data is pasted into grid cells | `CustomEvent<CellPasteEventDetail>` |
 | `onCellEdit` | Fired when an inline grid cell edit is committed | `CustomEvent<CellEditEventDetail>` |
 | `onCalendarRangeChange` | Fired when the calendar display range is auto-extended during drag operations | `CustomEvent<CalendarRangeChangeEventDetail>` |
 | `onRowsChange` | Fired when row data changes | `CustomEvent<RowsChangeEventDetail>` |

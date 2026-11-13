@@ -5,23 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.9.0] - 2026-11-13
 
 ### Added
 
-- **タスクのデッドライン（期限マーカー）＆ スケジュール制約 (`task.deadline`, `task.constraintType`, `task.constraintDate`)**:
-  - **デッドライン（期限マーカー）の描画 ＆ 期限超過ハイライト (`option.deadline` / `task.deadline`)**:
-    - `GanttTask.deadline?: Date` を追加し、タイムライン上に期限日を示す縦型ブラケット／矢印マーカー（`⇥`、`.deadline-marker`）およびタスクバー終端からの破線コネクタ（`.deadline-connector`）を描画
+- **タスクのデッドライン（期限マーカー）＆ ドラッグ変更 ＆ スケジュール制約 (`task.deadline`, `task.constraintType`, `task.constraintDate`)**:
+  - **デッドライン（期限マーカー）の描画・ドラッグ変更 ＆ 期限超過ハイライト (`option.deadline` / `task.deadline`)**:
+    - `GanttTask.deadline?: Date` を追加し、タイムライン上に期限日を示す縦型ブラケット／矢印マーカー（`⇥`、`.deadline-marker`）およびタスクバー終端からの破線コネクタ（`.deadline-connector`）を描画（サマリータスクは対象外）
     - タスク終了日が期限を超過している場合（`task.end > task.deadline`）、タスクバーに超過ハイライト（`.task-overdue`）および超過日数バッジ（`+Xd`、`.deadline-overdue-badge`）を自動表示
-    - `option.deadline?: GanttChartOptionDeadline`（`enabled`, `color`, `overdueColor`, `highlightOverdue`, `showConnector`, `showOverdueBadge`, `showTooltip`）による表示制御に対応
+    - **デッドラインマーカーのドラッグ＆ドロップ変更**: タイムライン上のデッドラインマーカーを直接左右にドラッグして期限日時を変更できる機能を追加（`option.deadline.editable?: boolean`、デフォルト: `true`、`readOnly` 時は無効）。変更確定時にカスタムイベント `task-deadline-change`（`TaskDeadlineChangeEventDetail`、`@mogura/moguchart-react` の `onTaskDeadlineChange`、`@mogura/moguchart-vue` の `@task-deadline-change`）を発火し、Undo / Redo 操作履歴（コマンド種別 `'task-deadline'`）にも対応
+    - `option.deadline?: GanttChartOptionDeadline`（`enabled`, `color`, `overdueColor`, `highlightOverdue`, `showConnector`, `showOverdueBadge`, `showTooltip`, `editable`）による表示・編集制御に対応
     - 期限判定・超過／残日数計算ユーティリティ関数 `calculateTaskDeadline(task)` を公開エクスポート
-    - WBS サマリータスク自動集計（`computeSummaryTask`）において、配下タスクの最大デッドラインを親サマリータスクの `deadline` として自動集約
     - 標準ツールチップ（`tooltip-controller.ts`）および多言語辞書（`jaLocale` / `enLocale`）にデッドライン・超過日数・残日数の表示を追加
   - **スケジュール制約（`SNET` / `FNLT`）の自動スケジューリング統合 (`task.constraintType` / `task.constraintDate`)**:
     - `TaskConstraintType = 'SNET' | 'FNLT'`（`SNET`: 指定日以降に開始 / Start No Earlier Than、`FNLT`: 指定日までに終了 / Finish No Later Than）および `task.constraintDate?: Date` を `GanttTask` に追加
     - `propagateAutoSchedule` において先行タスクの依存関係計算と併せてタスク自身の `SNET` / `FNLT` 制約（カレンダー通りおよび営業日ベース双方）を評価・適用し、後続タスクへカスケード伝播するよう拡張
   - **マルチカラムデータグリッド標準組み込みカラム `'deadline'`（期限）**:
     - `GanttBuiltinColumnId` に `'deadline'`（見出し: `期限` / `Deadline`）を追加。日・月・時間粒度に応じた日付フォーマット表示、超過時の赤字強調表示、ソート、フッター集計（最大期限日）、TSV コピー＆ペースト、およびダブルクリックによるインライン日付編集（空欄確定による期限クリア含む）に対応
+- **マルチカラムデータグリッドの拡充：階層対応ソート・固定集計フッター行・セル範囲選択 ＆ TSV コピー＆ペースト**:
+  - **カラムヘッダークリックによる階層対応ソート (`option.grid.sortable` / `sortState` / `column-sort`)**:
+    - カラムヘッダーをクリックすることで `昇順 (▲)` → `降順 (▼)` → `ソート解除` を切り替え、WBS の親子階層構造を維持したまま同一親配下の兄弟行同士を並び替える階層ソート機能を追加（`wbs` カラムは自然順数値ソート `compareWbsCodes` に対応）
+    - グリッド全体の有効・無効切り替え `option.grid.sortable?: boolean`（デフォルト: `true`）、初期／外部制御ソート状態 `option.grid.sortState?: GridSortState | null`、カラム個別の `GanttColumn.sortable?: boolean`（デフォルト: `true`）およびカスタム比較関数 `GanttColumn.comparator` を追加
+    - パブリックメソッド `chart.sortByColumn(columnId, direction?)`、`chart.getSortState()`（および `@mogura/moguchart-vue` の `GanttChartPublicApi`）と、カスタムイベント `column-sort`（`ColumnSortEventDetail`、React `onColumnSort`、Vue `@column-sort`）を追加
+    - ソート用ユーティリティ関数 `compareWbsCodes`, `compareGridRowValues`, `sortGridRowsHierarchically` を公開エクスポート
+  - **固定集計フッター行 (`option.grid.showFooter` / `footerLabel`)**:
+    - `option.grid.showFooter: true` を指定することで、グリッド最下部にスティッキー固定の集計フッター行（`.grid-footer`）を表示する機能を追加（総タスク数・最古開始日・最新終了日・合計期間・合計稼働日・平均進捗率・最大期限日を自動集計）
+    - カラム単位のカスタム集計・描画プロパティ `footerValueGetter`, `footerFormatter`, `renderFooterCell` を `GanttColumn` に追加し、集計ユーティリティ `calculateGridFooterSummary`, `getGridFooterCellValue`, `formatGridFooterCellValue` を公開エクスポート
+  - **スプレッドシート風セル選択・範囲選択 ＆ クリップボード TSV コピー＆ペースト (`option.grid.cellSelection`)**:
+    - セルのクリック選択、`Shift + クリック` やドラッグによる矩形範囲選択、矢印キー（および `Shift + 矢印キー`）による選択移動・範囲拡張、`Enter` / `F2` による選択セルのインライン編集開始、`Escape` による選択解除に対応（`option.grid.cellSelection?: boolean`、デフォルト: `true`）
+    - `Ctrl+C` / `Cmd+C` による選択セル範囲の TSV クリップボードコピー、および `Ctrl+V` / `Cmd+V` による Excel / Google スプレッドシート等からの一括 TSV ペースト（複数セルの編集を1回の Undo / Redo コマンドとして記録）に対応
+    - パブリックメソッド `chart.selectGridCells(range)`, `chart.getSelectedGridCells()`, `chart.moveGridCellSelection(dRow, dCol, extendRange, wrapRow?)`, `chart.copySelectedCellsToTsv()`, `chart.pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`（および `@mogura/moguchart-vue` の `GanttChartPublicApi`）を追加
+    - カスタムイベント `cell-selection-change` (`CellSelectionChangeEventDetail`)、`cell-copy` (`CellCopyEventDetail`)、`cell-paste` (`CellPasteEventDetail`) を `GanttChartElement`、`@mogura/moguchart-react`（`onCellSelectionChange`, `onCellCopy`, `onCellPaste`）、および `@mogura/moguchart-vue`（`@cell-selection-change`, `@cell-copy`, `@cell-paste`）に追加
+    - 範囲解決・TSV 変換ユーティリティ `resolveGridCellRange`, `formatGridRangeToTsv`, `parseTsvString` を公開エクスポート
+- **セキュリティ強化 ＆ 防御的バリデーション**:
+  - 動的 CSS プロパティ値およびインライン `style` 文字列から CSS インジェクションや外部参照（`url(...)` 等）を除去する `sanitizeCssValue`, `sanitizeInlineStyle` を導入・公開エクスポートし、タスクバー・マーカー・カスタム休日色・グリッドセルのスタイル描画に適用
+  - カレンダー描画の最大日数上限 `MAX_CALENDAR_DAYS`（`36525`日）を追加し、極端な日付範囲指定によるメモリ枯渇・タブフリーズを防止
+  - グリッドの `field` ドットパス解決・更新時のプロトタイプ汚染防止ガード（`isUnsafePropertyKey`）および TSV コピー時のスプレッドシート数式インジェクション無害化（`sanitizeSpreadsheetFormula`）を追加
+  - `@mogura/moguchart-plugin-excel`: 文字列セルの先頭数式トリガー文字（`=`, `+`, `-`, `@`）を無害化するオプション `sanitizeFormulas?: boolean`（デフォルト: `true`、`sanitizeExcelFormulaString`）および最大タイムライン列数上限 `MAX_EXCEL_TIMELINE_COLUMNS`（`16000`列）を追加
+
+### Fixed
+
+- **タスクバー内部ラベルの文字色継承とシャドウ調整**:
+  - タスクバーのラベルスタイルにおいて文字色の継承（`color: inherit !important`）を確実にし、不要なテキストシャドウ指定を整理して視認性を改善
+- **依存パッケージのセキュリティ更新**:
+  - `pnpm-workspace.yaml` のオーバーライド（`uuid`, `glob`, `minimatch`）およびリリースワークフローを更新
 
 ---
 
@@ -724,6 +751,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UMD / ESM 両形式のビルド出力
 - TypeScript 型定義の同梱
 
+[1.9.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/hiro-murakami/moguchart-core/compare/v1.5.0...v1.6.0
