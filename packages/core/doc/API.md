@@ -157,6 +157,8 @@ interface GanttChartOption {
   baseline?: GanttChartOptionBaseline
   /** Task deadline (due-date marker) configuration */
   deadline?: GanttChartOptionDeadline
+  /** Scheduling constraint (SNET / FNLT) drag guide & boundary clamping configuration */
+  constraint?: GanttChartOptionConstraint
   /** Multi-column data grid configuration */
   grid?: GanttChartOptionGrid
   /** Operation history and Undo/Redo configuration */
@@ -1524,6 +1526,23 @@ interface TaskDeadlineChangeEventDetail {
   originalDeadline?: Date
   /** Whether the drag operation was cancelled */
   cancelled?: boolean
+}
+```
+
+### GanttChartOptionConstraint
+
+Configuration for out-of-bounds shade overlays, boundary lines, floating label badges, and automatic boundary clamping when dragging or resizing tasks with `SNET` (Start No Earlier Than) or `FNLT` (Finish No Later Than) constraints (works standalone even when `option.dependency.autoSchedule` is disabled).
+
+```typescript
+interface GanttChartOptionConstraint {
+  /** Whether to enable SNET / FNLT guide rendering and boundary clamping (default: true) */
+  enabled?: boolean
+  /** Whether to display out-of-bounds shade, boundary line, and label badge during drag/resize (default: true) */
+  showDragGuide?: boolean
+  /** Whether to automatically clamp dates within SNET / FNLT boundaries on drop/resize and keyboard move (default: true) */
+  clampOnDrop?: boolean
+  /** Whether to display SNET / FNLT constraint info in tooltips (default: true) */
+  showTooltip?: boolean
 }
 ```
 

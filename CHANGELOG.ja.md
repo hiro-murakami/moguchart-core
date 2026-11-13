@@ -17,9 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `option.deadline?: GanttChartOptionDeadline`（`enabled`, `color`, `overdueColor`, `highlightOverdue`, `showConnector`, `showOverdueBadge`, `showTooltip`, `editable`）による表示・編集制御に対応
     - 期限判定・超過／残日数計算ユーティリティ関数 `calculateTaskDeadline(task)` を公開エクスポート
     - 標準ツールチップ（`tooltip-controller.ts`）および多言語辞書（`jaLocale` / `enLocale`）にデッドライン・超過日数・残日数の表示を追加
-  - **スケジュール制約（`SNET` / `FNLT`）の自動スケジューリング統合 (`task.constraintType` / `task.constraintDate`)**:
+  - **スケジュール制約（`SNET` / `FNLT`）の自動スケジューリング統合 ＆ ドラッグ可能範囲ガイド・境界クランプ (`task.constraintType` / `task.constraintDate` / `option.constraint`)**:
     - `TaskConstraintType = 'SNET' | 'FNLT'`（`SNET`: 指定日以降に開始 / Start No Earlier Than、`FNLT`: 指定日までに終了 / Finish No Later Than）および `task.constraintDate?: Date` を `GanttTask` に追加
     - `propagateAutoSchedule` において先行タスクの依存関係計算と併せてタスク自身の `SNET` / `FNLT` 制約（カレンダー通りおよび営業日ベース双方）を評価・適用し、後続タスクへカスケード伝播するよう拡張
+    - **移動可能範囲ドラッグガイド（シェード・境界ライン・ラベルバッジ）＆ 自動クランプ**: `SNET` / `FNLT` が設定されたタスクをドラッグ移動・左右リサイズ（および複数タスク一括移動）した際、移動不可領域の斜線シェード・破線境界ライン・ビューポート追従ラベルバッジを表示し、違反領域へ入った際に赤色警告表示へ切り替え、ドロップ確定時（および `Shift+矢印キー` 移動時）に `autoSchedule` が無効の場合でも自動的に制約境界内へクランプする機能を標準搭載（`option.constraint?: GanttChartOptionConstraint`: `enabled`, `showDragGuide`, `clampOnDrop`, `showTooltip`）
+    - 制約判定・クランプ計算ユーティリティ（`extractTaskConstraint`, `formatConstraintDateLabel`, `buildConstraintBadgeText`, `resolveEffectiveSnetDate`, `clampMovedTaskDates`, `clampResizedTaskDates`）を公開エクスポートし、標準ツールチップおよび多言語辞書（`jaLocale` / `enLocale`）に対応
   - **マルチカラムデータグリッド標準組み込みカラム `'deadline'`（期限）**:
     - `GanttBuiltinColumnId` に `'deadline'`（見出し: `期限` / `Deadline`）を追加。日・月・時間粒度に応じた日付フォーマット表示、超過時の赤字強調表示、ソート、フッター集計（最大期限日）、TSV コピー＆ペースト、およびダブルクリックによるインライン日付編集（空欄確定による期限クリア含む）に対応
 - **マルチカラムデータグリッドの拡充：階層対応ソート・固定集計フッター行・セル範囲選択 ＆ TSV コピー＆ペースト**:

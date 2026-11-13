@@ -27,6 +27,17 @@ export {
 export { computeCriticalPath } from './core/critical-path'
 export * from './core/auto-schedule'
 export {
+  extractTaskConstraint,
+  formatConstraintDateLabel,
+  buildConstraintBadgeText,
+  resolveEffectiveSnetDate,
+  clampMovedTaskDates,
+  clampResizedTaskDates,
+  type TaskConstraintInfo,
+  type ActiveConstraintBoundary,
+  type ActiveConstraintDragState,
+} from './components/controllers/constraint-drag-guide'
+export {
   computeRowLevels,
   computeRowWbsCodes,
   computeChildRowIds,

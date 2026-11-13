@@ -4,6 +4,7 @@ import { countWorkingDays } from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import type { BarHoverEventDetail, GanttChartOption } from '../../core/types'
 import { calculateTaskDelay, calculateTaskDeadline, isMilestoneTask } from '../../core/utils'
+import { extractTaskConstraint, formatConstraintDateLabel } from './constraint-drag-guide'
 
 export type TooltipState = BarHoverEventDetail & {
   visible: boolean
@@ -247,6 +248,35 @@ export class TooltipController implements ReactiveController {
         `
       }
 
+      const constraintInfo =
+        this.host.option.constraint?.enabled !== false &&
+        this.host.option.constraint?.showTooltip !== false
+          ? extractTaskConstraint(this.tooltip.task)
+          : null
+      let constraintRow: any = ''
+
+      if (constraintInfo) {
+        const cDateStr = formatConstraintDateLabel(
+          constraintInfo.date,
+          constraintInfo.type,
+          constraintInfo.isMilestone,
+          this.host.option,
+        )
+        const cText =
+          constraintInfo.type === 'SNET'
+            ? locale.tooltip.constraintSnet
+              ? locale.tooltip.constraintSnet(cDateStr)
+              : `制約: ${cDateStr} 以降に開始 (SNET)`
+            : locale.tooltip.constraintFnlt
+              ? locale.tooltip.constraintFnlt(cDateStr)
+              : `制約: ${cDateStr} までに終了 (FNLT)`
+        constraintRow = html`
+          <div class="tooltip-row" style="color: #93c5fd; font-size: 11px; margin-top: 3px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 3px;">
+            ${cText}
+          </div>
+        `
+      }
+
       if (isMonthlyMode) {
         const endForDisplay = new Date(this.tooltip.task.end)
         if (!isMilestone) {
@@ -264,6 +294,7 @@ export class TooltipController implements ReactiveController {
             ${progressRow}
             ${baselineRow}
             ${deadlineRow}
+            ${constraintRow}
           `,
           tooltipEl,
         )
@@ -313,6 +344,7 @@ export class TooltipController implements ReactiveController {
             ${progressRow}
             ${baselineRow}
             ${deadlineRow}
+            ${constraintRow}
           `,
           tooltipEl,
         )

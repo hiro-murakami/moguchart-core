@@ -208,7 +208,7 @@ export interface GanttTask {
   baseline?: GanttTaskBaseline
   /** タスクのデッドライン（期限）日時 */
   deadline?: Date
-  /** 自動スケジューリング時のスケジュール制約種別 ('SNET': 指定日以降に開始, 'FNLT': 指定日までに終了) */
+  /** スケジュール制約種別 ('SNET': 指定日以降に開始, 'FNLT': 指定日までに終了) */
   constraintType?: TaskConstraintType
   /** スケジュール制約の基準日時 */
   constraintDate?: Date
@@ -643,10 +643,26 @@ export interface GanttChartOption {
   baseline?: GanttChartOptionBaseline
   /** デッドライン（期限）表示の設定 */
   deadline?: GanttChartOptionDeadline
+  /** スケジュール制約（SNET / FNLT）のドラッグガイド・境界制御の設定 */
+  constraint?: GanttChartOptionConstraint
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
   /** タッチデバイス（タブレット・モバイル）操作に関する設定 */
   touch?: GanttChartOptionTouch
+}
+
+/**
+ * スケジュール制約（SNET / FNLT）のドラッグガイド・境界制御に関するオプション
+ */
+export interface GanttChartOptionConstraint {
+  /** スケジュール制約（SNET / FNLT）のガイド表示および境界制御を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** ドラッグ・リサイズ中に移動不可領域のシェード・境界ライン・ラベルバッジを表示するかどうか (デフォルト: true) */
+  showDragGuide?: boolean
+  /** ドロップ・リサイズ確定時（およびキーボード移動時）に SNET / FNLT 境界内へ自動クランプするかどうか (デフォルト: true) */
+  clampOnDrop?: boolean
+  /** ツールチップにスケジュール制約（SNET / FNLT）情報を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
 }
 
 /**

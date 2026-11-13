@@ -217,6 +217,12 @@ export const ganttChartStyles = css`
     pointer-events: none;
     z-index: 65;
   }
+  .constraint-drag-guide-layer {
+    position: absolute;
+    pointer-events: none;
+    z-index: 64;
+    overflow: visible;
+  }
   .grid-footer-row {
     display: flex;
     width: fit-content;

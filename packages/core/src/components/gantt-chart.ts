@@ -129,10 +129,10 @@ export class GanttChartElement extends LitElement {
   @state() private virtualScrollTop = 0
   @state() private virtualRangeStartX = 0
   @state() private virtualRangeEndX = 2000
-  private currentScrollLeft = 0
-  private currentScrollTop = 0
-  @state() private viewportWidth = 800
-  @state() private viewportHeight = 400
+  public currentScrollLeft = 0
+  public currentScrollTop = 0
+  @state() public viewportWidth = 800
+  @state() public viewportHeight = 400
   @state() public calendarHeight = 0
   public get tooltip(): TooltipState | null {
     return this._tooltipController?.tooltip ?? null
@@ -758,6 +758,7 @@ export class GanttChartElement extends LitElement {
     }
 
     this._tooltipController.updateTooltipDOM()
+    this._taskDragController.syncConstraintGuideDOM()
     this._pluginManager.executeAfterRender()
   }
 
@@ -1106,6 +1107,7 @@ export class GanttChartElement extends LitElement {
       this.currentScrollTop = this._scrollContainer.scrollTop
     }
     this.syncHorizontalVirtualRange(this.currentScrollLeft)
+    this._taskDragController.syncConstraintGuideDOM()
     this.emitViewportChange()
   }
 
@@ -1224,6 +1226,7 @@ export class GanttChartElement extends LitElement {
     this.syncHorizontalVirtualRange(target.scrollLeft)
     this.updateScrollTop(target.scrollTop)
     this._tooltipController.hideTooltip()
+    this._taskDragController.syncConstraintGuideDOM()
     if (this.option?.minimap?.enabled === true || this._pluginManager.hasOverlayRenderers()) {
       this.requestUpdate()
     }
@@ -1239,6 +1242,7 @@ export class GanttChartElement extends LitElement {
       this.currentScrollTop = e.detail.scrollTop
       this.virtualScrollTop = e.detail.scrollTop
       this.syncHorizontalVirtualRange(e.detail.scrollLeft)
+      this._taskDragController.syncConstraintGuideDOM()
       if (this.option?.minimap?.enabled === true || this._pluginManager.hasOverlayRenderers()) {
         this.requestUpdate()
       }
@@ -3379,6 +3383,21 @@ export class GanttChartElement extends LitElement {
             ></div>
           `
         })}
+        ${!this.isExporting &&
+        this.option.constraint?.enabled !== false &&
+        this.option.constraint?.showDragGuide !== false
+          ? html`
+              <div
+                class="constraint-drag-guide-layer"
+                style="
+                  top: ${this.calendarHeight}px;
+                  left: ${labelWidth}px;
+                  width: ${contentWidth}px;
+                  height: ${totalHeight}px;
+                "
+              ></div>
+            `
+          : ''}
         ${overlayRenderContext
           ? html`
               <div

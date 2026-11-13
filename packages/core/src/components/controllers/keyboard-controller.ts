@@ -7,7 +7,8 @@ import type {
   GridCellRange,
   TaskDeleteEventDetail,
 } from '../../core/types'
-import { propagateAutoSchedule } from '../../core/auto-schedule'
+import { createNonWorkingDayChecker, propagateAutoSchedule } from '../../core/auto-schedule'
+import { clampMovedTaskDates } from './constraint-drag-guide'
 
 export interface KeyboardControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption
@@ -406,6 +407,26 @@ export class KeyboardController implements ReactiveController {
 
     const moveStep = this.host.option.keyboard?.moveStep ?? this.host.option.snapDuration ?? 1440
     const moveMs = moveStep * 60 * 1000 * direction
+    const clampEnabled =
+      this.host.option.constraint?.enabled !== false &&
+      this.host.option.constraint?.clampOnDrop !== false
+    const isMonthly = Boolean(this.host.option.calendar?.pxPerMonth)
+    const preserve = this.host.option.calendar?.preserveWorkingDaysOnDrag ?? false
+    const checker = preserve
+      ? (createNonWorkingDayChecker(
+          this.host.option.calendar?.calendarMode &&
+            this.host.option.calendar.calendarMode !== 'calendar'
+            ? this.host.option.calendar.calendarMode
+            : this.host.option.calendar?.isHoliday
+              ? 'weekends-holidays'
+              : 'weekends',
+          this.host.option.calendar?.isHoliday,
+          this.host.option.calendar?.nonWorkingDays,
+        ) ?? undefined)
+      : undefined
+
+    const movedDatesMap = new Map<string, { start: Date; end: Date }>()
+    let hasActualChange = false
 
     let newRows = this.host.rows.map((row) => {
       const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
@@ -415,14 +436,28 @@ export class KeyboardController implements ReactiveController {
         ...row,
         tasks: row.tasks.map((t) => {
           if (!this.host.selectedTasks.has(t.id)) return t
+          const proposedStart = new Date(t.start.getTime() + moveMs)
+          const proposedEnd = new Date(t.end.getTime() + moveMs)
+          const next = clampEnabled
+            ? clampMovedTaskDates(t, proposedStart, proposedEnd, { isMonthly, checker })
+            : { start: proposedStart, end: proposedEnd, clamped: false }
+          movedDatesMap.set(t.id, { start: next.start, end: next.end })
+          if (
+            next.start.getTime() !== t.start.getTime() ||
+            next.end.getTime() !== t.end.getTime()
+          ) {
+            hasActualChange = true
+          }
           return {
             ...t,
-            start: new Date(t.start.getTime() + moveMs),
-            end: new Date(t.end.getTime() + moveMs),
+            start: next.start,
+            end: next.end,
           }
         }),
       }
     })
+
+    if (!hasActualChange) return
 
     if (this.host.option.dependency?.autoSchedule) {
       const scheduleResult = propagateAutoSchedule(newRows, this.host.selectedTasks, {
@@ -441,8 +476,9 @@ export class KeyboardController implements ReactiveController {
     for (const row of this.host.rows) {
       for (const task of row.tasks) {
         if (!this.host.selectedTasks.has(task.id)) continue
-        const newStart = new Date(task.start.getTime() + moveMs)
-        const newEnd = new Date(task.end.getTime() + moveMs)
+        const moved = movedDatesMap.get(task.id)
+        const newStart = moved ? moved.start : new Date(task.start.getTime() + moveMs)
+        const newEnd = moved ? moved.end : new Date(task.end.getTime() + moveMs)
         this.host.dispatchEvent(
           new CustomEvent('task-update', {
             detail: {

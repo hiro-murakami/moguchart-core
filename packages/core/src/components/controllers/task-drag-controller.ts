@@ -26,6 +26,13 @@ import {
 } from '../../core/auto-schedule'
 import { jaLocale } from '../../core/i18n'
 import { DEFAULT_BAR_MARGIN } from '../../core/constants'
+import {
+  ConstraintDragGuideManager,
+  clampMovedTaskDates,
+  clampResizedTaskDates,
+  extractTaskConstraint,
+  resolveEffectiveSnetDate,
+} from './constraint-drag-guide'
 
 export interface DragOverlayInfo {
   id: string
@@ -97,14 +104,37 @@ export class TaskDragController implements ReactiveController {
   public dragTargetRowIndex: number | null = null
   public dragOverlayInfo: DragOverlayInfo | null = null
   public dragPreview: DragPreviewState | null = null
+  public readonly constraintGuide: ConstraintDragGuideManager
 
   constructor(host: TaskDragControllerHost) {
     this.host = host
+    this.constraintGuide = new ConstraintDragGuideManager(host)
     host.addController(this)
   }
 
   hostConnected(): void {}
-  hostDisconnected(): void {}
+  hostDisconnected(): void {
+    this.constraintGuide.destroy()
+  }
+
+  public syncConstraintGuideDOM(): void {
+    this.constraintGuide.syncDOM()
+  }
+
+  private getPreserveWorkingDaysChecker(): ((dayStartMs: number) => boolean) | undefined {
+    const preserve = this.host.option?.calendar?.preserveWorkingDaysOnDrag ?? false
+    if (!preserve) return undefined
+    const opts = this.getAutoScheduleOptions()
+    const effectiveMode =
+      opts.calendarMode && opts.calendarMode !== 'calendar'
+        ? opts.calendarMode
+        : opts.isHoliday
+          ? 'weekends-holidays'
+          : 'weekends'
+    return (
+      createNonWorkingDayChecker(effectiveMode, opts.isHoliday, opts.nonWorkingDays) ?? undefined
+    )
+  }
 
   private getAutoScheduleOptions(): AutoScheduleOptions {
     return {
@@ -199,6 +229,7 @@ export class TaskDragController implements ReactiveController {
     this.multiDragDy = 0
     this.multiDragSameRow = false
     this.dragTargetRowIndex = null
+    this.constraintGuide.clear()
     if (this.dragOverlayInfo) {
       this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
       this.hideDragOverlay()
@@ -482,6 +513,7 @@ export class TaskDragController implements ReactiveController {
         this.multiDragDx = 0
         this.multiDragDy = 0
         this.dragTargetRowIndex = null
+        this.constraintGuide.clear()
         if (this.dragOverlayInfo) {
           this.dragOverlayInfo = { ...this.dragOverlayInfo, visible: false }
           this.hideDragOverlay()
@@ -489,6 +521,8 @@ export class TaskDragController implements ReactiveController {
         this.host.requestUpdate()
         return
       }
+
+      this.constraintGuide.updateFromTaskUpdate(eventDetail)
 
       // 未来方向へのドラッグ中にカレンダー終端へ近づいた場合の自動期間拡張
       this.host.maybeAutoExtendCalendar?.(newStart, newEnd, true)
@@ -596,6 +630,148 @@ export class TaskDragController implements ReactiveController {
       return
     }
 
+    const isConstraintClampEnabled = this.constraintGuide.isClampEnabled() && mode !== 'copy'
+    const isMonthlyMode = Boolean(this.host.option.calendar.pxPerMonth)
+    const workingDaysChecker = dx !== undefined ? this.getPreserveWorkingDaysChecker() : undefined
+    let effectiveDx = dx
+    let wasMultiClamped = false
+
+    const computeShiftedDatesForTask = (
+      t: GanttTask,
+      deltaPx: number,
+    ): { start: Date; end: Date } => {
+      const pxPerDay = this.host.effectivePxPerDay
+      const pxPerMonth = this.host.effectivePxPerMonth
+      const tStartX = this.host.getDateX(t.start)
+      const tEndX = this.host.getDateX(t.end)
+      const ns = xToDate(tStartX + deltaPx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
+      const ne = isMilestoneTask(t)
+        ? new Date(ns.getTime())
+        : xToDate(tEndX + deltaPx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
+      if (this.host.option.calendar.pxPerMonth) {
+        if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+        ns.setDate(1)
+        ns.setHours(0, 0, 0, 0)
+        if (isMilestoneTask(t)) {
+          ne.setTime(ns.getTime())
+        } else {
+          if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+          ne.setDate(1)
+          ne.setHours(0, 0, 0, 0)
+        }
+      } else if (this.host.option.snapDuration && this.host.option.snapDuration >= 43200) {
+        if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
+        ns.setDate(1)
+        ns.setHours(0, 0, 0, 0)
+        if (isMilestoneTask(t)) {
+          ne.setTime(ns.getTime())
+        } else {
+          if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
+          ne.setDate(1)
+          ne.setHours(0, 0, 0, 0)
+        }
+      }
+      const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
+      if (!isConstraintClampEnabled) {
+        return preserved
+      }
+      const clamped = clampMovedTaskDates(t, preserved.start, preserved.end, {
+        isMonthly: isMonthlyMode,
+        checker: workingDaysChecker,
+      })
+      return { start: clamped.start, end: clamped.end }
+    }
+
+    if (isConstraintClampEnabled) {
+      if (droppedMulti && dx !== undefined) {
+        let clampedDx = dx
+        for (const row of this.host.rows) {
+          for (const t of row.tasks) {
+            if (!this.host.selectedTasks.has(t.id)) continue
+            const constraint = extractTaskConstraint(t)
+            if (!constraint) continue
+            const origStart = new Date(t.start)
+            const origEnd = new Date(t.end)
+            if (constraint.type === 'SNET' && dx < 0) {
+              const effectiveDate = resolveEffectiveSnetDate(constraint, true, workingDaysChecker)
+              const minAllowedDx = Math.min(
+                0,
+                this.host.getDateX(effectiveDate) - this.host.getDateX(origStart),
+              )
+              if (clampedDx < minAllowedDx - 0.5) {
+                clampedDx = minAllowedDx
+                wasMultiClamped = true
+              }
+            } else if (constraint.type === 'FNLT' && dx > 0) {
+              const refEdge = constraint.isMilestone ? origStart : origEnd
+              const maxAllowedDx = Math.max(
+                0,
+                this.host.getDateX(constraint.date) - this.host.getDateX(refEdge),
+              )
+              if (clampedDx > maxAllowedDx + 0.5) {
+                clampedDx = maxAllowedDx
+                wasMultiClamped = true
+              }
+            }
+          }
+        }
+        effectiveDx = clampedDx
+        if (wasMultiClamped) {
+          const mainShifted = computeShiftedDatesForTask(capturedTaskToMove, effectiveDx)
+          newStart = mainShifted.start
+          newEnd = mainShifted.end
+          eventDetail.dx = effectiveDx
+          eventDetail.start = newStart
+          eventDetail.end = newEnd
+
+          const targetRow = targetRowIndex !== -1 ? this.host.displayRows[targetRowIndex] : undefined
+          const targetRowIdxInRows = targetRow
+            ? this.host.rows.findIndex((r) => r.id === targetRow.id)
+            : -1
+          const multiNeedsRowMove =
+            droppedSameRow && targetRowIdxInRows !== -1 && sourceRowIndex !== targetRowIdxInRows
+          if (Math.abs(effectiveDx) < 0.5 && !multiNeedsRowMove) {
+            this.restoreBarDOMPosition(id, capturedTaskToMove.start, capturedTaskToMove.end)
+            this.host.requestUpdate()
+            return
+          }
+        }
+      } else {
+        const clampResult =
+          dx !== undefined
+            ? clampMovedTaskDates(capturedTaskToMove, newStart, newEnd, {
+                isMonthly: isMonthlyMode,
+                checker: workingDaysChecker,
+              })
+            : clampResizedTaskDates(capturedTaskToMove, newStart, newEnd, {
+                isMonthly: isMonthlyMode,
+                snapMinutes:
+                  this.host.option.snapDuration ??
+                  (this.host.option.calendar.showTime ? 60 : 1440),
+              })
+        if (clampResult.clamped) {
+          newStart = clampResult.start
+          newEnd = clampResult.end
+          eventDetail.start = newStart
+          eventDetail.end = newEnd
+          const origStartMs = new Date(capturedTaskToMove.start).getTime()
+          const origEndMs = new Date(capturedTaskToMove.end).getTime()
+          const isSameTargetRow =
+            targetRowIndex === -1 ||
+            this.host.displayRows[targetRowIndex]?.id === this.host.rows[sourceRowIndex]?.id
+          if (
+            isSameTargetRow &&
+            newStart.getTime() === origStartMs &&
+            newEnd.getTime() === origEndMs
+          ) {
+            this.restoreBarDOMPosition(id, capturedTaskToMove.start, capturedTaskToMove.end)
+            this.host.requestUpdate()
+            return
+          }
+        }
+      }
+    }
+
     const commitDrop = () => {
       this.host.dispatchEvent(
         new CustomEvent('task-update', {
@@ -615,9 +791,7 @@ export class TaskDragController implements ReactiveController {
       const previousRows = this.host.rows
 
       // 複数バー移動のドロップ処理
-      if (droppedMulti && dx !== undefined) {
-        const pxPerDay = this.host.effectivePxPerDay
-        const pxPerMonth = this.host.effectivePxPerMonth
+      if (droppedMulti && effectiveDx !== undefined) {
         let minDroppedStart = newStart
         let maxDroppedEnd = newEnd
 
@@ -635,29 +809,10 @@ export class TaskDragController implements ReactiveController {
           const movedTasks: GanttTask[] = []
           sourceRow.tasks = sourceRow.tasks.filter((t) => {
             if (this.host.selectedTasks.has(t.id)) {
-              const tStartX = this.host.getDateX(t.start)
-              const tEndX = this.host.getDateX(t.end)
-              const ns = xToDate(tStartX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-              const ne = xToDate(tEndX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-              if (this.host.option.calendar.pxPerMonth) {
-                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                ns.setDate(1)
-                ns.setHours(0, 0, 0, 0)
-                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                ne.setDate(1)
-                ne.setHours(0, 0, 0, 0)
-              } else if (this.host.option.snapDuration && this.host.option.snapDuration >= 43200) {
-                if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                ns.setDate(1)
-                ns.setHours(0, 0, 0, 0)
-                if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                ne.setDate(1)
-                ne.setHours(0, 0, 0, 0)
-              }
-              const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
-              if (preserved.start < minDroppedStart) minDroppedStart = preserved.start
-              if (preserved.end > maxDroppedEnd) maxDroppedEnd = preserved.end
-              movedTasks.push({ ...t, start: preserved.start, end: preserved.end })
+              const shifted = computeShiftedDatesForTask(t, effectiveDx)
+              if (shifted.start < minDroppedStart) minDroppedStart = shifted.start
+              if (shifted.end > maxDroppedEnd) maxDroppedEnd = shifted.end
+              movedTasks.push({ ...t, start: shifted.start, end: shifted.end })
               return false
             }
             return true
@@ -688,6 +843,7 @@ export class TaskDragController implements ReactiveController {
           })
         } else {
           // 同じ行内での水平移動のみ
+          let hasAnyActualDiff = false
           let newRows = this.host.rows.map((row) => {
             const hasSelectedTask = row.tasks.some((t) => this.host.selectedTasks.has(t.id))
             if (!hasSelectedTask) return row
@@ -696,37 +852,29 @@ export class TaskDragController implements ReactiveController {
               ...row,
               tasks: row.tasks.map((t) => {
                 if (!this.host.selectedTasks.has(t.id)) return t
-                const tStartX = this.host.getDateX(t.start)
-                const tEndX = this.host.getDateX(t.end)
-                const ns = xToDate(tStartX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-                const ne = xToDate(tEndX + dx, this.host.option.calendar.start, pxPerDay, pxPerMonth)
-                // 月単位モードではsnapDurationに関わらず1ヶ月単位でスナップ
-                if (this.host.option.calendar.pxPerMonth) {
-                  if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                  ns.setDate(1)
-                  ns.setHours(0, 0, 0, 0)
-                  if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                  ne.setDate(1)
-                  ne.setHours(0, 0, 0, 0)
-                } else if (this.host.option.snapDuration && this.host.option.snapDuration >= 43200) {
-                  if (ns.getDate() > 15) ns.setMonth(ns.getMonth() + 1)
-                  ns.setDate(1)
-                  ns.setHours(0, 0, 0, 0)
-                  if (ne.getDate() > 15) ne.setMonth(ne.getMonth() + 1)
-                  ne.setDate(1)
-                  ne.setHours(0, 0, 0, 0)
+                const shifted = computeShiftedDatesForTask(t, effectiveDx)
+                if (
+                  shifted.start.getTime() !== new Date(t.start).getTime() ||
+                  shifted.end.getTime() !== new Date(t.end).getTime()
+                ) {
+                  hasAnyActualDiff = true
                 }
-                const preserved = this.applyPreserveWorkingDaysOnMove(t.start, t.end, ns, ne, t)
-                if (preserved.start < minDroppedStart) minDroppedStart = preserved.start
-                if (preserved.end > maxDroppedEnd) maxDroppedEnd = preserved.end
+                if (shifted.start < minDroppedStart) minDroppedStart = shifted.start
+                if (shifted.end > maxDroppedEnd) maxDroppedEnd = shifted.end
                 return {
                   ...t,
-                  start: preserved.start,
-                  end: preserved.end,
+                  start: shifted.start,
+                  end: shifted.end,
                 }
               }),
             }
           })
+
+          if (wasMultiClamped && !hasAnyActualDiff) {
+            this.restoreBarDOMPosition(id, capturedTaskToMove.start, capturedTaskToMove.end)
+            this.host.requestUpdate()
+            return
+          }
 
           if (this.host.option.dependency?.autoSchedule) {
             const scheduleResult = propagateAutoSchedule(

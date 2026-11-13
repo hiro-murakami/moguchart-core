@@ -152,6 +152,8 @@ let dependencyLineStyle: DependencyLineStyle = 'orthogonal'
 let showConnectors = true
 let autoSchedule = true
 let scheduleMode: AutoScheduleMode = 'push-only'
+let showConstraintDragGuide = true
+let clampConstraintOnDrop = true
 let calendarMode: 'calendar' | 'weekends' | 'weekends-holidays' = 'weekends-holidays'
 let nonWorkingDays: number[] = [0, 6]
 let enableCustomNonWorkingDates = true
@@ -523,6 +525,11 @@ const renderApp = () => {
       editable: editableDeadline,
       highlightOverdue,
       showConnector: showDeadlineConnector,
+    },
+    constraint: {
+      enabled: true,
+      showDragGuide: showConstraintDragGuide,
+      clampOnDrop: clampConstraintOnDrop,
     },
     grid: {
       enabled: enableGrid,
@@ -1295,6 +1302,16 @@ const renderApp = () => {
                   <option value="strict" ?selected="${scheduleMode === 'strict'}">Strict (ASAP)</option>
                 </select>
               </span>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${showConstraintDragGuide}" @change="${(e: Event) => { showConstraintDragGuide = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${currentLang === 'ja' ? '制約範囲シェード (SNET/FNLT)' : 'Constraint Shade (SNET/FNLT)'}
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" .checked="${clampConstraintOnDrop}" @change="${(e: Event) => { clampConstraintOnDrop = (e.target as HTMLInputElement).checked; renderApp() }}" />
+                <span class="toggle-track"></span>
+                ${currentLang === 'ja' ? '制約境界でクランプ' : 'Clamp on Constraint'}
+              </label>
               <label class="toggle-label">
                 <input type="checkbox" .checked="${preserveWorkingDaysOnDrag}" @change="${(e: Event) => { preserveWorkingDaysOnDrag = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>

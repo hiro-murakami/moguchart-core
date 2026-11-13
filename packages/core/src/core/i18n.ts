@@ -51,6 +51,10 @@ export interface MoguchartLocale {
     deadlineRemaining?: (days: number) => string
     /** 期限内の表示 (例: "期限内") */
     deadlineOnTime?: string
+    /** SNET制約の表示 (例: "制約: 2024/1/15 以降に開始 (SNET)") */
+    constraintSnet?: (dateStr: string) => string
+    /** FNLT制約の表示 (例: "制約: 2024/1/20 までに終了 (FNLT)") */
+    constraintFnlt?: (dateStr: string) => string
   }
   /** ドラッグオーバーレイの文字列 */
   dragOverlay: {
@@ -60,6 +64,10 @@ export interface MoguchartLocale {
     moveTo: (name: string) => string
     /** 複数タスク移動中の表示 (例: "3件のタスクを移動中" / "Moving 3 tasks") */
     movingTasks: (count: number) => string
+    /** SNET制約ドラッグガイドバッジの表示 (例: "2024/1/15 以降に開始 (SNET)") */
+    constraintSnet?: (dateStr: string) => string
+    /** FNLT制約ドラッグガイドバッジの表示 (例: "2024/1/20 までに終了 (FNLT)") */
+    constraintFnlt?: (dateStr: string) => string
   }
   /** マルチカラムデータグリッドの文字列 */
   grid?: {
@@ -117,11 +125,15 @@ export const jaLocale: MoguchartLocale = {
     overdue: (days) => `期限超過 +${days}日`,
     deadlineRemaining: (days) => `残り${days}日`,
     deadlineOnTime: '期限内',
+    constraintSnet: (dateStr) => `制約: ${dateStr} 以降に開始 (SNET)`,
+    constraintFnlt: (dateStr) => `制約: ${dateStr} までに終了 (FNLT)`,
   },
   dragOverlay: {
     noTitle: 'タイトルなし',
     moveTo: (name) => `移動先: ${name}`,
     movingTasks: (count) => `${count}件のタスクを移動中`,
+    constraintSnet: (dateStr) => `${dateStr} 以降に開始 (SNET)`,
+    constraintFnlt: (dateStr) => `${dateStr} までに終了 (FNLT)`,
   },
   grid: {
     columns: {
@@ -180,11 +192,15 @@ export const enLocale: MoguchartLocale = {
     overdue: (days) => `Overdue +${days}d`,
     deadlineRemaining: (days) => `${days}d left`,
     deadlineOnTime: 'On time',
+    constraintSnet: (dateStr) => `Constraint: Start ≥ ${dateStr} (SNET)`,
+    constraintFnlt: (dateStr) => `Constraint: Finish ≤ ${dateStr} (FNLT)`,
   },
   dragOverlay: {
     noTitle: 'No Title',
     moveTo: (name) => `Move to: ${name}`,
     movingTasks: (count) => `Moving ${count} task${count !== 1 ? 's' : ''}`,
+    constraintSnet: (dateStr) => `Start no earlier than ${dateStr} (SNET)`,
+    constraintFnlt: (dateStr) => `Finish no later than ${dateStr} (FNLT)`,
   },
   grid: {
     columns: {

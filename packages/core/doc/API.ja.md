@@ -159,6 +159,8 @@ interface GanttChartOption {
   baseline?: GanttChartOptionBaseline
   /** デッドライン（期限マーカー）の設定 */
   deadline?: GanttChartOptionDeadline
+  /** スケジュール制約（SNET / FNLT）のドラッグガイド・境界制御の設定 */
+  constraint?: GanttChartOptionConstraint
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
   /** タッチデバイス（タブレット・スマートフォン）操作の最適化設定 */
@@ -1524,6 +1526,23 @@ interface TaskDeadlineChangeEventDetail {
   originalDeadline?: Date
   /** キャンセルされたかどうか */
   cancelled?: boolean
+}
+```
+
+### GanttChartOptionConstraint
+
+タスクのスケジュール制約（`SNET`: 指定日以降に開始 / `FNLT`: 指定日までに終了）に対するドラッグ中の移動不可領域シェード・境界ライン・ラベルバッジ表示、およびドロップ・リサイズ確定時の境界クランプ制御に関する設定です（`option.dependency.autoSchedule` が無効の場合でも単独で機能します）。
+
+```typescript
+interface GanttChartOptionConstraint {
+  /** スケジュール制約（SNET / FNLT）のガイド表示および境界制御を有効にするかどうか (デフォルト: true) */
+  enabled?: boolean
+  /** ドラッグ・リサイズ中に移動不可領域のシェード・境界ライン・ラベルバッジを表示するかどうか (デフォルト: true) */
+  showDragGuide?: boolean
+  /** ドロップ・リサイズ確定時（およびキーボード移動時）に SNET / FNLT 境界内へ自動クランプするかどうか (デフォルト: true) */
+  clampOnDrop?: boolean
+  /** ツールチップにスケジュール制約（SNET / FNLT）情報を表示するかどうか (デフォルト: true) */
+  showTooltip?: boolean
 }
 ```
 

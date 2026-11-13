@@ -37,6 +37,13 @@ describe('i18n', () => {
       expect(jaLocale.dragOverlay.movingTasks(3)).toBe('3件のタスクを移動中')
     })
 
+    it('constraint labels format correctly in jaLocale', () => {
+      expect(jaLocale.dragOverlay.constraintSnet?.('2024/5/8')).toBe('2024/5/8 以降に開始 (SNET)')
+      expect(jaLocale.dragOverlay.constraintFnlt?.('2024/5/20')).toBe('2024/5/20 までに終了 (FNLT)')
+      expect(jaLocale.tooltip.constraintSnet?.('2024/5/8')).toBe('制約: 2024/5/8 以降に開始 (SNET)')
+      expect(jaLocale.tooltip.constraintFnlt?.('2024/5/20')).toBe('制約: 2024/5/20 までに終了 (FNLT)')
+    })
+
     it('monthFormat is Japanese format', () => {
       expect(jaLocale.monthFormat).toBe('YYYY年M月')
     })
@@ -107,6 +114,21 @@ describe('i18n', () => {
 
     it('dragOverlay.movingTasks formats correctly with singular', () => {
       expect(enLocale.dragOverlay.movingTasks(1)).toBe('Moving 1 task')
+    })
+
+    it('constraint labels format correctly in enLocale', () => {
+      expect(enLocale.dragOverlay.constraintSnet?.('5/8/2024')).toBe(
+        'Start no earlier than 5/8/2024 (SNET)',
+      )
+      expect(enLocale.dragOverlay.constraintFnlt?.('5/20/2024')).toBe(
+        'Finish no later than 5/20/2024 (FNLT)',
+      )
+      expect(enLocale.tooltip.constraintSnet?.('5/8/2024')).toBe(
+        'Constraint: Start ≥ 5/8/2024 (SNET)',
+      )
+      expect(enLocale.tooltip.constraintFnlt?.('5/20/2024')).toBe(
+        'Constraint: Finish ≤ 5/20/2024 (FNLT)',
+      )
     })
 
     it('monthFormat is English format', () => {
