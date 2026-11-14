@@ -584,7 +584,13 @@ export interface GanttChartOptionDependency {
    */
   enableEditPopover?: boolean
   /**
-   * 接続線操作から編集ポップオーバーを開くトリガー (デフォルト: 'dblclick')
+   * 線上に編集用（鉛筆アイコン）ボタンを表示するか (デフォルト: enableEditPopover !== false、readOnly 時は無効)
+   * enableEditPopover: false と showEditButton: true を組み合わせることで、
+   * 組み込みポップオーバーを出さずに dependency-edit イベントで独自ダイアログを開ける。
+   */
+  showEditButton?: boolean
+  /**
+   * 接続線操作から編集ポップオーバー（および dependency-edit イベント）を発火するトリガー (デフォルト: 'dblclick')
    */
   editPopoverTrigger?: 'dblclick' | 'click'
 }
@@ -1231,6 +1237,18 @@ export interface DependencyClickEventDetail {
   targetTaskId: string
   /** 元のマウスイベント */
   event: MouseEvent
+}
+
+/**
+ * 依存関係編集アクション（鉛筆ボタンクリックやダブルクリック等）イベントの詳細データ
+ */
+export interface DependencyEditEventDetail {
+  /** 接続元のタスクID */
+  sourceTaskId: string
+  /** 接続先のタスクID */
+  targetTaskId: string
+  /** 元のマウスイベント */
+  event?: MouseEvent
 }
 
 /**

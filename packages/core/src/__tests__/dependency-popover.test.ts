@@ -125,7 +125,24 @@ describe('Built-in Dependency Edit Popover & updateDependency API', () => {
     await chart.updateComplete
     expect(chart.shadowRoot?.querySelector('.dependency-edit-popover')).toBeNull()
 
-    // 4) readOnly: true の場合は開かない
+    // 4) enableEditPopover: false かつ showEditButton: true の場合はボタンが表示され dependency-edit が発火し、組み込みポップオーバーは開かない
+    const editEvents: Array<{ sourceTaskId: string; targetTaskId: string }> = []
+    chart.addEventListener('dependency-edit', ((e: CustomEvent) => {
+      editEvents.push({ sourceTaskId: e.detail.sourceTaskId, targetTaskId: e.detail.targetTaskId })
+    }) as EventListener)
+    chart.option = {
+      ...baseOption,
+      dependency: { ...baseOption.dependency, enableEditPopover: false, showEditButton: true },
+    }
+    await chart.updateComplete
+    const customEditBtn = chart.shadowRoot?.querySelector('.dependency-edit-btn') as SVGGElement
+    expect(customEditBtn).not.toBeNull()
+    customEditBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await chart.updateComplete
+    expect(chart.shadowRoot?.querySelector('.dependency-edit-popover')).toBeNull()
+    expect(editEvents).toEqual([{ sourceTaskId: 'task-1', targetTaskId: 'task-2' }])
+
+    // 5) readOnly: true の場合は開かない
     chart.option = {
       ...baseOption,
       readOnly: true,

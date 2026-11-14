@@ -5,6 +5,7 @@ import type {
   DependencyClickEventDetail,
   DependencyCreateEventDetail,
   DependencyDeleteEventDetail,
+  DependencyEditEventDetail,
   DependencyEndpoint,
   DependencySelectEventDetail,
   DependencyType,
@@ -261,6 +262,34 @@ export class DependencyController implements ReactiveController {
       return { unitMinutes: 60, stepInUnit: snapMinutes / 60, unitKey: 'hours' }
     }
     return { unitMinutes: 1, stepInUnit: Math.max(1, snapMinutes), unitKey: 'minutes' }
+  }
+
+  /**
+   * 依存関係線の編集操作（鉛筆ボタンクリックやダブルクリック等）を処理する
+   */
+  public handleDependencyEdit(
+    sourceTaskId: string,
+    targetTaskId: string,
+    anchor?: { contentX?: number; contentY?: number; clientX?: number; clientY?: number },
+    originalEvent?: MouseEvent,
+  ): void {
+    if (this.host.option?.readOnly) return
+
+    const editEvent = new CustomEvent<DependencyEditEventDetail>('dependency-edit', {
+      detail: {
+        sourceTaskId,
+        targetTaskId,
+        event: originalEvent,
+      },
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    })
+    this.host.dispatchEvent(editEvent)
+
+    if (!editEvent.defaultPrevented && this.host.option?.dependency?.enableEditPopover !== false) {
+      this.openEditPopover(sourceTaskId, targetTaskId, anchor)
+    }
   }
 
   /**

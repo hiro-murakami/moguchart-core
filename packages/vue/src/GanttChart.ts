@@ -31,6 +31,7 @@ import {
   type RowToggleCollapseEventDetail,
   type DependencyCreateEventDetail,
   type DependencyClickEventDetail,
+  type DependencyEditEventDetail,
   type DependencyDeleteEventDetail,
   type DependencySelectEventDetail,
   type DependencyUpdateEventDetail,
@@ -114,6 +115,7 @@ export const ganttChartEmits = {
   'row-toggle-collapse': (_detail: RowToggleCollapseEventDetail, _e: CustomEvent<RowToggleCollapseEventDetail>) => true,
   'dependency-create': (_detail: DependencyCreateEventDetail, _e: CustomEvent<DependencyCreateEventDetail>) => true,
   'dependency-click': (_detail: DependencyClickEventDetail, _e: CustomEvent<DependencyClickEventDetail>) => true,
+  'dependency-edit': (_detail: DependencyEditEventDetail, _e: CustomEvent<DependencyEditEventDetail>) => true,
   'dependency-delete': (_detail: DependencyDeleteEventDetail, _e: CustomEvent<DependencyDeleteEventDetail>) => true,
   'dependency-select': (_detail: DependencySelectEventDetail, _e: CustomEvent<DependencySelectEventDetail>) => true,
   'dependency-update': (_detail: DependencyUpdateEventDetail, _e: CustomEvent<DependencyUpdateEventDetail>) => true,
@@ -301,6 +303,8 @@ export const GanttChart = defineComponent({
       scrollToPosition: (...args: Parameters<GanttChartElement['scrollToPosition']>) => elRef.value?.scrollToPosition(...args),
       scrollToTask: (...args: Parameters<GanttChartElement['scrollToTask']>) => elRef.value?.scrollToTask(...args),
       selectTask: (...args: Parameters<GanttChartElement['selectTask']>) => elRef.value?.selectTask(...args),
+      clearSelection: (...args: Parameters<GanttChartElement['clearSelection']>) => elRef.value?.clearSelection(...args),
+      clearDependencySelection: (...args: Parameters<GanttChartElement['clearDependencySelection']>) => elRef.value?.clearDependencySelection(...args),
       toggleRowCollapse: (...args: Parameters<GanttChartElement['toggleRowCollapse']>) => elRef.value?.toggleRowCollapse(...args),
       collapseAll: (...args: Parameters<GanttChartElement['collapseAll']>) => elRef.value?.collapseAll(...args),
       expandAll: (...args: Parameters<GanttChartElement['expandAll']>) => elRef.value?.expandAll(...args),
@@ -369,6 +373,8 @@ export interface GanttChartPublicApi {
   scrollToPosition: GanttChartElement['scrollToPosition']
   scrollToTask: GanttChartElement['scrollToTask']
   selectTask: GanttChartElement['selectTask']
+  clearSelection: GanttChartElement['clearSelection']
+  clearDependencySelection: GanttChartElement['clearDependencySelection']
   toggleRowCollapse: GanttChartElement['toggleRowCollapse']
   collapseAll: GanttChartElement['collapseAll']
   expandAll: GanttChartElement['expandAll']

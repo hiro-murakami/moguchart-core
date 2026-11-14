@@ -2677,8 +2677,8 @@ export class GanttChartElement extends LitElement {
           getDateX: (d) => this.getDateX(d),
           onDependencyLineClick: (e, tId, sId) => this.handleDependencyLineClick(e, tId, sId),
           onDependencyDelete: (sId, tId, e) => this.triggerDependencyDelete(sId, tId, e),
-          onDependencyEdit: (sId, tId, anchor) =>
-            this._dependencyController.openEditPopover(sId, tId, anchor),
+          onDependencyEdit: (sId, tId, anchor, e) =>
+            this._dependencyController.handleDependencyEdit(sId, tId, anchor, e),
         })}
 
         ${!this.isExporting &&

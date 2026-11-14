@@ -60,6 +60,8 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
 
   const isReadOnly = option.readOnly === true
   const canEditPopover = !isReadOnly && option.dependency?.enableEditPopover !== false
+  const showEditBtnOption = option.dependency?.showEditButton ?? (option.dependency?.enableEditPopover !== false)
+  const canTriggerEdit = !isReadOnly && (canEditPopover || showEditBtnOption) && Boolean(onDependencyEdit)
   const editTrigger = option.dependency?.editPopoverTrigger ?? 'dblclick'
   const editBtnTitle = option.locale?.dependencyPopover?.editButtonTitle ?? '依存関係を編集'
   const deleteBtnTitle = option.locale?.dependencyPopover?.deleteButtonTitle ?? '依存関係を削除'
@@ -189,7 +191,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
             selectedDependency?.targetTaskId === taskId
           const canDelete = !isReadOnly && option.dependency?.deletable !== false
           const showDeleteBtn = canDelete && option.dependency?.showDeleteButton !== false
-          const showEditBtn = canEditPopover && Boolean(onDependencyEdit)
+          const showEditBtn = !isReadOnly && showEditBtnOption && Boolean(onDependencyEdit)
           const editBtnX = showEditBtn && showDeleteBtn ? btnX - 11 : btnX
           const deleteBtnX = showEditBtn && showDeleteBtn ? btnX + 11 : btnX
 
@@ -202,7 +204,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                     @click="${(e: MouseEvent) => {
                       e.stopPropagation()
                       onDependencyLineClick(e, taskId, depId)
-                      if (showEditBtn && editTrigger === 'click') {
+                      if (canTriggerEdit && editTrigger === 'click') {
                         onDependencyEdit?.(
                           depId,
                           taskId,
@@ -214,7 +216,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                     @dblclick="${(e: MouseEvent) => {
                       e.stopPropagation()
                       onDependencyLineClick(e, taskId, depId)
-                      if (showEditBtn) {
+                      if (canTriggerEdit) {
                         onDependencyEdit?.(
                           depId,
                           taskId,
@@ -251,6 +253,15 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                         { contentX: btnX, contentY: btnY, clientX: e.clientX, clientY: e.clientY },
                         e,
                       )
+                    }}"
+                    @dblclick="${(e: MouseEvent) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                    }}"
+                    @contextmenu="${(e: MouseEvent) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onDependencyLineClick(e, taskId, depId)
                     }}"
                   >
                     <title>${editBtnTitle}</title>
