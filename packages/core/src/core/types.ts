@@ -1,6 +1,7 @@
 import type { MoguchartLocale } from './i18n'
 import type { GanttPlugin } from './plugin'
 import type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager } from './history'
+import type { GanttFilterConfig, GanttFilterResult } from './filter'
 
 /**
  * ガントチャートのバーに適用できるパターンの種類
@@ -578,6 +579,14 @@ export interface GanttChartOptionDependency {
    * 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true)
    */
   respectMovable?: boolean
+  /**
+   * 組み込みの依存関係編集ポップオーバーを有効にするか (デフォルト: true、readOnly 時は無効)
+   */
+  enableEditPopover?: boolean
+  /**
+   * 接続線操作から編集ポップオーバーを開くトリガー (デフォルト: 'dblclick')
+   */
+  editPopoverTrigger?: 'dblclick' | 'click'
 }
 
 /**
@@ -647,6 +656,8 @@ export interface GanttChartOption {
   constraint?: GanttChartOptionConstraint
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
+  /** WBS階層維持フィルタリング・検索の設定 */
+  filter?: GanttFilterConfig | null
   /** タッチデバイス（タブレット・モバイル）操作に関する設定 */
   touch?: GanttChartOptionTouch
 }
@@ -1235,6 +1246,53 @@ export interface DependencyDeleteEventDetail {
 }
 
 /**
+ * `updateDependency()` に渡す更新パラメータ
+ */
+export interface DependencyUpdateInput {
+  /** 新しい依存関係の種別 ('FS' | 'SS' | 'FF' | 'SF') */
+  type?: DependencyType
+  /** 新しいラグ期間（分単位。1日 = 1440） */
+  lag?: number
+  /** 新しいラグ日数（lag 未指定時に日数×1440分へ自動変換する糖衣指定） */
+  lagDays?: number
+}
+
+/**
+ * 依存関係リンク更新直前フック (beforeDependencyUpdate) の詳細データ
+ */
+export interface BeforeDependencyUpdateHookDetail {
+  /** 先行タスク（接続元）のID */
+  sourceTaskId: string
+  /** 後続タスク（接続先）のID */
+  targetTaskId: string
+  /** 更新後の正規化済み依存関係リンク */
+  dependency: Required<GanttDependencyLink>
+  /** 更新前の正規化済み依存関係リンク */
+  previousDependency: Required<GanttDependencyLink>
+}
+
+/**
+ * 依存関係更新イベント (dependency-update) の詳細データ
+ */
+export interface DependencyUpdateEventDetail {
+  /** 先行タスク（接続元）のID */
+  sourceTaskId: string
+  /** 後続タスク（接続先）のID */
+  targetTaskId: string
+  /** 更新後の正規化済み依存関係リンク */
+  dependency: Required<GanttDependencyLink>
+  /** 更新前の正規化済み依存関係リンク */
+  previousDependency: Required<GanttDependencyLink>
+  /** 自動スケジューリング連動により日程が更新されたタスク一覧 */
+  affectedTasks?: Array<{
+    task: GanttTask
+    rowId: string
+    oldStart: Date
+    oldEnd: Date
+  }>
+}
+
+/**
  * 依存関係線選択変更イベントの詳細データ
  */
 export interface DependencySelectEventDetail {
@@ -1430,6 +1488,8 @@ export interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   resizable?: boolean
   /** ユーザーによるドラッグでの列並び替えを許可するか (デフォルト: true) */
   reorderable?: boolean
+  /** カラムを左側に固定（ピン留め）表示するか ('left' または true 指定時にグリッド横スクロール時も左端に固定) */
+  pinned?: 'left' | boolean
   /** カラムを表示するか (デフォルト: true) */
   visible?: boolean
   /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
@@ -1764,6 +1824,17 @@ export interface GanttOverlayRenderContext<TChart = any> {
  * 行データ配列の変更イベント (rows-change) の詳細データ型
  */
 export type RowsChangeEventDetail<TRow = GanttRow> = TRow[]
+
+/**
+ * フィルタリング状態変更イベント (filter-change) の詳細データ
+ */
+export interface FilterChangeEventDetail {
+  /** 現在適用されているフィルタ設定（解除時は null） */
+  filter: GanttFilterConfig | null
+  /** フィルタリング評価結果 */
+  result: GanttFilterResult
+}
+
 
 
 

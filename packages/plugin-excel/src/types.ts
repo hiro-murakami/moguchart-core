@@ -17,6 +17,8 @@ export interface ExcelExportColumn {
   numFmt?: string
   /** テキストの水平配置 */
   align?: 'left' | 'center' | 'right'
+  /** Excel出力時にこのカラムを左側に固定（ウィンドウ枠固定）対象とするか */
+  pinned?: 'left' | boolean
   /** 値を独自取得・整形するためのカスタム関数 */
   getValue?: (task: GanttTask, row: GanttRow, rowIndex: number) => any
 }
@@ -70,6 +72,8 @@ export interface ExportExcelOptions {
   endDate?: Date
   /** 出力カラムのカスタム定義配列、または標準カラム配列を受け取ってカスタマイズする関数 (指定しない場合は標準カラムが出力されます) */
   columns?: ExcelExportColumn[] | ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])
+  /** Excelシートのウィンドウ枠固定の列数 (xSplit)。未指定時は pinned 指定列数または全テーブル列数で固定 */
+  frozenColumns?: number
   /** 文字列セルの先頭数式文字（=, +, -, @）を無害化するか (デフォルト: true) */
   sanitizeFormulas?: boolean
   /** 自動ダウンロードを実行するか (デフォルト: true。ブラウザ環境のみ有効) */

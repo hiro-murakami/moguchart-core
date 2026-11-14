@@ -1,9 +1,11 @@
 import type { GanttChartElement } from '../components/gantt-chart'
 import type {
   BeforeCellEditHookDetail,
+  BeforeDependencyUpdateHookDetail,
   CellEditEventDetail,
   DependencyCreateEventDetail,
   DependencyDeleteEventDetail,
+  DependencyUpdateEventDetail,
   GanttOverlayRenderContext,
   GanttViewportState,
   TaskUpdateEventDetail,
@@ -40,6 +42,10 @@ export interface GanttPlugin<TConfig = any, TChart = any> {
     beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void | Promise<boolean | void>
     /** 依存関係リンク削除直後のフック */
     afterDependencyDelete?: (detail: DependencyDeleteEventDetail) => void
+    /** 依存関係リンク更新直前のフック（false を返すと更新をキャンセル） */
+    beforeDependencyUpdate?: (detail: BeforeDependencyUpdateHookDetail) => boolean | void | Promise<boolean | void>
+    /** 依存関係リンク更新直後のフック */
+    afterDependencyUpdate?: (detail: DependencyUpdateEventDetail) => void
     /** グリッドセル編集確定直前のフック（false を返すと編集をキャンセル） */
     beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | Promise<boolean | void>
     /** グリッドセル編集確定直後のフック */
@@ -134,6 +140,7 @@ export class PluginManager {
       | 'beforeTaskUpdate'
       | 'beforeDependencyCreate'
       | 'beforeDependencyDelete'
+      | 'beforeDependencyUpdate'
       | 'beforeCellEdit',
   >(
     hookKey: K,
@@ -247,6 +254,30 @@ export class PluginManager {
   public executeAfterDependencyDelete(detail: DependencyDeleteEventDetail): void {
     for (const { plugin } of this.plugins.values()) {
       plugin.hooks?.afterDependencyDelete?.(detail)
+    }
+  }
+
+  /**
+   * beforeDependencyUpdate フックを一括実行する
+   */
+  public async executeBeforeDependencyUpdate(detail: BeforeDependencyUpdateHookDetail): Promise<boolean> {
+    for (const { plugin } of this.plugins.values()) {
+      if (plugin.hooks?.beforeDependencyUpdate) {
+        const result = await plugin.hooks.beforeDependencyUpdate(detail)
+        if (result === false) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  /**
+   * afterDependencyUpdate フックを一括実行する
+   */
+  public executeAfterDependencyUpdate(detail: DependencyUpdateEventDetail): void {
+    for (const { plugin } of this.plugins.values()) {
+      plugin.hooks?.afterDependencyUpdate?.(detail)
     }
   }
 

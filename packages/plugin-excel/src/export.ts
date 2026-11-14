@@ -133,12 +133,58 @@ export async function exportGanttToExcel(
   const themeArgb = hexToArgb(options.themeColor, 'FF3B82F6')
   const scale = detectTimelineScale(chart, options.timelineScale)
   const defaultCols = getDefaultColumns(scale, localeDef)
-  const columns =
+  const rawColumns =
     typeof options.columns === 'function'
       ? options.columns(defaultCols)
       : options.columns && options.columns.length > 0
         ? options.columns
         : defaultCols
+  const hasExplicitExcelPinned = rawColumns.some((c) => c.pinned === true || c.pinned === 'left')
+  const columns = hasExplicitExcelPinned
+    ? [
+        ...rawColumns.filter((c) => c.pinned === true || c.pinned === 'left'),
+        ...rawColumns.filter((c) => c.pinned !== true && c.pinned !== 'left'),
+      ]
+    : rawColumns
+
+  const resolvedFrozenColumns = (() => {
+    if (typeof options.frozenColumns === 'number') {
+      return Math.max(0, Math.min(columns.length, Math.floor(options.frozenColumns)))
+    }
+    if (hasExplicitExcelPinned) {
+      return columns.filter((c) => c.pinned === true || c.pinned === 'left').length
+    }
+    const gridCols = chart.option?.grid?.columns
+    if (Array.isArray(gridCols)) {
+      const visibleGridCols = gridCols.filter((c) => c && c.visible !== false)
+      const pinnedGridCols = visibleGridCols.filter((c) => c.pinned === true || c.pinned === 'left')
+      if (pinnedGridCols.length > 0 && pinnedGridCols.length < visibleGridCols.length) {
+        const pinnedExcelKeys = new Set<string>()
+        for (const gc of pinnedGridCols) {
+          if (gc.id === 'wbs') {
+            pinnedExcelKeys.add('taskNo')
+            pinnedExcelKeys.add('wbs')
+          } else if (gc.id === 'name') {
+            pinnedExcelKeys.add('rowName')
+            pinnedExcelKeys.add('taskName')
+          } else if (gc.id === 'startDate' || gc.id === 'startMonth' || gc.id === 'startDateTime') {
+            pinnedExcelKeys.add('start')
+          } else if (gc.id === 'endDate' || gc.id === 'endMonth' || gc.id === 'endDateTime') {
+            pinnedExcelKeys.add('end')
+          } else if (gc.id === 'duration' || gc.id === 'workingDays') {
+            pinnedExcelKeys.add('duration')
+          } else if (gc.id === 'progress') {
+            pinnedExcelKeys.add('progress')
+          }
+          pinnedExcelKeys.add(gc.id)
+          if (gc.field) pinnedExcelKeys.add(gc.field)
+        }
+        const matchedCount = columns.filter((ec) => ec.key && pinnedExcelKeys.has(ec.key)).length
+        if (matchedCount > 0) return matchedCount
+      }
+    }
+    return columns.length
+  })()
 
   const flatItems = calculateWbsHierarchy(rows)
   const columnsPerUnit = detectColumnsPerUnit(chart, options, scale)
@@ -170,7 +216,8 @@ export async function exportGanttToExcel(
     themeArgb,
     holidayArgb,
     options,
-    scale
+    scale,
+    resolvedFrozenColumns
   )
 
   // ワークブックをバッファに書き出し
@@ -199,10 +246,11 @@ function buildTimelineSheet(
   themeArgb: string,
   holidayArgb: string,
   options: ExportExcelOptions,
-  scale: ExcelTimelineScale = 'day'
+  scale: ExcelTimelineScale = 'day',
+  frozenColumns?: number
 ): void {
   const ws = workbook.addWorksheet(sheetName, {
-    views: [{ state: 'frozen', xSplit: columns.length, ySplit: 2 }],
+    views: [{ state: 'frozen', xSplit: frozenColumns ?? columns.length, ySplit: 2 }],
   })
 
   // 列設定（テーブル部分）

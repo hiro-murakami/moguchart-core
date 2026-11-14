@@ -10,7 +10,6 @@ import type {
   GanttRow,
   GanttTask,
   GanttTaskMoveMode,
-  RowHeaderResizeEventDetail,
   RowSelectionChangeEventDetail,
   RowToggleCollapseEventDetail,
   TaskUpdateEventDetail,
@@ -24,31 +23,25 @@ import type {
   ColumnSortEventDetail,
   GridSortDirection,
   GridSortState,
-  GridCellCoord,
   GridCellRange,
-  CellSelectionChangeEventDetail,
-  CellCopyEventDetail,
-  CellPasteEventDetail,
-  CellEditEventDetail,
-  BeforeCellEditHookDetail,
   CalendarRangeChangeEventDetail,
   GanttOverlayRenderContext,
   GanttViewportState,
   GanttDependency,
   GridCellNavigationDirection,
+  DependencyType,
+  DependencyUpdateInput,
 } from '../core/types'
+import { jaLocale } from '../core/i18n'
+import type { GanttFilterConfig, GanttFilterResult } from '../core/filter'
 import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
 import {
-  normalizeGridColumns,
-  applyGridCellEdit,
-  findAdjacentEditableCell,
-  isGridCellEditable,
   calculateGridFooterSummary,
   getGridFooterCellValue,
   formatGridFooterCellValue,
+  isGridColumnPinned,
+  partitionGridColumns,
   resolveGridCellRange,
-  formatGridRangeToTsv,
-  parseTsvString,
 } from '../core/grid'
 import {
   calculateTaskLanes,
@@ -57,6 +50,7 @@ import {
   xToDate,
   sanitizeCssValue,
   sanitizeInlineStyle,
+  throttle,
 } from '../core/utils'
 import { computeCriticalPath } from '../core/critical-path'
 import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule'
@@ -64,7 +58,6 @@ import { LitElement, html, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 
-import { throttle } from 'lodash-es'
 import './gantt-calendar'
 import './gantt-row'
 import './gantt-minimap'
@@ -84,6 +77,7 @@ import {
   TaskDragController,
   RowReorderController,
   TreeController,
+  GridController,
   type DraggingTaskState,
   type DragOverlayInfo,
   type DragPreviewState,
@@ -126,7 +120,7 @@ export class GanttChartElement extends LitElement {
   @state() public selectedRows = new Set<string>()
   @state() public selectedTasks = new Set<string>()
   @state() private lastClickedRowId: string | null = null
-  @state() private virtualScrollTop = 0
+  @state() public virtualScrollTop = 0
   @state() private virtualRangeStartX = 0
   @state() private virtualRangeEndX = 2000
   public currentScrollLeft = 0
@@ -144,7 +138,15 @@ export class GanttChartElement extends LitElement {
   }
   @state() private currentTime = new Date()
   @state() public currentRowHeaderWidth = DEFAULT_ROW_HEADER_WIDTH
-  @state() private isResizingHeader = false
+  public get isResizingHeader(): boolean {
+    return this._gridController?.isResizingHeader ?? false
+  }
+  public set isResizingHeader(val: boolean) {
+    if (this._gridController) {
+      this._gridController.isResizingHeader = val
+      this.requestUpdate()
+    }
+  }
   @state() private hoveredMilestoneId: string | null = null
   @state() private cursorLineX: number | null = null
   public get connectorDrag(): ConnectorDragState | null {
@@ -326,6 +328,7 @@ export class GanttChartElement extends LitElement {
   private _taskDragController = new TaskDragController(this)
   private _rowReorderController = new RowReorderController(this)
   private _treeController = new TreeController(this)
+  private _gridController = new GridController(this)
   private _dragDropControllerInstance: DragDropController | null = null
   public get _dragDropController(): DragDropController {
     if (!this._dragDropControllerInstance) {
@@ -349,51 +352,95 @@ export class GanttChartElement extends LitElement {
     },
   })
   @state() private isExporting = false
-  @state() private currentGridColumns: GanttColumn[] | null = null
-  @state() private currentGridScrollLeft = 0
-  @state() private columnDropTarget: { columnId: string; position: 'left' | 'right' } | null = null
-  @state() private currentSortState: GridSortState | null = null
-  @state() public selectedCellRange: GridCellRange | null = null
-  private _lastExplicitSortStateKey: string | null = null
-  private _isDraggingCellSelection = false
-  private _userResizedHeaderWidth: number | null = null
-  private _lastExplicitOptionWidth: number | undefined = undefined
-  private _userColumnWidths: Map<string, number> = new Map()
-  private _lastExplicitColumnWidths: Map<string, number | undefined> = new Map()
-  private _userColumnOrder: string[] | null = null
-  private _lastExplicitColumnOrderKey: string | null = null
+
+  // --- GridController Delegation Properties ---
+  public get currentGridColumns(): GanttColumn[] | null {
+    return this._gridController?.currentGridColumns ?? null
+  }
+  public set currentGridColumns(val: GanttColumn[] | null) {
+    if (this._gridController) {
+      this._gridController.currentGridColumns = val
+      this.requestUpdate()
+    }
+  }
+
+  public get currentGridScrollLeft(): number {
+    return this._gridController?.currentGridScrollLeft ?? 0
+  }
+  public set currentGridScrollLeft(val: number) {
+    if (this._gridController) {
+      this._gridController.currentGridScrollLeft = val
+      this.requestUpdate()
+    }
+  }
+
+  public get columnDropTarget(): { columnId: string; position: 'left' | 'right' } | null {
+    return this._gridController?.columnDropTarget ?? null
+  }
+  public set columnDropTarget(val: { columnId: string; position: 'left' | 'right' } | null) {
+    if (this._gridController) {
+      this._gridController.columnDropTarget = val
+      this.requestUpdate()
+    }
+  }
+
+  public get currentSortState(): GridSortState | null {
+    return this._gridController?.currentSortState ?? null
+  }
+  public set currentSortState(val: GridSortState | null) {
+    if (this._gridController) {
+      this._gridController.currentSortState = val
+      this._layoutCache = null
+      this.requestUpdate()
+    }
+  }
+
+  public get selectedCellRange(): GridCellRange | null {
+    return this._gridController?.selectedCellRange ?? null
+  }
+  public set selectedCellRange(val: GridCellRange | null) {
+    if (this._gridController) {
+      this._gridController.selectedCellRange = val
+      this.requestUpdate()
+    }
+  }
+
+  public get _userResizedHeaderWidth(): number | null {
+    return this._gridController?._userResizedHeaderWidth ?? null
+  }
+  public set _userResizedHeaderWidth(val: number | null) {
+    if (this._gridController) {
+      this._gridController._userResizedHeaderWidth = val
+    }
+  }
+
+  public get _userColumnWidths(): Map<string, number> {
+    return this._gridController._userColumnWidths
+  }
+
+  public get _userColumnOrder(): string[] | null {
+    return this._gridController?._userColumnOrder ?? null
+  }
+  public set _userColumnOrder(val: string[] | null) {
+    if (this._gridController) {
+      this._gridController._userColumnOrder = val
+    }
+  }
 
   public get effectiveGridColumns(): GanttColumn[] | undefined {
-    const gridOpt = this.option?.grid
-    if (!gridOpt || gridOpt.enabled === false) return undefined
-    if (!gridOpt.columns && gridOpt.enabled !== true) return undefined
-    const baseColumns = this.currentGridColumns ?? gridOpt.columns
-    const isMonthMode = this.effectivePxPerMonth !== undefined || this.option?.calendar?.pxPerMonth !== undefined
-    const isTimeMode = !!this.option?.calendar?.showTime
-    const normalized = normalizeGridColumns(baseColumns, this.option?.locale, isMonthMode, isTimeMode)
-    let result = normalized.map((col) => {
-      const userW = this._userColumnWidths.get(col.id)
-      return userW !== undefined ? { ...col, width: userW } : col
-    })
-    if (this._userColumnOrder && this._userColumnOrder.length > 0) {
-      const orderMap = new Map(this._userColumnOrder.map((id, idx) => [id, idx]))
-      result = [...result].sort((a, b) => {
-        const idxA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
-        const idxB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
-        return idxA - idxB
-      })
-    }
-    return result
+    return this._gridController.effectiveGridColumns
   }
 
   public getEffectiveSortState(): GridSortState | null {
-    return this.currentSortState
+    return this._gridController.currentSortState
   }
 
   public getGridColumnById(columnId: string): GanttColumn | undefined {
-    const columns = this.effectiveGridColumns
-    if (!columns) return undefined
-    return columns.find((c) => c.id === columnId)
+    return this._gridController.getGridColumnById(columnId)
+  }
+
+  public getScrollContainer(): HTMLElement | null {
+    return this._scrollContainer
   }
 
   public getAutoScheduleOptions(): AutoScheduleOptions {
@@ -495,22 +542,24 @@ export class GanttChartElement extends LitElement {
     this.setupCurrentTimeTimer()
 
     const calendar = this.shadowRoot?.getElementById('calendar')
-    this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.target === this) {
-          if (entry.contentRect.height > 0) this.viewportHeight = entry.contentRect.height
-          if (entry.contentRect.width > 0) {
-            this.viewportWidth = entry.contentRect.width
-            this.syncHorizontalVirtualRange(this.currentScrollLeft)
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === this) {
+            if (entry.contentRect.height > 0) this.viewportHeight = entry.contentRect.height
+            if (entry.contentRect.width > 0) {
+              this.viewportWidth = entry.contentRect.width
+              this.syncHorizontalVirtualRange(this.currentScrollLeft)
+            }
+          } else if (entry.target === calendar) {
+            this.calendarHeight = (entry.target as HTMLElement).offsetHeight
           }
-        } else if (entry.target === calendar) {
-          this.calendarHeight = (entry.target as HTMLElement).offsetHeight
         }
+      })
+      this.resizeObserver.observe(this)
+      if (calendar) {
+        this.resizeObserver.observe(calendar)
       }
-    })
-    this.resizeObserver.observe(this)
-    if (calendar) {
-      this.resizeObserver.observe(calendar)
     }
 
     // wheel イベントは scroll-container に直接登録する
@@ -569,6 +618,7 @@ export class GanttChartElement extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback()
+    this.updateScrollTop.cancel()
     this._pluginManager.destroy()
     this._touchController.detach()
     window.removeEventListener('dragend', this._handleGlobalDragEnd)
@@ -588,8 +638,10 @@ export class GanttChartElement extends LitElement {
   }
 
   private _handlePointerDownFocus = (e: PointerEvent) => {
-    const target = e.composedPath()[0] as HTMLElement
-    if (target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+    const path = e.composedPath()
+    const target = path[0] as HTMLElement
+    if (target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return
+    if (path.some((el) => (el as HTMLElement)?.classList?.contains?.('dependency-edit-popover'))) return
     if (document.activeElement !== this) {
       this.focus()
     }
@@ -619,67 +671,10 @@ export class GanttChartElement extends LitElement {
       }
     }
     if (changedProperties.has('option')) {
+      const hadPreviousOption = Boolean(changedProperties.get('option'))
       this.setupCurrentTimeTimer()
-      this.currentGridColumns = null
-
-      if (this.option?.grid?.sortState !== undefined) {
-        const nextSort = this.option.grid.sortState
-        const sortKey = nextSort ? `${nextSort.columnId}:${nextSort.direction}` : 'null'
-        if (sortKey !== this._lastExplicitSortStateKey) {
-          this._lastExplicitSortStateKey = sortKey
-          this.currentSortState = nextSort
-            ? { columnId: nextSort.columnId, direction: nextSort.direction }
-            : null
-        }
-      }
-
-      if (this.option?.grid?.columns) {
-        const explicitOrder = this.option.grid.columns
-          .filter((col): col is GanttColumn => typeof col === 'object' && col !== null)
-          .map((col) => col.id)
-        const orderKey = explicitOrder.join(',')
-        if (orderKey !== this._lastExplicitColumnOrderKey) {
-          this._lastExplicitColumnOrderKey = orderKey
-          this._userColumnOrder = null
-        }
-
-        for (const col of this.option.grid.columns) {
-          if (typeof col === 'object' && col !== null) {
-            const prevExplicit = this._lastExplicitColumnWidths.get(col.id)
-            if (col.width !== prevExplicit) {
-              this._lastExplicitColumnWidths.set(col.id, col.width)
-              if (typeof col.width === 'number') {
-                this._userColumnWidths.set(col.id, col.width)
-              } else {
-                this._userColumnWidths.delete(col.id)
-              }
-            }
-          }
-        }
-      }
-
-      const optionWidth = this.option?.grid?.width ?? this.option?.rowHeader?.width
-      const isExplicitWidthChange = optionWidth !== undefined && optionWidth !== this._lastExplicitOptionWidth
-      this._lastExplicitOptionWidth = optionWidth
-
-      if (!this.isResizingHeader) {
-        if (isExplicitWidthChange) {
-          // 親コンポーネント等から明示的に width が変更された場合
-          this.baseRowHeaderWidth = optionWidth
-          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-          this._userResizedHeaderWidth = this.currentRowHeaderWidth
-        } else if (this._userResizedHeaderWidth !== null) {
-          // ユーザーが手動リサイズ済みの場合はその値を維持する（option 参照更新で初期化しない）
-          this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
-            ? Math.max(60, Math.round(this._userResizedHeaderWidth / this.effectiveZoomScale))
-            : this._userResizedHeaderWidth
-          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-        } else if (!changedProperties.get('option')) {
-          // 初回マウント時
-          this.baseRowHeaderWidth = optionWidth ?? DEFAULT_ROW_HEADER_WIDTH
-          this.currentRowHeaderWidth = this.effectiveRowHeaderWidth
-        }
-      }
+      this._gridController.syncWithOption(hadPreviousOption)
+      this._treeController.syncFilterWithOption(hadPreviousOption)
       this._zoomController.syncWithOption()
       if (this.option?.history) {
         this._historyManager.updateOptions({
@@ -694,7 +689,6 @@ export class GanttChartElement extends LitElement {
       changedProperties.has('rows') ||
       changedProperties.has('option') ||
       changedProperties.has('currentRowHeaderWidth') ||
-      changedProperties.has('currentSortState') ||
       changedProperties.has('zoomPercent') ||
       changedProperties.has('zoomPxPerDay') ||
       changedProperties.has('zoomPxPerMonth')
@@ -774,7 +768,7 @@ export class GanttChartElement extends LitElement {
 
   private setupCurrentTimeTimer() {
     this.stopCurrentTimeTimer()
-    const interval = this.option.calendar.currentTimeUpdateInterval
+    const interval = this.option?.calendar?.currentTimeUpdateInterval
     if (interval && interval > 0) {
       this.currentTimeTimer = window.setInterval(() => {
         this.currentTime = new Date()
@@ -789,256 +783,47 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  private handleHeaderResizeStart(e: PointerEvent) {
-    if (e.cancelable) e.preventDefault()
-    e.stopPropagation()
-    this.isResizingHeader = true
-    const startX = e.clientX
-    const startWidth = this.currentRowHeaderWidth
-    const target = e.target as HTMLElement
-    if (typeof target.setPointerCapture === 'function') {
-      try {
-        target.setPointerCapture(e.pointerId)
-      } catch {
-        // ignore
-      }
-    }
-
-    const minWidth = this.option.rowHeader?.minWidth ?? 50
-    const maxWidth = this.option.rowHeader?.maxWidth ?? Number.MAX_SAFE_INTEGER
-
-    const handleMove = (e: PointerEvent) => {
-      const dx = e.clientX - startX
-      const newWidth = startWidth + dx
-      this.currentRowHeaderWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
-    }
-
-    const handleUp = () => {
-      this.isResizingHeader = false
-      if (typeof target.releasePointerCapture === 'function') {
-        try {
-          target.releasePointerCapture(e.pointerId)
-        } catch {
-          // ignore
-        }
-      }
-      target.removeEventListener('pointermove', handleMove)
-      target.removeEventListener('pointerup', handleUp)
-      target.removeEventListener('pointercancel', handleUp)
-
-      const finalWidth = Math.round(this.currentRowHeaderWidth)
-      this.currentRowHeaderWidth = finalWidth
-      this._userResizedHeaderWidth = finalWidth
-      this.baseRowHeaderWidth = this.isScaleRowHeaderEnabled
-        ? Math.max(60, Math.round(finalWidth / this.effectiveZoomScale))
-        : finalWidth
-      this.syncHorizontalVirtualRange(this.currentScrollLeft)
-
-      this.dispatchEvent(
-        new CustomEvent<RowHeaderResizeEventDetail>('row-header-resize', {
-          detail: { width: finalWidth },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-    }
-
-    target.addEventListener('pointermove', handleMove)
-    target.addEventListener('pointerup', handleUp)
-    target.addEventListener('pointercancel', handleUp)
+  private handleHeaderResizeStart = (e: PointerEvent): void => {
+    this._gridController.handleHeaderResizeStart(e)
   }
 
-  private handleColumnResize = (e: CustomEvent<ColumnResizeEventDetail>) => {
-    if (e.detail.columnId && typeof e.detail.width === 'number') {
-      this._userColumnWidths.set(e.detail.columnId, e.detail.width)
-    }
-    this.currentGridColumns = e.detail.columns
-    this.requestUpdate()
-    this.dispatchEvent(
-      new CustomEvent<ColumnResizeEventDetail>('column-resize', {
-        detail: e.detail,
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  private handleColumnResize = (e: CustomEvent<ColumnResizeEventDetail>): void => {
+    this._gridController.handleColumnResize(e)
   }
 
   private handleColumnDragOver = (
     e: CustomEvent<{ columnId: string | null; position: 'left' | 'right' | null }>,
-  ) => {
-    const { columnId, position } = e.detail ?? {}
-    if (columnId && position) {
-      this.columnDropTarget = { columnId, position }
-    } else {
-      this.columnDropTarget = null
-    }
+  ): void => {
+    this._gridController.handleColumnDragOver(e)
   }
 
-  private handleColumnReorder = (e: CustomEvent<ColumnReorderEventDetail>) => {
-    this.columnDropTarget = null
-    if (Array.isArray(e.detail.columnIds) && e.detail.columnIds.length > 0) {
-      this._userColumnOrder = [...e.detail.columnIds]
-    } else if (Array.isArray(e.detail.columns)) {
-      this._userColumnOrder = e.detail.columns.map((c) => c.id)
-    }
-    this.currentGridColumns = e.detail.columns
-    this.requestUpdate()
-    this.dispatchEvent(
-      new CustomEvent<ColumnReorderEventDetail>('column-reorder', {
-        detail: e.detail,
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  private handleColumnReorder = (e: CustomEvent<ColumnReorderEventDetail>): void => {
+    this._gridController.handleColumnReorder(e)
   }
 
-  private handleColumnSort = (e: CustomEvent<ColumnSortEventDetail>) => {
-    this.currentSortState = e.detail.sortState
-    this._layoutCache = null
-    this.requestUpdate()
-    this.dispatchEvent(
-      new CustomEvent<ColumnSortEventDetail>('column-sort', {
-        detail: e.detail,
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  private handleColumnSort = (e: CustomEvent<ColumnSortEventDetail>): void => {
+    this._gridController.handleColumnSort(e)
   }
 
   /**
    * プログラムから特定カラムのソート状態を設定・解除する
    */
   public sortByColumn(columnId: string | null, direction?: GridSortDirection | null): void {
-    if (!columnId) {
-      this.currentSortState = null
-      this._layoutCache = null
-      this.requestUpdate()
-      this.dispatchEvent(
-        new CustomEvent<ColumnSortEventDetail>('column-sort', {
-          detail: {
-            columnId: null,
-            direction: null,
-            sortState: null,
-          },
-          bubbles: true,
-          composed: true,
-        }),
-      )
-      return
-    }
-
-    const col = this.getGridColumnById(columnId)
-    let nextDirection: GridSortDirection | null = direction ?? 'asc'
-    if (direction === undefined && this.currentSortState?.columnId === columnId) {
-      if (this.currentSortState.direction === 'asc') {
-        nextDirection = 'desc'
-      } else if (this.currentSortState.direction === 'desc') {
-        nextDirection = null
-      }
-    }
-
-    const nextState: GridSortState | null = nextDirection
-      ? { columnId, direction: nextDirection }
-      : null
-    this.currentSortState = nextState
-    this._layoutCache = null
-    this.requestUpdate()
-
-    this.dispatchEvent(
-      new CustomEvent<ColumnSortEventDetail>('column-sort', {
-        detail: {
-          columnId: nextDirection ? columnId : null,
-          direction: nextDirection,
-          sortState: nextState,
-          column: col,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+    this._gridController.sortByColumn(columnId, direction)
   }
 
   /**
    * 現在のグリッドソート状態を取得する
    */
   public getSortState(): GridSortState | null {
-    return this.currentSortState ? { ...this.currentSortState } : null
+    return this._gridController.getSortState()
   }
 
   public handleGridWheel = (e: WheelEvent): boolean => {
-    const columns = this.effectiveGridColumns
-    if (!columns) return false
-
-    // マウスカーソルが行ヘッダー領域内にあるかを判定 (Shadow DOM内の要素をcomposedPathで検出)
-    const path = e.composedPath()
-    let isOverHeader = false
-    let isOverRowHeader = false
-
-    for (const node of path) {
-      if (!(node instanceof HTMLElement)) continue
-      if (
-        node.classList.contains('label-placeholder') ||
-        node.classList.contains('grid-header-cell') ||
-        node.classList.contains('grid-header-container')
-      ) {
-        isOverHeader = true
-        break
-      }
-      if (
-        node.classList.contains('row-header') ||
-        node.classList.contains('grid-cell') ||
-        node.classList.contains('grid-row-container')
-      ) {
-        isOverRowHeader = true
-        break
-      }
-    }
-
-    const container =
-      this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
-    let isMouseInGrid = false
-    if (container) {
-      const rect = container.getBoundingClientRect()
-      const mouseX = e.clientX - rect.left
-      isMouseInGrid = mouseX >= 0 && mouseX <= this.currentRowHeaderWidth
-    }
-
-    const isInGridArea = isOverHeader || isOverRowHeader || isMouseInGrid
-    if (!isInGridArea) {
-      return false
-    }
-
-    const visibleColumns = columns.filter((c) => c.visible !== false)
-    const totalGridWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
-    const maxScroll = Math.max(0, totalGridWidth - this.currentRowHeaderWidth)
-
-    if (maxScroll <= 0) return false
-
-    // スクロール量の算出:
-    // 1. deltaX がある場合 (トラックパッド横スワイプ、チルトホイール): そのまま使用
-    // 2. Shift キーが押されている場合: deltaY を横スクロールに変換
-    // 3. ヘッダー領域 (isOverHeader) 上にマウスがある場合: 縦ホイール回転 (deltaY) を横スクロールに変換
-    let dx = 0
-    if (e.deltaX !== 0) {
-      dx = e.deltaX
-    } else if (e.shiftKey && e.deltaY !== 0) {
-      dx = e.deltaY
-    } else if (isOverHeader && e.deltaY !== 0) {
-      dx = e.deltaY
-    }
-
-    if (dx !== 0) {
-      e.preventDefault()
-      e.stopPropagation()
-      this.currentGridScrollLeft = Math.max(0, Math.min(maxScroll, this.currentGridScrollLeft + dx))
-      return true
-    }
-
-    return false
+    return this._gridController.handleGridWheel(e)
   }
 
-
-  private syncHorizontalVirtualRange(scrollLeft: number): void {
+  public syncHorizontalVirtualRange(scrollLeft: number): void {
     const timelineViewportW = Math.max(300, this.viewportWidth - this.currentRowHeaderWidth)
     const overscanPx = Math.max(Math.round(timelineViewportW * 0.75), 600)
     const chunkPx = GanttChartElement.VIRTUAL_X_CHUNK_PX
@@ -1888,139 +1673,23 @@ export class GanttChartElement extends LitElement {
     }
   }
 
-  // --- グリッドセル範囲選択 ＆ TSV コピー＆ペースト ---
+  // --- グリッドセル範囲選択 ＆ TSV コピー＆ペースト（GridControllerへの委譲） ---
 
-  private get isGridCellSelectionEnabled(): boolean {
-    if (this.option?.grid?.cellSelection === false) return false
-    return Boolean(this.effectiveGridColumns && this.effectiveGridColumns.length > 0)
-  }
-
-  private emitCellSelectionChange(): void {
-    const columns = (this.effectiveGridColumns ?? []).filter((c) => c.visible !== false)
-    const resolved = resolveGridCellRange(this.displayRows, columns, this.selectedCellRange)
-    this.dispatchEvent(
-      new CustomEvent<CellSelectionChangeEventDetail>('cell-selection-change', {
-        detail: {
-          range: this.selectedCellRange
-            ? {
-                start: { ...this.selectedCellRange.start },
-                end: { ...this.selectedCellRange.end },
-              }
-            : null,
-          rowIds: resolved ? resolved.rowIds : [],
-          columnIds: resolved ? resolved.columnIds : [],
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-  }
-
-  /**
-   * プログラムからグリッドセル範囲を選択または解除する
-   */
   public selectGridCells(range: GridCellRange | null): void {
-    const prev = this.selectedCellRange
-    const isSame =
-      prev === range ||
-      Boolean(
-        prev &&
-          range &&
-          prev.start.rowId === range.start.rowId &&
-          prev.start.columnId === range.start.columnId &&
-          prev.end.rowId === range.end.rowId &&
-          prev.end.columnId === range.end.columnId,
-      )
-    this.selectedCellRange = range
-      ? {
-          start: { ...range.start },
-          end: { ...range.end },
-        }
-      : null
-    if (range) {
-      this._keyboardController.focusedTaskId = null
-      this._keyboardController.focusedRowId = null
-    }
-    if (!isSame) {
-      this.emitCellSelectionChange()
-    }
+    this._gridController.selectGridCells(range)
   }
 
-  /**
-   * 現在選択されているグリッドセル範囲を取得する
-   */
   public getSelectedGridCells(): GridCellRange | null {
-    return this.selectedCellRange
-      ? {
-          start: { ...this.selectedCellRange.start },
-          end: { ...this.selectedCellRange.end },
-        }
-      : null
+    return this._gridController.getSelectedGridCells()
   }
 
-  /**
-   * 矢印キーやTabキーによるセル選択フォーカス（またはShift+矢印キーによる範囲拡張）を移動する
-   */
   public moveGridCellSelection(
     dRow: number,
     dCol: number,
     extendRange: boolean,
     wrapRow = false,
   ): boolean {
-    if (!this.isGridCellSelectionEnabled || !this.selectedCellRange) return false
-    const columns = (this.effectiveGridColumns ?? []).filter((c) => c.visible !== false)
-    const rows = this.displayRows
-    if (rows.length === 0 || columns.length === 0) return false
-
-    const targetCoord = extendRange ? this.selectedCellRange.end : this.selectedCellRange.start
-    const rIdx = rows.findIndex((r) => r.id === targetCoord.rowId)
-    const cIdx = columns.findIndex((c) => c.id === targetCoord.columnId)
-    if (rIdx === -1 || cIdx === -1) return false
-
-    let nextRIdx = rIdx + dRow
-    let nextCIdx = cIdx + dCol
-    if (wrapRow && dCol !== 0) {
-      if (nextCIdx >= columns.length) {
-        if (rIdx + 1 < rows.length) {
-          nextRIdx = rIdx + 1
-          nextCIdx = 0
-        } else {
-          nextRIdx = rIdx
-          nextCIdx = columns.length - 1
-        }
-      } else if (nextCIdx < 0) {
-        if (rIdx - 1 >= 0) {
-          nextRIdx = rIdx - 1
-          nextCIdx = columns.length - 1
-        } else {
-          nextRIdx = rIdx
-          nextCIdx = 0
-        }
-      }
-    } else {
-      nextRIdx = Math.max(0, Math.min(rows.length - 1, nextRIdx))
-      nextCIdx = Math.max(0, Math.min(columns.length - 1, nextCIdx))
-    }
-
-    const nextCoord: GridCellCoord = {
-      rowId: rows[nextRIdx].id,
-      columnId: columns[nextCIdx].id,
-    }
-
-    if (extendRange) {
-      this.selectGridCells({
-        start: { ...this.selectedCellRange.start },
-        end: nextCoord,
-      })
-    } else {
-      this.selectGridCells({
-        start: nextCoord,
-        end: nextCoord,
-      })
-    }
-
-    this.scrollGridCellIntoView(nextCoord.rowId, nextCoord.columnId)
-    return true
+    return this._gridController.moveGridCellSelection(dRow, dCol, extendRange, wrapRow)
   }
 
   private handleRowCellPointerDown = (
@@ -2030,35 +1699,8 @@ export class GanttChartElement extends LitElement {
       isNameOrTreeCell: boolean
       event: PointerEvent
     }>,
-  ) => {
-    if (!this.isGridCellSelectionEnabled) return
-    const { rowId, columnId, isNameOrTreeCell, event } = e.detail
-    const coord: GridCellCoord = { rowId, columnId }
-
-    if (event.shiftKey && this.selectedCellRange) {
-      this.selectGridCells({
-        start: { ...this.selectedCellRange.start },
-        end: coord,
-      })
-    } else {
-      this.selectGridCells({
-        start: coord,
-        end: coord,
-      })
-    }
-
-    // タスク名カラムで行並び替えドラッグが有効な場合は、HTML5 drag&drop を優先しドラッグ範囲選択を開始しない
-    const canReorderRow = Boolean(this.option.enableRowReordering && !this.option.readOnly && isNameOrTreeCell)
-    if (canReorderRow) return
-
-    this._isDraggingCellSelection = true
-    const handlePointerUp = () => {
-      this._isDraggingCellSelection = false
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-    }
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointercancel', handlePointerUp)
+  ): void => {
+    this._gridController.handleRowCellPointerDown(e)
   }
 
   private handleRowCellPointerEnter = (
@@ -2067,285 +1709,38 @@ export class GanttChartElement extends LitElement {
       columnId: string
       event: PointerEvent
     }>,
-  ) => {
-    if (!this._isDraggingCellSelection || !this.selectedCellRange) return
-    const { rowId, columnId } = e.detail
-    if (
-      this.selectedCellRange.end.rowId === rowId &&
-      this.selectedCellRange.end.columnId === columnId
-    ) {
-      return
-    }
-    this.selectGridCells({
-      start: { ...this.selectedCellRange.start },
-      end: { rowId, columnId },
-    })
+  ): void => {
+    this._gridController.handleRowCellPointerEnter(e)
   }
 
-  /**
-   * 現在選択されているセル範囲をTSV文字列に変換し、クリップボードへコピーして `cell-copy` イベントを発火する
-   */
   public copySelectedCellsToTsv(): string {
-    if (!this.selectedCellRange) return ''
-    const columns = (this.effectiveGridColumns ?? []).filter((c) => c.visible !== false)
-    if (columns.length === 0) return ''
-
-    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
-    const isTimeMode = !!this.option.calendar.showTime
-    const wbsCodes = computeRowWbsCodes(this.rows)
-
-    const { tsv, rowIds, columnIds } = formatGridRangeToTsv(
-      this.displayRows,
-      columns,
-      this.selectedCellRange,
-      {
-        locale: this.option.locale,
-        isMonthMode,
-        isTimeMode,
-        wbsCodes,
-        calendarOptions: this.getAutoScheduleOptions(),
-      },
-    )
-
-    if (!tsv && rowIds.length === 0) return ''
-
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(tsv).catch(() => {
-        // ignore clipboard permission errors in headless/restricted environments
-      })
-    }
-
-    this.dispatchEvent(
-      new CustomEvent<CellCopyEventDetail>('cell-copy', {
-        detail: {
-          range: {
-            start: { ...this.selectedCellRange.start },
-            end: { ...this.selectedCellRange.end },
-          },
-          tsv,
-          rowIds,
-          columnIds,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    return tsv
+    return this._gridController.copySelectedCellsToTsv()
   }
 
-  /**
-   * TSV文字列を選択中（または指定座標）のセルを起点に一括ペーストし、1つのUndo/Redoコマンドとして記録する
-   * @returns 実際に値が変更されたセル数
-   */
   public pasteTsvToCells(
     tsv: string,
     targetRowId?: string,
     targetColumnId?: string,
   ): number {
-    if (this.option?.readOnly || !tsv) return 0
-    const columns = (this.effectiveGridColumns ?? []).filter((c) => c.visible !== false)
-    if (columns.length === 0) return 0
-
-    const dispRows = this.displayRows
-    if (dispRows.length === 0) return 0
-
-    let startRowIndex = -1
-    let startColIndex = -1
-
-    if (targetRowId && targetColumnId) {
-      startRowIndex = dispRows.findIndex((r) => r.id === targetRowId)
-      startColIndex = columns.findIndex((c) => c.id === targetColumnId)
-    } else if (this.selectedCellRange) {
-      const resolved = resolveGridCellRange(dispRows, columns, this.selectedCellRange)
-      if (resolved) {
-        startRowIndex = resolved.startRowIndex
-        startColIndex = resolved.startColumnIndex
-      }
-    }
-
-    if (startRowIndex === -1 || startColIndex === -1) return 0
-
-    const matrix = parseTsvString(tsv)
-    if (matrix.length === 0) return 0
-
-    // 単一セル（1×1）のTSVを複数セル選択範囲にペーストする場合は、選択範囲全体にフィル適用する
-    let effectiveMatrix = matrix
-    if (matrix.length === 1 && matrix[0].length === 1 && !targetRowId && this.selectedCellRange) {
-      const resolved = resolveGridCellRange(dispRows, columns, this.selectedCellRange)
-      if (
-        resolved &&
-        (resolved.endRowIndex > resolved.startRowIndex ||
-          resolved.endColumnIndex > resolved.startColumnIndex)
-      ) {
-        const singleVal = matrix[0][0]
-        const rowSpan = resolved.endRowIndex - resolved.startRowIndex + 1
-        const colSpan = resolved.endColumnIndex - resolved.startColumnIndex + 1
-        effectiveMatrix = Array.from({ length: rowSpan }, () =>
-          Array.from({ length: colSpan }, () => singleVal),
-        )
-      }
-    }
-
-    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
-    const isTimeMode = !!this.option.calendar.showTime
-    const wbsCodes = computeRowWbsCodes(this.rows)
-    const calendarOptions = this.getAutoScheduleOptions()
-    const gridEditable = this.option.grid?.editable === true
-
-    const rowsWithChildren = new Set<string>()
-    for (const r of this.rows) {
-      if (r.parentId) rowsWithChildren.add(r.parentId)
-    }
-
-    const previousRows = this.rows
-    const clonedRowsMap = new Map<string, GanttRow>()
-    for (const origRow of this.rows) {
-      clonedRowsMap.set(origRow.id, {
-        ...origRow,
-        tasks: (origRow.tasks ?? []).map((t) => ({
-          ...t,
-          start: t.start instanceof Date ? new Date(t.start.getTime()) : t.start,
-          end: t.end instanceof Date ? new Date(t.end.getTime()) : t.end,
-          dependencies: t.dependencies ? [...t.dependencies] : undefined,
-        })),
-      })
-    }
-
-    const changes: CellPasteEventDetail['changes'] = []
-    const changedTaskIds: string[] = []
-    let minDate: Date | null = null
-    let maxDate: Date | null = null
-
-    for (let rOffset = 0; rOffset < effectiveMatrix.length; rOffset++) {
-      const dispRow = dispRows[startRowIndex + rOffset]
-      if (!dispRow) break
-      const clonedRow = clonedRowsMap.get(dispRow.id)
-      if (!clonedRow) continue
-
-      const rowCells = effectiveMatrix[rOffset]
-      const hasChildren = rowsWithChildren.has(clonedRow.id)
-
-      for (let cOffset = 0; cOffset < rowCells.length; cOffset++) {
-        const col = columns[startColIndex + cOffset]
-        if (!col) break
-
-        if (!isGridCellEditable(col, clonedRow, clonedRow.tasks, hasChildren, gridEditable)) {
-          continue
-        }
-
-        const rawVal = rowCells[cOffset]
-        const res = applyGridCellEdit(
-          col,
-          clonedRow,
-          rawVal,
-          isMonthMode,
-          isTimeMode,
-          wbsCodes.get(clonedRow.id),
-          calendarOptions,
-        )
-
-        if (res.changed) {
-          changes.push({
-            rowId: clonedRow.id,
-            columnId: col.id,
-            oldValue: res.oldValue,
-            newValue: res.newValue,
-          })
-          const normalTasks = (clonedRow.tasks ?? []).filter(
-            (t) => t.type !== 'summary' && !(t as any).isSummary,
-          )
-          if (normalTasks.length === 1) {
-            const st = normalTasks[0]
-            if (!changedTaskIds.includes(st.id)) {
-              changedTaskIds.push(st.id)
-            }
-            if (st.start && (!minDate || st.start.getTime() < minDate.getTime())) {
-              minDate = st.start
-            }
-            if (st.end && (!maxDate || st.end.getTime() > maxDate.getTime())) {
-              maxDate = st.end
-            }
-          }
-        }
-      }
-    }
-
-    if (changes.length === 0) return 0
-
-    let nextRows = this.rows.map((r) => clonedRowsMap.get(r.id) ?? r)
-
-    if (this.option.dependency?.autoSchedule && changedTaskIds.length > 0) {
-      const scheduleResult = propagateAutoSchedule(
-        nextRows,
-        changedTaskIds,
-        this.getAutoScheduleOptions(),
-      )
-      if (scheduleResult.hasChanges) {
-        nextRows = scheduleResult.rows
-      }
-    }
-
-    this.applyRowsChangeWithCommand(previousRows, nextRows, {
-      type: 'cell-edit',
-      description: `セルの一括貼り付け (${changes.length}件)`,
-    })
-
-    if (minDate && maxDate) {
-      this.maybeAutoExtendCalendar(minDate, maxDate, false)
-    }
-
-    const startCoord: GridCellCoord = {
-      rowId: dispRows[startRowIndex].id,
-      columnId: columns[startColIndex].id,
-    }
-
-    this.dispatchEvent(
-      new CustomEvent<CellPasteEventDetail>('cell-paste', {
-        detail: {
-          start: startCoord,
-          tsv,
-          changes,
-          rows: this.rows,
-        },
-        bubbles: true,
-        composed: true,
-      }),
-    )
-
-    return changes.length
+    return this._gridController.pasteTsvToCells(tsv, targetRowId, targetColumnId)
   }
 
   private handleClipboardCopy = (e: ClipboardEvent): void => {
-    const path = e.composedPath()
-    const target = path[0] as HTMLElement | undefined
-    if (target && target !== this && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
-      return
-    }
-    if (!this.selectedCellRange) return
-    const tsv = this.copySelectedCellsToTsv()
-    if (tsv && e.clipboardData) {
-      e.clipboardData.setData('text/plain', tsv)
-      e.preventDefault()
-    }
+    this._gridController.handleClipboardCopy(e)
   }
 
   private handleClipboardPaste = (e: ClipboardEvent): void => {
-    const path = e.composedPath()
-    const target = path[0] as HTMLElement | undefined
-    if (target && target !== this && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
-      return
-    }
-    if (this.option?.readOnly || !this.selectedCellRange) return
-    const text = e.clipboardData?.getData('text/plain')
-    if (text) {
-      e.preventDefault()
-      this.pasteTsvToCells(text)
-    }
+    this._gridController.handleClipboardPaste(e)
   }
 
 
   public handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && this._dependencyController.editingPopover) {
+      e.preventDefault()
+      e.stopPropagation()
+      this._dependencyController.closeEditPopover()
+      return
+    }
     this._keyboardController.handleKeyDown(e)
   }
 
@@ -2430,6 +1825,31 @@ export class GanttChartElement extends LitElement {
     this._dependencyController.handleDependencyLineClick(event, targetTaskId, sourceTaskId)
   }
 
+  /**
+   * プログラムから依存関係の種別（FS/SS/FF/SF）またはラグ期間を更新します。
+   */
+  public updateDependency(
+    sourceTaskId: string,
+    targetTaskId: string,
+    updates: DependencyUpdateInput,
+  ): boolean {
+    return this._dependencyController.updateDependency(sourceTaskId, targetTaskId, updates)
+  }
+
+  /**
+   * 指定した依存関係リンクの組み込み編集ポップオーバーを開きます。
+   */
+  public openDependencyEditPopover(sourceTaskId: string, targetTaskId: string): boolean {
+    return this._dependencyController.openEditPopover(sourceTaskId, targetTaskId)
+  }
+
+  /**
+   * 現在開いている依存関係編集ポップオーバーを閉じます。
+   */
+  public closeDependencyEditPopover(): void {
+    this._dependencyController.closeEditPopover()
+  }
+
 
   /**
    * 外部からタスクIDを指定してタスクを選択状態にし、
@@ -2479,6 +1899,34 @@ export class GanttChartElement extends LitElement {
     this._treeController.expandAll()
   }
 
+  /**
+   * WBS階層維持フィルタリング・検索条件を設定し、再描画および `filter-change` イベントを発火します。
+   */
+  public setFilter(filter: GanttFilterConfig | null): GanttFilterResult {
+    return this._treeController.setFilter(filter)
+  }
+
+  /**
+   * 現在適用されているフィルタリング条件を解除します。
+   */
+  public clearFilter(): GanttFilterResult {
+    return this._treeController.clearFilter()
+  }
+
+  /**
+   * 現在適用されているフィルタ設定を取得します。
+   */
+  public getFilter(): GanttFilterConfig | null {
+    return this._treeController.getFilter()
+  }
+
+  /**
+   * 現在のフィルタ評価結果（一致行数・可視行数・一致IDセット等）を取得します。
+   */
+  public getFilterResult(): GanttFilterResult {
+    return this._treeController.getFilterResult()
+  }
+
   private handleRowCellEdit = (
     e: CustomEvent<{
       rowId: string
@@ -2487,137 +1935,7 @@ export class GanttChartElement extends LitElement {
       navigationDirection?: GridCellNavigationDirection
     }>,
   ): void => {
-    if (this.option?.readOnly) return
-    const { rowId, columnId, rawValue, navigationDirection } = e.detail
-    const columns = this.effectiveGridColumns
-    if (!columns) return
-    const col = columns.find((c) => c.id === columnId)
-    if (!col) return
-
-    const rowIndex = this.rows.findIndex((r) => r.id === rowId)
-    if (rowIndex === -1) return
-
-    const isMonthMode = this.option.calendar.pxPerMonth !== undefined
-    const isTimeMode = !!this.option.calendar.showTime
-    const wbsCodes = computeRowWbsCodes(this.rows)
-    const wbsCode = wbsCodes.get(rowId)
-
-    const previousRows = this.rows
-    const origRow = this.rows[rowIndex]
-    const clonedRow: GanttRow = {
-      ...origRow,
-      tasks: (origRow.tasks ?? []).map((t) => ({
-        ...t,
-        start: t.start instanceof Date ? new Date(t.start.getTime()) : t.start,
-        end: t.end instanceof Date ? new Date(t.end.getTime()) : t.end,
-        dependencies: t.dependencies ? [...t.dependencies] : undefined,
-      })),
-    }
-    const calendarOptions = {
-      calendarMode: this.option.calendar?.calendarMode,
-      isHoliday: this.option.calendar?.isHoliday,
-      nonWorkingDays: this.option.calendar?.nonWorkingDays,
-    }
-    const editResult = applyGridCellEdit(
-      col,
-      clonedRow,
-      rawValue,
-      isMonthMode,
-      isTimeMode,
-      wbsCode,
-      calendarOptions,
-    )
-
-    if (!editResult.changed) {
-      if (navigationDirection) {
-        this.navigateCellEdit(rowId, columnId, navigationDirection)
-      }
-      return
-    }
-
-    const origNormalTasks = (origRow.tasks ?? []).filter(
-      (t) => t.type !== 'summary' && !(t as any).isSummary,
-    )
-    const origSingleTask = origNormalTasks.length === 1 ? origNormalTasks[0] : undefined
-
-    const beforeDetail: BeforeCellEditHookDetail = {
-      rowId,
-      columnId,
-      column: col,
-      oldValue: editResult.oldValue,
-      newValue: editResult.newValue,
-      rawValue,
-      row: origRow,
-      task: origSingleTask,
-    }
-
-    const commitEdit = () => {
-      let nextRows = [...this.rows]
-      nextRows[rowIndex] = clonedRow
-
-      const editedNormalTasks = (clonedRow.tasks ?? []).filter(
-        (t) => t.type !== 'summary' && !(t as any).isSummary,
-      )
-      const editedSingleTask = editedNormalTasks.length === 1 ? editedNormalTasks[0] : undefined
-
-      if (this.option.dependency?.autoSchedule && editedSingleTask) {
-        const scheduleResult = propagateAutoSchedule(nextRows, [editedSingleTask.id], {
-          mode: this.option.dependency.scheduleMode,
-          respectMovable: this.option.dependency.respectMovable,
-          calendarMode: this.option.calendar?.calendarMode,
-          isHoliday: this.option.calendar?.isHoliday,
-          nonWorkingDays: this.option.calendar?.nonWorkingDays,
-        })
-        if (scheduleResult.hasChanges) {
-          nextRows = scheduleResult.rows
-        }
-      }
-
-      this.applyRowsChangeWithCommand(previousRows, nextRows, {
-        type: 'cell-edit',
-        description: `${col.title ?? col.id} の編集`,
-      })
-
-      const updatedRow = this.rows.find((r) => r.id === rowId) ?? clonedRow
-      const normalTasks = (updatedRow.tasks ?? []).filter(
-        (t) => t.type !== 'summary' && !(t as any).isSummary,
-      )
-      const singleTask = normalTasks.length === 1 ? normalTasks[0] : undefined
-
-      if (singleTask && singleTask.start && singleTask.end) {
-        this.maybeAutoExtendCalendar(singleTask.start, singleTask.end, false)
-      }
-
-      const afterDetail: CellEditEventDetail = {
-        rowId,
-        columnId,
-        column: col,
-        oldValue: editResult.oldValue,
-        newValue: editResult.newValue,
-        row: updatedRow,
-        previousRow: origRow,
-        task: singleTask,
-        rows: this.rows,
-      }
-
-      this.dispatchEvent(
-        new CustomEvent<CellEditEventDetail>('cell-edit', {
-          detail: afterDetail,
-          bubbles: true,
-          composed: true,
-        }),
-      )
-
-      this._pluginManager.executeAfterCellEdit(afterDetail)
-
-      if (navigationDirection) {
-        this.navigateCellEdit(rowId, columnId, navigationDirection)
-      }
-    }
-
-    this._pluginManager.runBeforeHook('beforeCellEdit', beforeDetail, commitEdit, () => {
-      this.requestUpdate()
-    })
+    this._gridController.handleRowCellEdit(e)
   }
 
   /**
@@ -2649,82 +1967,7 @@ export class GanttChartElement extends LitElement {
    * 指定された行とカラムのインライン編集を開始する
    */
   public startCellEdit(rowId: string, columnId: string): boolean {
-    if (this.option?.readOnly) return false
-    const columns = this.effectiveGridColumns
-    if (!columns) return false
-    const col = columns.find((c) => c.id === columnId && c.visible !== false)
-    if (!col) return false
-
-    const targetRow = this.displayRows.find((r) => r.id === rowId)
-    if (!targetRow) return false
-
-    const rowsWithChildren = new Set<string>()
-    for (const r of this.rows) {
-      if (r.parentId) rowsWithChildren.add(r.parentId)
-    }
-    const gridEditable = this.option?.grid?.editable === true
-    if (
-      !isGridCellEditable(
-        col,
-        targetRow,
-        targetRow.tasks,
-        rowsWithChildren.has(rowId),
-        gridEditable,
-      )
-    ) {
-      return false
-    }
-
-    if (this.isGridCellSelectionEnabled) {
-      this.selectGridCells({
-        start: { rowId, columnId },
-        end: { rowId, columnId },
-      })
-    }
-
-    this.scrollGridCellIntoView(rowId, columnId)
-
-    const rowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as Array<
-      HTMLElement & {
-        row?: GanttRow
-        editingColumnId?: string | null
-        commitCellEdit?: (val?: any) => boolean
-        startCellEdit?: (colId: string) => boolean
-      }
-    >
-    for (const el of rowElements) {
-      if (el.row?.id !== rowId && el.editingColumnId) {
-        el.commitCellEdit?.()
-      }
-    }
-
-    const targetRowEl = rowElements.find((el) => el.row?.id === rowId)
-    if (targetRowEl && typeof targetRowEl.startCellEdit === 'function') {
-      const latestRow = this.displayRows.find((r) => r.id === rowId)
-      if (latestRow && targetRowEl.row !== latestRow) {
-        targetRowEl.row = latestRow
-      }
-      return targetRowEl.startCellEdit(columnId)
-    }
-
-    // 仮想スクロールにより対象行の DOM がまだ描画されていない場合は、更新完了後に編集を開始する
-    this.updateComplete.then(() => {
-      const updatedRowElements = Array.from(
-        this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-      ) as Array<
-        HTMLElement & {
-          row?: GanttRow
-          startCellEdit?: (colId: string) => boolean
-        }
-      >
-      const updatedTargetRowEl = updatedRowElements.find((el) => el.row?.id === rowId)
-      if (updatedTargetRowEl && typeof updatedTargetRowEl.startCellEdit === 'function') {
-        updatedTargetRowEl.startCellEdit(columnId)
-      }
-    })
-    return true
+    return this._gridController.startCellEdit(rowId, columnId)
   }
 
   /**
@@ -2735,89 +1978,7 @@ export class GanttChartElement extends LitElement {
     fromColumnId: string,
     direction: GridCellNavigationDirection,
   ): boolean {
-    if (this.option?.readOnly) return false
-    const columns = this.effectiveGridColumns
-    if (!columns) return false
-    const gridEditable = this.option?.grid?.editable === true
-
-    const nextCell = findAdjacentEditableCell(
-      this.displayRows,
-      this.rows,
-      columns,
-      fromRowId,
-      fromColumnId,
-      direction,
-      gridEditable,
-    )
-    if (!nextCell) return false
-
-    return this.startCellEdit(nextCell.rowId, nextCell.columnId)
-  }
-
-  /**
-   * グリッドセルが表示領域内に収まるよう、必要に応じてグリッド横スクロールおよびチャート縦スクロールを調整する
-   */
-  private scrollGridCellIntoView(rowId: string, columnId: string): void {
-    const columns = this.effectiveGridColumns
-    if (columns) {
-      const visibleCols = columns.filter((c) => c.visible !== false)
-      let colLeft = 0
-      let colWidth = 0
-      let found = false
-      for (const c of visibleCols) {
-        const w = c.width ?? 100
-        if (c.id === columnId) {
-          colWidth = w
-          found = true
-          break
-        }
-        colLeft += w
-      }
-      if (found) {
-        const headerWidth = this.currentRowHeaderWidth
-        const totalGridWidth = visibleCols.reduce((sum, c) => sum + (c.width ?? 100), 0)
-        const maxGridScroll = Math.max(0, totalGridWidth - headerWidth)
-        let nextGridScroll = this.currentGridScrollLeft
-        if (colLeft < nextGridScroll) {
-          nextGridScroll = colLeft
-        } else if (colLeft + colWidth > nextGridScroll + headerWidth) {
-          nextGridScroll = Math.max(0, colLeft + colWidth - headerWidth)
-        }
-        nextGridScroll = Math.max(0, Math.min(maxGridScroll, nextGridScroll))
-        if (nextGridScroll !== this.currentGridScrollLeft) {
-          this.currentGridScrollLeft = nextGridScroll
-        }
-      }
-    }
-
-    const rowIndex = this.displayRows.findIndex((r) => r.id === rowId)
-    if (rowIndex === -1) return
-
-    const { layouts } = this.calculateLayout()
-    const layout = layouts[rowIndex]
-    if (!layout) return
-
-    const container =
-      this._scrollContainer ??
-      (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
-    if (!container || container.clientHeight <= 0) return
-
-    const visibleTop = container.scrollTop
-    const visibleBottom = container.scrollTop + Math.max(0, container.clientHeight - this.calendarHeight)
-
-    let nextTop: number | undefined
-    if (layout.top < visibleTop) {
-      nextTop = Math.max(0, layout.top)
-    } else if (layout.top + layout.height > visibleBottom) {
-      nextTop = Math.max(0, layout.top + layout.height - Math.max(0, container.clientHeight - this.calendarHeight))
-    }
-
-    if (nextTop !== undefined && nextTop !== container.scrollTop) {
-      container.scrollTop = nextTop
-      this.currentScrollTop = nextTop
-      this.virtualScrollTop = nextTop
-      this.requestUpdate()
-    }
+    return this._gridController.navigateCellEdit(fromRowId, fromColumnId, direction)
   }
 
   /**
@@ -2827,38 +1988,14 @@ export class GanttChartElement extends LitElement {
     overrideValue?: any,
     navigationDirection?: GridCellNavigationDirection,
   ): boolean {
-    const rowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as Array<
-      HTMLElement & {
-        editingColumnId?: string | null
-        commitCellEdit?: (val?: any, navDir?: GridCellNavigationDirection) => boolean
-      }
-    >
-    const editingRowEl = rowElements.find((el) => el.editingColumnId !== null && el.editingColumnId !== undefined)
-    if (!editingRowEl || typeof editingRowEl.commitCellEdit !== 'function') {
-      return false
-    }
-    return editingRowEl.commitCellEdit(overrideValue, navigationDirection)
+    return this._gridController.commitCellEdit(overrideValue, navigationDirection)
   }
 
   /**
    * 現在編集中のセルがあれば編集をキャンセルする
    */
   public cancelCellEdit(): void {
-    const rowElements = Array.from(
-      this.shadowRoot?.querySelectorAll('gantt-row') ?? [],
-    ) as Array<
-      HTMLElement & {
-        editingColumnId?: string | null
-        cancelCellEdit?: () => void
-      }
-    >
-    for (const el of rowElements) {
-      if (el.editingColumnId && typeof el.cancelCellEdit === 'function') {
-        el.cancelCellEdit()
-      }
-    }
+    this._gridController.cancelCellEdit()
   }
 
   /**
@@ -2970,6 +2107,7 @@ export class GanttChartElement extends LitElement {
   ) {
     const isMonthMode = this.option.calendar.pxPerMonth !== undefined
     const isTimeMode = !!this.option.calendar.showTime
+    const { pinnedColumns, scrollableColumns, scrollableWidth } = partitionGridColumns(visibleColumns)
     const totalGridWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const footerSummary = calculateGridFooterSummary(this.rows, this.getAutoScheduleOptions())
     const cellPadding = this.option.grid?.cellPadding ?? 6
@@ -2997,6 +2135,57 @@ export class GanttChartElement extends LitElement {
       this.option?.progress?.summaryColor ??
       (this.theme === 'dark' ? '#38bdf8' : '#2563eb')
 
+    const renderFooterCell = (col: GanttColumn) => {
+      const isPinned = isGridColumnPinned(col)
+      const rawVal = getGridFooterCellValue(
+        col,
+        this.rows,
+        footerSummary,
+        this.option.grid?.footerLabel,
+        this.option.locale,
+      )
+      const formatted = formatGridFooterCellValue(
+        col,
+        rawVal,
+        this.rows,
+        footerSummary,
+        this.option.locale,
+        isMonthMode,
+        isTimeMode,
+      )
+      const customContent = col.renderFooterCell
+        ? col.renderFooterCell(rawVal, this.rows, col, this.option.locale)
+        : null
+      return html`
+        <div
+          class="grid-footer-cell grid-footer-cell-${col.id} ${isPinned ? 'is-pinned-left' : ''}"
+          data-column-id="${col.id}"
+          data-pinned="${isPinned ? 'left' : ''}"
+          style="
+            width: ${col.width}px;
+            min-width: ${col.minWidth ?? 40}px;
+            max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
+            justify-content: ${
+              col.align === 'center'
+                ? 'center'
+                : col.align === 'right'
+                  ? 'flex-end'
+                  : 'flex-start'
+            };
+            padding: 0 ${cellPadding}px;
+            ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
+          "
+        >
+          <div
+            class="grid-footer-cell-content"
+            style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+          >
+            ${customContent !== null ? customContent : formatted}
+          </div>
+        </div>
+      `
+    }
+
     return html`
       <div
         class="grid-footer-row"
@@ -3016,63 +2205,50 @@ export class GanttChartElement extends LitElement {
             border-right: 1px solid ${colors.border};
           "
         >
-          <div
-            class="grid-footer-cells-container"
-            style="
-              width: ${totalGridWidth}px;
-              min-width: 100%;
-              transform: translateX(-${this.currentGridScrollLeft}px);
-            "
-          >
-            ${visibleColumns.map((col) => {
-              const rawVal = getGridFooterCellValue(
-                col,
-                this.rows,
-                footerSummary,
-                this.option.grid?.footerLabel,
-                this.option.locale,
-              )
-              const formatted = formatGridFooterCellValue(
-                col,
-                rawVal,
-                this.rows,
-                footerSummary,
-                this.option.locale,
-                isMonthMode,
-                isTimeMode,
-              )
-              const customContent = col.renderFooterCell
-                ? col.renderFooterCell(rawVal, this.rows, col, this.option.locale)
-                : null
-              return html`
+          ${pinnedColumns.length > 0 && !this.isExporting
+            ? html`
                 <div
-                  class="grid-footer-cell grid-footer-cell-${col.id}"
-                  data-column-id="${col.id}"
-                  style="
-                    width: ${col.width}px;
-                    min-width: ${col.minWidth ?? 40}px;
-                    max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
-                    justify-content: ${
-                      col.align === 'center'
-                        ? 'center'
-                        : col.align === 'right'
-                          ? 'flex-end'
-                          : 'flex-start'
-                    };
-                    padding: 0 ${cellPadding}px;
-                    ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
-                  "
+                  class="grid-footer-cells-container has-pinned-columns"
+                  style="width: 100%; overflow: hidden;"
                 >
                   <div
-                    class="grid-footer-cell-content"
-                    style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                    class="grid-pinned-left ${this.currentGridScrollLeft > 0 ? 'has-scroll-shadow' : ''}"
+                    style="display: flex; height: 100%; flex-shrink: 0; background: ${colors.calendarBg};"
                   >
-                    ${customContent !== null ? customContent : formatted}
+                    ${pinnedColumns.map(renderFooterCell)}
+                  </div>
+                  <div
+                    class="grid-scrollable-viewport"
+                    style="flex: 1; min-width: 0; height: 100%; overflow: hidden;"
+                  >
+                    <div
+                      class="grid-scrollable-track"
+                      style="
+                        display: flex;
+                        height: 100%;
+                        width: ${scrollableWidth}px;
+                        min-width: 100%;
+                        transform: translateX(-${this.currentGridScrollLeft}px);
+                        box-sizing: border-box;
+                      "
+                    >
+                      ${scrollableColumns.map(renderFooterCell)}
+                    </div>
                   </div>
                 </div>
               `
-            })}
-          </div>
+            : html`
+                <div
+                  class="grid-footer-cells-container"
+                  style="
+                    width: ${totalGridWidth}px;
+                    min-width: 100%;
+                    transform: translateX(-${this.currentGridScrollLeft}px);
+                  "
+                >
+                  ${visibleColumns.map(renderFooterCell)}
+                </div>
+              `}
         </div>
         <div
           class="grid-footer-timeline"
@@ -3107,7 +2283,175 @@ export class GanttChartElement extends LitElement {
     `
   }
 
+  private renderDependencyEditPopover() {
+    const pop = this._dependencyController.editingPopover
+    if (!pop) return ''
+
+    const loc = this.option.locale?.dependencyPopover ?? jaLocale.dependencyPopover!
+    const unitLabel = loc.units[pop.unitKey]
+    const canDelete = !this.option.readOnly && this.option.dependency?.deletable !== false
+    const depTypes: DependencyType[] = ['FS', 'SS', 'FF', 'SF']
+
+    let rawX = pop.anchorClientX
+    let rawY = pop.anchorClientY
+    const container =
+      this._scrollContainer ?? (this.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    if (container) {
+      const rect = container.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        rawX = rect.left + (pop.anchorContentX - this.currentScrollLeft)
+        rawY = rect.top + this.calendarHeight + (pop.anchorContentY - this.currentScrollTop)
+      }
+    }
+    const winW = typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1200
+    const x = Math.max(160, Math.min(winW - 160, rawX ?? 240))
+    const baseY = rawY ?? 200
+    const placeBelow = baseY < 190
+    const y = placeBelow ? baseY + 14 : baseY - 14
+
+    return html`
+      <div
+        class="dependency-edit-popover"
+        role="dialog"
+        aria-label="${loc.title}"
+        style="
+          left: ${x}px;
+          top: ${y}px;
+          transform: translate(-50%, ${placeBelow ? '0%' : '-100%'});
+        "
+        @pointerdown="${(e: Event) => e.stopPropagation()}"
+        @click="${(e: Event) => e.stopPropagation()}"
+        @keydown="${(e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            this._dependencyController.closeEditPopover()
+          } else if (e.key === 'Enter') {
+            const target = e.target as HTMLElement | null
+            if (target?.tagName !== 'BUTTON') {
+              e.preventDefault()
+              e.stopPropagation()
+              this._dependencyController.commitEditPopover()
+            }
+          }
+        }}"
+      >
+        <div class="dependency-popover-header">
+          <div class="dependency-popover-title-wrap">
+            <div class="dependency-popover-title">${loc.title}</div>
+            <div class="dependency-popover-route" title="${pop.sourceTaskName} → ${pop.targetTaskName}">
+              ${pop.sourceTaskName} → ${pop.targetTaskName}
+            </div>
+          </div>
+          <button
+            type="button"
+            class="dependency-popover-close"
+            title="${loc.cancel}"
+            aria-label="${loc.cancel}"
+            @click="${() => this._dependencyController.closeEditPopover()}"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="dependency-popover-row">
+          <span class="dependency-popover-label">${loc.typeLabel}</span>
+          <div class="dependency-type-segment">
+            ${depTypes.map(
+              (dt) => html`
+                <button
+                  type="button"
+                  class="dependency-type-btn ${pop.draftType === dt ? 'active' : ''}"
+                  data-dep-type="${dt}"
+                  title="${loc.types[dt]}"
+                  @click="${() => this._dependencyController.setDraftType(dt)}"
+                >
+                  ${dt}
+                </button>
+              `,
+            )}
+          </div>
+        </div>
+
+        <div class="dependency-popover-row">
+          <span class="dependency-popover-label">${loc.lagLabel(unitLabel)}</span>
+          <div class="dependency-lag-controls">
+            <button
+              type="button"
+              class="dependency-lag-step-btn dependency-lag-dec-btn"
+              @click="${() => this._dependencyController.stepDraftLag(-1)}"
+            >
+              -${pop.stepInUnit}
+            </button>
+            <input
+              type="number"
+              class="dependency-lag-input"
+              step="${pop.stepInUnit}"
+              .value="${String(pop.draftLagInUnit)}"
+              @input="${(e: Event) => {
+                const raw = (e.target as HTMLInputElement).value
+                if (raw === '' || raw === '-') return
+                const parsed = Number(raw)
+                if (!Number.isNaN(parsed)) {
+                  this._dependencyController.setDraftLagInUnit(parsed)
+                }
+              }}"
+              @change="${(e: Event) => {
+                const parsed = Number((e.target as HTMLInputElement).value)
+                if (!Number.isNaN(parsed)) {
+                  this._dependencyController.setDraftLagInUnit(parsed)
+                }
+              }}"
+            />
+            <button
+              type="button"
+              class="dependency-lag-step-btn dependency-lag-inc-btn"
+              @click="${() => this._dependencyController.stepDraftLag(1)}"
+            >
+              +${pop.stepInUnit}
+            </button>
+          </div>
+        </div>
+
+        <div class="dependency-popover-actions">
+          ${canDelete
+            ? html`
+                <button
+                  type="button"
+                  class="dependency-popover-btn dependency-popover-btn-delete"
+                  @click="${(e: MouseEvent) => {
+                    this.triggerDependencyDelete(pop.sourceTaskId, pop.targetTaskId, e)
+                  }}"
+                >
+                  ${loc.delete}
+                </button>
+              `
+            : ''}
+          <div class="dependency-popover-actions-right">
+            <button
+              type="button"
+              class="dependency-popover-btn dependency-popover-btn-cancel"
+              @click="${() => this._dependencyController.closeEditPopover()}"
+            >
+              ${loc.cancel}
+            </button>
+            <button
+              type="button"
+              class="dependency-popover-btn dependency-popover-btn-save"
+              @click="${() => this._dependencyController.commitEditPopover()}"
+            >
+              ${loc.save}
+            </button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
   render() {
+    if (!this.option) {
+      return html``
+    }
     const colors = getThemeColors(this.theme, this.option.customTheme)
 
     const { layouts: rowLayouts, taskCoords, totalHeight } = this.calculateLayout()
@@ -3333,6 +2677,8 @@ export class GanttChartElement extends LitElement {
           getDateX: (d) => this.getDateX(d),
           onDependencyLineClick: (e, tId, sId) => this.handleDependencyLineClick(e, tId, sId),
           onDependencyDelete: (sId, tId, e) => this.triggerDependencyDelete(sId, tId, e),
+          onDependencyEdit: (sId, tId, anchor) =>
+            this._dependencyController.openEditPopover(sId, tId, anchor),
         })}
 
         ${!this.isExporting &&
@@ -3499,6 +2845,7 @@ export class GanttChartElement extends LitElement {
       </div>
 
       ${this.option.showDragInfoOverlay !== false ? html` <div class="drag-info-overlay"></div> ` : ''}
+      ${!this.isExporting ? this.renderDependencyEditPopover() : ''}
       ${this.tooltip
         ? html`
             <div

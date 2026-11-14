@@ -286,7 +286,61 @@ export function normalizeGridColumns(
     }
   }
 
+  // 左固定（pinned）カラムが1つ以上存在する場合は、相対順序を維持しつつ左固定カラムを先頭に集約する
+  if (normalized.some((c) => isGridColumnPinned(c))) {
+    const pinnedCols = normalized.filter((c) => isGridColumnPinned(c))
+    const unpinnedCols = normalized.filter((c) => !isGridColumnPinned(c))
+    return [...pinnedCols, ...unpinnedCols]
+  }
+
   return normalized
+}
+
+/**
+ * カラムが左固定（ピン留め）指定されているかどうかを判定する
+ */
+export function isGridColumnPinned(col?: Pick<GanttColumn, 'pinned'> | null): boolean {
+  return col?.pinned === true || col?.pinned === 'left'
+}
+
+/**
+ * 可視グリッドカラムを左固定（pinned）ペインとスクロール可能ペインに分割した結果
+ */
+export interface PartitionedGridColumns {
+  pinnedColumns: GanttColumn[]
+  scrollableColumns: GanttColumn[]
+  orderedColumns: GanttColumn[]
+  pinnedWidth: number
+  scrollableWidth: number
+}
+
+/**
+ * 可視カラム配列を左固定グループとスクロールグループに分割し、各領域の幅合計を算出する
+ */
+export function partitionGridColumns(columns: GanttColumn[]): PartitionedGridColumns {
+  const pinnedColumns: GanttColumn[] = []
+  const scrollableColumns: GanttColumn[] = []
+  let pinnedWidth = 0
+  let scrollableWidth = 0
+
+  for (const col of columns) {
+    const w = col.width ?? 100
+    if (isGridColumnPinned(col)) {
+      pinnedColumns.push(col)
+      pinnedWidth += w
+    } else {
+      scrollableColumns.push(col)
+      scrollableWidth += w
+    }
+  }
+
+  return {
+    pinnedColumns,
+    scrollableColumns,
+    orderedColumns: [...pinnedColumns, ...scrollableColumns],
+    pinnedWidth,
+    scrollableWidth,
+  }
 }
 
 /**
@@ -309,6 +363,9 @@ export function reorderGridColumns(
   const sourceCol = columns[sourceIdx]
   const targetCol = columns[targetIdx]
   if (sourceCol.reorderable === false || targetCol.reorderable === false) {
+    return [...columns]
+  }
+  if (isGridColumnPinned(sourceCol) !== isGridColumnPinned(targetCol)) {
     return [...columns]
   }
 

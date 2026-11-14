@@ -329,7 +329,7 @@ describe('GanttRowElement', () => {
       ...baseOption,
       grid: {
         enabled: true,
-        columns: [{ id: 'name', label: 'タスク名', width: 200, isTreeColumn: true }],
+        columns: [{ id: 'name', title: 'タスク名', width: 200, isTreeColumn: true }],
       },
     }
     await el.updateComplete

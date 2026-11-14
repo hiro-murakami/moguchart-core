@@ -28,6 +28,12 @@ export interface DependencySvgOptions {
   getDateX(date: Date): number
   onDependencyLineClick(event: MouseEvent, targetTaskId: string, sourceTaskId: string): void
   onDependencyDelete(sourceTaskId: string, targetTaskId: string, originalEvent?: Event): void
+  onDependencyEdit?(
+    sourceTaskId: string,
+    targetTaskId: string,
+    anchor: { contentX: number; contentY: number; clientX?: number; clientY?: number },
+    originalEvent?: MouseEvent,
+  ): void
 }
 
 /**
@@ -49,9 +55,14 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
     getDateX,
     onDependencyLineClick,
     onDependencyDelete,
+    onDependencyEdit,
   } = params
 
   const isReadOnly = option.readOnly === true
+  const canEditPopover = !isReadOnly && option.dependency?.enableEditPopover !== false
+  const editTrigger = option.dependency?.editPopoverTrigger ?? 'dblclick'
+  const editBtnTitle = option.locale?.dependencyPopover?.editButtonTitle ?? '依存関係を編集'
+  const deleteBtnTitle = option.locale?.dependencyPopover?.deleteButtonTitle ?? '依存関係を削除'
   const showArrows = option.dependency?.showArrows !== false
   const arrowSize = option.dependency?.arrowSize ?? 8
   const lineStyle: DependencyLineStyle = option.dependency?.lineStyle ?? 'orthogonal'
@@ -178,9 +189,12 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
             selectedDependency?.targetTaskId === taskId
           const canDelete = !isReadOnly && option.dependency?.deletable !== false
           const showDeleteBtn = canDelete && option.dependency?.showDeleteButton !== false
+          const showEditBtn = canEditPopover && Boolean(onDependencyEdit)
+          const editBtnX = showEditBtn && showDeleteBtn ? btnX - 11 : btnX
+          const deleteBtnX = showEditBtn && showDeleteBtn ? btnX + 11 : btnX
 
           lines.push(
-            svg`<g class="dependency-group ${isSelected ? 'selected' : ''}" data-dependency-type="${depType}">
+            svg`<g class="dependency-group ${isSelected ? 'selected' : ''}" data-dependency-type="${depType}" data-source-task-id="${depId}" data-target-task-id="${taskId}">
               ${!isReadOnly
                 ? svg`<path
                     class="dependency-hit-area"
@@ -188,10 +202,26 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                     @click="${(e: MouseEvent) => {
                       e.stopPropagation()
                       onDependencyLineClick(e, taskId, depId)
+                      if (showEditBtn && editTrigger === 'click') {
+                        onDependencyEdit?.(
+                          depId,
+                          taskId,
+                          { contentX: btnX, contentY: btnY, clientX: e.clientX, clientY: e.clientY },
+                          e,
+                        )
+                      }
                     }}"
                     @dblclick="${(e: MouseEvent) => {
                       e.stopPropagation()
                       onDependencyLineClick(e, taskId, depId)
+                      if (showEditBtn) {
+                        onDependencyEdit?.(
+                          depId,
+                          taskId,
+                          { contentX: btnX, contentY: btnY, clientX: e.clientX, clientY: e.clientY },
+                          e,
+                        )
+                      }
                     }}"
                     @contextmenu="${(e: MouseEvent) => {
                       e.preventDefault()
@@ -204,10 +234,35 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
               ${showArrows
                 ? svg`<path class="dependency-line dependency-arrow-line ${showCriticalPath && criticalPathTaskIds.has(taskId) && criticalPathTaskIds.has(depId) ? 'critical-path' : ''}" d="${arrowPathD}" marker-end="url(#dependency-arrowhead)" />`
                 : ''}
+              ${showEditBtn
+                ? svg`<g
+                    class="dependency-edit-btn"
+                    transform="translate(${editBtnX}, ${btnY})"
+                    @pointerdown="${(e: PointerEvent) => {
+                      e.stopPropagation()
+                    }}"
+                    @click="${(e: MouseEvent) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      onDependencyLineClick(e, taskId, depId)
+                      onDependencyEdit?.(
+                        depId,
+                        taskId,
+                        { contentX: btnX, contentY: btnY, clientX: e.clientX, clientY: e.clientY },
+                        e,
+                      )
+                    }}"
+                  >
+                    <title>${editBtnTitle}</title>
+                    <circle class="dependency-edit-btn-hit-area" r="10" cx="0" cy="0" />
+                    <circle class="dependency-edit-btn-circle" r="8" cx="0" cy="0" />
+                    <path class="dependency-edit-btn-icon" d="M -3 3 L -2.3 0.7 L 1.7 -3.3 L 3.3 -1.7 L -0.7 2.3 Z" />
+                  </g>`
+                : ''}
               ${showDeleteBtn
                 ? svg`<g
                     class="dependency-delete-btn"
-                    transform="translate(${btnX}, ${btnY})"
+                    transform="translate(${deleteBtnX}, ${btnY})"
                     @pointerdown="${(e: PointerEvent) => {
                       e.stopPropagation()
                     }}"
@@ -222,6 +277,7 @@ export function renderDependencySvg(params: DependencySvgOptions): SVGTemplateRe
                       onDependencyLineClick(e, taskId, depId)
                     }}"
                   >
+                    <title>${deleteBtnTitle}</title>
                     <circle class="dependency-delete-btn-hit-area" r="10" cx="0" cy="0" />
                     <circle class="dependency-delete-btn-circle" r="8" cx="0" cy="0" />
                     <line class="dependency-delete-btn-icon" x1="-3" y1="-3" x2="3" y2="3" />

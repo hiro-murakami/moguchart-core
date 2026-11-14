@@ -696,4 +696,198 @@ export function calculateTaskDeadline(task: GanttTask): {
   }
 }
 
+export interface ThrottledFunction<T extends (...args: any[]) => void> {
+  (...args: Parameters<T>): void
+  cancel: () => void
+  flush: () => void
+}
+
+/**
+ * Leading + Trailing 実行に対応した軽量スロットル関数。
+ * 外部依存 (lodash-es) を排除しつつ `.cancel()` / `.flush()` 互換インターフェースを提供します。
+ */
+export function throttle<T extends (...args: any[]) => void>(
+  fn: T,
+  waitMs: number,
+): ThrottledFunction<T> {
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  let lastInvokeTime: number | null = null
+  let lastArgs: Parameters<T> | null = null
+  let lastThis: any = null
+
+  const invoke = (time: number) => {
+    lastInvokeTime = time
+    const args = lastArgs
+    const ctx = lastThis
+    lastArgs = null
+    lastThis = null
+    if (args) {
+      fn.apply(ctx, args)
+    }
+  }
+
+  const throttled = function (this: any, ...args: Parameters<T>) {
+    const now = Date.now()
+    lastArgs = args
+    lastThis = this
+
+    if (lastInvokeTime === null) {
+      invoke(now)
+      return
+    }
+
+    const remaining = waitMs - (now - lastInvokeTime)
+    if (remaining <= 0 || remaining > waitMs) {
+      if (timerId !== null) {
+        clearTimeout(timerId)
+        timerId = null
+      }
+      invoke(now)
+    } else if (timerId === null) {
+      timerId = setTimeout(() => {
+        timerId = null
+        invoke(Date.now())
+      }, remaining)
+    }
+  } as ThrottledFunction<T>
+
+  throttled.cancel = () => {
+    if (timerId !== null) {
+      clearTimeout(timerId)
+      timerId = null
+    }
+    lastInvokeTime = null
+    lastArgs = null
+    lastThis = null
+  }
+
+  throttled.flush = () => {
+    if (timerId !== null) {
+      clearTimeout(timerId)
+      timerId = null
+      invoke(Date.now())
+    }
+  }
+
+  return throttled
+}
+
+const MONTH_NAMES_FULL_EN = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const
+
+const MONTH_NAMES_SHORT_EN = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+const WEEKDAY_NAMES_FULL_EN = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+
+const WEEKDAY_NAMES_SHORT_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const WEEKDAY_NAMES_MIN_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const
+
+const CALENDAR_FORMAT_TOKEN_RE =
+  /\[([^\]]*)\]|Y{4}|Y{2}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}/g
+
+/**
+ * dayjs 互換トークン (`YYYY`, `YY`, `MMMM`, `MMM`, `MM`, `M`, `DD`, `D`, `[literal]` 等) を用いて
+ * Date オブジェクトを文字列にフォーマットします。
+ */
+export function formatCalendarDate(date: Date, pattern: string): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return ''
+  }
+  const year = date.getFullYear()
+  const monthIndex = date.getMonth()
+  const month = monthIndex + 1
+  const day = date.getDate()
+  const weekday = date.getDay()
+  const hours = date.getHours()
+  const hours12 = hours % 12 || 12
+  const minutes = date.getMinutes()
+  const seconds = date.getSeconds()
+
+  return pattern.replace(CALENDAR_FORMAT_TOKEN_RE, (match, escaped: string | undefined) => {
+    if (escaped !== undefined) return escaped
+    switch (match) {
+      case 'YYYY':
+        return String(year).padStart(4, '0')
+      case 'YY':
+        return String(year).slice(-2)
+      case 'MMMM':
+        return MONTH_NAMES_FULL_EN[monthIndex] ?? ''
+      case 'MMM':
+        return MONTH_NAMES_SHORT_EN[monthIndex] ?? ''
+      case 'MM':
+        return String(month).padStart(2, '0')
+      case 'M':
+        return String(month)
+      case 'DD':
+        return String(day).padStart(2, '0')
+      case 'D':
+        return String(day)
+      case 'dddd':
+        return WEEKDAY_NAMES_FULL_EN[weekday] ?? ''
+      case 'ddd':
+        return WEEKDAY_NAMES_SHORT_EN[weekday] ?? ''
+      case 'dd':
+        return WEEKDAY_NAMES_MIN_EN[weekday] ?? ''
+      case 'd':
+        return String(weekday)
+      case 'HH':
+        return String(hours).padStart(2, '0')
+      case 'H':
+        return String(hours)
+      case 'hh':
+        return String(hours12).padStart(2, '0')
+      case 'h':
+        return String(hours12)
+      case 'A':
+        return hours < 12 ? 'AM' : 'PM'
+      case 'a':
+        return hours < 12 ? 'am' : 'pm'
+      case 'mm':
+        return String(minutes).padStart(2, '0')
+      case 'm':
+        return String(minutes)
+      case 'ss':
+        return String(seconds).padStart(2, '0')
+      case 's':
+        return String(seconds)
+      default:
+        return match
+    }
+  })
+}
+
+
 

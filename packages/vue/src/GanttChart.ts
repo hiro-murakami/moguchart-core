@@ -33,6 +33,7 @@ import {
   type DependencyClickEventDetail,
   type DependencyDeleteEventDetail,
   type DependencySelectEventDetail,
+  type DependencyUpdateEventDetail,
   type MarkerDblClickEventDetail,
   type MarkerContextMenuEventDetail,
   type TaskDeleteEventDetail,
@@ -50,6 +51,7 @@ import {
   type CellEditEventDetail,
   type RowsChangeEventDetail,
   type CalendarRangeChangeEventDetail,
+  type FilterChangeEventDetail,
   type IHistoryManager,
 } from '@mogura/moguchart-core'
 
@@ -114,6 +116,7 @@ export const ganttChartEmits = {
   'dependency-click': (_detail: DependencyClickEventDetail, _e: CustomEvent<DependencyClickEventDetail>) => true,
   'dependency-delete': (_detail: DependencyDeleteEventDetail, _e: CustomEvent<DependencyDeleteEventDetail>) => true,
   'dependency-select': (_detail: DependencySelectEventDetail, _e: CustomEvent<DependencySelectEventDetail>) => true,
+  'dependency-update': (_detail: DependencyUpdateEventDetail, _e: CustomEvent<DependencyUpdateEventDetail>) => true,
   'marker-dblclick': (_detail: MarkerDblClickEventDetail, _e: CustomEvent<MarkerDblClickEventDetail>) => true,
   'marker-contextmenu': (_detail: MarkerContextMenuEventDetail, _e: CustomEvent<MarkerContextMenuEventDetail>) => true,
   'task-delete': (_detail: TaskDeleteEventDetail, _e: CustomEvent<TaskDeleteEventDetail>) => true,
@@ -131,6 +134,7 @@ export const ganttChartEmits = {
   'cell-edit': (_detail: CellEditEventDetail, _e: CustomEvent<CellEditEventDetail>) => true,
   'rows-change': (_detail: RowsChangeEventDetail, _e: CustomEvent<RowsChangeEventDetail>) => true,
   'calendar-range-change': (_detail: CalendarRangeChangeEventDetail, _e: CustomEvent<CalendarRangeChangeEventDetail>) => true,
+  'filter-change': (_detail: FilterChangeEventDetail, _e: CustomEvent<FilterChangeEventDetail>) => true,
 }
 
 /**
@@ -300,9 +304,16 @@ export const GanttChart = defineComponent({
       toggleRowCollapse: (...args: Parameters<GanttChartElement['toggleRowCollapse']>) => elRef.value?.toggleRowCollapse(...args),
       collapseAll: (...args: Parameters<GanttChartElement['collapseAll']>) => elRef.value?.collapseAll(...args),
       expandAll: (...args: Parameters<GanttChartElement['expandAll']>) => elRef.value?.expandAll(...args),
+      setFilter: (...args: Parameters<GanttChartElement['setFilter']>) => elRef.value?.setFilter(...args),
+      clearFilter: (...args: Parameters<GanttChartElement['clearFilter']>) => elRef.value?.clearFilter(...args),
+      getFilter: () => elRef.value?.getFilter() ?? null,
+      getFilterResult: () => elRef.value?.getFilterResult(),
       hitTest: (...args: Parameters<GanttChartElement['hitTest']>) => elRef.value?.hitTest(...args),
       getRowPositions: (...args: Parameters<GanttChartElement['getRowPositions']>) => elRef.value?.getRowPositions(...args),
       triggerDependencyDelete: (...args: Parameters<GanttChartElement['triggerDependencyDelete']>) => elRef.value?.triggerDependencyDelete(...args),
+      updateDependency: (...args: Parameters<GanttChartElement['updateDependency']>) => elRef.value?.updateDependency(...args) ?? false,
+      openDependencyEditPopover: (...args: Parameters<GanttChartElement['openDependencyEditPopover']>) => elRef.value?.openDependencyEditPopover(...args) ?? false,
+      closeDependencyEditPopover: (...args: Parameters<GanttChartElement['closeDependencyEditPopover']>) => elRef.value?.closeDependencyEditPopover(...args),
       autoSchedule: (...args: Parameters<GanttChartElement['autoSchedule']>) => elRef.value?.autoSchedule(...args),
       startCellEdit: (...args: Parameters<GanttChartElement['startCellEdit']>) => elRef.value?.startCellEdit(...args),
       navigateCellEdit: (...args: Parameters<GanttChartElement['navigateCellEdit']>) => elRef.value?.navigateCellEdit(...args),
@@ -361,9 +372,16 @@ export interface GanttChartPublicApi {
   toggleRowCollapse: GanttChartElement['toggleRowCollapse']
   collapseAll: GanttChartElement['collapseAll']
   expandAll: GanttChartElement['expandAll']
+  setFilter: GanttChartElement['setFilter']
+  clearFilter: GanttChartElement['clearFilter']
+  getFilter: GanttChartElement['getFilter']
+  getFilterResult: GanttChartElement['getFilterResult']
   hitTest: GanttChartElement['hitTest']
   getRowPositions: GanttChartElement['getRowPositions']
   triggerDependencyDelete: GanttChartElement['triggerDependencyDelete']
+  updateDependency: GanttChartElement['updateDependency']
+  openDependencyEditPopover: GanttChartElement['openDependencyEditPopover']
+  closeDependencyEditPopover: GanttChartElement['closeDependencyEditPopover']
   autoSchedule: GanttChartElement['autoSchedule']
   startCellEdit: GanttChartElement['startCellEdit']
   navigateCellEdit: GanttChartElement['navigateCellEdit']

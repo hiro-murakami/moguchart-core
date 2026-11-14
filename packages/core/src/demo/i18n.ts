@@ -48,8 +48,19 @@ export interface DemoTexts {
   showDeadlineConnector: string
   enableGrid: string
   enableGridEdit: string
+  pinLeadingColumns: string
   showWorkingDaysColumn: string
   showDeadlineColumn: string
+  searchPlaceholder: string
+  filterAll: string
+  filterIncomplete: string
+  filterOverdue: string
+  filterMilestones: string
+  filterModeLabel: string
+  filterModeHide: string
+  filterModeDim: string
+  filterClear: string
+  filterCountBadge: (matched: number, total: number) => string
   labelPosition: string
   labelInside: string
   labelRight: string
@@ -216,8 +227,19 @@ export const jaTexts: DemoTexts = {
   showDeadlineConnector: '補助線を表示',
   enableGrid: 'マルチカラムグリッドを表示',
   enableGridEdit: 'インライン編集を有効化 (ダブルクリック)',
+  pinLeadingColumns: '先頭列 (WBS・タスク名) を左固定',
   showWorkingDaysColumn: '稼働日数カラムを表示',
   showDeadlineColumn: '期限カラムを表示',
+  searchPlaceholder: 'タスク名・WBS番号で検索...',
+  filterAll: 'すべて',
+  filterIncomplete: '未完了',
+  filterOverdue: '期限超過・遅延',
+  filterMilestones: 'マイルストーン',
+  filterModeLabel: '非一致行:',
+  filterModeHide: '非表示 (WBS維持)',
+  filterModeDim: '減光',
+  filterClear: 'クリア',
+  filterCountBadge: (matched, total) => `${matched} / ${total} 行一致`,
   labelPosition: 'ラベル配置:',
   labelInside: '内部 (Inside)',
   labelRight: '右 (Right)',
@@ -443,8 +465,19 @@ export const enTexts: DemoTexts = {
   showDeadlineConnector: 'Show Connector Line',
   enableGrid: 'Show Multi-Column Grid',
   enableGridEdit: 'Enable Inline Editing (DblClick)',
+  pinLeadingColumns: 'Pin Leading Columns (WBS & Name)',
   showWorkingDaysColumn: 'Show Working Days Column',
   showDeadlineColumn: 'Show Deadline Column',
+  searchPlaceholder: 'Search tasks or WBS...',
+  filterAll: 'All',
+  filterIncomplete: 'Incomplete',
+  filterOverdue: 'Overdue',
+  filterMilestones: 'Milestones',
+  filterModeLabel: 'Unmatched:',
+  filterModeHide: 'Hide (Keep WBS)',
+  filterModeDim: 'Dim',
+  filterClear: 'Clear',
+  filterCountBadge: (matched, total) => `${matched} / ${total} matched`,
   labelPosition: 'Label Pos:',
   labelInside: 'Inside',
   labelRight: 'Right',

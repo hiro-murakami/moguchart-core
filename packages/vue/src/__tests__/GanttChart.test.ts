@@ -146,4 +146,66 @@ describe('GanttChart (Vue 3 Wrapper)', () => {
     expect(wrapper.emitted('task-update')).toBeTruthy()
     expect(wrapper.emitted('task-update')![0][0]).toEqual(updateDetail)
   })
+
+  it('exposes v1.10 filter and dependency methods and emits filter-change / dependency-update', () => {
+    const depRows: GanttRow[] = [
+      {
+        id: 'row-1',
+        name: 'Design',
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Design Spec',
+            start: new Date('2026-04-01'),
+            end: new Date('2026-04-05'),
+          },
+        ],
+      },
+      {
+        id: 'row-2',
+        name: 'Implementation',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'API Implementation',
+            start: new Date('2026-04-06'),
+            end: new Date('2026-04-10'),
+            dependencies: ['task-1'],
+          },
+        ],
+      },
+    ]
+
+    const wrapper = mount(GanttChart, {
+      props: {
+        rows: depRows,
+        option: sampleOption,
+      },
+    })
+
+    const vm = wrapper.vm as unknown as GanttChartInstance
+    expect(typeof vm.setFilter).toBe('function')
+    expect(typeof vm.clearFilter).toBe('function')
+    expect(typeof vm.getFilter).toBe('function')
+    expect(typeof vm.getFilterResult).toBe('function')
+    expect(typeof vm.updateDependency).toBe('function')
+    expect(typeof vm.openDependencyEditPopover).toBe('function')
+    expect(typeof vm.closeDependencyEditPopover).toBe('function')
+
+    const filterResult = vm.setFilter({ query: 'API' })
+    expect(filterResult?.matchedRowCount).toBe(1)
+    expect(wrapper.emitted('filter-change')).toBeTruthy()
+
+    vm.clearFilter()
+    expect(vm.getFilter()).toBeNull()
+
+    const updated = vm.updateDependency('task-1', 'task-2', { type: 'FF', lagDays: 2 })
+    expect(updated).toBe(true)
+    expect(wrapper.emitted('dependency-update')).toBeTruthy()
+    expect((wrapper.emitted('dependency-update')![0][0] as any).dependency).toEqual({
+      taskId: 'task-1',
+      type: 'FF',
+      lag: 2880,
+    })
+  })
 })

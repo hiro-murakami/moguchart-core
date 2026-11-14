@@ -46,3 +46,4 @@ export {
   canDropRow,
 } from './core/wbs'
 export * from './core/grid'
+export * from './core/filter'

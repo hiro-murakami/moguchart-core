@@ -26,6 +26,8 @@ import {
   getGridCellValue,
   formatGridCellValue,
   isGridCellEditable,
+  isGridColumnPinned,
+  partitionGridColumns,
   resolveColumnEditorType,
   formatGridCellEditValue,
   type ResolvedGridCellRange,
@@ -478,11 +480,26 @@ export class GanttRowElement extends LitElement {
     :host([theme='dark']) .grid-cell-anchor {
       box-shadow: inset 0 0 0 2px #60a5fa;
     }
+    .grid-pinned-left {
+      position: relative;
+      z-index: 3;
+      transition: box-shadow 0.15s ease;
+    }
+    .grid-pinned-left.has-scroll-shadow {
+      box-shadow: 4px 0 8px -2px rgba(15, 23, 42, 0.18);
+    }
+    :host([theme='dark']) .grid-pinned-left.has-scroll-shadow {
+      box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.45);
+    }
     :host([isexporting]) .grid-cell-selected {
       background-color: transparent !important;
     }
     :host([isexporting]) .grid-cell-anchor {
       box-shadow: none !important;
+    }
+    .row-header.row-filtered-out {
+      opacity: 0.38;
+      transition: opacity 0.15s ease;
     }
   `
 
@@ -1410,7 +1427,7 @@ export class GanttRowElement extends LitElement {
       </style>
       <div class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}">
         <div
-          class="row-header"
+          class="row-header ${(this.row as any)._isFilteredOut === true ? 'row-filtered-out' : ''}"
           style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
           draggable="${!isGridEnabled && canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
@@ -1434,12 +1451,240 @@ export class GanttRowElement extends LitElement {
                     isTimeMode,
                   )
                   const visibleColumns = columns.filter((c) => c.visible !== false)
+                  const { pinnedColumns, scrollableColumns, scrollableWidth } =
+                    partitionGridColumns(visibleColumns)
                   const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
                   const gridEditable = this.option.grid?.editable === true
                   const editTrigger = this.option.grid?.editTrigger ?? 'dblclick'
                   const isInlineEditEnabled =
                     !this.option.readOnly &&
                     (gridEditable || visibleColumns.some((c) => c.editable !== undefined && c.editable !== false))
+
+                  const renderGridCell = (col: GanttColumn) => {
+                    const isPinned = isGridColumnPinned(col)
+                    const cellValue = getGridCellValue(
+                      col,
+                      this.row,
+                      this.row.tasks,
+                      this.wbsCode,
+                      this.gridCalendarOptions,
+                    )
+                    const formatted = formatGridCellValue(
+                      col,
+                      cellValue,
+                      this.row,
+                      this.row.tasks,
+                      this.option.locale,
+                      isMonthMode,
+                      isTimeMode,
+                    )
+                    const customContent = col.renderCell
+                      ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
+                      : null
+                    const showBorder = this.option.grid?.showBorders !== false
+                    const isEditable =
+                      !this.option.readOnly &&
+                      isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)
+                    const isReadOnlyCell = isInlineEditEnabled && !isEditable
+                    const isEditing = this._editingColumnId === col.id
+                    const isNameOrTreeCell = col.id === 'name' || Boolean(col.isTreeColumn)
+                    const cellPadding = this.option.grid?.cellPadding ?? 6
+                    const hasTreePrefix =
+                      Boolean(col.isTreeColumn) && treeEnabled && (this.level > 0 || this.hasChildren)
+                    const cellPaddingStyle = col.isTreeColumn
+                      ? isEditing
+                        ? `0 ${cellPadding}px 0 ${hasTreePrefix ? 0 : cellPadding}px`
+                        : '0'
+                      : `0 ${cellPadding}px`
+
+                    const isDropLeft =
+                      this.columnDropTarget != null &&
+                      this.columnDropTarget.columnId === col.id &&
+                      this.columnDropTarget.position === 'left'
+                    const isDropRight =
+                      this.columnDropTarget != null &&
+                      this.columnDropTarget.columnId === col.id &&
+                      this.columnDropTarget.position === 'right'
+
+                    const isCellSelected = Boolean(
+                      this.resolvedCellRange &&
+                        this.resolvedCellRange.rowIdSet.has(this.row.id) &&
+                        this.resolvedCellRange.columnIdSet.has(col.id),
+                    )
+                    const isCellAnchor = Boolean(
+                      isCellSelected &&
+                        this.resolvedCellRange?.anchorRowId === this.row.id &&
+                        this.resolvedCellRange?.anchorColumnId === col.id,
+                    )
+
+                    return html`
+                      <div
+                        class="grid-cell grid-cell-${col.id} ${isPinned ? 'is-pinned-left' : ''} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isCellSelected ? 'grid-cell-selected' : ''} ${isCellAnchor ? 'grid-cell-anchor' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+                        data-column-id="${col.id}"
+                        data-pinned="${isPinned ? 'left' : ''}"
+                        draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
+                        style="
+                        width: ${col.width}px;
+                        min-width: ${col.minWidth ?? 40}px;
+                        max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
+                        box-sizing: border-box;
+                        display: flex;
+                        align-items: center;
+                        justify-content: ${
+                          col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'
+                        };
+                        padding: ${cellPaddingStyle};
+                        ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
+                        position: relative;
+                        overflow: hidden;
+                        white-space: nowrap;
+                        text-overflow: ellipsis;
+                        flex-shrink: 0;
+                      "
+                        @mouseenter="${isNameOrTreeCell ? this.handleHeaderMouseEnter : undefined}"
+                        @mouseleave="${isNameOrTreeCell ? this.handleHeaderMouseLeave : undefined}"
+                        @pointerdown="${(e: PointerEvent) => {
+                          if (e.button !== undefined && e.button !== 0) return
+                          const target = e.target as HTMLElement | null
+                          if (target?.closest?.('.tree-toggle-btn')) return
+                          if (this._editingColumnId === col.id) return
+                          this.dispatchEvent(
+                            new CustomEvent('row-cell-pointerdown', {
+                              detail: {
+                                rowId: this.row.id,
+                                columnId: col.id,
+                                isNameOrTreeCell,
+                                event: e,
+                              },
+                              bubbles: true,
+                              composed: true,
+                            }),
+                          )
+                        }}"
+                        @pointerenter="${(e: PointerEvent) => {
+                          this.dispatchEvent(
+                            new CustomEvent('row-cell-pointerenter', {
+                              detail: {
+                                rowId: this.row.id,
+                                columnId: col.id,
+                                event: e,
+                              },
+                              bubbles: true,
+                              composed: true,
+                            }),
+                          )
+                        }}"
+                        @click="${(e: MouseEvent) => {
+                          if (!isEditable || editTrigger !== 'click') return
+                          const target = e.target as HTMLElement | null
+                          if (target?.closest?.('.tree-toggle-btn')) return
+                          this.startCellEdit(col.id)
+                        }}"
+                        @dblclick="${(e: MouseEvent) => {
+                          if (!isEditable) return
+                          const target = e.target as HTMLElement | null
+                          if (target?.closest?.('.tree-toggle-btn')) return
+                          e.stopPropagation()
+                          this.startCellEdit(col.id)
+                        }}"
+                      >
+                        ${
+                          col.isTreeColumn
+                            ? html`
+                                ${
+                                  treeEnabled && this.level > 0
+                                    ? html`<span
+                                        class="tree-indent-spacer"
+                                        style="width: ${this.level * indentWidth}px;"
+                                      ></span>`
+                                    : ''
+                                }
+                                ${
+                                  treeEnabled && this.hasChildren && showToggleIcon
+                                    ? html`<span
+                                        class="tree-toggle-btn"
+                                        @click="${this.handleToggleCollapse}"
+                                        @dblclick="${this.handleToggleDblClick}"
+                                        @mouseenter="${this.handleToggleMouseEnter}"
+                                        @mouseleave="${this.handleToggleMouseLeave}"
+                                        >${this.renderTreeToggleIcon(this.row.collapsed)}</span
+                                      >`
+                                    : treeEnabled && (this.level > 0 || this.hasChildren)
+                                      ? html`<span class="tree-toggle-spacer"></span>`
+                                      : ''
+                                }
+                                ${
+                                  treeEnabled &&
+                                  showWbsCode &&
+                                  this.wbsCode &&
+                                  !columns.some((c) => c.id === 'wbs' && c.visible !== false)
+                                    ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
+                                    : ''
+                                }
+                              `
+                            : ''
+                        }
+                        ${
+                          isEditing
+                            ? this._renderCellEditor(col, isMonthMode, isTimeMode)
+                            : html`
+                                <div
+                                  class="grid-cell-content"
+                                  style="${
+                                    customContent !== null
+                                      ? 'flex: 1; min-width: 0; height: 100%;'
+                                      : col.isTreeColumn
+                                        ? `padding: 0 ${cellPadding}px;`
+                                        : ''
+                                  } overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                >
+                                  ${customContent !== null ? customContent : formatted}
+                                </div>
+                              `
+                        }
+                      </div>
+                    `
+                  }
+
+                  if (pinnedColumns.length > 0 && !this.isExporting) {
+                    return html`
+                      <div
+                        class="grid-row-container has-pinned-columns"
+                        style="
+                          display: flex;
+                          height: 100%;
+                          width: 100%;
+                          overflow: hidden;
+                          box-sizing: border-box;
+                        "
+                      >
+                        <div
+                          class="grid-pinned-left ${this.gridScrollLeft > 0 ? 'has-scroll-shadow' : ''}"
+                          style="display: flex; height: 100%; flex-shrink: 0;"
+                        >
+                          ${pinnedColumns.map(renderGridCell)}
+                        </div>
+                        <div
+                          class="grid-scrollable-viewport"
+                          style="flex: 1; min-width: 0; height: 100%; overflow: hidden;"
+                        >
+                          <div
+                            class="grid-scrollable-track"
+                            style="
+                              display: flex;
+                              height: 100%;
+                              width: ${scrollableWidth}px;
+                              min-width: 100%;
+                              transform: translateX(-${this.gridScrollLeft}px);
+                              box-sizing: border-box;
+                            "
+                          >
+                            ${scrollableColumns.map(renderGridCell)}
+                          </div>
+                        </div>
+                      </div>
+                    `
+                  }
 
                   return html`
                     <div
@@ -1453,187 +1698,7 @@ export class GanttRowElement extends LitElement {
                       box-sizing: border-box;
                     "
                     >
-                      ${visibleColumns.map((col) => {
-                        const cellValue = getGridCellValue(
-                          col,
-                          this.row,
-                          this.row.tasks,
-                          this.wbsCode,
-                          this.gridCalendarOptions,
-                        )
-                        const formatted = formatGridCellValue(
-                          col,
-                          cellValue,
-                          this.row,
-                          this.row.tasks,
-                          this.option.locale,
-                          isMonthMode,
-                          isTimeMode,
-                        )
-                        const customContent = col.renderCell
-                          ? col.renderCell(cellValue, this.row, this.row.tasks, this.option.locale)
-                          : null
-                        const showBorder = this.option.grid?.showBorders !== false
-                        const isEditable =
-                          !this.option.readOnly &&
-                          isGridCellEditable(col, this.row, this.row.tasks, this.hasChildren, gridEditable)
-                        const isReadOnlyCell = isInlineEditEnabled && !isEditable
-                        const isEditing = this._editingColumnId === col.id
-                        const isNameOrTreeCell = col.id === 'name' || Boolean(col.isTreeColumn)
-                        const cellPadding = this.option.grid?.cellPadding ?? 6
-                        const hasTreePrefix =
-                          Boolean(col.isTreeColumn) && treeEnabled && (this.level > 0 || this.hasChildren)
-                        const cellPaddingStyle = col.isTreeColumn
-                          ? isEditing
-                            ? `0 ${cellPadding}px 0 ${hasTreePrefix ? 0 : cellPadding}px`
-                            : '0'
-                          : `0 ${cellPadding}px`
-
-                        const isDropLeft =
-                          this.columnDropTarget?.columnId === col.id &&
-                          this.columnDropTarget.position === 'left'
-                        const isDropRight =
-                          this.columnDropTarget?.columnId === col.id &&
-                          this.columnDropTarget.position === 'right'
-
-                        const isCellSelected = Boolean(
-                          this.resolvedCellRange &&
-                            this.resolvedCellRange.rowIdSet.has(this.row.id) &&
-                            this.resolvedCellRange.columnIdSet.has(col.id),
-                        )
-                        const isCellAnchor = Boolean(
-                          isCellSelected &&
-                            this.resolvedCellRange?.anchorRowId === this.row.id &&
-                            this.resolvedCellRange?.anchorColumnId === col.id,
-                        )
-
-                        return html`
-                          <div
-                            class="grid-cell grid-cell-${col.id} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isCellSelected ? 'grid-cell-selected' : ''} ${isCellAnchor ? 'grid-cell-anchor' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
-                            data-column-id="${col.id}"
-                            draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
-                            style="
-                            width: ${col.width}px;
-                            min-width: ${col.minWidth ?? 40}px;
-                            max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
-                            box-sizing: border-box;
-                            display: flex;
-                            align-items: center;
-                            justify-content: ${
-                              col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'
-                            };
-                            padding: ${cellPaddingStyle};
-                            ${showBorder ? `border-right: 1px solid ${colors.border};` : ''}
-                            position: relative;
-                            overflow: hidden;
-                            white-space: nowrap;
-                            text-overflow: ellipsis;
-                            flex-shrink: 0;
-                          "
-                            @mouseenter="${isNameOrTreeCell ? this.handleHeaderMouseEnter : undefined}"
-                            @mouseleave="${isNameOrTreeCell ? this.handleHeaderMouseLeave : undefined}"
-                            @pointerdown="${(e: PointerEvent) => {
-                              if (e.button !== undefined && e.button !== 0) return
-                              const target = e.target as HTMLElement | null
-                              if (target?.closest?.('.tree-toggle-btn')) return
-                              if (this._editingColumnId === col.id) return
-                              this.dispatchEvent(
-                                new CustomEvent('row-cell-pointerdown', {
-                                  detail: {
-                                    rowId: this.row.id,
-                                    columnId: col.id,
-                                    isNameOrTreeCell,
-                                    event: e,
-                                  },
-                                  bubbles: true,
-                                  composed: true,
-                                }),
-                              )
-                            }}"
-                            @pointerenter="${(e: PointerEvent) => {
-                              this.dispatchEvent(
-                                new CustomEvent('row-cell-pointerenter', {
-                                  detail: {
-                                    rowId: this.row.id,
-                                    columnId: col.id,
-                                    event: e,
-                                  },
-                                  bubbles: true,
-                                  composed: true,
-                                }),
-                              )
-                            }}"
-                            @click="${(e: MouseEvent) => {
-                              if (!isEditable || editTrigger !== 'click') return
-                              const target = e.target as HTMLElement | null
-                              if (target?.closest?.('.tree-toggle-btn')) return
-                              this.startCellEdit(col.id)
-                            }}"
-                            @dblclick="${(e: MouseEvent) => {
-                              if (!isEditable) return
-                              const target = e.target as HTMLElement | null
-                              if (target?.closest?.('.tree-toggle-btn')) return
-                              e.stopPropagation()
-                              this.startCellEdit(col.id)
-                            }}"
-                          >
-                            ${
-                              col.isTreeColumn
-                                ? html`
-                                    ${
-                                      treeEnabled && this.level > 0
-                                        ? html`<span
-                                            class="tree-indent-spacer"
-                                            style="width: ${this.level * indentWidth}px;"
-                                          ></span>`
-                                        : ''
-                                    }
-                                    ${
-                                      treeEnabled && this.hasChildren && showToggleIcon
-                                        ? html`<span
-                                            class="tree-toggle-btn"
-                                            @click="${this.handleToggleCollapse}"
-                                            @dblclick="${this.handleToggleDblClick}"
-                                            @mouseenter="${this.handleToggleMouseEnter}"
-                                            @mouseleave="${this.handleToggleMouseLeave}"
-                                            >${this.renderTreeToggleIcon(this.row.collapsed)}</span
-                                          >`
-                                        : treeEnabled && (this.level > 0 || this.hasChildren)
-                                          ? html`<span class="tree-toggle-spacer"></span>`
-                                          : ''
-                                    }
-                                    ${
-                                      treeEnabled &&
-                                      showWbsCode &&
-                                      this.wbsCode &&
-                                      !columns.some((c) => c.id === 'wbs' && c.visible !== false)
-                                        ? html`<span class="wbs-code-badge">${this.wbsCode}</span>`
-                                        : ''
-                                    }
-                                  `
-                                : ''
-                            }
-                            ${
-                              isEditing
-                                ? this._renderCellEditor(col, isMonthMode, isTimeMode)
-                                : html`
-                                    <div
-                                      class="grid-cell-content"
-                                      style="${
-                                        customContent !== null
-                                          ? 'flex: 1; min-width: 0; height: 100%;'
-                                          : col.isTreeColumn
-                                            ? `padding: 0 ${cellPadding}px;`
-                                            : ''
-                                      } overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                                    >
-                                      ${customContent !== null ? customContent : formatted}
-                                    </div>
-                                  `
-                            }
-                          </div>
-                        `
-                      })}
+                      ${visibleColumns.map(renderGridCell)}
                     </div>
                   `
                 })()

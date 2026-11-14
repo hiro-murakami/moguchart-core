@@ -23,6 +23,7 @@ import {
   type DependencyClickEventDetail,
   type DependencyDeleteEventDetail,
   type DependencySelectEventDetail,
+  type DependencyUpdateEventDetail,
   type MarkerDblClickEventDetail,
   type MarkerContextMenuEventDetail,
   type TaskDeleteEventDetail,
@@ -40,6 +41,7 @@ import {
   type CellEditEventDetail,
   type RowsChangeEventDetail,
   type CalendarRangeChangeEventDetail,
+  type FilterChangeEventDetail,
 } from '@mogura/moguchart-core'
 
 /**
@@ -73,6 +75,7 @@ export const GanttChart = createComponent({
     onDependencyClick: 'dependency-click' as EventName<CustomEvent<DependencyClickEventDetail>>,
     onDependencyDelete: 'dependency-delete' as EventName<CustomEvent<DependencyDeleteEventDetail>>,
     onDependencySelect: 'dependency-select' as EventName<CustomEvent<DependencySelectEventDetail>>,
+    onDependencyUpdate: 'dependency-update' as EventName<CustomEvent<DependencyUpdateEventDetail>>,
     onMarkerDblClick: 'marker-dblclick' as EventName<CustomEvent<MarkerDblClickEventDetail>>,
     onMarkerContextMenu: 'marker-contextmenu' as EventName<CustomEvent<MarkerContextMenuEventDetail>>,
     onTaskDelete: 'task-delete' as EventName<CustomEvent<TaskDeleteEventDetail>>,
@@ -90,6 +93,7 @@ export const GanttChart = createComponent({
     onCellEdit: 'cell-edit' as EventName<CustomEvent<CellEditEventDetail>>,
     onRowsChange: 'rows-change' as EventName<CustomEvent<RowsChangeEventDetail>>,
     onCalendarRangeChange: 'calendar-range-change' as EventName<CustomEvent<CalendarRangeChangeEventDetail>>,
+    onFilterChange: 'filter-change' as EventName<CustomEvent<FilterChangeEventDetail>>,
   },
 })
 

@@ -19,6 +19,7 @@ import type {
   DependencyLineStyle,
   DependencyDeleteEventDetail,
   DependencySelectEventDetail,
+  DependencyUpdateEventDetail,
   TaskProgressChangeEventDetail,
   TaskDeadlineChangeEventDetail,
   HistoryChangeEventDetail,
@@ -26,23 +27,22 @@ import type {
   GanttColumn,
   ColumnResizeEventDetail,
   AutoScheduleMode,
-  DependencyType,
   GanttBarLabelPosition,
   GanttHolidayChecker,
   CalendarRangeChangeEventDetail,
+  FilterChangeEventDetail,
 } from '../core/types'
-import { isMilestoneTask } from '../core/utils'
 import {
-  normalizeDependencyLink,
-  createDependencyEntry,
-  getDependencyTaskId,
-  propagateAutoSchedule,
-} from '../core/auto-schedule'
+  evaluateRowFilter,
+  isFilterConfigActive,
+  type GanttFilterConfig,
+  type GanttFilterMode,
+} from '../core/filter'
+import { isMilestoneTask } from '../core/utils'
 import { CHROME_ZOOM_LEVELS } from '../core/constants'
 import type { ThemeColorPalette } from '../core/types'
 import type { MoguchartLocale } from '../core/i18n'
 import { jaLocale, enLocale } from '../core/i18n'
-import dayjs from 'dayjs'
 import { getPatternStyle } from '../core/patterns'
 import { jaTexts, enTexts, getInitialLang } from './i18n'
 import type { DemoTexts } from './i18n'
@@ -204,67 +204,6 @@ const getActiveHolidayChecker = (): GanttHolidayChecker => {
     return isHoliday(date)
   }
 }
-let selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
-let selectedDependencyPos: { x: number; y: number } | null = null
-
-const getSelectedDependencyInfo = () => {
-  if (!selectedDependency) return null
-  const { sourceTaskId, targetTaskId } = selectedDependency
-  let sourceTask: GanttTask | undefined
-  let targetTask: GanttTask | undefined
-  for (const row of rows) {
-    for (const task of row.tasks) {
-      if (task.id === sourceTaskId) sourceTask = task
-      if (task.id === targetTaskId) targetTask = task
-    }
-  }
-  if (!sourceTask || !targetTask || !targetTask.dependencies) return null
-  const rawDep = targetTask.dependencies.find((dep) => getDependencyTaskId(dep) === sourceTaskId)
-  if (!rawDep) return null
-  const link = normalizeDependencyLink(rawDep)
-  return { sourceTask, targetTask, link }
-}
-
-const updateSelectedDependency = (newType: DependencyType, newLagMinutes: number) => {
-  if (!selectedDependency) return
-  const { sourceTaskId, targetTaskId } = selectedDependency
-  const previousRows = rows
-  const updatedEntry = createDependencyEntry(sourceTaskId, newType, newLagMinutes)
-  let nextRows = rows.map((row) => ({
-    ...row,
-    tasks: row.tasks.map((task) => {
-      if (task.id === targetTaskId && task.dependencies) {
-        return {
-          ...task,
-          dependencies: task.dependencies.map((dep) =>
-            getDependencyTaskId(dep) === sourceTaskId ? updatedEntry : dep,
-          ),
-        }
-      }
-      return task
-    }),
-  }))
-
-  if (autoSchedule) {
-    nextRows = propagateAutoSchedule(nextRows, [sourceTaskId], {
-      mode: 'strict',
-      calendarMode,
-      isHoliday: getActiveHolidayChecker(),
-      nonWorkingDays,
-    }).rows
-  }
-
-  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement | null
-  if (chart) {
-    chart.applyRowsChangeWithCommand(previousRows, nextRows, {
-      type: 'dependency-update',
-      description: '接続線の種別・ラグを変更',
-    })
-  } else {
-    rows = nextRows
-    renderApp()
-  }
-}
 let enableProgress = true
 let editableProgress = true
 let showProgressLabel = true
@@ -277,7 +216,26 @@ let highlightOverdue = true
 let showDeadlineConnector = true
 let enableGrid = false
 let enableGridEdit = true
+let pinLeadingColumns = true
 let showDeadlineColumn = true
+let searchQuery = ''
+let quickFilter: 'all' | 'incomplete' | 'overdue' | 'milestone' = 'all'
+let filterMode: GanttFilterMode = 'hide'
+
+const getActiveFilterConfig = (): GanttFilterConfig | undefined => {
+  const trimmed = searchQuery.trim()
+  const hasQuery = trimmed.length > 0
+  const hasQuickFilter = quickFilter !== 'all'
+  if (!hasQuery && !hasQuickFilter) return undefined
+
+  return {
+    query: hasQuery ? trimmed : undefined,
+    status: quickFilter === 'incomplete' || quickFilter === 'overdue' ? quickFilter : undefined,
+    taskTypes: quickFilter === 'milestone' ? ['milestone'] : undefined,
+    mode: filterMode,
+  }
+}
+
 let demoGridColumns: GanttColumn[] = [
   { id: 'wbs', width: 55 },
   { id: 'name', width: 205 },
@@ -290,11 +248,17 @@ let demoGridColumns: GanttColumn[] = [
 ]
 
 const getActiveGridColumns = (): GanttColumn[] => {
-  return demoGridColumns.filter((col) => {
-    if (col.id === 'workingDays' && !showWorkingDaysColumn) return false
-    if (col.id === 'deadline' && !showDeadlineColumn) return false
-    return true
-  })
+  return demoGridColumns
+    .filter((col) => {
+      if (col.id === 'workingDays' && !showWorkingDaysColumn) return false
+      if (col.id === 'deadline' && !showDeadlineColumn) return false
+      return true
+    })
+    .map((col) =>
+      col.id === 'wbs' || col.id === 'name'
+        ? { ...col, pinned: pinLeadingColumns ? 'left' : false }
+        : col,
+    )
 }
 
 const getActiveGridTotalWidth = (): number =>
@@ -434,6 +398,15 @@ const renderApp = () => {
   }
 
   const activeIsHoliday = getActiveHolidayChecker()
+  const activeGridColumns = getActiveGridColumns()
+  const activeFilterConfig = getActiveFilterConfig()
+  const filterEval =
+    activeFilterConfig && isFilterConfigActive(activeFilterConfig)
+      ? evaluateRowFilter(rows, activeFilterConfig, {
+          columns: enableGrid ? activeGridColumns : undefined,
+          includeHidden: showHiddenRows,
+        })
+      : null
   const option: GanttChartOption = {
     bar: {
       height: barHeight,
@@ -534,8 +507,9 @@ const renderApp = () => {
     grid: {
       enabled: enableGrid,
       editable: enableGridEdit,
-      columns: getActiveGridColumns(),
+      columns: activeGridColumns,
     },
+    filter: activeFilterConfig,
     tree: {
       enabled: true,
       indentWidth: 16,
@@ -594,7 +568,7 @@ const renderApp = () => {
               }
               return `${d.toLocaleDateString()} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
             }
-            const period = dayjs(newEnd).diff(dayjs(newStart), 'day')
+            const period = Math.trunc((newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60 * 24))
             return html`
               <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px;">${task.name}</div>
               <div style="font-size: 12px;">${formatDateTime(newStart)} - ${formatDateTime(newEnd)} (${period})</div>
@@ -1436,6 +1410,21 @@ const renderApp = () => {
                 <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
                   <input
                     type="checkbox"
+                    .checked="${pinLeadingColumns}"
+                    @change="${(e: Event) => {
+                      pinLeadingColumns = (e.target as HTMLInputElement).checked
+                      if (pinLeadingColumns && enableGrid && rowHeaderWidth > 520) {
+                        rowHeaderWidth = 520
+                      }
+                      renderApp()
+                    }}"
+                  />
+                  <span class="toggle-track"></span>
+                  📌 ${t.pinLeadingColumns}
+                </label>
+                <label class="toggle-label" style="${!enableGrid ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                  <input
+                    type="checkbox"
                     .checked="${showWorkingDaysColumn}"
                     @change="${(e: Event) => {
                       showWorkingDaysColumn = (e.target as HTMLInputElement).checked
@@ -1583,214 +1572,139 @@ const renderApp = () => {
 
       <div style="display: flex; gap: 16px; align-items: flex-start;">
         <div style="flex-grow: 1; min-width: 0;">
-          ${(() => {
-            const depInfo = getSelectedDependencyInfo()
-            if (!depInfo || !selectedDependencyPos) return ''
-            const { sourceTask, targetTask, link } = depInfo
-            const stepMinutes = viewMode === 'month' ? 43200 : snapDuration
-            const isMonthUnit = viewMode === 'month'
-            const isDayUnit = !isMonthUnit && stepMinutes >= 1440 && stepMinutes % 1440 === 0
-            const isHourUnit = !isMonthUnit && !isDayUnit && stepMinutes >= 60 && stepMinutes % 60 === 0
-            const unitMinutes = isMonthUnit ? 43200 : isDayUnit ? 1440 : isHourUnit ? 60 : 1
-            const unitLabel = isMonthUnit
-              ? currentLang === 'ja'
-                ? 'ヶ月'
-                : 'mo'
-              : isDayUnit
-                ? currentLang === 'ja'
-                  ? '日'
-                  : 'd'
-                : isHourUnit
-                  ? currentLang === 'ja'
-                    ? '時間'
-                    : 'h'
-                  : currentLang === 'ja'
-                    ? '分'
-                    : 'min'
-            const stepInUnit = stepMinutes / unitMinutes
-            const lagInUnit = Math.round((link.lag / unitMinutes) * 100) / 100
-            const depTypes: { type: DependencyType; label: string; title: string }[] = [
-              {
-                type: 'FS',
-                label: 'FS',
-                title: currentLang === 'ja' ? '終了→開始 (Finish-to-Start)' : 'Finish-to-Start',
-              },
-              {
-                type: 'SS',
-                label: 'SS',
-                title: currentLang === 'ja' ? '開始→開始 (Start-to-Start)' : 'Start-to-Start',
-              },
-              {
-                type: 'FF',
-                label: 'FF',
-                title: currentLang === 'ja' ? '終了→終了 (Finish-to-Finish)' : 'Finish-to-Finish',
-              },
-              {
-                type: 'SF',
-                label: 'SF',
-                title: currentLang === 'ja' ? '開始→終了 (Start-to-Finish)' : 'Start-to-Finish',
-              },
-            ]
-
-            const winW = typeof window !== 'undefined' ? window.innerWidth : 1200
-            const clampedX = Math.max(150, Math.min(winW - 150, selectedDependencyPos.x))
-            const placeBelow = selectedDependencyPos.y < 140
-            const posY = placeBelow ? selectedDependencyPos.y + 14 : selectedDependencyPos.y - 14
-
-            const ttBg = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'
-            const ttText = isDark ? '#0f172a' : 'white'
-            const ttMuted = isDark ? '#64748b' : '#cbd5e1'
-            const ttBorder = isDark ? 'rgba(203, 213, 225, 0.8)' : 'rgba(255, 255, 255, 0.2)'
-            const ttSegBg = isDark ? 'rgba(226, 232, 240, 0.85)' : 'rgba(255, 255, 255, 0.12)'
-            const ttSegText = isDark ? '#475569' : '#e2e8f0'
-            const ttBtnBg = isDark ? 'rgba(226, 232, 240, 0.9)' : 'rgba(255, 255, 255, 0.18)'
-            const ttInputBg = isDark ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.45)'
-            const ttInputBorder = isDark ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)'
-
-            return html`
-              <div
+          <!-- WBS 階層維持検索 & クイックフィルタバー -->
+          <div
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              align-items: center;
+              gap: 8px 12px;
+              margin-bottom: 10px;
+              padding: 8px 12px;
+              background: ${c.cardBg};
+              border: 1px solid ${c.cardBorder};
+              border-radius: 10px;
+            "
+          >
+            <div style="position: relative; display: flex; align-items: center; flex: 1 1 220px; max-width: 340px;">
+              <span style="position: absolute; left: 10px; font-size: 13px; opacity: 0.65; pointer-events: none;">🔍</span>
+              <input
+                type="search"
+                placeholder="${t.searchPlaceholder}"
+                .value="${searchQuery}"
                 style="
-                  position: fixed;
-                  left: ${clampedX}px;
-                  top: ${posY}px;
-                  transform: translate(-50%, ${placeBelow ? '0%' : '-100%'});
-                  z-index: 9999;
-                  background-color: ${ttBg};
-                  color: ${ttText};
-                  border: 1px solid ${ttBorder};
-                  border-radius: 6px;
-                  padding: 10px 12px;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                  font-size: 12px;
-                  min-width: 240px;
+                  width: 100%;
+                  padding: 6px 28px 6px 30px;
+                  font-size: 13px;
+                  border-radius: 7px;
+                  border: 1px solid ${c.selectBorder};
+                  background: ${c.selectBg};
+                  color: ${c.text};
+                  outline: none;
                 "
-                @click="${(e: Event) => e.stopPropagation()}"
+                @input="${(e: Event) => {
+                  searchQuery = (e.target as HTMLInputElement).value
+                  renderApp()
+                }}"
+              />
+              ${searchQuery
+                ? html`
+                    <button
+                      type="button"
+                      title="${t.filterClear}"
+                      style="
+                        position: absolute;
+                        right: 6px;
+                        border: none;
+                        background: transparent;
+                        color: ${c.textMuted};
+                        cursor: pointer;
+                        font-size: 13px;
+                        line-height: 1;
+                        padding: 2px 4px;
+                      "
+                      @click="${() => {
+                        searchQuery = ''
+                        renderApp()
+                      }}"
+                    >
+                      ✕
+                    </button>
+                  `
+                : ''}
+            </div>
+
+            <div class="seg-group">
+              ${(
+                [
+                  { id: 'all', label: t.filterAll },
+                  { id: 'incomplete', label: t.filterIncomplete },
+                  { id: 'overdue', label: t.filterOverdue },
+                  { id: 'milestone', label: t.filterMilestones },
+                ] as const
+              ).map(
+                (chip) => html`
+                  <label class="${quickFilter === chip.id ? 'active' : ''}">
+                    <input
+                      type="radio"
+                      name="quickFilter"
+                      value="${chip.id}"
+                      .checked="${quickFilter === chip.id}"
+                      @change="${() => {
+                        quickFilter = chip.id
+                        renderApp()
+                      }}"
+                    />
+                    ${chip.label}
+                  </label>
+                `,
+              )}
+            </div>
+
+            <span class="select-group">
+              ${t.filterModeLabel}
+              <select
+                class="mini-select"
+                @change="${(e: Event) => {
+                  filterMode = (e.target as HTMLSelectElement).value as GanttFilterMode
+                  renderApp()
+                }}"
               >
-                <div
-                  style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    font-weight: 600;
-                    padding-bottom: 6px;
-                    margin-bottom: 8px;
-                    border-bottom: 1px solid ${ttBorder};
-                  "
-                >
-                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    🔗 ${sourceTask.name || sourceTask.id} ➔ ${targetTask.name || targetTask.id}
+                <option value="hide" ?selected="${filterMode === 'hide'}">${t.filterModeHide}</option>
+                <option value="dim" ?selected="${filterMode === 'dim'}">${t.filterModeDim}</option>
+              </select>
+            </span>
+
+            ${filterEval
+              ? html`
+                  <span
+                    style="
+                      font-size: 12px;
+                      font-weight: 600;
+                      padding: 3px 9px;
+                      border-radius: 999px;
+                      background: ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.12)'};
+                      color: ${isDark ? '#93c5fd' : '#1d4ed8'};
+                    "
+                  >
+                    ${t.filterCountBadge(filterEval.matchedRowCount, filterEval.totalRowCount)}
                   </span>
                   <button
-                    style="
-                      background: transparent;
-                      border: none;
-                      color: ${ttMuted};
-                      cursor: pointer;
-                      font-size: 14px;
-                      line-height: 1;
-                      padding: 0 2px;
-                    "
-                    title="Close"
+                    type="button"
+                    class="export-btn"
+                    style="background: #64748b; padding: 4px 10px; font-size: 12px;"
                     @click="${() => {
-                      selectedDependency = null
-                      selectedDependencyPos = null
-                      const chart = document.getElementById('gantt-chart-instance') as GanttChartElement | null
-                      if (chart) {
-                        chart.selectedDependency = null
-                      }
+                      searchQuery = ''
+                      quickFilter = 'all'
                       renderApp()
                     }}"
                   >
-                    ✕
+                    ✕ ${t.filterClear}
                   </button>
-                </div>
+                `
+              : ''}
+          </div>
 
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
-                  <span style="color: ${ttMuted};">${currentLang === 'ja' ? '種別' : 'Type'}</span>
-                  <div style="display: inline-flex; background: ${ttSegBg}; border-radius: 6px; padding: 2px; gap: 2px;">
-                    ${depTypes.map(
-                      (dt) => html`
-                        <button
-                          title="${dt.title}"
-                          style="
-                            border: none;
-                            border-radius: 4px;
-                            padding: 3px 8px;
-                            font-size: 11px;
-                            font-weight: 600;
-                            cursor: pointer;
-                            background: ${link.type === dt.type ? '#3b82f6' : 'transparent'};
-                            color: ${link.type === dt.type ? '#ffffff' : ttSegText};
-                          "
-                          @click="${() => updateSelectedDependency(dt.type, link.lag)}"
-                        >
-                          ${dt.label}
-                        </button>
-                      `,
-                    )}
-                  </div>
-                </div>
-
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                  <span style="color: ${ttMuted};">
-                    ${currentLang === 'ja' ? `ラグ (${unitLabel})` : `Lag (${unitLabel})`}
-                  </span>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <button
-                      style="
-                        background: ${ttBtnBg};
-                        color: ${ttText};
-                        border: none;
-                        border-radius: 4px;
-                        padding: 2px 7px;
-                        font-size: 11px;
-                        cursor: pointer;
-                      "
-                      @click="${() => updateSelectedDependency(link.type, link.lag - stepMinutes)}"
-                    >
-                      -${stepInUnit}
-                    </button>
-                    <input
-                      type="number"
-                      step="${stepInUnit}"
-                      .value="${String(lagInUnit)}"
-                      style="
-                        width: 54px;
-                        padding: 2px 4px;
-                        border: 1px solid ${ttInputBorder};
-                        border-radius: 4px;
-                        background: ${ttInputBg};
-                        color: ${ttText};
-                        font-size: 12px;
-                        text-align: center;
-                      "
-                      @change="${(e: Event) => {
-                        const val = Number((e.target as HTMLInputElement).value)
-                        if (!Number.isNaN(val)) {
-                          updateSelectedDependency(link.type, Math.round(val * unitMinutes))
-                        }
-                      }}"
-                    />
-                    <button
-                      style="
-                        background: ${ttBtnBg};
-                        color: ${ttText};
-                        border: none;
-                        border-radius: 4px;
-                        padding: 2px 7px;
-                        font-size: 11px;
-                        cursor: pointer;
-                      "
-                      @click="${() => updateSelectedDependency(link.type, link.lag + stepMinutes)}"
-                    >
-                      +${stepInUnit}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            `
-          })()}
           <gantt-chart
             style="height: 50vh;"
             .rows="${rows}"
@@ -1853,39 +1767,18 @@ const renderApp = () => {
             }}"
             @dependency-click="${(e: CustomEvent) => {
               console.log('Dependency clicked:', e.detail)
-              if (e.detail?.sourceTaskId && e.detail?.targetTaskId) {
-                selectedDependency = {
-                  sourceTaskId: e.detail.sourceTaskId,
-                  targetTaskId: e.detail.targetTaskId,
-                }
-              }
-              if (e.detail?.event) {
-                selectedDependencyPos = {
-                  x: e.detail.event.clientX,
-                  y: e.detail.event.clientY,
-                }
-              }
-              renderApp()
             }}"
             @dependency-select="${(e: CustomEvent<DependencySelectEventDetail>) => {
               console.log('Dependency selected:', e.detail)
-              selectedDependency = e.detail.selected
-              if (!e.detail.selected) {
-                selectedDependencyPos = null
-              }
-              renderApp()
+            }}"
+            @dependency-update="${(e: CustomEvent<DependencyUpdateEventDetail>) => {
+              console.log('Dependency updated:', e.detail)
             }}"
             @dependency-delete="${(e: CustomEvent<DependencyDeleteEventDetail>) => {
               console.log('Dependency deleted:', e.detail)
-              if (
-                selectedDependency &&
-                selectedDependency.sourceTaskId === e.detail.sourceTaskId &&
-                selectedDependency.targetTaskId === e.detail.targetTaskId
-              ) {
-                selectedDependency = null
-                selectedDependencyPos = null
-                renderApp()
-              }
+            }}"
+            @filter-change="${(e: CustomEvent<FilterChangeEventDetail>) => {
+              console.log('Filter changed:', e.detail)
             }}"
             @task-progress-change="${(e: CustomEvent<TaskProgressChangeEventDetail>) => {
               console.log('Task progress changed:', e.detail)
@@ -1977,7 +1870,10 @@ const renderApp = () => {
                               ${t.duration}
                               ${isMilestoneTask(task)
                                 ? 0
-                                : dayjs(task.end).diff(dayjs(task.start), viewMode === 'day' ? 'day' : 'hour')}
+                                : Math.trunc(
+                                    (task.end.getTime() - task.start.getTime()) /
+                                      (viewMode === 'day' ? 1000 * 60 * 60 * 24 : 1000 * 60 * 60),
+                                  )}
                               ${viewMode === 'day' ? t.daysUnit : t.hoursUnit}
                             </div>
                           </div>

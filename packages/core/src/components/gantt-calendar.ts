@@ -24,9 +24,14 @@ import {
   dateToX,
   MAX_CALENDAR_DAYS,
   sanitizeCssValue,
+  formatCalendarDate,
 } from '../core/utils'
-import { normalizeGridColumns, reorderGridColumns } from '../core/grid'
-import dayjs from 'dayjs'
+import {
+  isGridColumnPinned,
+  normalizeGridColumns,
+  partitionGridColumns,
+  reorderGridColumns,
+} from '../core/grid'
 
 interface PositionedRange {
   left: number
@@ -451,7 +456,7 @@ export class GanttCalendarElement extends LitElement {
       const hasLayoutRects = rects.some((r) => r.width > 0)
 
       let accLeft = 0
-      const bounds = visibleColumns.map((col, idx) => {
+      const allBounds = visibleColumns.map((col, idx) => {
         const w = col.width ?? 100
         if (hasLayoutRects && rects[idx] && rects[idx].width > 0) {
           return {
@@ -460,6 +465,7 @@ export class GanttCalendarElement extends LitElement {
             right: rects[idx].right,
             width: rects[idx].width,
             reorderable: col.reorderable !== false,
+            pinned: isGridColumnPinned(col),
           }
         }
         const item = {
@@ -468,12 +474,15 @@ export class GanttCalendarElement extends LitElement {
           right: accLeft + w,
           width: w,
           reorderable: col.reorderable !== false,
+          pinned: isGridColumnPinned(col),
         }
         accLeft += w
         return item
       })
 
-      if (bounds.length === 0) return null
+      const sourcePinned = isGridColumnPinned(sourceCol)
+      const bounds = allBounds.filter((b) => b.pinned === sourcePinned)
+      if (bounds.length < 2) return null
 
       let targetBound = bounds[0]
       let position: 'left' | 'right' = 'left'
@@ -681,11 +690,135 @@ export class GanttCalendarElement extends LitElement {
       isTimeMode,
     )
     const visibleColumns = columns.filter((c) => c.visible !== false)
+    const { pinnedColumns, scrollableColumns, scrollableWidth } = partitionGridColumns(visibleColumns)
     const totalWidth = visibleColumns.reduce((sum, c) => sum + (c.width ?? 100), 0)
     const hasCornerTop = Boolean(this.cornerContent)
     const gridReorderable = this.option.grid?.reorderable !== false && visibleColumns.length >= 2
     const gridSortable = this.option.grid?.sortable !== false
     const activeSort = this.sortState ?? this.option.grid?.sortState ?? null
+
+    const renderHeaderCell = (col: GanttColumn) => {
+      const isPinned = isGridColumnPinned(col)
+      const sameGroupCount = isPinned ? pinnedColumns.length : scrollableColumns.length
+      const isReorderable = gridReorderable && sameGroupCount >= 2 && col.reorderable !== false
+      const isSortable = gridSortable && col.sortable !== false
+      const sortDir: GridSortDirection | null =
+        isSortable && activeSort?.columnId === col.id ? activeSort.direction : null
+      const isDragging = this._draggingColumnId === col.id
+      const isDropLeft =
+        this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'left'
+      const isDropRight =
+        this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'right'
+      return html`
+        <div
+          class="grid-header-cell grid-header-cell-${col.id} ${isPinned ? 'is-pinned-left' : ''} ${isReorderable ? 'is-reorderable' : ''} ${isSortable ? 'is-sortable' : ''} ${sortDir ? `is-sorted is-sorted-${sortDir}` : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+          data-column-id="${col.id}"
+          data-pinned="${isPinned ? 'left' : ''}"
+          data-sort-direction="${sortDir ?? ''}"
+          style="
+            width: ${col.width}px;
+            min-width: ${col.minWidth ?? 40}px;
+            max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: ${col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'};
+            gap: 3px;
+            padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
+            ${this.option.grid?.showBorders !== false ? `border-right: 1px solid ${colors.border};` : ''}
+            position: relative;
+            user-select: none;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: calc(12px * var(--moguchart-font-scale, 1));
+            font-weight: bold;
+            flex-shrink: 0;
+          "
+          @pointerdown="${(e: PointerEvent) => this.handleColumnDragStart(e, col.id)}"
+          @click="${(e: MouseEvent) => this.handleColumnHeaderClick(e, col)}"
+        >
+          <span class="grid-header-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${col.title}
+          </span>
+          ${sortDir === 'asc'
+            ? html`
+                <svg
+                  class="grid-sort-icon grid-sort-icon-asc"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path d="M6 2.5L10 8.5H2L6 2.5Z" fill="currentColor" />
+                </svg>
+              `
+            : sortDir === 'desc'
+              ? html`
+                  <svg
+                    class="grid-sort-icon grid-sort-icon-desc"
+                    width="10"
+                    height="10"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 9.5L2 3.5H10L6 9.5Z" fill="currentColor" />
+                  </svg>
+                `
+              : ''}
+          ${col.resizable !== false
+            ? html`
+                <div
+                  class="column-resizer"
+                  @pointerdown="${(e: PointerEvent) => this.handleColumnResizeStart(e, col.id)}"
+                ></div>
+              `
+            : ''}
+        </div>
+      `
+    }
+
+    if (pinnedColumns.length > 0 && !this.isExporting) {
+      return html`
+        <div
+          class="grid-header-container has-pinned-columns"
+          style="
+            display: flex;
+            ${hasCornerTop ? 'flex: 1; min-height: 22px;' : 'height: 100%;'}
+            width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+          "
+        >
+          <div
+            class="grid-pinned-left ${this.gridScrollLeft > 0 ? 'has-scroll-shadow' : ''}"
+            style="display: flex; height: 100%; flex-shrink: 0; background: ${colors.calendarBg};"
+          >
+            ${pinnedColumns.map(renderHeaderCell)}
+          </div>
+          <div
+            class="grid-scrollable-viewport"
+            style="flex: 1; min-width: 0; height: 100%; overflow: hidden;"
+          >
+            <div
+              class="grid-scrollable-track"
+              style="
+                display: flex;
+                height: 100%;
+                width: ${scrollableWidth}px;
+                min-width: 100%;
+                transform: translateX(-${this.gridScrollLeft}px);
+                box-sizing: border-box;
+              "
+            >
+              ${scrollableColumns.map(renderHeaderCell)}
+            </div>
+          </div>
+        </div>
+      `
+    }
 
     return html`
       <div
@@ -699,85 +832,7 @@ export class GanttCalendarElement extends LitElement {
           box-sizing: border-box;
         "
       >
-        ${visibleColumns.map((col) => {
-          const isReorderable = gridReorderable && col.reorderable !== false
-          const isSortable = gridSortable && col.sortable !== false
-          const sortDir: GridSortDirection | null =
-            isSortable && activeSort?.columnId === col.id ? activeSort.direction : null
-          const isDragging = this._draggingColumnId === col.id
-          const isDropLeft =
-            this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'left'
-          const isDropRight =
-            this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'right'
-          return html`
-            <div
-              class="grid-header-cell grid-header-cell-${col.id} ${isReorderable ? 'is-reorderable' : ''} ${isSortable ? 'is-sortable' : ''} ${sortDir ? `is-sorted is-sorted-${sortDir}` : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
-              data-column-id="${col.id}"
-              data-sort-direction="${sortDir ?? ''}"
-              style="
-                width: ${col.width}px;
-                min-width: ${col.minWidth ?? 40}px;
-                max-width: ${col.maxWidth ? `${col.maxWidth}px` : 'none'};
-                box-sizing: border-box;
-                display: flex;
-                align-items: center;
-                justify-content: ${col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start'};
-                gap: 3px;
-                padding: 0 ${this.option.grid?.cellPadding ?? 6}px;
-                ${this.option.grid?.showBorders !== false ? `border-right: 1px solid ${colors.border};` : ''}
-                position: relative;
-                user-select: none;
-                overflow: hidden;
-                white-space: nowrap;
-                text-overflow: ellipsis;
-                font-size: calc(12px * var(--moguchart-font-scale, 1));
-                font-weight: bold;
-                flex-shrink: 0;
-              "
-              @pointerdown="${(e: PointerEvent) => this.handleColumnDragStart(e, col.id)}"
-              @click="${(e: MouseEvent) => this.handleColumnHeaderClick(e, col)}"
-            >
-              <span class="grid-header-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${col.title}
-              </span>
-              ${sortDir === 'asc'
-                ? html`
-                    <svg
-                      class="grid-sort-icon grid-sort-icon-asc"
-                      width="10"
-                      height="10"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path d="M6 2.5L10 8.5H2L6 2.5Z" fill="currentColor" />
-                    </svg>
-                  `
-                : sortDir === 'desc'
-                  ? html`
-                      <svg
-                        class="grid-sort-icon grid-sort-icon-desc"
-                        width="10"
-                        height="10"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        aria-hidden="true"
-                      >
-                        <path d="M6 9.5L2 3.5H10L6 9.5Z" fill="currentColor" />
-                      </svg>
-                    `
-                  : ''}
-              ${col.resizable !== false
-                ? html`
-                    <div
-                      class="column-resizer"
-                      @pointerdown="${(e: PointerEvent) => this.handleColumnResizeStart(e, col.id)}"
-                    ></div>
-                  `
-                : ''}
-            </div>
-          `
-        })}
+        ${visibleColumns.map(renderHeaderCell)}
       </div>
     `
   }
@@ -963,6 +1018,14 @@ export class GanttCalendarElement extends LitElement {
     }
     .grid-header-cell.drop-target-right::after {
       right: 0;
+    }
+    .grid-pinned-left {
+      position: relative;
+      z-index: 3;
+      transition: box-shadow 0.15s ease;
+    }
+    .grid-pinned-left.has-scroll-shadow {
+      box-shadow: 4px 0 8px -2px rgba(15, 23, 42, 0.18);
     }
     .calendar-group {
       display: flex;
@@ -1512,7 +1575,7 @@ export class GanttCalendarElement extends LitElement {
                     : ''}
                   ${visibleMonths.slice.map((m) => {
                     const monthRowFormat = (this.option.locale ?? jaLocale).monthRowFormat
-                    const monthLabel = dayjs(new Date(m.year, m.month)).format(monthRowFormat)
+                    const monthLabel = formatCalendarDate(new Date(m.year, m.month), monthRowFormat)
                     const cellWidth = m.width
                     return html`<div
                       class="week-cell"
@@ -1537,7 +1600,7 @@ export class GanttCalendarElement extends LitElement {
                   : ''}
                 ${visibleMonths.slice.map((m) => {
                   const format = this.option.calendar.monthFormat || (this.option.locale ?? jaLocale).monthFormat
-                  const text = dayjs(new Date(m.year, m.month)).format(format)
+                  const text = formatCalendarDate(new Date(m.year, m.month), format)
                   const cellWidth = m.width
                   return html`<div
                     class="month-cell"

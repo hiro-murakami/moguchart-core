@@ -88,6 +88,39 @@ export interface MoguchartLocale {
     /** 固定フッター集計行のラベル (例: "集計" / "Summary") */
     footerLabel?: string
   }
+  /** 組み込み依存関係編集ポップオーバーの文字列 */
+  dependencyPopover?: {
+    /** ポップオーバー見出し */
+    title: string
+    /** 種別ラベル */
+    typeLabel: string
+    /** ラグラベル (例: "ラグ (日)" / "Lag (d)") */
+    lagLabel: (unit: string) => string
+    /** ラグの単位表示 */
+    units: {
+      days: string
+      hours: string
+      minutes: string
+      months: string
+    }
+    /** 各依存関係種別のツールチップ・説明 */
+    types: {
+      FS: string
+      SS: string
+      FF: string
+      SF: string
+    }
+    /** 保存ボタンラベル */
+    save: string
+    /** 削除ボタンラベル */
+    delete: string
+    /** キャンセルボタンラベル */
+    cancel: string
+    /** 線上の編集アイコンボタンのアクセシビリティラベル */
+    editButtonTitle: string
+    /** 線上の削除アイコンボタンのアクセシビリティラベル */
+    deleteButtonTitle: string
+  }
 }
 
 /**
@@ -151,6 +184,28 @@ export const jaLocale: MoguchartLocale = {
       deadline: '期限',
     },
     footerLabel: '集計',
+  },
+  dependencyPopover: {
+    title: '依存関係の編集',
+    typeLabel: '種別',
+    lagLabel: (unit) => `ラグ (${unit})`,
+    units: {
+      days: '日',
+      hours: '時間',
+      minutes: '分',
+      months: 'ヶ月',
+    },
+    types: {
+      FS: '終了→開始 (Finish-to-Start)',
+      SS: '開始→開始 (Start-to-Start)',
+      FF: '終了→終了 (Finish-to-Finish)',
+      SF: '開始→終了 (Start-to-Finish)',
+    },
+    save: '保存',
+    delete: '削除',
+    cancel: 'キャンセル',
+    editButtonTitle: '依存関係を編集',
+    deleteButtonTitle: '依存関係を削除',
   },
 }
 
@@ -218,5 +273,27 @@ export const enLocale: MoguchartLocale = {
       deadline: 'Deadline',
     },
     footerLabel: 'Summary',
+  },
+  dependencyPopover: {
+    title: 'Edit Dependency',
+    typeLabel: 'Type',
+    lagLabel: (unit) => `Lag (${unit})`,
+    units: {
+      days: 'd',
+      hours: 'h',
+      minutes: 'min',
+      months: 'mo',
+    },
+    types: {
+      FS: 'Finish-to-Start (FS)',
+      SS: 'Start-to-Start (SS)',
+      FF: 'Finish-to-Finish (FF)',
+      SF: 'Start-to-Finish (SF)',
+    },
+    save: 'Save',
+    delete: 'Delete',
+    cancel: 'Cancel',
+    editButtonTitle: 'Edit dependency',
+    deleteButtonTitle: 'Delete dependency',
   },
 }

@@ -96,4 +96,63 @@ describe('GanttChart (React Wrapper)', () => {
     expect(handleTaskUpdate).toHaveBeenCalledTimes(1)
     expect(handleTaskUpdate.mock.calls[0][0].detail).toEqual(updateDetail)
   })
+
+  it('supports v1.10 filter and dependency-update events and imperative methods via ref', () => {
+    const ref = createRef<GanttChartElement>()
+    const handleFilterChange = vi.fn()
+    const handleDependencyUpdate = vi.fn()
+
+    const depRows: GanttRow[] = [
+      {
+        id: 'row-1',
+        name: 'Design',
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Design Spec',
+            start: new Date('2026-04-01'),
+            end: new Date('2026-04-05'),
+          },
+        ],
+      },
+      {
+        id: 'row-2',
+        name: 'Implementation',
+        tasks: [
+          {
+            id: 'task-2',
+            name: 'API Implementation',
+            start: new Date('2026-04-06'),
+            end: new Date('2026-04-10'),
+            dependencies: ['task-1'],
+          },
+        ],
+      },
+    ]
+
+    render(
+      <GanttChart
+        ref={ref}
+        rows={depRows}
+        option={sampleOption}
+        onFilterChange={handleFilterChange}
+        onDependencyUpdate={handleDependencyUpdate}
+      />
+    )
+
+    expect(ref.current).not.toBeNull()
+    const filterResult = ref.current!.setFilter({ query: 'API' })
+    expect(filterResult.matchedRowCount).toBe(1)
+    expect(handleFilterChange).toHaveBeenCalledTimes(1)
+    expect(handleFilterChange.mock.calls[0][0].detail.filter?.query).toBe('API')
+
+    ref.current!.clearFilter()
+    expect(ref.current!.getFilter()).toBeNull()
+
+    const updated = ref.current!.updateDependency('task-1', 'task-2', { type: 'SS', lagDays: 1 })
+    expect(updated).toBe(true)
+    expect(handleDependencyUpdate).toHaveBeenCalledTimes(1)
+    expect(handleDependencyUpdate.mock.calls[0][0].detail.dependency.type).toBe('SS')
+    expect(handleDependencyUpdate.mock.calls[0][0].detail.dependency.lag).toBe(1440)
+  })
 })

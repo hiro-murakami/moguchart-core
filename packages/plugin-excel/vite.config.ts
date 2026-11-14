@@ -20,11 +20,14 @@ export default defineConfig({
         'lit',
         /^lit\//,
         '@mogura/moguchart-core',
+        'exceljs',
+        /^exceljs\//,
       ],
       output: {
         globals: {
           lit: 'Lit',
           '@mogura/moguchart-core': 'MoguchartCore',
+          exceljs: 'ExcelJS',
         },
       },
     },

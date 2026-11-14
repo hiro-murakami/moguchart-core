@@ -17,6 +17,7 @@ export default defineConfig({
         outDir: process.env.BUILD_MODE === 'demo' ? 'dist-demo' : 'dist',
       }
       : {
+        copyPublicDir: false,
         lib: {
           // エントリーポイント（index.d.tsの元になるファイル）
           entry: 'src/index.ts',
@@ -28,12 +29,10 @@ export default defineConfig({
           formats: ['es', 'umd'],
         },
         rollupOptions: {
-          // peerDependencies と dependencies を外部化してバンドルに含めない
+          // peerDependencies (lit) のみを外部化（ゼロランタイム依存）
           external: [
             'lit',
             /^lit\//,
-            'lodash-es',
-            'dayjs',
           ],
           output: {
             globals: {
@@ -41,8 +40,6 @@ export default defineConfig({
               'lit/decorators.js': 'Lit',
               'lit/directives/repeat.js': 'Lit',
               'lit/directives/unsafe-html.js': 'Lit',
-              'lodash-es': '_',
-              dayjs: 'dayjs',
             },
           },
         },

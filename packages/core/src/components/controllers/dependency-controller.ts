@@ -1,12 +1,17 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import type {
   BarSelectionChangeEventDetail,
+  BeforeDependencyUpdateHookDetail,
   DependencyClickEventDetail,
   DependencyCreateEventDetail,
   DependencyDeleteEventDetail,
   DependencyEndpoint,
   DependencySelectEventDetail,
+  DependencyType,
+  DependencyUpdateEventDetail,
+  DependencyUpdateInput,
   GanttChartOption,
+  GanttDependencyLink,
   GanttRow,
   GanttTask,
   RowSelectionChangeEventDetail,
@@ -16,7 +21,9 @@ import type { PluginManager } from '../../core/plugin'
 import {
   createDependencyEntry,
   endpointsToDependencyType,
+  getDependencyTaskId,
   hasDependencyTarget,
+  normalizeDependencyLink,
   propagateAutoSchedule,
   removeDependencyTarget,
 } from '../../core/auto-schedule'
@@ -30,6 +37,22 @@ export interface ConnectorDragState {
   currentClientY: number
   targetTaskId: string | null
   targetEndpoint: DependencyEndpoint | null
+}
+
+export interface DependencyEditPopoverState {
+  sourceTaskId: string
+  targetTaskId: string
+  sourceTaskName: string
+  targetTaskName: string
+  draftType: DependencyType
+  draftLagInUnit: number
+  unitMinutes: number
+  stepInUnit: number
+  unitKey: 'days' | 'hours' | 'minutes' | 'months'
+  anchorContentX: number
+  anchorContentY: number
+  anchorClientX?: number
+  anchorClientY?: number
 }
 
 export interface DependencyControllerHost extends ReactiveControllerHost, HTMLElement {
@@ -55,6 +78,8 @@ export class DependencyController implements ReactiveController {
 
   public selectedDependency: { sourceTaskId: string; targetTaskId: string } | null = null
   public connectorDrag: ConnectorDragState | null = null
+  public editingPopover: DependencyEditPopoverState | null = null
+  private _outsidePointerDownHandler: ((e: PointerEvent) => void) | null = null
 
   constructor(host: DependencyControllerHost) {
     this.host = host
@@ -63,12 +88,43 @@ export class DependencyController implements ReactiveController {
 
   hostConnected(): void {}
 
-  hostDisconnected(): void {}
+  hostDisconnected(): void {
+    this.detachOutsidePointerDown()
+  }
+
+  private attachOutsidePointerDown(): void {
+    if (this._outsidePointerDownHandler || typeof window === 'undefined') return
+    this._outsidePointerDownHandler = (e: PointerEvent) => {
+      if (!this.editingPopover) return
+      const path = e.composedPath()
+      const clickedInside = path.some((node) => {
+        const el = node as HTMLElement | SVGElement | null
+        return Boolean(
+          el?.classList?.contains?.('dependency-edit-popover') ||
+            el?.classList?.contains?.('dependency-edit-btn'),
+        )
+      })
+      if (!clickedInside) {
+        this.closeEditPopover()
+      }
+    }
+    window.addEventListener('pointerdown', this._outsidePointerDownHandler, true)
+  }
+
+  private detachOutsidePointerDown(): void {
+    if (this._outsidePointerDownHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pointerdown', this._outsidePointerDownHandler, true)
+    }
+    this._outsidePointerDownHandler = null
+  }
 
   /**
    * 依存関係線の選択状態を解除する
    */
   public clearDependencySelection(): void {
+    if (this.editingPopover) {
+      this.closeEditPopover()
+    }
     if (!this.selectedDependency) return
     this.selectedDependency = null
     this.host.requestUpdate()
@@ -160,6 +216,14 @@ export class DependencyController implements ReactiveController {
       )
 
       if (
+        this.editingPopover &&
+        this.editingPopover.sourceTaskId === sourceTaskId &&
+        this.editingPopover.targetTaskId === targetTaskId
+      ) {
+        this.closeEditPopover()
+      }
+
+      if (
         this.selectedDependency &&
         this.selectedDependency.sourceTaskId === sourceTaskId &&
         this.selectedDependency.targetTaskId === targetTaskId
@@ -175,6 +239,307 @@ export class DependencyController implements ReactiveController {
     } else {
       commitDelete()
     }
+  }
+
+  /**
+   * カレンダー粒度に応じたラグ表示単位（日数・時間・分・月）を算出する
+   */
+  private resolveLagUnitSpec(): {
+    unitMinutes: number
+    stepInUnit: number
+    unitKey: 'days' | 'hours' | 'minutes' | 'months'
+  } {
+    const isMonthMode = this.host.option?.calendar?.pxPerMonth !== undefined
+    if (isMonthMode) {
+      return { unitMinutes: 43200, stepInUnit: 1, unitKey: 'months' }
+    }
+    const snapMinutes = this.host.option?.snapDuration ?? 1440
+    if (snapMinutes >= 1440 && snapMinutes % 1440 === 0) {
+      return { unitMinutes: 1440, stepInUnit: snapMinutes / 1440, unitKey: 'days' }
+    }
+    if (snapMinutes >= 60 && snapMinutes % 60 === 0) {
+      return { unitMinutes: 60, stepInUnit: snapMinutes / 60, unitKey: 'hours' }
+    }
+    return { unitMinutes: 1, stepInUnit: Math.max(1, snapMinutes), unitKey: 'minutes' }
+  }
+
+  /**
+   * 組み込みの依存関係編集ポップオーバーを開く
+   */
+  public openEditPopover(
+    sourceTaskId: string,
+    targetTaskId: string,
+    anchor?: { contentX?: number; contentY?: number; clientX?: number; clientY?: number },
+  ): boolean {
+    if (this.host.option?.readOnly || this.host.option?.dependency?.enableEditPopover === false) {
+      return false
+    }
+
+    let sourceTask: GanttTask | undefined
+    let targetTask: GanttTask | undefined
+    for (const row of this.host.rows) {
+      for (const task of row.tasks) {
+        if (task.id === sourceTaskId) sourceTask = task
+        if (task.id === targetTaskId) targetTask = task
+      }
+    }
+    if (!sourceTask || !targetTask || !targetTask.dependencies) {
+      return false
+    }
+
+    const rawDep = targetTask.dependencies.find((d) => getDependencyTaskId(d) === sourceTaskId)
+    if (!rawDep) {
+      return false
+    }
+
+    const link = normalizeDependencyLink(rawDep)
+    const { unitMinutes, stepInUnit, unitKey } = this.resolveLagUnitSpec()
+    const draftLagInUnit = Math.round((link.lag / unitMinutes) * 100) / 100
+
+    let anchorContentX = anchor?.contentX
+    let anchorContentY = anchor?.contentY
+    if (anchorContentX === undefined || anchorContentY === undefined) {
+      const { taskCoords } = this.host.calculateLayout()
+      const srcCoord = taskCoords.get(sourceTaskId)
+      const tgtCoord = taskCoords.get(targetTaskId)
+      if (srcCoord && tgtCoord) {
+        anchorContentX = (srcCoord.x + srcCoord.width + tgtCoord.x) / 2
+        anchorContentY = (srcCoord.y + srcCoord.height / 2 + tgtCoord.y + tgtCoord.height / 2) / 2
+      } else {
+        anchorContentX = 200
+        anchorContentY = 80
+      }
+    }
+
+    this.selectDependency(sourceTaskId, targetTaskId)
+    this.host.clearTooltip()
+
+    this.editingPopover = {
+      sourceTaskId,
+      targetTaskId,
+      sourceTaskName: sourceTask.name || sourceTask.id,
+      targetTaskName: targetTask.name || targetTask.id,
+      draftType: link.type,
+      draftLagInUnit,
+      unitMinutes,
+      stepInUnit,
+      unitKey,
+      anchorContentX,
+      anchorContentY,
+      anchorClientX: anchor?.clientX,
+      anchorClientY: anchor?.clientY,
+    }
+
+    this.attachOutsidePointerDown()
+    this.host.requestUpdate()
+    return true
+  }
+
+  /**
+   * 組み込みの依存関係編集ポップオーバーを閉じる
+   */
+  public closeEditPopover(): void {
+    if (!this.editingPopover) return
+    this.editingPopover = null
+    this.detachOutsidePointerDown()
+    this.host.requestUpdate()
+  }
+
+  /**
+   * ポップオーバー編集中の依存関係種別ドラフトを更新する
+   */
+  public setDraftType(type: DependencyType): void {
+    if (!this.editingPopover) return
+    this.editingPopover = {
+      ...this.editingPopover,
+      draftType: type,
+    }
+    this.host.requestUpdate()
+  }
+
+  /**
+   * ポップオーバー編集中のラグ数値ドラフトを更新する
+   */
+  public setDraftLagInUnit(value: number): void {
+    if (!this.editingPopover || Number.isNaN(value)) return
+    this.editingPopover = {
+      ...this.editingPopover,
+      draftLagInUnit: value,
+    }
+    this.host.requestUpdate()
+  }
+
+  /**
+   * ポップオーバー編集中のラグをステップ単位で増減する
+   */
+  public stepDraftLag(direction: -1 | 1): void {
+    if (!this.editingPopover) return
+    const next =
+      Math.round((this.editingPopover.draftLagInUnit + direction * this.editingPopover.stepInUnit) * 100) /
+      100
+    this.setDraftLagInUnit(next)
+  }
+
+  /**
+   * ポップオーバーの現在のドラフト内容を保存して閉じる
+   */
+  public commitEditPopover(): boolean {
+    if (!this.editingPopover) return false
+    const { sourceTaskId, targetTaskId, draftType, draftLagInUnit, unitMinutes } = this.editingPopover
+    const lagMinutes = Math.round(draftLagInUnit * unitMinutes)
+    const updated = this.updateDependency(sourceTaskId, targetTaskId, {
+      type: draftType,
+      lag: lagMinutes,
+    })
+    this.closeEditPopover()
+    return updated
+  }
+
+  /**
+   * 依存関係の種別（FS/SS/FF/SF）またはラグを更新し、履歴記録・自動スケジューリング連動・`dependency-update` イベント発火を行う
+   */
+  public updateDependency(
+    sourceTaskId: string,
+    targetTaskId: string,
+    updates: DependencyUpdateInput,
+  ): boolean {
+    if (this.host.option?.readOnly) return false
+
+    let sourceTask: GanttTask | undefined
+    let targetTask: GanttTask | undefined
+    for (const row of this.host.rows) {
+      for (const task of row.tasks) {
+        if (task.id === sourceTaskId) sourceTask = task
+        if (task.id === targetTaskId) targetTask = task
+      }
+    }
+    if (!sourceTask || !targetTask || !targetTask.dependencies) return false
+
+    const rawDep = targetTask.dependencies.find((d) => getDependencyTaskId(d) === sourceTaskId)
+    if (!rawDep) return false
+
+    const previousDependency = normalizeDependencyLink(rawDep)
+    const nextType: DependencyType = updates.type ?? previousDependency.type
+    const nextLag: number =
+      updates.lag !== undefined && !Number.isNaN(updates.lag)
+        ? updates.lag
+        : updates.lagDays !== undefined && !Number.isNaN(updates.lagDays)
+          ? Math.round(updates.lagDays * 1440)
+          : previousDependency.lag
+
+    const nextDependency: Required<GanttDependencyLink> = {
+      taskId: sourceTaskId,
+      type: nextType,
+      lag: nextLag,
+    }
+
+    if (
+      nextDependency.type === previousDependency.type &&
+      nextDependency.lag === previousDependency.lag
+    ) {
+      return false
+    }
+
+    const beforeDetail: BeforeDependencyUpdateHookDetail = {
+      sourceTaskId,
+      targetTaskId,
+      dependency: nextDependency,
+      previousDependency,
+    }
+
+    let applied = false
+    const commitUpdate = () => {
+      const previousRows = this.host.rows
+      const oldTaskSnapshot = new Map<string, { rowId: string; start: Date; end: Date }>()
+      for (const row of previousRows) {
+        for (const task of row.tasks) {
+          oldTaskSnapshot.set(task.id, {
+            rowId: row.id,
+            start: new Date(task.start),
+            end: new Date(task.end),
+          })
+        }
+      }
+
+      const updatedEntry = createDependencyEntry(sourceTaskId, nextType, nextLag)
+      let newRows = previousRows.map((row) => ({
+        ...row,
+        tasks: row.tasks.map((task) => {
+          if (task.id === targetTaskId && task.dependencies) {
+            return {
+              ...task,
+              dependencies: task.dependencies.map((dep) =>
+                getDependencyTaskId(dep) === sourceTaskId ? updatedEntry : dep,
+              ),
+            }
+          }
+          return task
+        }),
+      }))
+
+      let affectedTasks: DependencyUpdateEventDetail['affectedTasks']
+      if (this.host.option.dependency?.autoSchedule) {
+        const scheduleResult = propagateAutoSchedule(newRows, [sourceTaskId], {
+          mode: this.host.option.dependency.scheduleMode ?? 'strict',
+          respectMovable: this.host.option.dependency.respectMovable,
+          calendarMode: this.host.option.calendar?.calendarMode,
+          isHoliday: this.host.option.calendar?.isHoliday,
+          nonWorkingDays: this.host.option.calendar?.nonWorkingDays,
+        })
+        if (scheduleResult.hasChanges) {
+          newRows = scheduleResult.rows
+          const updatedIdSet = new Set(scheduleResult.updatedTaskIds)
+          affectedTasks = []
+          for (const row of newRows) {
+            for (const task of row.tasks) {
+              if (updatedIdSet.has(task.id)) {
+                const prev = oldTaskSnapshot.get(task.id)
+                if (prev) {
+                  affectedTasks.push({
+                    task,
+                    rowId: row.id,
+                    oldStart: prev.start,
+                    oldEnd: prev.end,
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+
+      this.host.applyRowsChangeWithCommand(previousRows, newRows, {
+        type: 'dependency-update',
+        description: `タスク「${sourceTask?.name || sourceTaskId}」から「${targetTask?.name || targetTaskId}」への接続線を変更`,
+      })
+
+      const eventDetail: DependencyUpdateEventDetail = {
+        sourceTaskId,
+        targetTaskId,
+        dependency: nextDependency,
+        previousDependency,
+        ...(affectedTasks && affectedTasks.length > 0 ? { affectedTasks } : {}),
+      }
+
+      this.host.dispatchEvent(
+        new CustomEvent<DependencyUpdateEventDetail>('dependency-update', {
+          detail: eventDetail,
+          bubbles: true,
+          composed: true,
+        }),
+      )
+
+      this.host.pluginManager?.executeAfterDependencyUpdate(eventDetail)
+      applied = true
+    }
+
+    if (this.host.pluginManager) {
+      this.host.pluginManager.runBeforeHook('beforeDependencyUpdate', beforeDetail, commitUpdate)
+    } else {
+      commitUpdate()
+    }
+
+    return applied
   }
 
   /**

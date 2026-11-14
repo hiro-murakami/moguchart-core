@@ -137,21 +137,26 @@ export const ganttChartStyles = css`
     stroke: var(--marquee-border, #3b82f6);
     filter: drop-shadow(0 0 4px var(--marquee-border, #3b82f6));
   }
-  .dependency-delete-btn {
+  .dependency-delete-btn,
+  .dependency-edit-btn {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
     cursor: pointer;
   }
   .dependency-group:hover .dependency-delete-btn,
-  .dependency-group.selected .dependency-delete-btn {
+  .dependency-group.selected .dependency-delete-btn,
+  .dependency-group:hover .dependency-edit-btn,
+  .dependency-group.selected .dependency-edit-btn {
     opacity: 1;
     pointer-events: all;
   }
-  .dependency-delete-btn * {
+  .dependency-delete-btn *,
+  .dependency-edit-btn * {
     pointer-events: all;
   }
-  .dependency-delete-btn-hit-area {
+  .dependency-delete-btn-hit-area,
+  .dependency-edit-btn-hit-area {
     fill: transparent;
     cursor: pointer;
   }
@@ -171,6 +176,167 @@ export const ganttChartStyles = css`
     stroke-width: 2;
     stroke-linecap: round;
     pointer-events: none;
+  }
+  .dependency-edit-btn-circle {
+    fill: #3b82f6;
+    transition: fill 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+  }
+  .dependency-edit-btn:hover .dependency-edit-btn-circle {
+    fill: #2563eb;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.9));
+  }
+  .dependency-edit-btn-icon {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+  .dependency-edit-popover {
+    position: fixed;
+    z-index: 2100;
+    min-width: 268px;
+    max-width: 340px;
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.25), 0 4px 10px -2px rgba(15, 23, 42, 0.15);
+    font-size: calc(12px * var(--moguchart-font-scale, 1));
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .dependency-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .dependency-popover-title-wrap {
+    min-width: 0;
+    flex: 1;
+  }
+  .dependency-popover-title {
+    font-weight: 700;
+    font-size: calc(11px * var(--moguchart-font-scale, 1));
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
+  .dependency-popover-route {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dependency-popover-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0.65;
+  }
+  .dependency-popover-close:hover {
+    opacity: 1;
+  }
+  .dependency-popover-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .dependency-popover-label {
+    font-weight: 500;
+    opacity: 0.82;
+    white-space: nowrap;
+  }
+  .dependency-type-segment {
+    display: inline-flex;
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .dependency-type-btn {
+    border: none;
+    border-radius: 4px;
+    padding: 4px 9px;
+    font-size: calc(11px * var(--moguchart-font-scale, 1));
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .dependency-type-btn.active {
+    background: #3b82f6;
+    color: #ffffff !important;
+  }
+  .dependency-lag-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dependency-lag-step-btn {
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: calc(11px * var(--moguchart-font-scale, 1));
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dependency-lag-input {
+    width: 60px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: calc(12px * var(--moguchart-font-scale, 1));
+    text-align: center;
+    box-sizing: border-box;
+    outline: none;
+  }
+  .dependency-lag-input:focus {
+    border-color: #3b82f6 !important;
+  }
+  .dependency-popover-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  .dependency-popover-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .dependency-popover-btn {
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: calc(11px * var(--moguchart-font-scale, 1));
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: filter 0.12s ease, background-color 0.12s ease;
+  }
+  .dependency-popover-btn:hover {
+    filter: brightness(0.96);
+  }
+  .dependency-popover-btn-save {
+    background-color: #2563eb;
+    color: #ffffff;
+  }
+  .dependency-popover-btn-delete {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    border-color: rgba(239, 68, 68, 0.3);
   }
   .current-time-line {
     position: absolute;
@@ -250,6 +416,17 @@ export const ganttChartStyles = css`
     display: flex;
     height: 100%;
     box-sizing: border-box;
+  }
+  .grid-pinned-left {
+    position: relative;
+    z-index: 3;
+    transition: box-shadow 0.15s ease;
+  }
+  .grid-pinned-left.has-scroll-shadow {
+    box-shadow: 4px 0 8px -2px rgba(15, 23, 42, 0.18);
+  }
+  :host([theme='dark']) .grid-pinned-left.has-scroll-shadow {
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.45);
   }
   .grid-footer-cell {
     box-sizing: border-box;
@@ -357,6 +534,41 @@ export function buildDynamicStyles(
     .header-resizer:hover,
     .header-resizer.resizing {
       background-color: ${colors.border};
+    }
+    .dependency-edit-popover {
+      background-color: ${theme === 'dark' ? '#1e293b' : '#ffffff'};
+      color: ${colors.text};
+      border: 1px solid ${colors.border};
+    }
+    .dependency-popover-header {
+      border-bottom: 1px solid ${colors.border};
+    }
+    .dependency-popover-close {
+      color: ${colors.text};
+    }
+    .dependency-type-segment {
+      background-color: ${theme === 'dark' ? 'rgba(15, 23, 42, 0.65)' : '#f1f5f9'};
+    }
+    .dependency-type-btn {
+      color: ${colors.text};
+    }
+    .dependency-lag-step-btn,
+    .dependency-popover-btn-cancel {
+      background-color: ${theme === 'dark' ? '#334155' : '#f1f5f9'};
+      color: ${colors.text};
+      border-color: ${colors.border};
+    }
+    .dependency-lag-input {
+      background-color: ${theme === 'dark' ? '#0f172a' : '#ffffff'};
+      color: ${colors.text};
+      border: 1px solid ${colors.border};
+      color-scheme: ${theme === 'dark' ? 'dark' : 'light'};
+    }
+    .dependency-popover-actions {
+      border-top: 1px solid ${colors.border};
+    }
+    .dependency-popover-btn-delete {
+      color: ${theme === 'dark' ? '#f87171' : '#dc2626'};
     }
   `
 }

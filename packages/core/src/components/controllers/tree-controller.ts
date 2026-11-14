@@ -1,11 +1,19 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import type {
+  FilterChangeEventDetail,
   GanttChartOption,
   GanttColumn,
   GanttRow,
+  GanttTask,
   GridSortState,
   RowToggleCollapseEventDetail,
 } from '../../core/types'
+import {
+  evaluateRowFilter,
+  isFilterConfigActive,
+  type GanttFilterConfig,
+  type GanttFilterResult,
+} from '../../core/filter'
 import {
   computeChildRowIds,
   computeRowWbsCodes,
@@ -18,9 +26,11 @@ import type { AutoScheduleOptions } from '../../core/auto-schedule'
 export interface TreeControllerHost extends ReactiveControllerHost, HTMLElement {
   rows: GanttRow[]
   option: GanttChartOption
+  effectiveGridColumns?: GanttColumn[]
   getEffectiveSortState?: () => GridSortState | null
   getGridColumnById?: (columnId: string) => GanttColumn | undefined
   getAutoScheduleOptions?: () => AutoScheduleOptions
+  invalidateLayoutCache?: () => void
 }
 
 export class TreeController implements ReactiveController {
@@ -28,6 +38,9 @@ export class TreeController implements ReactiveController {
 
   public collapsedRowIds = new Set<string>()
   private prevExternalCollapsed = new Map<string, boolean | undefined>()
+  private _hasFilterOverride = false
+  private _filterOverride: GanttFilterConfig | null = null
+  private _lastExplicitOptionFilter: GanttFilterConfig | null | undefined = undefined
 
   constructor(host: TreeControllerHost) {
     this.host = host
@@ -76,15 +89,177 @@ export class TreeController implements ReactiveController {
   }
 
   /**
-   * 現在の展開状態やツリーオプションに基づいて表示対象の行配列を計算する
+   * 現在有効なフィルタ設定を取得する（プログラムからの上書きがあればそれを優先）
+   */
+  public getFilter(): GanttFilterConfig | null {
+    if (this._hasFilterOverride) {
+      return this._filterOverride
+    }
+    return this.host.option?.filter ?? null
+  }
+
+  /**
+   * 現在の行配列に対するフィルタ評価結果を取得する
+   */
+  public getFilterResult(): GanttFilterResult {
+    return evaluateRowFilter(this.host.rows, this.getFilter(), {
+      columns: this.host.effectiveGridColumns ?? this.host.option?.grid?.columns,
+      includeHidden: Boolean(this.host.option?.showHiddenRows),
+    })
+  }
+
+  /**
+   * フィルタ設定をプログラムから設定し、`filter-change` イベントを発火する
+   */
+  public setFilter(filter: GanttFilterConfig | null): GanttFilterResult {
+    this._hasFilterOverride = true
+    this._filterOverride = filter
+    this.host.invalidateLayoutCache?.()
+    const result = this.getFilterResult()
+    this.host.requestUpdate()
+    this.host.dispatchEvent(
+      new CustomEvent<FilterChangeEventDetail>('filter-change', {
+        detail: {
+          filter,
+          result,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+    return result
+  }
+
+  /**
+   * 現在適用されているフィルタ設定を解除する
+   */
+  public clearFilter(): GanttFilterResult {
+    return this.setFilter(null)
+  }
+
+  /**
+   * `option.filter` の宣言的変更を検知して内部状態と同期する
+   */
+  public syncFilterWithOption(hadPreviousOption: boolean): void {
+    const nextFilter = this.host.option?.filter
+    if (nextFilter !== this._lastExplicitOptionFilter) {
+      this._lastExplicitOptionFilter = nextFilter
+      this._hasFilterOverride = false
+      this._filterOverride = null
+      this.host.invalidateLayoutCache?.()
+      if (hadPreviousOption) {
+        const effectiveFilter = this.getFilter()
+        const result = this.getFilterResult()
+        this.host.dispatchEvent(
+          new CustomEvent<FilterChangeEventDetail>('filter-change', {
+            detail: {
+              filter: effectiveFilter,
+              result,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        )
+      }
+    }
+  }
+
+  /**
+   * 現在の展開状態・フィルタ設定・ツリーオプションに基づいて表示対象の行配列を計算する
    */
   public getDisplayRows(): GanttRow[] {
     const treeEnabled = this.host.option?.tree?.enabled !== false
-    const baseRows = treeEnabled
-      ? computeVisibleTreeRows(this.host.rows, this.host.option?.showHiddenRows ?? false)
-      : (this.host.option?.showHiddenRows
+    const showHiddenRows = this.host.option?.showHiddenRows ?? false
+    const filterConfig = this.getFilter()
+    const filterResult = isFilterConfigActive(filterConfig) ? this.getFilterResult() : null
+
+    let sourceRowsForSummary = this.host.rows
+    let baseRows: GanttRow[]
+
+    if (!filterResult) {
+      baseRows = treeEnabled
+        ? computeVisibleTreeRows(this.host.rows, showHiddenRows)
+        : showHiddenRows
           ? this.host.rows
-          : this.host.rows.filter((row) => row.visible !== false))
+          : this.host.rows.filter((row) => row.visible !== false)
+    } else if (filterResult.mode === 'dim') {
+      const dimmedSourceRows = this.host.rows.map((row) => {
+        const isRowDimmed = !filterResult.visibleRowIds.has(row.id)
+        const prevTasks = row.tasks ?? []
+        let tasksChanged = false
+        const nextTasks = prevTasks.map((task) => {
+          if (task.type === 'summary') return task
+          const isTaskDimmed = !filterResult.matchedTaskIds.has(task.id)
+          if (isTaskDimmed && !(task as any)._isFilteredOut) {
+            tasksChanged = true
+            return { ...task, _isFilteredOut: true } as GanttTask
+          }
+          return task
+        })
+        if (isRowDimmed || tasksChanged) {
+          const cloned: GanttRow = tasksChanged ? { ...row, tasks: nextTasks } : { ...row }
+          if (isRowDimmed) {
+            ;(cloned as any)._isFilteredOut = true
+          }
+          return cloned
+        }
+        return row
+      })
+      sourceRowsForSummary = dimmedSourceRows
+
+      let treeInputRows = dimmedSourceRows
+      if (treeEnabled && filterConfig?.autoExpandMatches === true) {
+        const rowMap = new Map(dimmedSourceRows.map((r) => [r.id, r]))
+        const ancestorsToExpand = new Set<string>()
+        for (const visibleId of filterResult.visibleRowIds) {
+          let currParentId = rowMap.get(visibleId)?.parentId
+          const visited = new Set<string>([visibleId])
+          while (currParentId && !visited.has(currParentId)) {
+            visited.add(currParentId)
+            ancestorsToExpand.add(currParentId)
+            currParentId = rowMap.get(currParentId)?.parentId
+          }
+        }
+        treeInputRows = dimmedSourceRows.map((r) =>
+          r.collapsed && ancestorsToExpand.has(r.id) ? { ...r, collapsed: false } : r,
+        )
+      }
+
+      baseRows = treeEnabled
+        ? computeVisibleTreeRows(treeInputRows, showHiddenRows)
+        : showHiddenRows
+          ? treeInputRows
+          : treeInputRows.filter((row) => row.visible !== false)
+    } else {
+      // mode: 'hide' (デフォルト)
+      const autoExpand = filterConfig?.autoExpandMatches !== false
+      let workingRows = this.host.rows
+      if (treeEnabled && autoExpand) {
+        const rowMap = new Map(this.host.rows.map((r) => [r.id, r]))
+        const ancestorsToExpand = new Set<string>()
+        for (const visibleId of filterResult.visibleRowIds) {
+          let currParentId = rowMap.get(visibleId)?.parentId
+          const visited = new Set<string>([visibleId])
+          while (currParentId && !visited.has(currParentId)) {
+            visited.add(currParentId)
+            ancestorsToExpand.add(currParentId)
+            currParentId = rowMap.get(currParentId)?.parentId
+          }
+        }
+        if (ancestorsToExpand.size > 0) {
+          workingRows = this.host.rows.map((r) =>
+            r.collapsed && ancestorsToExpand.has(r.id) ? { ...r, collapsed: false } : r,
+          )
+        }
+      }
+
+      const visibleTreeRows = treeEnabled
+        ? computeVisibleTreeRows(workingRows, showHiddenRows)
+        : showHiddenRows
+          ? workingRows
+          : workingRows.filter((row) => row.visible !== false)
+      baseRows = visibleTreeRows.filter((row) => filterResult.visibleRowIds.has(row.id))
+    }
 
     const autoSummary = this.host.option?.tree?.autoSummary !== false
     if (!treeEnabled || !autoSummary) {
@@ -93,7 +268,7 @@ export class TreeController implements ReactiveController {
 
     // 子を持つ行を特定
     const rowsWithChildren = new Set<string>()
-    for (const r of this.host.rows) {
+    for (const r of sourceRowsForSummary) {
       if (r.parentId) rowsWithChildren.add(r.parentId)
     }
 
@@ -101,8 +276,8 @@ export class TreeController implements ReactiveController {
       const isParent = rowsWithChildren.has(row.id)
       const needsSummary = row.isSummary || isParent
       if (needsSummary && isParent) {
-        const childIds = computeChildRowIds(this.host.rows, row.id, true)
-        const childRows = this.host.rows.filter((r) => childIds.includes(r.id))
+        const childIds = computeChildRowIds(sourceRowsForSummary, row.id, true)
+        const childRows = sourceRowsForSummary.filter((r) => childIds.includes(r.id))
         const allChildTasks = childRows.flatMap((r) => r.tasks)
         if (allChildTasks.length > 0) {
           const effectiveColor = row.summaryColor || this.host.option?.tree?.summaryColor
@@ -114,8 +289,12 @@ export class TreeController implements ReactiveController {
             t._isFilteredOut === true ||
             (typeof t.style === 'string' && /opacity:\s*0(\.\d+)?/i.test(t.style))
 
+          const isParentDirectlyMatched =
+            filterResult?.mode === 'dim' && filterResult.matchedRowIds.has(row.id)
           const allChildrenFilteredOut =
-            tasksToCheck.length > 0 && tasksToCheck.every((t) => isTaskFilteredOut(t))
+            !isParentDirectlyMatched &&
+            tasksToCheck.length > 0 &&
+            tasksToCheck.every((t) => isTaskFilteredOut(t))
 
           let summaryStyle = effectiveColor ? `background-color: ${effectiveColor};` : ''
           if (allChildrenFilteredOut) {
