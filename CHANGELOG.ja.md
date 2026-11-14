@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-11-13
+## [1.9.0] - 2026-11-14
 
 ### Added
 
@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ドラッグ＆ドロップ操作時のテキスト選択・ネイティブドラッグ誤発火の防止**:
+  - `GanttBar` および `GanttRow` コンポーネントに `user-select: none` を設定し、タスクバー内部でのブラウザ標準 HTML5 `dragstart` 抑止およびダブルクリック時のテキスト選択解除を実装
+  - `RowReorderController` において行並び替えドラッグ中以外のネイティブテキストドラッグイベントを無視するよう改善
 - **タスクバー内部ラベルの文字色継承とシャドウ調整**:
   - タスクバーのラベルスタイルにおいて文字色の継承（`color: inherit !important`）を確実にし、不要なテキストシャドウ指定を整理して視認性を改善
 - **依存パッケージのセキュリティ更新**:

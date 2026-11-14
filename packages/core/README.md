@@ -96,7 +96,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
 - ⏰ **Task Deadlines & Scheduling Constraints**:
   - Render task due-date markers (`task.deadline`) with dashed connectors on timelines, supporting interactive drag-and-drop deadline editing (`task-deadline-change`, Undo/Redo history)
   - Automatic overdue highlighting (`.task-overdue`), overdue day badges (`+Xd`), and overdue/remaining day indicators in tooltips
-  - Auto-scheduling constraints (`SNET`: Start No Earlier Than / `FNLT`: Finish No Later Than via `task.constraintType` & `task.constraintDate`)
+  - Auto-scheduling constraints (`SNET`: Start No Earlier Than / `FNLT`: Finish No Later Than via `task.constraintType` & `task.constraintDate`) with interactive drag boundary shade guides, violation highlights, and automatic drop/keyboard clamping (`option.constraint`)
   - Deadline status helper (`calculateTaskDeadline`) and built-in `'deadline'` grid column
 - 📋 **Multi-Column Data Grid (WBS Table)**:
   - Display and interact with the row header area as a full-featured multi-column data table
@@ -1010,6 +1010,12 @@ const option = {
     showOverdueBadge: true, // Show overdue badge (+Xd) (default: true)
     showTooltip: true, // Display deadline & overdue/remaining days in tooltips (default: true)
     editable: true, // Allow dragging deadline markers on the timeline (default: true)
+  },
+  constraint: {
+    enabled: true, // Enable SNET / FNLT constraint integration & tooltip display (default: true)
+    showDragGuide: true, // Show out-of-bounds diagonal shade & boundary guide during drag/resize (default: true)
+    clampOnDrop: true, // Automatically clamp dates to constraint boundaries on drop & Shift+Arrow move (default: true)
+    showTooltip: true, // Display constraint type and date in tooltips (default: true)
   },
 }
 

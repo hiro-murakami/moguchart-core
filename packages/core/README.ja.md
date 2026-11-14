@@ -91,7 +91,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
 - ⏰ **デッドライン（期限マーカー）＆ スケジュール制約**:
   - タスクごとの期限日時（`task.deadline`）をタイムライン上にマーカー＆破線コネクタとして描画し、ドラッグ＆ドロップによる期限変更（`task-deadline-change`、Undo/Redo 対応）が可能
   - 期限超過タスク（`task.end > task.deadline`）の自動ハイライト（`.task-overdue`）、超過日数バッジ（`+Xd`）表示、およびツールチップでの超過・残日数表示
-  - 自動スケジューリングと連動するスケジュール制約（`SNET`: 指定日以降に開始 / `FNLT`: 指定日までに終了、`task.constraintType` / `task.constraintDate`）
+  - 自動スケジューリングと連動するスケジュール制約（`SNET`: 指定日以降に開始 / `FNLT`: 指定日までに終了、`task.constraintType` / `task.constraintDate`）に加え、ドラッグ移動・リサイズ時の移動可能範囲ガイド（斜線シェード・境界ライン・ラベルバッジ）表示およびドロップ／`Shift+矢印キー`移動時の自動クランプ（`option.constraint`）に対応
   - 期限判定ユーティリティ関数（`calculateTaskDeadline`）およびグリッド標準組み込み `'deadline'` カラム対応
 - 📋 **マルチカラムデータグリッド（WBS テーブル）**:
   - 行ヘッダー領域を本格的な複数列のテーブルとして表示・操作
@@ -988,6 +988,12 @@ const option = {
     showOverdueBadge: true, // 超過日数バッジ (+Xd) の表示 (デフォルト: true)
     showTooltip: true, // ツールチップへの期限・超過/残日数表示 (デフォルト: true)
     editable: true, // デッドラインマーカーのドラッグ変更を許可 (デフォルト: true)
+  },
+  constraint: {
+    enabled: true, // SNET / FNLT 制約の連携およびツールチップ表示を有効化 (デフォルト: true)
+    showDragGuide: true, // ドラッグ・リサイズ時の移動不可領域シェード＆境界ガイド表示 (デフォルト: true)
+    clampOnDrop: true, // ドロップ時および Shift+矢印キー移動時に制約境界内へ自動クランプ (デフォルト: true)
+    showTooltip: true, // ツールチップへの制約種別・制約日表示 (デフォルト: true)
   },
 }
 

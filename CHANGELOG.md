@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-11-13
+## [1.9.0] - 2026-11-14
 
 ### Added
 
@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Drag-and-Drop Interaction & Text Selection Prevention**:
+  - Added `user-select: none` styling across `GanttBar` and `GanttRow` components, prevented native HTML5 `dragstart` inside task bar content, and cleared accidental text selection on double-click.
+  - Updated `RowReorderController` to ignore native text drag events when no row reorder drag is active.
 - **Task Bar Label Text Color Inheritance & Shadow Cleanup**:
   - Enforced `color: inherit !important` on bar labels and removed redundant `!important` text-shadow declarations for clearer readability.
 - **Dependency Security Overrides**:

@@ -16,7 +16,7 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🎯 **直感的なイベントバインディング**: Vue 標準のイベントハンドリング（`@task-update="onUpdate"` など）
 - 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
-- 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`@task-deadline-change`）・超過検知、およびスケジュール制約（`SNET` / `FNLT`）に対応
+- 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`@task-deadline-change`）・超過検知、およびドラッグガイド＆自動クランプ付きのスケジュール制約（`SNET` / `FNLT`、`option.constraint`）に対応
 - 📋 **マルチカラムデータグリッド ＆ スプレッドシート操作**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`@column-sort`）・セル範囲選択＆TSVコピー＆ペースト（`@cell-selection-change`, `@cell-copy`, `@cell-paste`）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）に対応
 - 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
 - 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
