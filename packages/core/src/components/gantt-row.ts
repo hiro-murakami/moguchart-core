@@ -21,6 +21,7 @@ import {
   sanitizeCssValue,
   sanitizeInlineStyle,
 } from '../core/utils'
+import { jaLocale } from '../core/i18n'
 import {
   normalizeGridColumns,
   getGridCellValue,
@@ -41,6 +42,7 @@ import './gantt-row-background'
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {
   @property({ type: Object }) row!: GanttRow
+  @property({ type: Number }) rowIndex = 1
   @property({ type: Object }) option!: GanttChartOption
   @property({ type: Number }) level = 0
   @property({ type: Boolean }) hasChildren = false
@@ -1425,9 +1427,18 @@ export class GanttRowElement extends LitElement {
           right: 0;
         }
       </style>
-      <div class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}">
+      <div
+        class="row-container ${this.dropPosition ? `drop-${this.dropPosition}` : ''}"
+        role="row"
+        aria-rowindex="${this.rowIndex + 1}"
+        aria-selected="${this.isSelected ? 'true' : 'false'}"
+        aria-level="${treeEnabled ? this.level + 1 : nothing}"
+        aria-expanded="${treeEnabled && this.hasChildren ? (this.row.collapsed ? 'false' : 'true') : nothing}"
+      >
         <div
           class="row-header ${(this.row as any)._isFilteredOut === true ? 'row-filtered-out' : ''}"
+          role="${isGridEnabled ? 'presentation' : 'rowheader'}"
+          aria-colindex="${isGridEnabled ? nothing : '1'}"
           style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; ${headerStyle}"
           draggable="${!isGridEnabled && canReorder ? 'true' : 'false'}"
           @dragstart="${canReorder ? this.handleDragStart : undefined}"
@@ -1461,6 +1472,7 @@ export class GanttRowElement extends LitElement {
                     (gridEditable || visibleColumns.some((c) => c.editable !== undefined && c.editable !== false))
 
                   const renderGridCell = (col: GanttColumn) => {
+                    const colIndex = visibleColumns.findIndex((c) => c.id === col.id) + 1
                     const isPinned = isGridColumnPinned(col)
                     const cellValue = getGridCellValue(
                       col,
@@ -1520,6 +1532,10 @@ export class GanttRowElement extends LitElement {
                     return html`
                       <div
                         class="grid-cell grid-cell-${col.id} ${isPinned ? 'is-pinned-left' : ''} ${col.isTreeColumn ? 'grid-tree-cell' : ''} ${isEditable ? 'grid-cell-editable' : ''} ${isReadOnlyCell ? 'grid-cell-readonly' : ''} ${isEditing ? 'grid-cell-editing' : ''} ${isCellSelected ? 'grid-cell-selected' : ''} ${isCellAnchor ? 'grid-cell-anchor' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+                        role="${isNameOrTreeCell ? 'rowheader' : 'gridcell'}"
+                        aria-colindex="${colIndex}"
+                        aria-selected="${isCellSelected ? 'true' : 'false'}"
+                        aria-readonly="${isReadOnlyCell ? 'true' : nothing}"
                         data-column-id="${col.id}"
                         data-pinned="${isPinned ? 'left' : ''}"
                         draggable="${isNameOrTreeCell && canReorder ? 'true' : 'false'}"
@@ -1603,6 +1619,11 @@ export class GanttRowElement extends LitElement {
                                   treeEnabled && this.hasChildren && showToggleIcon
                                     ? html`<span
                                         class="tree-toggle-btn"
+                                        role="button"
+                                        aria-expanded="${this.row.collapsed ? 'false' : 'true'}"
+                                        aria-label="${this.row.collapsed
+                                          ? ((this.option.locale ?? jaLocale).aria?.toggleExpand ?? 'Expand row')
+                                          : ((this.option.locale ?? jaLocale).aria?.toggleCollapse ?? 'Collapse row')}"
                                         @click="${this.handleToggleCollapse}"
                                         @dblclick="${this.handleToggleDblClick}"
                                         @mouseenter="${this.handleToggleMouseEnter}"
@@ -1712,6 +1733,11 @@ export class GanttRowElement extends LitElement {
                     treeEnabled && this.hasChildren && showToggleIcon
                       ? html`<span
                           class="tree-toggle-btn"
+                          role="button"
+                          aria-expanded="${this.row.collapsed ? 'false' : 'true'}"
+                          aria-label="${this.row.collapsed
+                            ? ((this.option.locale ?? jaLocale).aria?.toggleExpand ?? 'Expand row')
+                            : ((this.option.locale ?? jaLocale).aria?.toggleCollapse ?? 'Collapse row')}"
                           @click="${this.handleToggleCollapse}"
                           @dblclick="${this.handleToggleDblClick}"
                           @mouseenter="${this.handleToggleMouseEnter}"
@@ -1736,6 +1762,7 @@ export class GanttRowElement extends LitElement {
         </div>
         <div
           class="bars-container"
+          role="gridcell"
           @dragstart="${(e: DragEvent) => e.preventDefault()}"
           style="width: ${(() => {
             if (this.option.calendar.pxPerMonth !== undefined) {

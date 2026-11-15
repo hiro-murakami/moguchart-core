@@ -1,4 +1,5 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
+import { xToDate } from '../../core/utils'
 import type { GanttChartOption } from '../../core/types'
 import type { ZoomController } from './zoom-controller'
 
@@ -11,7 +12,9 @@ export interface TouchControllerHost extends ReactiveControllerHost, HTMLElement
 interface PinchSession {
   startDistance: number
   startZoomPercent: number
+  startEqPxPerDay: number
   anchorUnits: number
+  anchorDate: Date
   startMidY: number
   startScrollTop: number
 }
@@ -93,13 +96,25 @@ export class TouchController implements ReactiveController {
     const effectivePx = isMonthMode
       ? this.zoomController.effectivePxPerMonth!
       : this.zoomController.effectivePxPerDay
-    const contentX = midX - rect.left + this.scrollContainer.scrollLeft - this.host.currentRowHeaderWidth
-    const anchorUnits = Math.max(0, contentX) / Math.max(1, effectivePx)
+    const contentX = Math.max(
+      0,
+      midX - rect.left + this.scrollContainer.scrollLeft - this.host.currentRowHeaderWidth,
+    )
+    const anchorUnits = contentX / Math.max(1, effectivePx)
+    const calStart = this.host.option?.calendar?.start ?? new Date()
+    const anchorDate = xToDate(
+      contentX,
+      calStart,
+      this.zoomController.effectivePxPerDay,
+      this.zoomController.effectivePxPerMonth,
+    )
 
     this.pinchSession = {
       startDistance: distance,
       startZoomPercent: this.zoomController.zoomPercent,
+      startEqPxPerDay: this.zoomController.currentEquivalentPxPerDay,
       anchorUnits,
+      anchorDate,
       startMidY: midY,
       startScrollTop: this.scrollContainer.scrollTop,
     }
@@ -119,14 +134,24 @@ export class TouchController implements ReactiveController {
     const midX = (t0.clientX + t1.clientX) / 2
     const midY = (t0.clientY + t1.clientY) / 2
     const scaleFactor = currentDistance / this.pinchSession.startDistance
-    const targetPercent = this.pinchSession.startZoomPercent * scaleFactor
 
-    this.zoomController.zoomToPercentAtPoint(
-      targetPercent,
-      midX,
-      this.scrollContainer,
-      this.pinchSession.anchorUnits,
-    )
+    if (this.zoomController.isSemanticZoomActive) {
+      const targetEq = this.pinchSession.startEqPxPerDay * scaleFactor
+      this.zoomController.zoomSemanticToAtPoint(
+        targetEq,
+        midX,
+        this.scrollContainer,
+        this.pinchSession.anchorDate,
+      )
+    } else {
+      const targetPercent = this.pinchSession.startZoomPercent * scaleFactor
+      this.zoomController.zoomToPercentAtPoint(
+        targetPercent,
+        midX,
+        this.scrollContainer,
+        this.pinchSession.anchorUnits,
+      )
+    }
 
     // 2本指の上下移動に合わせた縦スクロール追従
     const dy = midY - this.pinchSession.startMidY
@@ -140,4 +165,3 @@ export class TouchController implements ReactiveController {
     }
   }
 }
-

@@ -31,6 +31,7 @@ import type {
   GridCellNavigationDirection,
   DependencyType,
   DependencyUpdateInput,
+  GanttSemanticZoomScale,
 } from '../core/types'
 import { jaLocale } from '../core/i18n'
 import type { GanttFilterConfig, GanttFilterResult } from '../core/filter'
@@ -75,6 +76,7 @@ import {
   type ConnectorDragState,
   DragDropController,
   TaskDragController,
+  TaskCreateController,
   RowReorderController,
   TreeController,
   GridController,
@@ -326,6 +328,7 @@ export class GanttChartElement extends LitElement {
   private _keyboardController = new KeyboardController(this)
   private _dependencyController = new DependencyController(this)
   private _taskDragController = new TaskDragController(this)
+  private _taskCreateController = new TaskCreateController(this)
   private _rowReorderController = new RowReorderController(this)
   private _treeController = new TreeController(this)
   private _gridController = new GridController(this)
@@ -467,6 +470,9 @@ export class GanttChartElement extends LitElement {
   private _lastZoomPercent: number | null = null
   private _lastZoomPxPerDay: number | null = null
   private _lastZoomPxPerMonth: number | null = null
+  private _lastSemanticScale: GanttSemanticZoomScale | undefined = undefined
+  private _lastSemanticEqPxPerDay: number | null = null
+  private _managedAriaLabel = false
   private _lastAutoExtendTime = 0
   private _cachedCriticalPathArray: string[] = GanttChartElement.EMPTY_STRING_ARRAY
   private _scrollContainer: HTMLElement | null = null
@@ -536,6 +542,18 @@ export class GanttChartElement extends LitElement {
     return this._zoomController.effectiveFontScale
   }
 
+  public get activeSemanticScale(): GanttSemanticZoomScale | undefined {
+    return this._zoomController.activeSemanticScale
+  }
+
+  public get effectiveSnapDuration(): number {
+    const semOverrides = this._zoomController.getSemanticCalendarOverrides()
+    if (semOverrides?.snapDuration !== undefined) {
+      return semOverrides.snapDuration
+    }
+    return this.option?.snapDuration ?? 1440
+  }
+
   static styles = ganttChartStyles
 
   protected firstUpdated() {
@@ -582,8 +600,7 @@ export class GanttChartElement extends LitElement {
     if (!this.hasAttribute('tabindex')) {
       this.setAttribute('tabindex', '0')
     }
-    this.setAttribute('role', 'grid')
-    this.setAttribute('aria-label', 'Gantt Chart')
+    this.syncHostAriaAttributes()
     this.addEventListener('keydown', this.handleKeyDown)
     this.addEventListener('copy', this.handleClipboardCopy as EventListener)
     this.addEventListener('paste', this.handleClipboardPaste as EventListener)
@@ -740,6 +757,27 @@ export class GanttChartElement extends LitElement {
       }
     }
     this.syncHorizontalVirtualRange(this.currentScrollLeft)
+    this.syncHostAriaAttributes()
+  }
+
+  private syncHostAriaAttributes(): void {
+    const isTreeEnabled = this.option?.tree?.enabled !== false
+    this.setAttribute('role', isTreeEnabled ? 'treegrid' : 'grid')
+    this.setAttribute('aria-multiselectable', 'true')
+
+    const locale = this.option?.locale ?? jaLocale
+    const defaultLabel = locale.aria?.chartLabel ?? 'Gantt Chart'
+    if (!this.hasAttribute('aria-label') || this._managedAriaLabel) {
+      this.setAttribute('aria-label', defaultLabel)
+      this._managedAriaLabel = true
+    }
+
+    const effectiveCols = this.effectiveGridColumns
+    const visibleGridColsCount = effectiveCols
+      ? effectiveCols.filter((c) => c.visible !== false).length
+      : 0
+    this.setAttribute('aria-rowcount', String(this.displayRows.length + 1))
+    this.setAttribute('aria-colcount', String(Math.max(1, visibleGridColsCount) + 1))
   }
 
   protected updated(changedProperties: PropertyValues): void {
@@ -1292,10 +1330,17 @@ export class GanttChartElement extends LitElement {
     this.handleRowClicked(e)
   }
 
-  // --- 矩形範囲選択（Marquee Selection） ---
+  // --- 矩形範囲選択（Marquee Selection）＆ 新規タスク作成（Task Creation） ---
 
   private handleContainerPointerDown = (e: PointerEvent): void => {
+    if (this._taskCreateController.handlePointerDown(e)) {
+      return
+    }
     this._marqueeController.handlePointerDown(e)
+  }
+
+  private handleContainerDblClick = (e: MouseEvent): void => {
+    this._taskCreateController.handleDblClick(e)
   }
 
   public stopMarqueeAutoScroll(): void {
@@ -1303,6 +1348,10 @@ export class GanttChartElement extends LitElement {
   }
 
   private handleContainerClick(e: MouseEvent) {
+    if (this._taskCreateController.justFinishedCreate) {
+      this._taskCreateController.justFinishedCreate = false
+      return
+    }
     if (this._marqueeController.justFinishedMarquee) {
       this._marqueeController.justFinishedMarquee = false
       return
@@ -2472,21 +2521,30 @@ export class GanttChartElement extends LitElement {
 
     // currentOptionはoption参照、labelWidth、またはズーム値が変わった時だけ再生成
     // 毎回新オブジェクトを作ると全gantt-rowが再レンダリングされる
+    const semOverrides = this._zoomController.getSemanticCalendarOverrides()
+    const currentSemScale = semOverrides?.scale
+    const currentSemEq = this._zoomController.semanticEqPxPerDay
     if (
       this._lastOptionRef !== this.option ||
       this._lastLabelWidth !== labelWidth ||
       this._lastZoomPercent !== this.zoomPercent ||
       this._lastZoomPxPerDay !== this.zoomPxPerDay ||
-      this._lastZoomPxPerMonth !== this.zoomPxPerMonth
+      this._lastZoomPxPerMonth !== this.zoomPxPerMonth ||
+      this._lastSemanticScale !== currentSemScale ||
+      this._lastSemanticEqPxPerDay !== currentSemEq
     ) {
       this._cachedCurrentOption = {
         ...this.option,
+        ...(semOverrides?.snapDuration !== undefined
+          ? { snapDuration: semOverrides.snapDuration }
+          : {}),
         rowHeader: {
           ...this.option.rowHeader,
           width: labelWidth,
         },
         calendar: {
           ...this.option.calendar,
+          ...(semOverrides?.calendar ?? {}),
           pxPerDay: this.effectivePxPerDay,
           pxPerMonth: this.effectivePxPerMonth,
         },
@@ -2500,6 +2558,8 @@ export class GanttChartElement extends LitElement {
       this._lastZoomPercent = this.zoomPercent
       this._lastZoomPxPerDay = this.zoomPxPerDay
       this._lastZoomPxPerMonth = this.zoomPxPerMonth
+      this._lastSemanticScale = currentSemScale
+      this._lastSemanticEqPxPerDay = currentSemEq
     }
     const currentOption = this._cachedCurrentOption!
 
@@ -2601,6 +2661,7 @@ export class GanttChartElement extends LitElement {
         style="overflow-x: ${this.isExporting ? 'visible' : 'auto'}; overflow-y: ${this.isExporting ? 'visible' : (needsVerticalScroll ? 'auto' : 'hidden')}; height: ${this.isExporting ? 'auto' : '100%'}; width: ${this.isExporting ? 'max-content' : '100%'}; min-width: auto;"
         @scroll="${this.handleScroll}"
         @pointerdown="${this.handleContainerPointerDown}"
+        @dblclick="${this.handleContainerDblClick}"
         @bar-mouseenter="${this.handleBarMouseEnter}"
         @bar-mouseleave="${this.handleBarMouseLeave}"
         @dragover="${this.handleContainerDragOver}"
@@ -2782,6 +2843,7 @@ export class GanttChartElement extends LitElement {
             return html`
               <gantt-row
                 .row="${row}"
+                .rowIndex="${originalIndex + 1}"
                 .option="${currentOption}"
                 .level="${rowLevels.get(row.id) ?? 0}"
                 .hasChildren="${rowsWithChildren.has(row.id)}"
@@ -2796,7 +2858,11 @@ export class GanttChartElement extends LitElement {
                 .multiDragSameRow="${this.multiDragSameRow || (this.selectedTasks.size >= 2 && this.isMultiDragSameRow())}"
                 .theme="${this.theme}"
                 .dropPosition="${this.dragOverRowId === row.id ? this.dragOverPosition : null}"
-                .externalDragTask="${this.dragPreview?.rowId === row.id ? this.dragPreview : null}"
+                .externalDragTask="${this.dragPreview?.rowId === row.id
+              ? this.dragPreview
+              : this._taskCreateController.createPreview?.rowId === row.id
+                ? this._taskCreateController.createPreview
+                : null}"
                 .selectedTaskIds="${this._cachedSelectedTaskIds}"
                 .focusedTaskId="${this.focusedTaskId}"
                 .isExporting="${this.isExporting}"

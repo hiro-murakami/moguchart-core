@@ -47,3 +47,15 @@ export {
 } from './core/wbs'
 export * from './core/grid'
 export * from './core/filter'
+export {
+  DAYS_PER_MONTH,
+  DEFAULT_SEMANTIC_SCALES,
+  resolveSemanticZoomConfig,
+  resolveSemanticScale,
+  type ResolvedSemanticZoomConfig,
+  type SemanticCalendarOverrides,
+} from './components/controllers/zoom-controller'
+export {
+  resolveTaskCreationConfig,
+  type ResolvedTaskCreationConfig,
+} from './components/controllers/task-create-controller'

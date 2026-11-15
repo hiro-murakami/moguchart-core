@@ -5,12 +5,112 @@ import {
   DEFAULT_ZOOM_CONFIG,
   CHROME_ZOOM_LEVELS,
 } from '../../core/constants'
+import { dateToX, xToDate } from '../../core/utils'
 import type {
   GanttChartOption,
+  GanttChartOptionCalendar,
   GanttChartOptionZoom,
   GanttRow,
+  GanttSemanticZoomConfig,
+  GanttSemanticZoomScale,
   ZoomChangeEventDetail,
 } from '../../core/types'
+
+export const DAYS_PER_MONTH = 30.4375
+
+export const DEFAULT_SEMANTIC_SCALES: readonly GanttSemanticZoomScale[] = [
+  'month',
+  'week',
+  'day',
+  'hour',
+] as const
+
+export interface ResolvedSemanticZoomConfig {
+  enabled: boolean
+  scales: GanttSemanticZoomScale[]
+  thresholds: {
+    monthToWeekPxPerDay: number
+    weekToDayPxPerDay: number
+    dayToHourPxPerDay: number
+  }
+  minEquivalentPxPerDay: number
+  maxEquivalentPxPerDay: number
+  autoSnapDuration: boolean
+}
+
+/**
+ * オプションからセマンティック・ズーム設定を正規化して返す（無効時は null）
+ */
+export function resolveSemanticZoomConfig(
+  zoomOption?: GanttChartOptionZoom,
+): ResolvedSemanticZoomConfig | null {
+  const raw = zoomOption?.semanticScale
+  if (!raw) return null
+  if (typeof raw === 'object' && raw.enabled === false) return null
+
+  const cfg: GanttSemanticZoomConfig = typeof raw === 'object' ? raw : {}
+  const scales =
+    cfg.scales && cfg.scales.length > 0
+      ? cfg.scales
+      : ([...DEFAULT_SEMANTIC_SCALES] as GanttSemanticZoomScale[])
+
+  return {
+    enabled: true,
+    scales,
+    thresholds: {
+      monthToWeekPxPerDay: cfg.thresholds?.monthToWeekPxPerDay ?? 7,
+      weekToDayPxPerDay: cfg.thresholds?.weekToDayPxPerDay ?? 22,
+      dayToHourPxPerDay: cfg.thresholds?.dayToHourPxPerDay ?? 180,
+    },
+    minEquivalentPxPerDay: Math.max(0.2, cfg.minEquivalentPxPerDay ?? 1.5),
+    maxEquivalentPxPerDay: Math.max(10, cfg.maxEquivalentPxPerDay ?? 1440),
+    autoSnapDuration: cfg.autoSnapDuration !== false,
+  }
+}
+
+/**
+ * 1日あたりの換算ピクセル幅から表示スケール（month / week / day / hour）を判定する
+ */
+export function resolveSemanticScale(
+  eqPxPerDay: number,
+  config: ResolvedSemanticZoomConfig,
+): GanttSemanticZoomScale {
+  const { monthToWeekPxPerDay, weekToDayPxPerDay, dayToHourPxPerDay } = config.thresholds
+  let rawScale: GanttSemanticZoomScale
+  if (eqPxPerDay < monthToWeekPxPerDay) {
+    rawScale = 'month'
+  } else if (eqPxPerDay < weekToDayPxPerDay) {
+    rawScale = 'week'
+  } else if (eqPxPerDay < dayToHourPxPerDay) {
+    rawScale = 'day'
+  } else {
+    rawScale = 'hour'
+  }
+
+  if (config.scales.includes(rawScale)) {
+    return rawScale
+  }
+
+  // 指定されていないスケールに該当した場合は、許可されたスケールの中で最も近いものを選択
+  const order: GanttSemanticZoomScale[] = ['month', 'week', 'day', 'hour']
+  const targetIdx = order.indexOf(rawScale)
+  let bestScale = config.scales[0] ?? 'day'
+  let bestDist = Infinity
+  for (const candidate of config.scales) {
+    const dist = Math.abs(order.indexOf(candidate) - targetIdx)
+    if (dist < bestDist) {
+      bestDist = dist
+      bestScale = candidate
+    }
+  }
+  return bestScale
+}
+
+export interface SemanticCalendarOverrides {
+  scale: GanttSemanticZoomScale
+  calendar: Partial<GanttChartOptionCalendar>
+  snapDuration?: number
+}
 
 export interface ZoomControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption
@@ -28,25 +128,64 @@ export class ZoomController implements ReactiveController {
   public zoomPercent: number = DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
   public zoomPxPerDay: number | null = null
   public zoomPxPerMonth: number | null = null
+  public semanticEqPxPerDay: number | null = null
 
   private isZoomInitialized = false
   private prevInitialPercent: number | undefined = undefined
+  private prevBasePxPerDay: number | undefined = undefined
+  private prevBasePxPerMonth: number | undefined = undefined
+  private prevSemanticActive = false
 
   constructor(host: ZoomControllerHost) {
     this.host = host
     host.addController(this)
   }
 
-  hostConnected(): void {
-    // ホスト接続時の処理
-  }
+  hostConnected(): void {}
 
-  hostDisconnected(): void {
-    // ホスト切断時のクリーンアップ
-  }
+  hostDisconnected(): void {}
 
   public get zoomOption(): GanttChartOptionZoom | undefined {
     return this.host.option?.zoom
+  }
+
+  public get semanticConfig(): ResolvedSemanticZoomConfig | null {
+    if (this.zoomOption?.enabled !== true) return null
+    return resolveSemanticZoomConfig(this.zoomOption)
+  }
+
+  public get isSemanticZoomActive(): boolean {
+    return this.semanticConfig !== null
+  }
+
+  /**
+   * 基準となる初期カレンダー設定の換算 pxPerDay
+   */
+  public get baseEquivalentPxPerDay(): number {
+    const cal = this.host.option?.calendar
+    if (cal?.pxPerMonth !== undefined) {
+      return cal.pxPerMonth / DAYS_PER_MONTH
+    }
+    return cal?.pxPerDay ?? 50
+  }
+
+  /**
+   * セマンティック・ズーム時の現在換算 pxPerDay
+   */
+  public get currentEquivalentPxPerDay(): number {
+    if (this.semanticEqPxPerDay !== null) {
+      return this.semanticEqPxPerDay
+    }
+    return this.baseEquivalentPxPerDay * (this.zoomPercent / 100)
+  }
+
+  /**
+   * 現在適用中のセマンティック表示スケール（セマンティック・ズーム無効時は undefined）
+   */
+  public get activeSemanticScale(): GanttSemanticZoomScale | undefined {
+    const cfg = this.semanticConfig
+    if (!cfg) return undefined
+    return resolveSemanticScale(this.currentEquivalentPxPerDay, cfg)
   }
 
   /**
@@ -61,14 +200,23 @@ export class ZoomController implements ReactiveController {
   }
 
   public get isScaleRowHeaderEnabled(): boolean {
+    if (this.isSemanticZoomActive) {
+      return this.zoomOption?.scaleElements?.rowHeader === true
+    }
     return this.zoomOption?.scaleElements?.rowHeader !== false
   }
 
   public get isScaleBarHeightEnabled(): boolean {
+    if (this.isSemanticZoomActive) {
+      return this.zoomOption?.scaleElements?.barHeight === true
+    }
     return this.zoomOption?.scaleElements?.barHeight !== false
   }
 
   public get isScaleFontEnabled(): boolean {
+    if (this.isSemanticZoomActive) {
+      return this.zoomOption?.scaleElements?.fontScale === true
+    }
     return this.zoomOption?.scaleElements?.fontScale !== false
   }
 
@@ -76,6 +224,15 @@ export class ZoomController implements ReactiveController {
    * 現在有効な pxPerDay（ズームオーバーライドがあればそちらを優先）
    */
   public get effectivePxPerDay(): number {
+    const semScale = this.activeSemanticScale
+    if (semScale !== undefined) {
+      const eq = this.currentEquivalentPxPerDay
+      if (semScale === 'month') {
+        return Math.max(0.5, Math.round(eq * 100) / 100)
+      }
+      return Math.max(2, Math.round(eq * 100) / 100)
+    }
+
     if (this.zoomPxPerDay !== null) return this.zoomPxPerDay
     const base = this.host.option?.calendar?.pxPerDay ?? 50
     if (this.zoomOption?.enabled && this.isScaleCalendarEnabled) {
@@ -88,6 +245,15 @@ export class ZoomController implements ReactiveController {
    * 現在有効な pxPerMonth（ズームオーバーライドがあればそちらを優先）
    */
   public get effectivePxPerMonth(): number | undefined {
+    const semScale = this.activeSemanticScale
+    if (semScale !== undefined) {
+      if (semScale === 'month') {
+        const eq = this.currentEquivalentPxPerDay
+        return Math.max(20, Math.round(eq * DAYS_PER_MONTH * 100) / 100)
+      }
+      return undefined
+    }
+
     if (this.zoomPxPerMonth !== null) return this.zoomPxPerMonth
     if (this.host.option?.calendar?.pxPerMonth === undefined) return undefined
     const base = this.host.option.calendar.pxPerMonth
@@ -98,13 +264,82 @@ export class ZoomController implements ReactiveController {
   }
 
   /**
+   * セマンティック・ズーム有効時に currentOption へ適用するカレンダー・スナップ設定オーバーライド
+   */
+  public getSemanticCalendarOverrides(): SemanticCalendarOverrides | null {
+    const cfg = this.semanticConfig
+    if (!cfg) return null
+    const scale = resolveSemanticScale(this.currentEquivalentPxPerDay, cfg)
+    const baseCal = this.host.option?.calendar
+    const keepQuarters = Boolean(baseCal?.showQuarters && !baseCal?.showMonthsRow)
+
+    switch (scale) {
+      case 'month':
+        return {
+          scale,
+          calendar: {
+            showMonthsRow: true,
+            showQuarters: true,
+            showMonths: false,
+            showWeeks: false,
+            showDays: false,
+            showTime: false,
+          },
+          snapDuration: cfg.autoSnapDuration ? 1440 : undefined,
+        }
+      case 'week':
+        return {
+          scale,
+          calendar: {
+            showMonthsRow: false,
+            showQuarters: keepQuarters,
+            showMonths: true,
+            showWeeks: true,
+            showDays: false,
+            showTime: false,
+          },
+          snapDuration: cfg.autoSnapDuration ? 1440 : undefined,
+        }
+      case 'day':
+        return {
+          scale,
+          calendar: {
+            showMonthsRow: false,
+            showQuarters: keepQuarters,
+            showMonths: true,
+            showWeeks: false,
+            showDays: true,
+            showTime: false,
+          },
+          snapDuration: cfg.autoSnapDuration ? 1440 : undefined,
+        }
+      case 'hour':
+        return {
+          scale,
+          calendar: {
+            showMonthsRow: false,
+            showQuarters: false,
+            showMonths: false,
+            showWeeks: false,
+            showDays: true,
+            showTime: true,
+          },
+          snapDuration: cfg.autoSnapDuration ? 60 : undefined,
+        }
+    }
+  }
+
+  /**
    * 現在有効な行ヘッダー幅（ズーム連動）
    */
   public get effectiveRowHeaderWidth(): number {
     const baseWidth = this.host.baseRowHeaderWidth || (this.host.option?.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH)
     const maxWidth = this.host.option?.rowHeader?.maxWidth ?? 2000
     if (this.zoomOption?.enabled && this.isScaleRowHeaderEnabled) {
-      return Math.max(60, Math.min(maxWidth, Math.round(baseWidth * this.effectiveZoomScale)))
+      const clampedScale = this.isSemanticZoomActive
+        ? Math.max(0.75, Math.min(1.35, this.effectiveZoomScale))
+        : this.effectiveZoomScale
+      return Math.max(60, Math.min(maxWidth, Math.round(baseWidth * clampedScale)))
     }
     return baseWidth
   }
@@ -128,7 +363,10 @@ export class ZoomController implements ReactiveController {
   public get effectiveFontScale(): number {
     const base = this.host.option?.fontScale ?? 1
     if (this.zoomOption?.enabled && this.isScaleFontEnabled) {
-      return base * this.effectiveZoomScale
+      const clampedScale = this.isSemanticZoomActive
+        ? Math.max(0.8, Math.min(1.3, this.effectiveZoomScale))
+        : this.effectiveZoomScale
+      return base * clampedScale
     }
     return base
   }
@@ -138,6 +376,16 @@ export class ZoomController implements ReactiveController {
    */
   public syncWithOption(): void {
     const currentInitial = this.zoomOption?.initialPercent
+    const currentBaseDay = this.host.option?.calendar?.pxPerDay
+    const currentBaseMonth = this.host.option?.calendar?.pxPerMonth
+    const currentSemanticActive = this.isSemanticZoomActive
+
+    const calendarScaleChanged =
+      this.isZoomInitialized &&
+      (currentBaseDay !== this.prevBasePxPerDay ||
+        currentBaseMonth !== this.prevBasePxPerMonth ||
+        currentSemanticActive !== this.prevSemanticActive)
+
     if (!this.isZoomInitialized) {
       this.isZoomInitialized = true
       this.prevInitialPercent = currentInitial
@@ -145,9 +393,18 @@ export class ZoomController implements ReactiveController {
     } else if (currentInitial !== undefined && currentInitial !== this.prevInitialPercent) {
       this.prevInitialPercent = currentInitial
       this.zoomPercent = currentInitial
+      this.semanticEqPxPerDay = null
     }
 
-    // 利用側が option を直接変更した場合、ズームオーバーライドをリセット
+    this.prevBasePxPerDay = currentBaseDay
+    this.prevBasePxPerMonth = currentBaseMonth
+    this.prevSemanticActive = currentSemanticActive
+
+    if (calendarScaleChanged) {
+      this.semanticEqPxPerDay = null
+    }
+
+    // 利用側が option を直接変更した場合、従来のズームオーバーライドをリセット
     if (this.zoomPxPerDay !== null || this.zoomPxPerMonth !== null) {
       this.zoomPxPerDay = null
       this.zoomPxPerMonth = null
@@ -163,6 +420,7 @@ export class ZoomController implements ReactiveController {
 
   public dispatchZoomChange(): void {
     const isMonthMode = this.effectivePxPerMonth !== undefined
+    const semanticScale = this.activeSemanticScale
     this.host.dispatchEvent(
       new CustomEvent<ZoomChangeEventDetail>('zoom-change', {
         detail: {
@@ -170,11 +428,88 @@ export class ZoomController implements ReactiveController {
           pxPerMonth: isMonthMode ? this.effectivePxPerMonth : undefined,
           zoomScale: this.effectiveZoomScale,
           zoomPercent: this.zoomPercent,
+          ...(semanticScale ? { semanticScale } : {}),
         },
         bubbles: true,
         composed: true,
       }),
     )
+  }
+
+  /**
+   * セマンティック・ズーム時に指定した基準日時（またはクライアントX座標／ビューポート中央）を維持しながら
+   * 換算 pxPerDay を更新する。
+   */
+  public zoomSemanticToAtPoint(
+    targetEqPxPerDay: number,
+    clientX?: number,
+    scrollContainer?: HTMLElement | null,
+    explicitAnchorDate?: Date,
+  ): boolean {
+    const cfg = this.semanticConfig
+    if (!cfg) return false
+
+    const clampedEq = Math.max(
+      cfg.minEquivalentPxPerDay,
+      Math.min(cfg.maxEquivalentPxPerDay, targetEqPxPerDay),
+    )
+
+    const currentEq = this.currentEquivalentPxPerDay
+    if (Math.abs(clampedEq - currentEq) < 0.001 && this.semanticEqPxPerDay !== null) {
+      return false
+    }
+
+    const container =
+      scrollContainer ??
+      (this.host.shadowRoot?.querySelector('.scroll-container') as HTMLElement | null)
+    const calStart = this.host.option?.calendar?.start ?? new Date()
+
+    let anchorDate = explicitAnchorDate
+    if (!anchorDate && container) {
+      const rect = container.getBoundingClientRect()
+      const viewportOffsetX =
+        clientX !== undefined
+          ? clientX - rect.left - this.host.currentRowHeaderWidth
+          : (container.clientWidth - this.host.currentRowHeaderWidth) / 2
+      const oldContentX = Math.max(0, container.scrollLeft + viewportOffsetX)
+      anchorDate = xToDate(oldContentX, calStart, this.effectivePxPerDay, this.effectivePxPerMonth)
+    }
+
+    this.semanticEqPxPerDay = clampedEq
+    this.zoomPxPerDay = null
+    this.zoomPxPerMonth = null
+    const baseEq = Math.max(0.01, this.baseEquivalentPxPerDay)
+    this.zoomPercent = Math.max(1, Math.round((clampedEq / baseEq) * 100))
+
+    if (this.isScaleRowHeaderEnabled) {
+      this.host.currentRowHeaderWidth = this.effectiveRowHeaderWidth
+    }
+    if (this.isScaleFontEnabled) {
+      this.host.style.setProperty('--moguchart-font-scale', String(this.effectiveFontScale))
+    }
+
+    const applyAnchorScroll = () => {
+      if (!container || !anchorDate) return
+      const rect = container.getBoundingClientRect()
+      const viewportOffsetX =
+        clientX !== undefined
+          ? clientX - rect.left - this.host.currentRowHeaderWidth
+          : (container.clientWidth - this.host.currentRowHeaderWidth) / 2
+      const newContentX = dateToX(
+        anchorDate,
+        calStart,
+        this.effectivePxPerDay,
+        this.effectivePxPerMonth,
+      )
+      container.scrollLeft = Math.max(0, newContentX - viewportOffsetX)
+    }
+
+    this.host.invalidateLayoutCache()
+    this.host.requestUpdate()
+    applyAnchorScroll()
+    this.host.updateComplete.then(applyAnchorScroll)
+    this.dispatchZoomChange()
+    return true
   }
 
   /**
@@ -188,6 +523,15 @@ export class ZoomController implements ReactiveController {
     if (e.defaultPrevented) return
 
     e.preventDefault()
+
+    // セマンティック・ズーム有効時: スケール境界を跨いで連続ズーム＋カーソル直下の日時を完全維持
+    if (this.isSemanticZoomActive) {
+      const step = this.host.option?.zoom?.step ?? 1.15
+      const factor = e.deltaY > 0 ? 1 / step : step
+      const nextEq = this.currentEquivalentPxPerDay * factor
+      this.zoomSemanticToAtPoint(nextEq, e.clientX, scrollContainer)
+      return
+    }
 
     const container = scrollContainer
     const labelWidth = this.host.currentRowHeaderWidth
@@ -269,6 +613,11 @@ export class ZoomController implements ReactiveController {
     scrollContainer: HTMLElement | null,
     anchorUnits?: number,
   ): boolean {
+    if (this.isSemanticZoomActive) {
+      const targetEq = this.baseEquivalentPxPerDay * (percent / 100)
+      return this.zoomSemanticToAtPoint(targetEq, clientX, scrollContainer)
+    }
+
     const minPercent = this.host.option?.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
     const maxPercent = this.host.option?.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
     const clamped = Math.max(minPercent, Math.min(maxPercent, Math.round(percent)))
@@ -324,6 +673,12 @@ export class ZoomController implements ReactiveController {
    * 指定したパーセンテージにズームを設定する。
    */
   public zoomToPercent(percent: number): void {
+    if (this.isSemanticZoomActive) {
+      const targetEq = this.baseEquivalentPxPerDay * (percent / 100)
+      this.zoomSemanticToAtPoint(targetEq)
+      return
+    }
+
     const minPercent = this.host.option?.zoom?.minPercent ?? DEFAULT_ZOOM_CONFIG.MIN_PERCENT
     const maxPercent = this.host.option?.zoom?.maxPercent ?? DEFAULT_ZOOM_CONFIG.MAX_PERCENT
     const clamped = Math.max(minPercent, Math.min(maxPercent, Math.round(percent)))
@@ -359,6 +714,16 @@ export class ZoomController implements ReactiveController {
    * 1段階ズームインする。
    */
   public zoomIn(step?: number): void {
+    if (this.isSemanticZoomActive) {
+      if (step !== undefined) {
+        this.zoomToPercent(this.zoomPercent + step)
+        return
+      }
+      const factor = this.host.option?.zoom?.step ?? 1.25
+      this.zoomSemanticToAtPoint(this.currentEquivalentPxPerDay * factor)
+      return
+    }
+
     if (step !== undefined) {
       this.zoomToPercent(this.zoomPercent + step)
       return
@@ -374,6 +739,16 @@ export class ZoomController implements ReactiveController {
    * 1段階ズームアウトする。
    */
   public zoomOut(step?: number): void {
+    if (this.isSemanticZoomActive) {
+      if (step !== undefined) {
+        this.zoomToPercent(Math.max(1, this.zoomPercent - step))
+        return
+      }
+      const factor = this.host.option?.zoom?.step ?? 1.25
+      this.zoomSemanticToAtPoint(this.currentEquivalentPxPerDay / factor)
+      return
+    }
+
     if (step !== undefined) {
       this.zoomToPercent(this.zoomPercent - step)
       return
@@ -403,6 +778,11 @@ export class ZoomController implements ReactiveController {
    * 指定した pxPerDay（または pxPerMonth）にズームを設定する (後方互換)。
    */
   public zoomTo(value: number): void {
+    if (this.isSemanticZoomActive) {
+      this.zoomSemanticToAtPoint(value)
+      return
+    }
+
     const isMonthMode = this.effectivePxPerMonth !== undefined
     const defaultMin = isMonthMode ? 20 : 2
     const defaultMax = isMonthMode ? 600 : 200
@@ -459,6 +839,18 @@ export class ZoomController implements ReactiveController {
     const availableWidth = container.clientWidth - labelWidth
     if (availableWidth <= 0) return
 
+    if (this.isSemanticZoomActive) {
+      const diffMs = maxEnd.getTime() - minStart.getTime()
+      const totalDays = Math.max(0.25, diffMs / (1000 * 60 * 60 * 24))
+      const targetPxPerDay = availableWidth / totalDays
+      this.zoomSemanticToAtPoint(targetPxPerDay)
+      requestAnimationFrame(() => {
+        const startX = this.host.getDateX(minStart!) + labelWidth
+        container.scrollLeft = Math.max(0, startX - 10)
+      })
+      return
+    }
+
     const isMonthMode = this.effectivePxPerMonth !== undefined
 
     if (isMonthMode) {
@@ -487,6 +879,17 @@ export class ZoomController implements ReactiveController {
    * ズームを100%（標準倍率）に戻す。
    */
   public resetZoom(): void {
+    if (this.isSemanticZoomActive) {
+      this.semanticEqPxPerDay = null
+      this.zoomPxPerDay = null
+      this.zoomPxPerMonth = null
+      this.zoomPercent = DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT
+      this.host.invalidateLayoutCache()
+      this.host.requestUpdate()
+      this.dispatchZoomChange()
+      return
+    }
+
     if (
       this.zoomPercent === DEFAULT_ZOOM_CONFIG.DEFAULT_PERCENT &&
       this.zoomPxPerDay === null &&

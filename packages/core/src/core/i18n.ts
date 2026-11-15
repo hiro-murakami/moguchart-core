@@ -121,6 +121,23 @@ export interface MoguchartLocale {
     /** 線上の削除アイコンボタンのアクセシビリティラベル */
     deleteButtonTitle: string
   }
+  /** タイムライン新規タスク作成・WAI-ARIA 関連の文字列 */
+  taskCreation?: {
+    /** 新規タスクの既定名称 */
+    defaultName: string
+    /** 履歴コマンド説明 */
+    commandDescription: string
+  }
+  /** アクセシビリティ (WAI-ARIA) 用の文字列 */
+  aria?: {
+    /** ガントチャートグリッド全体のラベル */
+    chartLabel: string
+    /** 行の展開/折りたたみボタンのラベル */
+    toggleExpand: string
+    toggleCollapse: string
+    /** タスクバーのスクリーンリーダー向けラベル生成 */
+    taskBarLabel: (name: string, startStr: string, endStr: string, progress?: number) => string
+  }
 }
 
 /**
@@ -206,6 +223,19 @@ export const jaLocale: MoguchartLocale = {
     cancel: 'キャンセル',
     editButtonTitle: '依存関係を編集',
     deleteButtonTitle: '依存関係を削除',
+  },
+  taskCreation: {
+    defaultName: '新規タスク',
+    commandDescription: 'タスク新規作成',
+  },
+  aria: {
+    chartLabel: 'ガントチャート',
+    toggleExpand: '行を展開',
+    toggleCollapse: '行を折りたたむ',
+    taskBarLabel: (name, startStr, endStr, progress) =>
+      progress !== undefined
+        ? `${name} (${startStr} 〜 ${endStr}, 進捗 ${progress}%)`
+        : `${name} (${startStr} 〜 ${endStr})`,
   },
 }
 
@@ -295,5 +325,18 @@ export const enLocale: MoguchartLocale = {
     cancel: 'Cancel',
     editButtonTitle: 'Edit dependency',
     deleteButtonTitle: 'Delete dependency',
+  },
+  taskCreation: {
+    defaultName: 'New Task',
+    commandDescription: 'Create task',
+  },
+  aria: {
+    chartLabel: 'Gantt Chart',
+    toggleExpand: 'Expand row',
+    toggleCollapse: 'Collapse row',
+    taskBarLabel: (name, startStr, endStr, progress) =>
+      progress !== undefined
+        ? `${name} (${startStr} - ${endStr}, Progress ${progress}%)`
+        : `${name} (${startStr} - ${endStr})`,
   },
 }

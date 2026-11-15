@@ -41,6 +41,20 @@ export interface DemoTexts {
   showProgressLabel: string
   showSummaryProgressLabel: string
   enableMarqueeSelection: string
+  enableSemanticZoom: string
+  enableTaskCreation: string
+  semanticScaleBadge: (scaleLabel: string) => string
+  presetLabel: string
+  presetStandardWbs: string
+  presetStandardWbsDesc: string
+  presetInteractiveUx: string
+  presetInteractiveUxDesc: string
+  presetBaselineCpm: string
+  presetBaselineCpmDesc: string
+  presetSpreadsheetGrid: string
+  presetSpreadsheetGridDesc: string
+  presetHourlySchedule: string
+  presetHourlyScheduleDesc: string
   enableBaseline: string
   enableDeadline: string
   editableDeadline: string
@@ -220,6 +234,20 @@ export const jaTexts: DemoTexts = {
   showProgressLabel: '進捗ラベル表示',
   showSummaryProgressLabel: 'サマリー進捗ラベル表示',
   enableMarqueeSelection: '矩形範囲選択（ドラッグ選択）',
+  enableSemanticZoom: 'セマンティック・ズーム (月⇄週⇄日⇄時間の連続切替)',
+  enableTaskCreation: 'タイムライン新規タスク作成 (Alt+ドラッグ / ダブルクリック)',
+  semanticScaleBadge: (scaleLabel) => `粒度: ${scaleLabel}`,
+  presetLabel: 'ユースケース・プリセット',
+  presetStandardWbs: '標準 WBS・工程管理',
+  presetStandardWbsDesc: 'WBS階層・依存関係リンク・自動スケジューリング・稼働日カレンダーを備えた標準構成',
+  presetInteractiveUx: '連続ズーム＆直接タスク作成',
+  presetInteractiveUxDesc: 'Ctrl/Cmd+ホイールで四半期/月⇄週⇄日⇄時間を連続遷移 ｜ 空白タイムラインを Alt+ドラッグ または ダブルクリックで新規タスク作成',
+  presetBaselineCpm: '予実・期限・クリティカルパス',
+  presetBaselineCpmDesc: 'ベースライン比較・デッドライン超過バッジ・クリティカルパス強調を有効化したPM向け構成',
+  presetSpreadsheetGrid: 'スプレッドシート高速編集',
+  presetSpreadsheetGridDesc: 'マルチカラム固定列・インラインセル編集・範囲選択＆TSVコピペ・WBS階層フィルタを有効化した構成',
+  presetHourlySchedule: '時間割・シフトスケジュール',
+  presetHourlyScheduleDesc: '時間単位タイムライン・15分スナップ・同一行の複数タスク自動段組みを有効化した短期スケジュール構成',
   enableBaseline: '予実管理（ベースライン）を表示',
   enableDeadline: 'デッドラインを表示',
   editableDeadline: 'ドラッグで期限変更',
@@ -458,6 +486,20 @@ export const enTexts: DemoTexts = {
   showProgressLabel: 'Show Progress Label',
   showSummaryProgressLabel: 'Show Summary Progress Label',
   enableMarqueeSelection: 'Marquee Selection',
+  enableSemanticZoom: 'Semantic Zoom (Continuous Month ⇄ Week ⇄ Day ⇄ Hour)',
+  enableTaskCreation: 'Timeline Task Creation (Alt+Drag / Double-Click)',
+  semanticScaleBadge: (scaleLabel) => `Scale: ${scaleLabel}`,
+  presetLabel: 'Scenario Presets',
+  presetStandardWbs: 'Standard WBS',
+  presetStandardWbsDesc: 'Classic WBS hierarchy with dependency links, auto-scheduling, and working-day calendar.',
+  presetInteractiveUx: 'Interactive Create & Semantic Zoom',
+  presetInteractiveUxDesc: 'Ctrl/Cmd+Wheel for continuous Quarter/Month ⇄ Week ⇄ Day ⇄ Hour zoom | Alt+Drag or Double-Click empty row to create tasks.',
+  presetBaselineCpm: 'Baseline, Deadline & CPM',
+  presetBaselineCpmDesc: 'Plan-vs-actual baseline bars, overdue deadline badges, and critical path highlighting.',
+  presetSpreadsheetGrid: 'Spreadsheet Grid & Filter',
+  presetSpreadsheetGridDesc: 'Pinned multi-column grid, inline cell editing, range TSV copy/paste, and WBS-preserving search.',
+  presetHourlySchedule: 'Hourly Shift Schedule',
+  presetHourlyScheduleDesc: 'Hour-level timeline with 15-min snapping and automatic multi-task lane stacking.',
   enableBaseline: 'Show Baseline (Plan vs Actual)',
   enableDeadline: 'Show Deadlines',
   editableDeadline: 'Editable Deadlines (Drag)',

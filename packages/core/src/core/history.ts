@@ -3,6 +3,7 @@
  */
 
 export type GanttCommandType =
+  | 'task-create'
   | 'task-move'
   | 'task-resize'
   | 'task-progress'

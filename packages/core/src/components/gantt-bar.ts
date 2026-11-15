@@ -1,4 +1,4 @@
-import { LitElement, html, css, unsafeCSS, type PropertyValues } from 'lit'
+import { LitElement, html, css, nothing, unsafeCSS, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type {
   GanttTask,
@@ -2363,6 +2363,27 @@ export class GanttBarElement extends LitElement {
       (this.task as any)._isFilteredOut === true ||
       (typeof this.task.style === 'string' && /opacity:\s*0(\.\d+)?/i.test(this.task.style))
 
+    const ariaLocale = this.option.locale ?? jaLocale
+    const ariaTaskName = this.task.name || ariaLocale.dragOverlay.noTitle
+    const ariaStartStr = this.option.calendar?.pxPerMonth
+      ? ariaLocale.yearMonthFormat(this.task.start)
+      : this.option.calendar?.showTime
+        ? ariaLocale.dateTimeFormat(this.task.start)
+        : ariaLocale.dateFormat(this.task.start)
+    const ariaEndStr = this.option.calendar?.pxPerMonth
+      ? ariaLocale.yearMonthFormat(this.task.end)
+      : this.option.calendar?.showTime
+        ? ariaLocale.dateTimeFormat(this.task.end)
+        : ariaLocale.dateFormat(this.task.end)
+    const ariaBarLabel = ariaLocale.aria?.taskBarLabel
+      ? ariaLocale.aria.taskBarLabel(
+          ariaTaskName,
+          ariaStartStr,
+          ariaEndStr,
+          hasProgressValue && progressVal !== null ? Math.round(progressVal) : undefined,
+        )
+      : `${ariaTaskName} (${ariaStartStr} - ${ariaEndStr})`
+
     return html`
       ${hasValidBaseline
         ? html`
@@ -2400,6 +2421,10 @@ export class GanttBarElement extends LitElement {
         : ''}
       <div
         class="task-group ${isSummary ? 'summary-task-group' : ''} ${isMilestone ? 'milestone-task-group' : ''} ${isDelayed ? 'task-delayed' : ''} ${isOverdue ? 'task-overdue' : ''} ${isFiltered ? 'filtered-out' : ''}"
+        role="button"
+        aria-label="${ariaBarLabel}"
+        aria-selected="${this.selected ? 'true' : 'false'}"
+        aria-disabled="${isReadOnly ? 'true' : nothing}"
         style="
           left: ${x}px;
           top: ${groupTop}px;
@@ -2430,6 +2455,10 @@ export class GanttBarElement extends LitElement {
                 class="progress-bar ${indicatorPosition !== 'full'
                   ? `indicator-${indicatorPosition}`
                   : ''} ${this._isDraggingProgress ? 'dragging' : ''}"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="${Math.round(progressVal)}"
                 style="width: ${progressVal}%; ${progressColorStyle} ${safeProgressStyle ? `${safeProgressStyle};` : ''}"
               ></div>`
             : ''}

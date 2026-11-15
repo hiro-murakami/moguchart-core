@@ -207,5 +207,28 @@ describe('GanttChart (Vue 3 Wrapper)', () => {
       type: 'FF',
       lag: 2880,
     })
+
+    // task-create イベント転送確認
+    const createDetail = {
+      rowId: 'row-1',
+      row: depRows[0],
+      task: {
+        id: 'created-vue-1',
+        name: 'Created Task',
+        start: new Date('2026-04-12'),
+        end: new Date('2026-04-14'),
+      },
+      source: 'drag' as const,
+    }
+    const el = wrapper.find('gantt-chart').element as GanttChartElement
+    el.dispatchEvent(
+      new CustomEvent('task-create', {
+        detail: createDetail,
+        bubbles: true,
+        composed: true,
+      })
+    )
+    expect(wrapper.emitted('task-create')).toBeTruthy()
+    expect(wrapper.emitted('task-create')![0][0]).toEqual(createDetail)
   })
 })

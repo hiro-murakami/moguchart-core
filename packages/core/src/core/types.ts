@@ -662,10 +662,43 @@ export interface GanttChartOption {
   constraint?: GanttChartOptionConstraint
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
-  /** WBS階層維持フィルタリング・検索の設定 */
+  /** フィルタリング・検索の設定 */
   filter?: GanttFilterConfig | null
   /** タッチデバイス（タブレット・モバイル）操作に関する設定 */
   touch?: GanttChartOptionTouch
+  /** タイムライン上での新規タスク作成に関する設定 */
+  taskCreation?: boolean | GanttChartOptionTaskCreation
+}
+
+/**
+ * タイムライン上での新規タスク作成トリガー
+ * - 'alt-drag-or-dblclick': Alt(Option)+ドラッグ または 空白ダブルクリックで作成（通常ドラッグは矩形選択を維持、デフォルト）
+ * - 'alt-drag': Alt(Option)+ドラッグのみで作成
+ * - 'dblclick': 空白ダブルクリックのみで作成
+ * - 'drag': 空白上の通常ドラッグで作成（単一行横ドラッグ時に矩形選択より優先）
+ */
+export type GanttTaskCreationTrigger = 'alt-drag-or-dblclick' | 'alt-drag' | 'dblclick' | 'drag'
+
+/**
+ * タイムライン上での新規タスク作成に関するオプション
+ */
+export interface GanttChartOptionTaskCreation {
+  /** 新規タスク作成機能を有効にするか (デフォルト: false、taskCreation: true 指定時は true) */
+  enabled?: boolean
+  /** 作成操作のトリガー (デフォルト: 'alt-drag-or-dblclick') */
+  trigger?: GanttTaskCreationTrigger
+  /** ダブルクリック作成時または最小ドラッグ幅フォールバック時の期間（分）。未指定時はカレンダー粒度に応じて自動決定（日以上: 1440分、時間粒度: 60分） */
+  defaultDurationMinutes?: number
+  /** 新規タスクの初期名称 (未指定時はロケールの newTaskDefaultName) */
+  defaultTaskName?: string
+  /** 新規タスクの初期バー色 (CSSカラー文字列) */
+  defaultBarColor?: string
+  /** サマリー行（子を持つ親行）上でのタスク作成を許可するか (デフォルト: false) */
+  allowOnSummaryRow?: boolean
+  /**
+   * 作成確定時にタスクデータの初期値（独自IDやカスタムフィールド等）をカスタマイズするファクトリ関数
+   */
+  createTask?: (context: { row: GanttRow; start: Date; end: Date }) => Partial<GanttTask>
 }
 
 /**
@@ -750,6 +783,36 @@ export interface GanttChartOptionBaseline {
 }
 
 /**
+ * セマンティック・ズーム（連続自動粒度切替）の表示スケール種別
+ */
+export type GanttSemanticZoomScale = 'month' | 'week' | 'day' | 'hour'
+
+/**
+ * セマンティック・ズーム（時間軸スケールの連続自動切替）に関する詳細設定
+ */
+export interface GanttSemanticZoomConfig {
+  /** セマンティック・ズームを有効にするか (デフォルト: true) */
+  enabled?: boolean
+  /** 遷移を許可する表示スケールの配列 (デフォルト: ['month', 'week', 'day', 'hour']) */
+  scales?: GanttSemanticZoomScale[]
+  /** 各スケール間の切替閾値（1日あたりの換算ピクセル幅 px/day） */
+  thresholds?: {
+    /** Month ⇄ Week の境界 px/day (デフォルト: 7) */
+    monthToWeekPxPerDay?: number
+    /** Week ⇄ Day の境界 px/day (デフォルト: 22) */
+    weekToDayPxPerDay?: number
+    /** Day ⇄ Hour の境界 px/day (デフォルト: 180) */
+    dayToHourPxPerDay?: number
+  }
+  /** ズームアウト下限の換算 px/day (デフォルト: 1.5 ≒ pxPerMonth: 45) */
+  minEquivalentPxPerDay?: number
+  /** ズームイン上限の換算 px/day (デフォルト: 1440 ＝ 1時間あたり60px) */
+  maxEquivalentPxPerDay?: number
+  /** スケール遷移に応じて snapDuration を自動調整するか (デフォルト: true — Month/Week/Day: 1440分、Hour: 60分) */
+  autoSnapDuration?: boolean
+}
+
+/**
  * ズーム機能に関するオプション
  */
 export interface GanttChartOptionZoom {
@@ -784,6 +847,10 @@ export interface GanttChartOptionZoom {
   min?: number
   /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth (後方互換用) */
   max?: number
+  /**
+   * セマンティック・ズーム（連続ズームによる Quarter/Month ⇄ Week ⇄ Day ⇄ Hour 自動切替）設定
+   */
+  semanticScale?: boolean | GanttSemanticZoomConfig
 }
 
 /**
@@ -1356,6 +1423,34 @@ export interface TaskDeleteEventDetail {
 }
 
 /**
+ * タスク新規作成イベント (task-create) の詳細データ
+ */
+export interface TaskCreateEventDetail {
+  /** 新規作成されたタスク */
+  task: GanttTask
+  /** 作成先の行ID */
+  rowId: string
+  /** 更新後の対象行データ */
+  row: GanttRow
+  /** 作成方法 ('drag' | 'dblclick') */
+  source: 'drag' | 'dblclick'
+}
+
+/**
+ * タスク新規作成直前フック (beforeTaskCreate) の詳細データ
+ */
+export interface BeforeTaskCreateHookDetail {
+  /** 作成予定のタスク */
+  task: GanttTask
+  /** 作成先の行ID */
+  rowId: string
+  /** 作成前の対象行データ */
+  row: GanttRow
+  /** 作成方法 ('drag' | 'dblclick') */
+  source: 'drag' | 'dblclick'
+}
+
+/**
  * ズーム変更イベントの詳細データ
  */
 export interface ZoomChangeEventDetail {
@@ -1365,8 +1460,10 @@ export interface ZoomChangeEventDetail {
   pxPerMonth?: number
   /** ズーム倍率 (1.0 = 100%) */
   zoomScale: number
-  /** ズームパーセンテージ (50〜200) */
+  /** ズームパーセンテージ */
   zoomPercent: number
+  /** セマンティック・ズーム有効時の現在の表示スケール */
+  semanticScale?: GanttSemanticZoomScale
 }
 
 /**

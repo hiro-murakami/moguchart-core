@@ -6,6 +6,7 @@ import type {
   GanttRow,
   TaskClickEventDetail,
   TaskContextMenuEventDetail,
+  TaskCreateEventDetail,
   TaskUpdateEventDetail,
   TaskDeleteEventDetail,
   GanttTask,
@@ -24,6 +25,7 @@ import type {
   TaskDeadlineChangeEventDetail,
   HistoryChangeEventDetail,
   ZoomChangeEventDetail,
+  GanttSemanticZoomScale,
   GanttColumn,
   ColumnResizeEventDetail,
   AutoScheduleMode,
@@ -209,6 +211,17 @@ let editableProgress = true
 let showProgressLabel = true
 let showSummaryProgressLabel = true
 let enableMarquee = true
+let enableSemanticZoom = false
+let enableTaskCreation = true
+let showCriticalPath = false
+let currentSemanticScale: GanttSemanticZoomScale | undefined = undefined
+type ScenarioPresetId =
+  | 'standard-wbs'
+  | 'interactive-ux'
+  | 'baseline-cpm'
+  | 'spreadsheet-grid'
+  | 'hourly-schedule'
+let activePresetId: ScenarioPresetId = 'standard-wbs'
 let enableBaseline = false
 let enableDeadline = true
 let editableDeadline = true
@@ -326,7 +339,7 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     showCurrentTime = true
     showCurrentTimeBadge = false
     currentTimeUpdateInterval = 1000
-    chartEnd.setTime(demoChartStart.getTime() + (isLargeScaleMode ? 1095 : 50) * 24 * 60 * 60 * 1000)
+    chartEnd.setTime(demoChartStart.getTime() + (isLargeScaleMode ? 1095 : enableSemanticZoom ? 365 : 50) * 24 * 60 * 60 * 1000)
     rows = isLargeScaleMode ? generateLargeScaleData(t) : generateDayModeData(t)
   } else if (mode === 'week') {
     // 週単位モード: 1日あたり12px (1週間 ≈ 84px)
@@ -376,7 +389,86 @@ const setViewMode = (mode: 'day' | 'week' | 'month' | 'hour') => {
     rows = generateHourModeData(t)
   }
   zoomPercent = 100
+  currentSemanticScale = enableSemanticZoom ? mode : undefined
   renderApp()
+}
+
+const applyScenarioPreset = (presetId: ScenarioPresetId) => {
+  activePresetId = presetId
+  isReadOnly = false
+  isLargeScaleMode = false
+  searchQuery = ''
+  quickFilter = 'all'
+
+  const chart = document.getElementById('gantt-chart-instance') as GanttChartElement | null
+
+  switch (presetId) {
+    case 'standard-wbs': {
+      enableSemanticZoom = false
+      enableTaskCreation = true
+      enableBaseline = false
+      enableDeadline = true
+      showCriticalPath = false
+      enableGrid = false
+      autoSchedule = true
+      rowHeaderWidth = 220
+      setViewMode('day')
+      break
+    }
+    case 'interactive-ux': {
+      enableSemanticZoom = true
+      enableTaskCreation = true
+      enableMarquee = true
+      enableBaseline = false
+      enableDeadline = true
+      showCriticalPath = false
+      enableGrid = false
+      autoSchedule = true
+      rowHeaderWidth = 220
+      setViewMode('day')
+      break
+    }
+    case 'baseline-cpm': {
+      enableSemanticZoom = false
+      enableTaskCreation = false
+      enableBaseline = true
+      highlightDelay = true
+      enableDeadline = true
+      highlightOverdue = true
+      showCriticalPath = true
+      enableGrid = false
+      autoSchedule = true
+      rowHeaderWidth = 220
+      setViewMode('day')
+      break
+    }
+    case 'spreadsheet-grid': {
+      enableSemanticZoom = false
+      enableTaskCreation = true
+      enableBaseline = false
+      enableDeadline = true
+      showCriticalPath = false
+      enableGrid = true
+      enableGridEdit = true
+      pinLeadingColumns = true
+      rowHeaderWidth = Math.min(540, getActiveGridTotalWidth())
+      setViewMode('day')
+      break
+    }
+    case 'hourly-schedule': {
+      enableSemanticZoom = false
+      enableTaskCreation = true
+      enableBaseline = false
+      enableDeadline = false
+      showCriticalPath = false
+      enableGrid = false
+      rowHeaderWidth = 200
+      setViewMode('hour')
+      break
+    }
+  }
+
+  chart?.resetZoom()
 }
 
 const toggleLargeScaleMode = (enabled: boolean) => {
@@ -603,16 +695,22 @@ const renderApp = () => {
         }
       : undefined,
     locale: currentLocale,
+    taskCreation: {
+      enabled: enableTaskCreation,
+      trigger: 'alt-drag-or-dblclick',
+    },
     dependency: {
       lineStyle: dependencyLineStyle,
       showConnectors,
+      showCriticalPath,
       autoSchedule,
       scheduleMode,
     },
     zoom: {
       enabled: true,
-      initialPercent: zoomPercent,
+      initialPercent: 100,
       levels: CHROME_ZOOM_LEVELS,
+      semanticScale: enableSemanticZoom,
     },
   }
 
@@ -834,6 +932,43 @@ const renderApp = () => {
       }
       .export-btn:hover { opacity: 0.9; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
       .export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* ── ユースケース・プリセットバー ── */
+      .preset-bar {
+        display: flex; flex-direction: column; gap: 8px;
+        padding: 10px 14px; margin-bottom: 12px;
+        border-radius: 10px;
+        background: ${isDark ? 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))' : 'linear-gradient(135deg, #eff6ff, #f8fafc)'};
+        border: 1px solid ${isDark ? '#334155' : '#bfdbfe'};
+      }
+      .preset-bar-top {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .preset-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+        border: 1px solid ${c.cardBorder}; cursor: pointer;
+        background: ${isDark ? '#0f172a' : '#ffffff'}; color: ${c.text};
+        transition: all 0.15s ease;
+      }
+      .preset-pill:hover {
+        border-color: ${c.accent};
+        transform: translateY(-1px);
+      }
+      .preset-pill.active {
+        background: ${c.accent}; color: #ffffff; border-color: ${c.accent};
+        box-shadow: 0 2px 8px rgba(59,130,246,0.32);
+      }
+      .preset-desc {
+        font-size: 12px; color: ${c.textMuted}; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+      .semantic-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+        background: ${isDark ? 'rgba(16,185,129,0.18)' : 'rgba(16,185,129,0.12)'};
+        color: ${isDark ? '#6ee7b7' : '#047857'};
+        border: 1px solid ${isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.3)'};
+      }
     </style>
     <div style="padding: 24px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; ${appStyles}">
       <!-- ヘッダー -->
@@ -952,6 +1087,79 @@ const renderApp = () => {
             <button class="${currentLang === 'ja' ? 'active' : ''}" @click="${() => setLang('ja')}">日本語</button>
             <button class="${currentLang === 'en' ? 'active' : ''}" @click="${() => setLang('en')}">English</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ユースケース別ワンクリック・プリセットバー -->
+      <div class="preset-bar">
+        <div class="preset-bar-top">
+          <span style="font-size: 12px; font-weight: 700; color: ${c.accent}; margin-right: 4px;">
+            🚀 ${t.presetLabel}:
+          </span>
+          <button
+            type="button"
+            class="preset-pill ${activePresetId === 'standard-wbs' ? 'active' : ''}"
+            @click="${() => applyScenarioPreset('standard-wbs')}"
+          >
+            📋 ${t.presetStandardWbs}
+          </button>
+          <button
+            type="button"
+            class="preset-pill ${activePresetId === 'interactive-ux' ? 'active' : ''}"
+            @click="${() => applyScenarioPreset('interactive-ux')}"
+          >
+            ✨ ${t.presetInteractiveUx}
+          </button>
+          <button
+            type="button"
+            class="preset-pill ${activePresetId === 'baseline-cpm' ? 'active' : ''}"
+            @click="${() => applyScenarioPreset('baseline-cpm')}"
+          >
+            🎯 ${t.presetBaselineCpm}
+          </button>
+          <button
+            type="button"
+            class="preset-pill ${activePresetId === 'spreadsheet-grid' ? 'active' : ''}"
+            @click="${() => applyScenarioPreset('spreadsheet-grid')}"
+          >
+            📑 ${t.presetSpreadsheetGrid}
+          </button>
+          <button
+            type="button"
+            class="preset-pill ${activePresetId === 'hourly-schedule' ? 'active' : ''}"
+            @click="${() => applyScenarioPreset('hourly-schedule')}"
+          >
+            ⏱️ ${t.presetHourlySchedule}
+          </button>
+          ${enableSemanticZoom
+            ? html`<span class="semantic-badge">
+                🔍
+                ${t.semanticScaleBadge(
+                  (currentSemanticScale ?? viewMode) === 'month'
+                    ? t.monthUnit
+                    : (currentSemanticScale ?? viewMode) === 'week'
+                      ? t.weekUnit
+                      : (currentSemanticScale ?? viewMode) === 'hour'
+                        ? t.hourUnit
+                        : t.dayUnit,
+                )}
+                (${zoomPercent}%)
+              </span>`
+            : ''}
+        </div>
+        <div class="preset-desc">
+          <span>
+            💡
+            ${activePresetId === 'interactive-ux'
+              ? t.presetInteractiveUxDesc
+              : activePresetId === 'baseline-cpm'
+                ? t.presetBaselineCpmDesc
+                : activePresetId === 'spreadsheet-grid'
+                  ? t.presetSpreadsheetGridDesc
+                  : activePresetId === 'hourly-schedule'
+                    ? t.presetHourlyScheduleDesc
+                    : t.presetStandardWbsDesc}
+          </span>
         </div>
       </div>
 
@@ -1315,6 +1523,39 @@ const renderApp = () => {
                 <input type="checkbox" .checked="${enableMarquee}" @change="${(e: Event) => { enableMarquee = (e.target as HTMLInputElement).checked; renderApp() }}" />
                 <span class="toggle-track"></span>
                 ${t.enableMarqueeSelection}
+              </label>
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  .checked="${enableSemanticZoom}"
+                  @change="${(e: Event) => {
+                    enableSemanticZoom = (e.target as HTMLInputElement).checked
+                    if (enableSemanticZoom) {
+                      currentSemanticScale = viewMode
+                      const minSpanMs = 365 * 24 * 60 * 60 * 1000
+                      if (chartEnd.getTime() - demoChartStart.getTime() < minSpanMs) {
+                        chartEnd.setTime(demoChartStart.getTime() + minSpanMs)
+                      }
+                    } else {
+                      currentSemanticScale = undefined
+                    }
+                    renderApp()
+                  }}"
+                />
+                <span class="toggle-track"></span>
+                🔍 ${t.enableSemanticZoom}
+              </label>
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  .checked="${enableTaskCreation}"
+                  @change="${(e: Event) => {
+                    enableTaskCreation = (e.target as HTMLInputElement).checked
+                    renderApp()
+                  }}"
+                />
+                <span class="toggle-track"></span>
+                ✨ ${t.enableTaskCreation}
               </label>
             </div>
           </div>
@@ -1716,10 +1957,21 @@ const renderApp = () => {
               chartEnd.setTime(e.detail.end.getTime())
             }}"
             @zoom-change="${(e: CustomEvent<ZoomChangeEventDetail>) => {
+              let changed = false
               if (typeof e.detail?.zoomPercent === 'number' && zoomPercent !== e.detail.zoomPercent) {
                 zoomPercent = e.detail.zoomPercent
+                changed = true
+              }
+              if (e.detail?.semanticScale !== currentSemanticScale) {
+                currentSemanticScale = e.detail?.semanticScale
+                changed = true
+              }
+              if (changed) {
                 renderApp()
               }
+            }}"
+            @task-create="${(e: CustomEvent<TaskCreateEventDetail>) => {
+              console.log('Task Created:', e.detail)
             }}"
             @history-change="${(e: CustomEvent<HistoryChangeEventDetail>) => {
               canUndo = e.detail.canUndo

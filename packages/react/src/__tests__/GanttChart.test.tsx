@@ -155,4 +155,38 @@ describe('GanttChart (React Wrapper)', () => {
     expect(handleDependencyUpdate.mock.calls[0][0].detail.dependency.type).toBe('SS')
     expect(handleDependencyUpdate.mock.calls[0][0].detail.dependency.lag).toBe(1440)
   })
+
+  it('forwards task-create event to onTaskCreate prop', () => {
+    const handleTaskCreate = vi.fn()
+    const { container } = render(
+      <GanttChart
+        rows={sampleRows}
+        option={{ ...sampleOption, taskCreation: true }}
+        onTaskCreate={handleTaskCreate}
+      />
+    )
+
+    const el = container.querySelector('gantt-chart') as GanttChartElement
+    const createDetail = {
+      rowId: 'row-1',
+      row: sampleRows[0],
+      task: {
+        id: 'created-1',
+        name: 'New Task',
+        start: new Date('2026-04-12'),
+        end: new Date('2026-04-15'),
+      },
+      source: 'dblclick' as const,
+    }
+    el.dispatchEvent(
+      new CustomEvent('task-create', {
+        detail: createDetail,
+        bubbles: true,
+        composed: true,
+      })
+    )
+
+    expect(handleTaskCreate).toHaveBeenCalledTimes(1)
+    expect(handleTaskCreate.mock.calls[0][0].detail).toEqual(createDetail)
+  })
 })

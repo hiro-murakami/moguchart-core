@@ -267,7 +267,7 @@ export class TaskDragController implements ReactiveController {
       render(content, dragInfoEl)
     } else {
       const locale = this.host.option.locale ?? jaLocale
-      const isMonthlyMode = !!this.host.option.calendar.pxPerMonth
+      const isMonthlyMode = !!this.host.effectivePxPerMonth
       let startLabel: string
       let endLabel: string
       if (isMonthlyMode) {

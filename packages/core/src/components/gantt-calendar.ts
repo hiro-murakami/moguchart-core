@@ -1,4 +1,4 @@
-import { LitElement, html, css, render } from 'lit'
+import { LitElement, html, css, nothing, render } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type {
   GanttChartOption,
@@ -698,12 +698,20 @@ export class GanttCalendarElement extends LitElement {
     const activeSort = this.sortState ?? this.option.grid?.sortState ?? null
 
     const renderHeaderCell = (col: GanttColumn) => {
+      const colIndex = visibleColumns.findIndex((c) => c.id === col.id) + 1
       const isPinned = isGridColumnPinned(col)
       const sameGroupCount = isPinned ? pinnedColumns.length : scrollableColumns.length
       const isReorderable = gridReorderable && sameGroupCount >= 2 && col.reorderable !== false
       const isSortable = gridSortable && col.sortable !== false
       const sortDir: GridSortDirection | null =
         isSortable && activeSort?.columnId === col.id ? activeSort.direction : null
+      const ariaSort = isSortable
+        ? sortDir === 'asc'
+          ? 'ascending'
+          : sortDir === 'desc'
+            ? 'descending'
+            : 'none'
+        : nothing
       const isDragging = this._draggingColumnId === col.id
       const isDropLeft =
         this._dragOverColumnId === col.id && this._dragOverColumnPosition === 'left'
@@ -712,6 +720,9 @@ export class GanttCalendarElement extends LitElement {
       return html`
         <div
           class="grid-header-cell grid-header-cell-${col.id} ${isPinned ? 'is-pinned-left' : ''} ${isReorderable ? 'is-reorderable' : ''} ${isSortable ? 'is-sortable' : ''} ${sortDir ? `is-sorted is-sorted-${sortDir}` : ''} ${isDragging ? 'is-dragging' : ''} ${isDropLeft ? 'drop-target-left' : ''} ${isDropRight ? 'drop-target-right' : ''}"
+          role="columnheader"
+          aria-colindex="${colIndex}"
+          aria-sort="${ariaSort}"
           data-column-id="${col.id}"
           data-pinned="${isPinned ? 'left' : ''}"
           data-sort-direction="${sortDir ?? ''}"
@@ -1531,6 +1542,9 @@ export class GanttCalendarElement extends LitElement {
       </style>
       <div
         class="label-placeholder"
+        role="${this.isGridEnabled ? 'row' : 'columnheader'}"
+        aria-rowindex="${this.isGridEnabled ? '1' : nothing}"
+        aria-colindex="${this.isGridEnabled ? nothing : '1'}"
         style="width: ${this.option.rowHeader?.width ?? DEFAULT_ROW_HEADER_WIDTH}px; background-color: ${this.option
           .rowHeader?.backgroundColor ?? colors.rowHeaderBg}; ${this.isGridEnabled && this.cornerContent
           ? 'flex-direction: column; align-items: stretch; justify-content: flex-end; padding-right: 0;'
@@ -1733,13 +1747,15 @@ export class GanttCalendarElement extends LitElement {
                   : ''}
                 ${visibleShowTime.slice.map((seg) => {
                   return Array.from({ length: seg.hEnd - seg.hStart }, (_, i) => seg.hStart + i).map((h) => {
+                    const showHourText =
+                      hourWidth < 10 ? h % 3 === 0 : hourWidth < 15 ? h % 2 === 0 : true
                     return html` <div
                       class="hour-cell"
                       style="width: ${hourWidth}px;"
                       data-calendar-hour="${h}"
                       data-calendar-hour-width="${hourWidth}"
                       data-calendar-hour-date="${seg.date.toISOString()}"
-                    >${this.calendarHourContent ? '' : h}</div> `
+                    >${this.calendarHourContent ? '' : showHourText ? h : ''}</div> `
                   })
                 })}
               </div>

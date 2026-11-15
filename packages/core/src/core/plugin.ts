@@ -2,12 +2,14 @@ import type { GanttChartElement } from '../components/gantt-chart'
 import type {
   BeforeCellEditHookDetail,
   BeforeDependencyUpdateHookDetail,
+  BeforeTaskCreateHookDetail,
   CellEditEventDetail,
   DependencyCreateEventDetail,
   DependencyDeleteEventDetail,
   DependencyUpdateEventDetail,
   GanttOverlayRenderContext,
   GanttViewportState,
+  TaskCreateEventDetail,
   TaskUpdateEventDetail,
 } from './types'
 
@@ -30,6 +32,10 @@ export interface GanttPlugin<TConfig = any, TChart = any> {
   renderOverlay?: (context: GanttOverlayRenderContext<TChart>) => unknown
   /** ライフサイクルフック */
   hooks?: {
+    /** タスク新規作成直前のフック（false を返すと作成処理をキャンセル） */
+    beforeTaskCreate?: (detail: BeforeTaskCreateHookDetail) => boolean | void | Promise<boolean | void>
+    /** タスク新規作成直後のフック */
+    afterTaskCreate?: (detail: TaskCreateEventDetail) => void
     /** タスク更新直前のフック（false を返すと更新処理をキャンセル） */
     beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Promise<boolean | void>
     /** タスク更新直後のフック */
@@ -137,6 +143,7 @@ export class PluginManager {
    */
   public runBeforeHook<
     K extends
+      | 'beforeTaskCreate'
       | 'beforeTaskUpdate'
       | 'beforeDependencyCreate'
       | 'beforeDependencyDelete'
@@ -183,6 +190,30 @@ export class PluginManager {
       }
     }
     onAllowed()
+  }
+
+  /**
+   * beforeTaskCreate フックを一括実行する
+   */
+  public async executeBeforeTaskCreate(detail: BeforeTaskCreateHookDetail): Promise<boolean> {
+    for (const { plugin } of this.plugins.values()) {
+      if (plugin.hooks?.beforeTaskCreate) {
+        const result = await plugin.hooks.beforeTaskCreate(detail)
+        if (result === false) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  /**
+   * afterTaskCreate フックを一括実行する
+   */
+  public executeAfterTaskCreate(detail: TaskCreateEventDetail): void {
+    for (const { plugin } of this.plugins.values()) {
+      plugin.hooks?.afterTaskCreate?.(detail)
+    }
   }
 
   /**
