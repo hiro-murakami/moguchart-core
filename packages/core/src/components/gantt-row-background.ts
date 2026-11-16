@@ -1,14 +1,14 @@
 import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
-import { createCustomHolidayResolver } from '../core/auto-schedule'
+import { createCustomHolidayResolver } from '../core/auto-schedule.js'
 import {
   getCalendarColor,
   getThemeColors,
   getTotalDays,
   dateToX,
   MAX_CALENDAR_DAYS,
-} from '../core/utils'
-import type { GanttChartOption, ChartBackgroundCellContext, GanttHolidayChecker } from '../core/types'
+} from '../core/utils.js'
+import type { GanttChartOption, ChartBackgroundCellContext, GanttHolidayChecker } from '../core/types.js'
 
 interface CachedBgCell {
   left: number

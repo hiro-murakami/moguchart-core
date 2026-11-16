@@ -16,9 +16,9 @@ import type {
   GanttRow,
   GanttTask,
   RowSelectionChangeEventDetail,
-} from '../../core/types'
-import type { GanttCommandType } from '../../core/history'
-import type { PluginManager } from '../../core/plugin'
+} from '../../core/types.js'
+import type { GanttCommandType } from '../../core/history.js'
+import type { PluginManager } from '../../core/plugin.js'
 import {
   createDependencyEntry,
   endpointsToDependencyType,
@@ -27,7 +27,7 @@ import {
   normalizeDependencyLink,
   propagateAutoSchedule,
   removeDependencyTarget,
-} from '../../core/auto-schedule'
+} from '../../core/auto-schedule.js'
 
 export interface ConnectorDragState {
   sourceTaskId: string

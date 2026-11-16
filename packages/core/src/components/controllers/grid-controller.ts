@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
-import { DEFAULT_ROW_HEADER_WIDTH } from '../../core/constants'
-import { propagateAutoSchedule, type AutoScheduleOptions } from '../../core/auto-schedule'
+import { DEFAULT_ROW_HEADER_WIDTH } from '../../core/constants.js'
+import { propagateAutoSchedule, type AutoScheduleOptions } from '../../core/auto-schedule.js'
 import {
   applyGridCellEdit,
   findAdjacentEditableCell,
@@ -11,9 +11,9 @@ import {
   parseTsvString,
   partitionGridColumns,
   resolveGridCellRange,
-} from '../../core/grid'
-import type { GanttCommandType } from '../../core/history'
-import type { PluginManager } from '../../core/plugin'
+} from '../../core/grid.js'
+import type { GanttCommandType } from '../../core/history.js'
+import type { PluginManager } from '../../core/plugin.js'
 import type {
   BeforeCellEditHookDetail,
   CellCopyEventDetail,
@@ -32,8 +32,8 @@ import type {
   GridSortDirection,
   GridSortState,
   RowHeaderResizeEventDetail,
-} from '../../core/types'
-import { computeRowWbsCodes } from '../../core/wbs'
+} from '../../core/types.js'
+import { computeRowWbsCodes } from '../../core/wbs.js'
 
 export interface GridControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption

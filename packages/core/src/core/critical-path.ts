@@ -1,5 +1,5 @@
-import type { GanttDependencyLink, GanttRow } from './types'
-import { computeRequiredStartMs, normalizeDependencyLink } from './auto-schedule'
+import type { GanttDependencyLink, GanttRow } from './types.js'
+import { computeRequiredStartMs, normalizeDependencyLink } from './auto-schedule.js'
 
 /**
  * 依存関係グラフからクリティカルパス上のタスクIDの集合を計算する。

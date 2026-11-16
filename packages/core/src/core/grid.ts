@@ -7,17 +7,17 @@ import type {
   GridCellNavigationDirection,
   GridSortDirection,
   GridCellRange,
-} from './types'
-import type { MoguchartLocale } from './i18n'
-import { jaLocale } from './i18n'
+} from './types.js'
+import type { MoguchartLocale } from './i18n.js'
+import { jaLocale } from './i18n.js'
 import {
   addWorkingDays,
   countWorkingDays,
   createNonWorkingDayChecker,
   snapToWorkingStartMs,
   type AutoScheduleOptions,
-} from './auto-schedule'
-import { formatDuration, isMilestoneTask } from './utils'
+} from './auto-schedule.js'
+import { formatDuration, isMilestoneTask } from './utils.js'
 
 /**
  * 組み込みカラムのデフォルト仕様定義

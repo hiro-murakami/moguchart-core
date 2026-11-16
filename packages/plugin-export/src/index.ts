@@ -1,5 +1,5 @@
 import type { GanttChartElement, GanttPlugin } from '@mogura/moguchart-core'
-import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './export'
+import { exportGanttWithHtml2Canvas, type ExportImageOptions } from './export.js'
 
 export interface ExportPluginConfig {
   defaultScale?: number

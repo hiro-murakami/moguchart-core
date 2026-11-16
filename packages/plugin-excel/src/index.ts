@@ -1,6 +1,6 @@
 import type { GanttChartElement, GanttPlugin } from '@mogura/moguchart-core'
-import { exportGanttToExcel, getDefaultColumns } from './export'
-import { registerExcelLocale } from './i18n'
+import { exportGanttToExcel, getDefaultColumns } from './export.js'
+import { registerExcelLocale } from './i18n.js'
 import type {
   ExcelPluginConfig,
   ExportExcelOptions,
@@ -8,7 +8,7 @@ import type {
   ExcelTimelineScale,
   ExcelLocale,
   ExcelLocaleDefinition,
-} from './types'
+} from './types.js'
 
 /**
  * ガントチャートのExcel (.xlsx) エクスポートプラグイン
@@ -89,7 +89,7 @@ export {
   jaLocale,
   enLocale,
   zhLocale,
-} from './i18n'
+} from './i18n.js'
 export type {
   ExcelPluginConfig,
   ExportExcelOptions,

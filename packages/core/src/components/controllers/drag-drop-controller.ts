@@ -5,19 +5,19 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
   TaskUpdateEventDetail,
-} from '../../core/types'
-import type { GanttCommandType } from '../../core/history'
+} from '../../core/types.js'
+import type { GanttCommandType } from '../../core/history.js'
 import {
   TaskDragController,
   type DragOverlayInfo,
   type DragPreviewState,
   type DraggingTaskState,
   type TaskDragControllerHost,
-} from './task-drag-controller'
+} from './task-drag-controller.js'
 import {
   RowReorderController,
   type RowReorderControllerHost,
-} from './row-reorder-controller'
+} from './row-reorder-controller.js'
 
 export type { DragOverlayInfo, DragPreviewState, DraggingTaskState }
 

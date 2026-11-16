@@ -1,5 +1,5 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
-import type { GanttChartOption, BarSelectionChangeEventDetail } from '../../core/types'
+import type { GanttChartOption, BarSelectionChangeEventDetail } from '../../core/types.js'
 
 export interface MarqueeSelectionState {
   startX: number

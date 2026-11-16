@@ -7,21 +7,21 @@ import type {
   GanttTask,
   GridSortState,
   RowToggleCollapseEventDetail,
-} from '../../core/types'
+} from '../../core/types.js'
 import {
   evaluateRowFilter,
   isFilterConfigActive,
   type GanttFilterConfig,
   type GanttFilterResult,
-} from '../../core/filter'
+} from '../../core/filter.js'
 import {
   computeChildRowIds,
   computeRowWbsCodes,
   computeSummaryTask,
   computeVisibleTreeRows,
-} from '../../core/wbs'
-import { sortGridRowsHierarchically } from '../../core/grid'
-import type { AutoScheduleOptions } from '../../core/auto-schedule'
+} from '../../core/wbs.js'
+import { sortGridRowsHierarchically } from '../../core/grid.js'
+import type { AutoScheduleOptions } from '../../core/auto-schedule.js'
 
 export interface TreeControllerHost extends ReactiveControllerHost, HTMLElement {
   rows: GanttRow[]

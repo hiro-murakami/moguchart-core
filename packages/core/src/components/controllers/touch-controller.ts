@@ -1,7 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
-import { xToDate } from '../../core/utils'
-import type { GanttChartOption } from '../../core/types'
-import type { ZoomController } from './zoom-controller'
+import { xToDate } from '../../core/utils.js'
+import type { GanttChartOption } from '../../core/types.js'
+import type { ZoomController } from './zoom-controller.js'
 
 export interface TouchControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption

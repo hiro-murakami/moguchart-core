@@ -3,12 +3,12 @@ import type {
   DependencyLineStyle,
   GanttChartOption,
   GanttRow,
-} from '../core/types'
-import { buildOrthogonalPath } from './gantt-chart-dependency-path'
-import { computeCriticalPath } from '../core/critical-path'
-import { dependencyTypeToEndpoints, normalizeDependencyLink } from '../core/auto-schedule'
-import { DEFAULT_BAR_MARGIN } from '../core/constants'
-import type { ConnectorDragState } from './controllers/dependency-controller'
+} from '../core/types.js'
+import { buildOrthogonalPath } from './gantt-chart-dependency-path.js'
+import { computeCriticalPath } from '../core/critical-path.js'
+import { dependencyTypeToEndpoints, normalizeDependencyLink } from '../core/auto-schedule.js'
+import { DEFAULT_BAR_MARGIN } from '../core/constants.js'
+import type { ConnectorDragState } from './controllers/dependency-controller.js'
 
 export interface DependencySvgOptions {
   taskCoords: Map<string, any>

@@ -5,7 +5,7 @@ import type {
   ExcelExportColumn,
   ExcelTimelineScale,
   ExcelLocale,
-} from './types'
+} from './types.js'
 import {
   hexToArgb,
   sanitizeSheetName,
@@ -23,8 +23,8 @@ import {
   toExcelDate,
   type FlatRowItem,
   type TimelineItem,
-} from './utils'
-import { resolveExcelLocale, jaLocale } from './i18n'
+} from './utils.js'
+import { resolveExcelLocale, jaLocale } from './i18n.js'
 
 /**
  * デフォルトの標準カラム定義（多言語・カスタムロケール対応）

@@ -1,10 +1,10 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
-import type { GanttChartOption, GanttRow, GanttTask, RowReorderEventDetail } from '../../core/types'
-import type { GanttCommandType } from '../../core/history'
-import { canDropRow, computeChildRowIds } from '../../core/wbs'
-import { xToDate } from '../../core/utils'
-import type { GanttRowElement } from '../gantt-row'
-import type { DragPreviewState } from './task-drag-controller'
+import type { GanttChartOption, GanttRow, GanttTask, RowReorderEventDetail } from '../../core/types.js'
+import type { GanttCommandType } from '../../core/history.js'
+import { canDropRow, computeChildRowIds } from '../../core/wbs.js'
+import { xToDate } from '../../core/utils.js'
+import type { GanttRowElement } from '../gantt-row.js'
+import type { DragPreviewState } from './task-drag-controller.js'
 
 export interface RowReorderControllerHost extends ReactiveControllerHost, HTMLElement {
   rows: GanttRow[]

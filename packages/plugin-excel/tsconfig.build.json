@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": false,
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,
@@ -8,7 +11,7 @@
     "declarationDir": "dist",
     "paths": {
       "@/*": ["src/*"],
-      "@mogura/moguchart-core": ["../core/dist/index"]
+      "@mogura/moguchart-core": ["../core/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*.ts"],

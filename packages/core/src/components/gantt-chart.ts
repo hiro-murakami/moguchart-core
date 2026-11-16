@@ -1,7 +1,7 @@
 import {
   DEFAULT_BAR_MARGIN,
   DEFAULT_ROW_HEADER_WIDTH,
-} from '../core/constants'
+} from '../core/constants.js'
 import type {
   BarHoverEventDetail,
   BarSelectionChangeEventDetail,
@@ -32,10 +32,10 @@ import type {
   DependencyType,
   DependencyUpdateInput,
   GanttSemanticZoomScale,
-} from '../core/types'
-import { jaLocale } from '../core/i18n'
-import type { GanttFilterConfig, GanttFilterResult } from '../core/filter'
-import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history'
+} from '../core/types.js'
+import { jaLocale } from '../core/i18n.js'
+import type { GanttFilterConfig, GanttFilterResult } from '../core/filter.js'
+import { HistoryManager, type GanttCommand, type GanttCommandType } from '../core/history.js'
 import {
   calculateGridFooterSummary,
   getGridFooterCellValue,
@@ -43,7 +43,7 @@ import {
   isGridColumnPinned,
   partitionGridColumns,
   resolveGridCellRange,
-} from '../core/grid'
+} from '../core/grid.js'
 import {
   calculateTaskLanes,
   getThemeColors,
@@ -52,19 +52,19 @@ import {
   sanitizeCssValue,
   sanitizeInlineStyle,
   throttle,
-} from '../core/utils'
-import { computeCriticalPath } from '../core/critical-path'
-import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule'
+} from '../core/utils.js'
+import { computeCriticalPath } from '../core/critical-path.js'
+import { propagateAutoSchedule, type AutoScheduleOptions } from '../core/auto-schedule.js'
 import { LitElement, html, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
 
-import './gantt-calendar'
-import './gantt-row'
-import './gantt-minimap'
-import type { MinimapScrollEventDetail } from './gantt-minimap'
-import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles'
-import { PluginManager, type GanttPlugin } from '../core/plugin'
+import './gantt-calendar.js'
+import './gantt-row.js'
+import './gantt-minimap.js'
+import type { MinimapScrollEventDetail } from './gantt-minimap.js'
+import { ganttChartStyles, buildDynamicStyles } from './gantt-chart-styles.js'
+import { PluginManager, type GanttPlugin } from '../core/plugin.js'
 import {
   ZoomController,
   TouchController,
@@ -83,13 +83,13 @@ import {
   type DraggingTaskState,
   type DragOverlayInfo,
   type DragPreviewState,
-} from './controllers'
-import { renderDependencySvg } from './gantt-chart-dependency-svg'
-import type { ExportImageOptions } from '../core/types'
+} from './controllers/index.js'
+import { renderDependencySvg } from './gantt-chart-dependency-svg.js'
+import type { ExportImageOptions } from '../core/types.js'
 import {
   computeRowLevels,
   computeRowWbsCodes,
-} from '../core/wbs'
+} from '../core/wbs.js'
 
 
 @customElement('gantt-chart')

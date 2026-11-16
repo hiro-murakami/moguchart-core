@@ -1,4 +1,4 @@
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_ROW_HEADER_WIDTH } from '../core/constants.js'
 import type {
   GanttChartOption,
   GanttMarker,
@@ -13,15 +13,15 @@ import type {
   RowToggleCollapseEventDetail,
   GanttColumn,
   GridCellNavigationDirection,
-} from '../core/types'
+} from '../core/types.js'
 import {
   calculateTaskLanes,
   getThemeColors,
   dateToX,
   sanitizeCssValue,
   sanitizeInlineStyle,
-} from '../core/utils'
-import { jaLocale } from '../core/i18n'
+} from '../core/utils.js'
+import { jaLocale } from '../core/i18n.js'
 import {
   normalizeGridColumns,
   getGridCellValue,
@@ -32,12 +32,12 @@ import {
   resolveColumnEditorType,
   formatGridCellEditValue,
   type ResolvedGridCellRange,
-} from '../core/grid'
+} from '../core/grid.js'
 import { LitElement, css, html, nothing, render, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { repeat } from 'lit/directives/repeat.js'
-import './gantt-bar'
-import './gantt-row-background'
+import './gantt-bar.js'
+import './gantt-row-background.js'
 
 @customElement('gantt-row')
 export class GanttRowElement extends LitElement {

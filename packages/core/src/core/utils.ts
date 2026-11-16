@@ -1,17 +1,17 @@
 import {
   normalizeDependencyLink,
   resolveHolidayMeta,
-} from './auto-schedule'
+} from './auto-schedule.js'
 import type {
   GanttHolidayChecker,
   GanttRow,
   GanttTask,
   TaskWithLane,
   ThemeColorPalette,
-} from './types'
-import type { MoguchartLocale } from './i18n'
-import { jaLocale } from './i18n'
-import { THEME_COLORS } from './theme'
+} from './types.js'
+import type { MoguchartLocale } from './i18n.js'
+import { jaLocale } from './i18n.js'
+import { THEME_COLORS } from './theme.js'
 
 /**
  * 指定されたタスクがマイルストーンタスク (type === 'milestone') かどうかを判定します。

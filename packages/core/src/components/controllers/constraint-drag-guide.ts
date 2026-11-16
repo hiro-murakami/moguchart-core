@@ -2,9 +2,9 @@ import {
   addWorkingTimeMs,
   computeWorkingDurationMs,
   snapToWorkingStartMs,
-} from '../../core/auto-schedule'
-import { jaLocale } from '../../core/i18n'
-import type { PluginManager } from '../../core/plugin'
+} from '../../core/auto-schedule.js'
+import { jaLocale } from '../../core/i18n.js'
+import type { PluginManager } from '../../core/plugin.js'
 import type {
   GanttChartOption,
   GanttRow,
@@ -12,8 +12,8 @@ import type {
   GanttTaskMoveMode,
   TaskConstraintType,
   TaskUpdateEventDetail,
-} from '../../core/types'
-import { isMilestoneTask } from '../../core/utils'
+} from '../../core/types.js'
+import { isMilestoneTask } from '../../core/utils.js'
 
 export interface TaskConstraintInfo {
   type: TaskConstraintType

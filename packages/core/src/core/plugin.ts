@@ -1,4 +1,4 @@
-import type { GanttChartElement } from '../components/gantt-chart'
+import type { GanttChartElement } from '../components/gantt-chart.js'
 import type {
   BeforeCellEditHookDetail,
   BeforeDependencyUpdateHookDetail,
@@ -11,7 +11,7 @@ import type {
   GanttViewportState,
   TaskCreateEventDetail,
   TaskUpdateEventDetail,
-} from './types'
+} from './types.js'
 
 /**
  * ガントチャート拡張プラグインの共通インターフェース

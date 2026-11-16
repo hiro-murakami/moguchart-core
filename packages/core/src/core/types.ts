@@ -1,7 +1,7 @@
-import type { MoguchartLocale } from './i18n'
-import type { GanttPlugin } from './plugin'
-import type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager } from './history'
-import type { GanttFilterConfig, GanttFilterResult } from './filter'
+import type { MoguchartLocale } from './i18n.js'
+import type { GanttPlugin } from './plugin.js'
+import type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager } from './history.js'
+import type { GanttFilterConfig, GanttFilterResult } from './filter.js'
 
 /**
  * ガントチャートのバーに適用できるパターンの種類
@@ -1522,7 +1522,7 @@ export interface CommandEventDetail {
 export interface HistoryChangeEventDetail extends HistoryState {}
 
 export type { GanttCommand, HistoryState, HistoryManagerOptions, GanttCommandType, IHistoryManager }
-export type { MoguchartLocale } from './i18n'
+export type { MoguchartLocale } from './i18n.js'
 
 /**
  * 組み込み標準カラムのID

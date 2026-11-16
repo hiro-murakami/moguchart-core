@@ -1,12 +1,12 @@
-import type { GanttColumn, GanttRow, GanttTask } from './types'
-import { getGridCellValue, isUnsafePropertyKey } from './grid'
+import type { GanttColumn, GanttRow, GanttTask } from './types.js'
+import { getGridCellValue, isUnsafePropertyKey } from './grid.js'
 import {
   calculateTaskDeadline,
   calculateTaskDelay,
   clampProgress,
   isMilestoneTask,
-} from './utils'
-import { computeChildRowIds, computeRowWbsCodes } from './wbs'
+} from './utils.js'
+import { computeChildRowIds, computeRowWbsCodes } from './wbs.js'
 
 /**
  * フィルタ非一致行の表示モード

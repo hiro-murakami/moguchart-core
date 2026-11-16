@@ -7,9 +7,9 @@ import type {
   DependencyEndpoint,
   TaskProgressChangeEventDetail,
   TaskDeadlineChangeEventDetail,
-} from '../core/types'
-import { jaLocale } from '../core/i18n'
-import { getPatternStyle } from '../core/patterns'
+} from '../core/types.js'
+import { jaLocale } from '../core/i18n.js'
+import { getPatternStyle } from '../core/patterns.js'
 import {
   dateToX,
   xToDate,
@@ -19,8 +19,8 @@ import {
   isMilestoneTask,
   sanitizeCssValue,
   sanitizeInlineStyle,
-} from '../core/utils'
-import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants'
+} from '../core/utils.js'
+import { DEFAULT_BAR_COLOR, DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN, DEFAULT_BAR_CORNER_RADIUS } from '../core/constants.js'
 
 /**
  * タスク名ラベルの推定描画幅 (px) を算出する ('auto' 配置モードの判定用)

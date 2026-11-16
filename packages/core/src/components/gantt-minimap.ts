@@ -6,9 +6,9 @@ import type {
   MinimapCollapseEventDetail,
   MinimapMoveEventDetail,
   MinimapResizeEventDetail,
-} from '../core/types'
-import { calculateTaskLanes, dateToX, getThemeColors } from '../core/utils'
-import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '../core/constants'
+} from '../core/types.js'
+import { calculateTaskLanes, dateToX, getThemeColors } from '../core/utils.js'
+import { DEFAULT_BAR_HEIGHT, DEFAULT_BAR_MARGIN } from '../core/constants.js'
 
 /**
  * ミニマップスクロールイベントの詳細データ

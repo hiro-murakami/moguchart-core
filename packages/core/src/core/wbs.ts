@@ -1,4 +1,4 @@
-import type { GanttRow, GanttTask } from './types'
+import type { GanttRow, GanttTask } from './types.js'
 
 /**
  * 各行の階層レベル（深さ: ルートは0, その子は1, 孫は2...）を計算します。

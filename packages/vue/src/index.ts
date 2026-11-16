@@ -1,7 +1,7 @@
 import type { App, Plugin } from 'vue'
-import { GanttChart } from './GanttChart'
+import { GanttChart } from './GanttChart.js'
 
-export * from './GanttChart'
+export * from './GanttChart.js'
 export * from '@mogura/moguchart-core'
 
 /**

@@ -6,16 +6,16 @@ import type {
   GanttTask,
   GanttTaskMoveMode,
   TaskUpdateEventDetail,
-} from '../../core/types'
-import type { GanttCommandType } from '../../core/history'
-import type { PluginManager } from '../../core/plugin'
+} from '../../core/types.js'
+import type { GanttCommandType } from '../../core/history.js'
+import type { PluginManager } from '../../core/plugin.js'
 import {
   calculateTaskLanes,
   getThemeColors,
   formatDuration,
   xToDate,
   isMilestoneTask,
-} from '../../core/utils'
+} from '../../core/utils.js'
 import {
   addWorkingTimeMs,
   computeWorkingDurationMs,
@@ -23,16 +23,16 @@ import {
   propagateAutoSchedule,
   snapToWorkingStartMs,
   type AutoScheduleOptions,
-} from '../../core/auto-schedule'
-import { jaLocale } from '../../core/i18n'
-import { DEFAULT_BAR_MARGIN } from '../../core/constants'
+} from '../../core/auto-schedule.js'
+import { jaLocale } from '../../core/i18n.js'
+import { DEFAULT_BAR_MARGIN } from '../../core/constants.js'
 import {
   ConstraintDragGuideManager,
   clampMovedTaskDates,
   clampResizedTaskDates,
   extractTaskConstraint,
   resolveEffectiveSnetDate,
-} from './constraint-drag-guide'
+} from './constraint-drag-guide.js'
 
 export interface DragOverlayInfo {
   id: string

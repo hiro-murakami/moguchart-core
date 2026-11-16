@@ -13,10 +13,10 @@ import type {
   ColumnSortEventDetail,
   GridSortDirection,
   GridSortState,
-} from '../core/types'
-import { jaLocale } from '../core/i18n'
-import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants'
-import { createCustomHolidayResolver } from '../core/auto-schedule'
+} from '../core/types.js'
+import { jaLocale } from '../core/i18n.js'
+import { DEFAULT_ROW_HEADER_WIDTH } from '../core/constants.js'
+import { createCustomHolidayResolver } from '../core/auto-schedule.js'
 import {
   getCalendarColor,
   getThemeColors,
@@ -25,13 +25,13 @@ import {
   MAX_CALENDAR_DAYS,
   sanitizeCssValue,
   formatCalendarDate,
-} from '../core/utils'
+} from '../core/utils.js'
 import {
   isGridColumnPinned,
   normalizeGridColumns,
   partitionGridColumns,
   reorderGridColumns,
-} from '../core/grid'
+} from '../core/grid.js'
 
 interface PositionedRange {
   left: number

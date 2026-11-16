@@ -1,15 +1,15 @@
 // ライブラリ公開用エントリポイント
-export * from './components/gantt-bar'
-export * from './components/gantt-calendar'
-export * from './components/gantt-chart'
-export * from './components/gantt-row'
-export * from './components/gantt-minimap'
-export * from './core/types'
-export * from './core/constants'
-export * from './core/patterns'
-export * from './core/i18n'
-export * from './core/plugin'
-export * from './core/history'
+export * from './components/gantt-bar.js'
+export * from './components/gantt-calendar.js'
+export * from './components/gantt-chart.js'
+export * from './components/gantt-row.js'
+export * from './components/gantt-minimap.js'
+export * from './core/types.js'
+export * from './core/constants.js'
+export * from './core/patterns.js'
+export * from './core/i18n.js'
+export * from './core/plugin.js'
+export * from './core/history.js'
 export {
   clampProgress,
   calculateRowProgress,
@@ -23,9 +23,9 @@ export {
   MAX_CALENDAR_DAYS,
   sanitizeCssValue,
   sanitizeInlineStyle,
-} from './core/utils'
-export { computeCriticalPath } from './core/critical-path'
-export * from './core/auto-schedule'
+} from './core/utils.js'
+export { computeCriticalPath } from './core/critical-path.js'
+export * from './core/auto-schedule.js'
 export {
   extractTaskConstraint,
   formatConstraintDateLabel,
@@ -36,7 +36,7 @@ export {
   type TaskConstraintInfo,
   type ActiveConstraintBoundary,
   type ActiveConstraintDragState,
-} from './components/controllers/constraint-drag-guide'
+} from './components/controllers/constraint-drag-guide.js'
 export {
   computeRowLevels,
   computeRowWbsCodes,
@@ -44,9 +44,9 @@ export {
   computeVisibleTreeRows,
   computeSummaryTask,
   canDropRow,
-} from './core/wbs'
-export * from './core/grid'
-export * from './core/filter'
+} from './core/wbs.js'
+export * from './core/grid.js'
+export * from './core/filter.js'
 export {
   DAYS_PER_MONTH,
   DEFAULT_SEMANTIC_SCALES,
@@ -54,8 +54,8 @@ export {
   resolveSemanticScale,
   type ResolvedSemanticZoomConfig,
   type SemanticCalendarOverrides,
-} from './components/controllers/zoom-controller'
+} from './components/controllers/zoom-controller.js'
 export {
   resolveTaskCreationConfig,
   type ResolvedTaskCreationConfig,
-} from './components/controllers/task-create-controller'
+} from './components/controllers/task-create-controller.js'

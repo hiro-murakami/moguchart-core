@@ -1,6 +1,6 @@
 import { css } from 'lit'
-import type { ThemeColorPalette } from '../core/types'
-import { getThemeColors } from '../core/utils'
+import type { ThemeColorPalette } from '../core/types.js'
+import { getThemeColors } from '../core/utils.js'
 
 /**
  * GanttChartElement の Static CSS スタイル。

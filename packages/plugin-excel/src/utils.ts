@@ -1,6 +1,6 @@
 import type { GanttChartElement, GanttHolidayChecker, GanttRow } from '@mogura/moguchart-core'
-import type { ExcelLocale, ExcelTimelineScale, ExportExcelOptions } from './types'
-import { resolveExcelLocale, jaLocale, enLocale } from './i18n'
+import type { ExcelLocale, ExcelTimelineScale, ExportExcelOptions } from './types.js'
+import { resolveExcelLocale, jaLocale, enLocale } from './i18n.js'
 
 export const EN_MONTH_NAMES = enLocale.timeline?.monthNames || [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',

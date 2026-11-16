@@ -11,7 +11,7 @@ import type {
   GanttRow,
   GanttTask,
   TaskConstraintType,
-} from './types'
+} from './types.js'
 
 /**
  * 自動スケジューリングおよび稼働日計算オプション

@@ -4,8 +4,8 @@ import {
   DEFAULT_ROW_HEADER_WIDTH,
   DEFAULT_ZOOM_CONFIG,
   CHROME_ZOOM_LEVELS,
-} from '../../core/constants'
-import { dateToX, xToDate } from '../../core/utils'
+} from '../../core/constants.js'
+import { dateToX, xToDate } from '../../core/utils.js'
 import type {
   GanttChartOption,
   GanttChartOptionCalendar,
@@ -14,7 +14,7 @@ import type {
   GanttSemanticZoomConfig,
   GanttSemanticZoomScale,
   ZoomChangeEventDetail,
-} from '../../core/types'
+} from '../../core/types.js'
 
 export const DAYS_PER_MONTH = 30.4375
 

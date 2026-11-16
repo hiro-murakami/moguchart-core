@@ -1,5 +1,5 @@
-import type { GanttTaskPattern, BarPattern } from './types'
-import { sanitizeCssValue } from './utils'
+import type { GanttTaskPattern, BarPattern } from './types.js'
+import { sanitizeCssValue } from './utils.js'
 
 // ============================================================
 // パターン定数

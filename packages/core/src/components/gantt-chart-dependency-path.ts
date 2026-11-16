@@ -1,4 +1,4 @@
-import type { DependencyEndpoint } from '../core/types'
+import type { DependencyEndpoint } from '../core/types.js'
 
 /**
  * 直角折れ線（角丸）の SVG パスを生成するヘルパー関数。

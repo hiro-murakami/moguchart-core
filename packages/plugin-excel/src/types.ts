@@ -1,5 +1,5 @@
 import type { GanttHolidayChecker, GanttRow, GanttTask } from '@mogura/moguchart-core'
-import type { ExcelLocaleDefinition } from './i18n'
+import type { ExcelLocaleDefinition } from './i18n.js'
 
 export type { ExcelLocaleDefinition }
 

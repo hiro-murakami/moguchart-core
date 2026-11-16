@@ -6,9 +6,9 @@ import type {
   GanttTaskMoveMode,
   GridCellRange,
   TaskDeleteEventDetail,
-} from '../../core/types'
-import { createNonWorkingDayChecker, propagateAutoSchedule } from '../../core/auto-schedule'
-import { clampMovedTaskDates } from './constraint-drag-guide'
+} from '../../core/types.js'
+import { createNonWorkingDayChecker, propagateAutoSchedule } from '../../core/auto-schedule.js'
+import { clampMovedTaskDates } from './constraint-drag-guide.js'
 
 export interface KeyboardControllerHost extends ReactiveControllerHost, HTMLElement {
   option: GanttChartOption

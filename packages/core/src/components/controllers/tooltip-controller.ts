@@ -1,10 +1,10 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 import { html, render } from 'lit'
-import { countWorkingDays } from '../../core/auto-schedule'
-import { jaLocale } from '../../core/i18n'
-import type { BarHoverEventDetail, GanttChartOption } from '../../core/types'
-import { calculateTaskDelay, calculateTaskDeadline, isMilestoneTask } from '../../core/utils'
-import { extractTaskConstraint, formatConstraintDateLabel } from './constraint-drag-guide'
+import { countWorkingDays } from '../../core/auto-schedule.js'
+import { jaLocale } from '../../core/i18n.js'
+import type { BarHoverEventDetail, GanttChartOption } from '../../core/types.js'
+import { calculateTaskDelay, calculateTaskDeadline, isMilestoneTask } from '../../core/utils.js'
+import { extractTaskConstraint, formatConstraintDateLabel } from './constraint-drag-guide.js'
 
 export type TooltipState = BarHoverEventDetail & {
   visible: boolean

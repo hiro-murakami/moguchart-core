@@ -8,12 +8,12 @@ import type {
   GanttTask,
   GanttTaskCreationTrigger,
   TaskCreateEventDetail,
-} from '../../core/types'
-import type { GanttCommandType } from '../../core/history'
-import type { PluginManager } from '../../core/plugin'
-import type { DragOverlayInfo, DragPreviewState } from './task-drag-controller'
-import { dateToX, xToDate } from '../../core/utils'
-import { jaLocale } from '../../core/i18n'
+} from '../../core/types.js'
+import type { GanttCommandType } from '../../core/history.js'
+import type { PluginManager } from '../../core/plugin.js'
+import type { DragOverlayInfo, DragPreviewState } from './task-drag-controller.js'
+import { dateToX, xToDate } from '../../core/utils.js'
+import { jaLocale } from '../../core/i18n.js'
 
 export interface ResolvedTaskCreationConfig {
   enabled: boolean
