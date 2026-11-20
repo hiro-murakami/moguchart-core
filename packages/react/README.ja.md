@@ -16,10 +16,10 @@ Lit 公式の `@lit/react` をベースに設計されており、Web Components
 - ⚡ **命令的メソッドへのアクセス**: `ref` を介して `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` などを直接呼び出し可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`onTaskDeadlineChange`）・超過検知、およびドラッグガイド＆自動クランプ付きのスケジュール制約（`SNET` / `FNLT`、`option.constraint`）に対応
-- 📋 **マルチカラムデータグリッド ＆ スプレッドシート操作**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`onColumnSort`）・セル範囲選択＆TSVコピー＆ペースト（`onCellSelectionChange`, `onCellCopy`, `onCellPaste`）・列幅リサイズ・カラムドラッグ並び替え（`onColumnReorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`onCellEdit`, `onColumnResize`）に対応
-- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
-- 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
-- 🗓️ **四半期ヘッダー・自動拡張・タッチ操作最適化**: 会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`onCalendarRangeChange`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）に対応
+- 📋 **マルチカラムデータグリッド ＆ フィルタ検索**: `option.grid` による複数列WBSテーブル表示（左固定ピン留め列 `pinned`、稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`onColumnSort`）・セル範囲選択＆TSVコピー＆ペースト（`onCellSelectionChange`, `onCellCopy`, `onCellPaste`）・列幅リサイズ・カラムドラッグ並び替え（`onColumnReorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`onCellEdit`, `onColumnResize`）、ならびに WBS 階層維持フィルタリング（`option.filter`, `onFilterChange`）に対応
+- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係編集**: `GanttDependencyLink` による4種類の依存関係・ラグ指定、組み込み依存関係編集ポップオーバー＆線上編集ボタン（`onDependencyEdit`, `onDependencyUpdate`）、および営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 🏁 **タイムラインタスク作成・マイルストーン ＆ ラベル配置制御**: タイムライン空白上の `Alt+ドラッグ` / ダブルクリックによる新規タスク作成（`option.taskCreation`, `onTaskCreate`）、ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
+- 🗓️ **セマンティック・ズーム・四半期ヘッダー・タッチ操作 ＆ WAI-ARIA 対応**: 連続ズームによる `Month ⇄ Week ⇄ Day ⇄ Hour` 自動粒度切替（`option.zoom.semanticScale`）、会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`onCalendarRangeChange`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）、および `role="treegrid"` 準拠の WAI-ARIA アクセシビリティに対応
 - 📦 **Re-export**: `@mogura/moguchart-core` の型定義や定数をすべて再エクスポートしているため、本パッケージのみのインストールで開発可能
 
 ---
@@ -147,10 +147,10 @@ export function GanttToolbar() {
 
 - **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
-- **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`, `clearSelection()`
+- **WBS・折りたたみ・フィルタリング**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `setFilter(filter)`, `clearFilter()`, `getFilter()`, `getFilterResult()`, `getRowPositions()`
 - **グリッド・インラインセル編集・ソート・TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
-- **依存関係・自動スケジュール操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
+- **依存関係・自動スケジュール操作**: `updateDependency(sourceTaskId, targetTaskId, updates)`, `openDependencyEditPopover(sourceTaskId, targetTaskId)`, `closeDependencyEditPopover()`, `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
 
@@ -315,6 +315,7 @@ React では標準のイベント Props としてキャメルケース（`onTask
 | Prop 名 | 説明 | イベント引数型 |
 |---|---|---|
 | `onTaskUpdate` | タスクのドラッグ移動やリサイズ完了時 | `CustomEvent<TaskUpdateEventDetail>` |
+| `onTaskCreate` | タイムライン上での新規タスク作成時（Alt+ドラッグ / ダブルクリック） | `CustomEvent<TaskCreateEventDetail>` |
 | `onTaskClick` | タスククリック時 | `CustomEvent<TaskClickEventDetail>` |
 | `onTaskDblClick` | タスクダブルクリック時 | `CustomEvent<TaskClickEventDetail>` |
 | `onTaskContextMenu` | タスク右クリック（コンテキストメニュー）時 | `CustomEvent<TaskContextMenuEventDetail>` |
@@ -336,13 +337,16 @@ React では標準のイベント Props としてキャメルケース（`onTask
 | `onCellPaste` | マルチカラムグリッドのセルへの TSV ペースト時 | `CustomEvent<CellPasteEventDetail>` |
 | `onCellEdit` | マルチカラムグリッドのインラインセル編集確定時 | `CustomEvent<CellEditEventDetail>` |
 | `onCalendarRangeChange` | ドラッグ操作によりカレンダー表示期間が自動拡張された時 | `CustomEvent<CalendarRangeChangeEventDetail>` |
+| `onFilterChange` | フィルタリング設定の適用・解除により表示状態が変化した時 | `CustomEvent<FilterChangeEventDetail>` |
 | `onRowsChange` | 行データ変更時 | `CustomEvent<RowsChangeEventDetail>` |
 | `onRowReordered` | 行の並び順変更時 | `CustomEvent<RowReorderEventDetail>` |
 | `onRowSelectionChange` | 行選択状態の変更時 | `CustomEvent<RowSelectionChangeEventDetail>` |
 | `onRowToggleCollapse` | 行の開閉時（WBS） | `CustomEvent<RowToggleCollapseEventDetail>` |
 | `onDependencyCreate` | 依存関係（リンク）作成時 | `CustomEvent<DependencyCreateEventDetail>` |
 | `onDependencyClick` | 依存関係クリック・ダブルクリック・右クリック時 | `CustomEvent<DependencyClickEventDetail>` |
-| `onDependencySelect` | 依存関係の選択状態変更時（ハイライト・削除ボタン表示） | `CustomEvent<DependencySelectEventDetail>` |
+| `onDependencyEdit` | 依存関係の編集操作（線上鉛筆ボタンクリックやダブルクリック等）時 | `CustomEvent<DependencyEditEventDetail>` |
+| `onDependencyUpdate` | 依存関係の種別・ラグ更新確定時 | `CustomEvent<DependencyUpdateEventDetail>` |
+| `onDependencySelect` | 依存関係の選択状態変更時（ハイライト・編集/削除ボタン表示） | `CustomEvent<DependencySelectEventDetail>` |
 | `onDependencyDelete` | 依存関係削除時 | `CustomEvent<DependencyDeleteEventDetail>` |
 | `onMarkerDblClick` | マーカーダブルクリック時 | `CustomEvent<MarkerDblClickEventDetail>` |
 | `onMarkerContextMenu` | マーカー右クリック時 | `CustomEvent<MarkerContextMenuEventDetail>` |

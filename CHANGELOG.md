@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-11-21
+
+### Added
+
+- **WBS-Aware Filtering & Search Engine (`option.filter` / `setFilter` / `filter-change`)**:
+  - Added `GanttFilterConfig` (`option.filter`) supporting case-insensitive substring text search (`query` / `fields` across row names, task names, WBS codes, visible grid columns, and custom fields), built-in status filters (`status: 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'`), task kind filters (`taskTypes: Array<'task' | 'milestone' | 'summary'>`), overlapping date ranges (`dateRange`), and custom row predicates (`predicate`).
+  - Supported two non-matching display modes: `'hide'` (hides unmatched rows while preserving WBS ancestor chains and optionally auto-expanding matched collapsed parents via `autoExpandMatches`) and `'dim'` (keeps all rows visible while dimming unmatched rows/tasks via `_isFilteredOut: true`), plus `includeDescendantsOfMatchedParent`.
+  - Added public methods `chart.setFilter(filter)`, `chart.clearFilter()`, `chart.getFilter()`, and `chart.getFilterResult()` (also exposed on `@mogura/moguchart-vue` `GanttChartPublicApi`), along with the `filter-change` event (`FilterChangeEventDetail`, `onFilterChange` in `@mogura/moguchart-react`, `@filter-change` in `@mogura/moguchart-vue`).
+  - Exported pure evaluation utilities `evaluateRowFilter`, `isFilterConfigActive`, and related filter types.
+- **Multi-Column Data Grid: Left-Pinned (Frozen) Columns (`GanttColumn.pinned`) & Excel Frozen Pane Sync**:
+  - Added `GanttColumn.pinned?: 'left' | boolean` to keep designated columns (e.g., WBS code, Task Name) sticky on the left while horizontally scrolling remaining grid columns in a 2-pane layout (automatically preventing drag-and-drop column reordering across the pinned/scrollable boundary).
+  - Exported `isGridColumnPinned` and `partitionGridColumns` (`PartitionedGridColumns`).
+  - `@mogura/moguchart-plugin-excel`: Added `ExcelExportColumn.pinned?: 'left' | boolean` and `ExportExcelOptions.frozenColumns?: number`, automatically synchronizing Excel worksheet frozen columns (`xSplit`) with `chart.option.grid.columns` pinned columns when unspecified.
+- **Built-in Dependency Edit Popover, On-Line Edit Button & Programmatic Dependency Updates (`option.dependency` / `dependency-edit` / `dependency-update`)**:
+  - Added a built-in dependency editing popover (`enableEditPopover?: boolean`, default: `true`; `editPopoverTrigger?: 'dblclick' | 'click'`, default: `'dblclick'`) and an on-line edit (pencil) button on selected dependency lines (`showEditButton?: boolean`) to interactively edit relationship types (`FS` / `SS` / `FF` / `SF`) and lag/lead durations (with automatic unit adaptation across days, hours, minutes, and months) or delete links.
+  - Combining `enableEditPopover: false` with `showEditButton: true` (or calling `preventDefault()` on the cancelable `dependency-edit` event) allows host applications to open custom edit dialogs without displaying the built-in popover.
+  - Added public methods `chart.updateDependency(sourceTaskId, targetTaskId, updates)` (with Undo / Redo `'dependency-update'` command tracking and optional auto-scheduling cascade), `chart.openDependencyEditPopover(sourceTaskId, targetTaskId)`, and `chart.closeDependencyEditPopover()` (also exposed on `@mogura/moguchart-vue` `GanttChartPublicApi` alongside `clearSelection` and `clearDependencySelection`).
+  - Added `dependency-edit` (`DependencyEditEventDetail`) and `dependency-update` (`DependencyUpdateEventDetail`) events across `GanttChartElement`, `@mogura/moguchart-react` (`onDependencyEdit`, `onDependencyUpdate`), and `@mogura/moguchart-vue` (`@dependency-edit`, `@dependency-update`), plus `beforeDependencyUpdate` / `afterDependencyUpdate` plugin hooks and `MoguchartLocale.dependencyPopover`.
+- **Interactive Timeline Task Creation (`option.taskCreation` / `task-create`)**:
+  - Added `option.taskCreation?: boolean | GanttChartOptionTaskCreation` (`enabled`, `trigger: 'alt-drag-or-dblclick' | 'alt-drag' | 'dblclick' | 'drag'`, `defaultDurationMinutes`, `defaultTaskName`, `defaultBarColor`, `allowOnSummaryRow`, `createTask` factory) to create new tasks directly on empty timeline areas via `Alt(Option) + Drag` (with live ghost bar preview and grid snapping) or double-click.
+  - Integrated with Undo / Redo command history (`'task-create'`), `task-create` event (`TaskCreateEventDetail`, React `onTaskCreate`, Vue `@task-create`), cancellable `beforeTaskCreate` / `afterTaskCreate` plugin hooks, `resolveTaskCreationConfig` helper, and `MoguchartLocale.taskCreation`.
+- **Semantic Zoom (Continuous Multi-Scale Timeline Transitions: `option.zoom.semanticScale`)**:
+  - Added `option.zoom.semanticScale?: boolean | GanttSemanticZoomConfig` to seamlessly transition calendar granularity across `Month ⇄ Week ⇄ Day ⇄ Hour` scales during wheel, pinch, shortcut, and programmatic zooming while keeping the cursor/pinch anchor point fixed and automatically adapting `snapDuration` (`autoSnapDuration`).
+  - Added `ZoomChangeEventDetail.semanticScale`, `chart.activeSemanticScale` / `chart.effectiveSnapDuration` getters, and exported semantic zoom helpers (`DAYS_PER_MONTH`, `DEFAULT_SEMANTIC_SCALES`, `resolveSemanticZoomConfig`, `resolveSemanticScale`).
+- **WAI-ARIA Accessibility (`treegrid` Roles, Attributes & Localized Labels)**:
+  - Implemented WAI-ARIA roles and attributes across `gantt-chart` (`role="treegrid"`, `aria-multiselectable`, `aria-label`, `aria-rowcount`, `aria-colcount`), `gantt-calendar` headers (`role="columnheader"`, `aria-colindex`, `aria-sort`), `gantt-row` (`role="row"`, `aria-rowindex`, `aria-level`, `aria-expanded`, `aria-selected`, tree toggle buttons, `role="gridcell"`), and `gantt-bar` (`role="button"`, `aria-label`, progress `role="progressbar"` / `aria-valuenow`), with localized ARIA labels in `MoguchartLocale.aria` (`jaLocale` / `enLocale`).
+
+### Changed
+
+- **Zero External Runtime Dependencies (Except `lit` Peer Dependency)**:
+  - Removed `dayjs` and `lodash-es` runtime dependencies from `@mogura/moguchart-core`, replacing them with lightweight built-in native date formatting/parsing and `throttle` utilities to reduce bundle footprint.
+
+### Fixed
+
+- **ESM Relative Module Specifiers for Node16 / NodeNext TypeScript Compatibility (Fixes #2)**:
+  - Added explicit `.js` file extensions to all relative `import` / `export` specifiers across all published packages (`core`, `plugin-export`, `plugin-excel`, `react`, `vue`) and updated `tsconfig.build.json` to `module: "NodeNext"` / `moduleResolution: "NodeNext"` so emitted `.d.ts` declarations compile cleanly in strict `node16` / `nodenext` consumer projects.
+- **Prevent Outer Page Scroll Jump on Chart & Inline Editor Focus**:
+  - Updated host focus (`pointerdown`, `applyRowsChangeWithCommand`) and inline/custom grid cell editor focus (`GanttRowElement`) to use `focus({ preventScroll: true })`, preventing unintended scrolling of the outer host page when interacting with embedded charts.
+
+---
+
 ## [1.9.0] - 2026-11-14
 
 ### Added

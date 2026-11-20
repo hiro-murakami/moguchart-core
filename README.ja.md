@@ -11,15 +11,16 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
 
 ## 特徴
 
-- 🚀 **フレームワーク非依存**: Web Components (Custom Elements) として実装されており、あらゆる環境で動作します。
+- 🚀 **フレームワーク非依存 ＆ 外部ランタイム依存ゼロ**: Web Components (Custom Elements) として実装され、`lit`（ピア依存）以外の外部ランタイム依存を持たない超軽量設計であらゆるフレームワーク環境で動作します（Node16 / NodeNext の厳格な ESM 型解決にも対応）。
 - ⚡ **縦・横2軸の仮想スクロール ＆ スパース背景描画**: 行方向（Y軸）だけでなくタイムライン横方向（X軸：`calendar.virtualScrollX`）の仮想スクロールとスパース背景描画により、数百行×複数年にわたる大規模データでもスムーズに動作します。
-- ↩️ **操作履歴管理 (Undo / Redo)**: コマンドパターンによる直感的な履歴管理。タスクの移動・リサイズ・進捗変更・削除、行の並び替え、依存関係の作成・削除など主要な編集操作の取り消し・やり直しを完全サポート（`Ctrl+Z` / `Ctrl+Y` 対応）。
-- 🔍 **包括的なズーム制御**: パーセンテージ（50%〜200%）やスケール倍率（0.5〜2.0）に基づく柔軟な拡大縮小。カレンダー列幅・行ヘッダー幅・タスクバー高さ・フォントサイズ（`--moguchart-font-scale`）の一括連動スケーリング。ショートカットキー（`Ctrl/Cmd + + / - / 0`）、ホイール操作、およびタッチデバイスの2本指ピンチズームに対応。
+- ↩️ **操作履歴管理 (Undo / Redo)**: コマンドパターンによる直感的な履歴管理。タスクの新規作成・移動・リサイズ・進捗変更・期限変更・削除、行の並び替え、依存関係の作成・更新・削除、グリッドセル編集など主要な編集操作の取り消し・やり直しを完全サポート（`Ctrl+Z` / `Ctrl+Y` 対応）。
+- 🔍 **包括的なズーム制御 ＆ セマンティック・ズーム (`option.zoom.semanticScale`)**: パーセンテージ（50%〜200%）やスケール倍率（0.5〜2.0）に基づく拡大縮小（カレンダー列幅・行ヘッダー幅・タスクバー高さ・フォントサイズ `--moguchart-font-scale` の一括連動）に加え、連続ズームに応じて **`Month ⇄ Week ⇄ Day ⇄ Hour` の時間軸粒度とスナップ間隔をアンカー位置を維持したまま自動切替するセマンティック・ズーム** に対応。ショートカットキー（`Ctrl/Cmd + + / - / 0`）、ホイール操作、およびタッチデバイスの2本指ピンチズームに対応。
 - 📱 **タッチデバイス（タブレット・モバイル）最適化 (`option.touch`)**:
   - 1本指の通常スワイプによる自然なチャートスクロールと、タスクバーのロングプレス（長押し）によるドラッグ移動の自動判別
   - 2本指ピンチイン・ピンチアウトによるアンカー位置維持スムーズズーム（`zoomToPercentAtPoint`）
   - タッチ選択時のリサイズハンドル・依存関係コネクタ・進捗ノブのヒット領域拡大と視覚インジケーター表示、および微振動（Haptic）フィードバック対応
 - 🖱️ **インタラクティブ**:
+  - タイムライン空白領域での `Alt(Option) + ドラッグ` またはダブルクリックによる新規タスク直接作成（`option.taskCreation` / `task-create` イベント）
   - ドラッグ＆ドロップによるタスク移動（行間移動・ビューポート端オートスクロール `autoScrollOnDrag` 対応）
   - ハンドル操作による期間リサイズ
   - ドラッグ＆ドロップによる行の並び替え
@@ -37,7 +38,7 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - 4種類の標準依存関係タイプ（`FS`: 終了-開始、`SS`: 開始-開始、`FF`: 終了-終了、`SF`: 開始-終了）およびラグ・リード期間（`lag`: 分単位）を `GanttDependencyLink` で指定可能（文字列タスクIDとも100%後方互換）
   - トポロジカルソートによる **自動スケジューリング（Auto-Scheduling）** に対応（`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`）。`option.calendar` の稼働日設定（`calendarMode`, `nonWorkingDays`, `isHoliday`）と連動した非稼働日スキップと実稼働期間・ラグ維持、ドラッグ移動・リサイズ、複数選択移動、キーボード移動、グリッドのインラインセル編集、および `chart.autoSchedule()` メソッドと完全連動
   - タスク間の依存関係を矢印付き直線・曲線（直角折れ線/ベジェ曲線）で左右端エンドポイントに応じて可視化
-  - 依存関係線のクリック選択・ハイライト表示に加え、ダブルクリック（`dblclick`）・右クリック（`contextmenu`）イベントにも対応
+  - 依存関係線のクリック選択・ハイライト表示に加え、**組み込み依存関係編集ポップオーバー ＆ 線上の編集（鉛筆）ボタン** による種別（`FS` / `SS` / `FF` / `SF`）・ラグ期間の対話的変更（`dependency-edit` / `dependency-update` イベント、`updateDependency()` メソッド対応）およびダブルクリック・右クリック（`contextmenu`）イベントに対応
   - 選択中の線上の削除「×」ボタンまたは `Delete` / `Backspace` キーによるワンクリック削除
   - クリティカルパス（最長チェーン）の自動検出＋ハイライト表示
 - 📅 **柔軟なカレンダー ＆ 稼働日管理**:
@@ -60,9 +61,9 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - サマリータスク（親集計バー）への進捗ラベル自動表示および専用カスタム色（`summaryColor`）対応
   - 進捗変更イベント（`task-progress-change`）の発火
   - 行・プロジェクト全体の進捗率計算ユーティリティ関数
-- 🧩 **プラグインアーキテクチャ ＆ オーバーレイ描画スロット**: コア本体を超軽量（数十KB）に保ちつつ、タスク更新・依存関係作成/削除・セル編集のキャンセル可能な `before*` / `after*` ライフサイクルフック、`onViewportChange` フック、およびタイムライン上へのカスタムオーバーレイ描画スロット（`renderOverlay`）により高度な機能拡張が可能
+- 🧩 **プラグインアーキテクチャ ＆ オーバーレイ描画スロット**: コア本体を超軽量（数十KB）に保ちつつ、タスク作成/更新・依存関係作成/更新/削除・セル編集のキャンセル可能な `before*` / `after*` ライフサイクルフック、`onViewportChange` フック、およびタイムライン上へのカスタムオーバーレイ描画スロット（`renderOverlay`）により高度な機能拡張が可能
 - 📷 **画像・PDFエクスポート（プラグイン）**: `@mogura/moguchart-plugin-export` による PNG画像およびPDF形式でのガントチャート全体エクスポート（自動ダウンロード対応、エクスポート時のズーム正規化 `normalizeZoom`、スクロール位置保持）
-- 📊 **Excelタイムラインエクスポート（プラグイン）**: `@mogura/moguchart-plugin-excel` によるカレンダー日付列にタスク期間が色塗りされた工程表・タイムライン付き Excel (.xlsx) エクスポート（多言語対応 `ja`/`en`/`zh`、WBS階層構造保持、土日祝日の色分け）
+- 📊 **Excelタイムラインエクスポート（プラグイン）**: `@mogura/moguchart-plugin-excel` によるカレンダー日付列にタスク期間が色塗りされた工程表・タイムライン付き Excel (.xlsx) エクスポート（多言語対応 `ja`/`en`/`zh`、WBS階層構造保持、グリッド左固定列と連動したウィンドウ枠固定 `frozenColumns`、土日祝日の色分け）
 - ✨ **高度なインテグレーション**:
   - 外部からのドラッグ＆ドロップによるタスク作成
   - タスクの移動/コピーモード
@@ -101,8 +102,12 @@ Vue, React, Angular, Svelte など、どのフレームワークでも動作す�
   - **スプレッドシート風セル範囲選択 ＆ TSV コピー＆ペースト**（`option.grid.cellSelection: true`）：クリック・ドラッグ・`Shift+矢印キー` による矩形セル選択と、`Ctrl/Cmd+C` / `Ctrl/Cmd+V` による Excel / Google スプレッドシート互換の一括コピー＆ペースト（Undo/Redo 対応）
   - **インラインセル編集 ＆ 連続セル移動**（`option.grid.editable: true`）：ダブルクリックまたはクリック（または選択セルでの `Enter` / `F2`）による直接編集、`text` / `number` / `date` / `datetime` / `month` / `select` の組み込みエディタおよびカスタムエディタ関数、編集中に `Tab` / `Shift+Tab`（左右セル移動・行折り返し）や `Enter` / `Shift+Enter`（上下行の同一カラム移動）で読み取り専用セルを自動スキップして連続入力できるキーボードセルナビゲーション（`navigateCellEdit`）、単一タスクの `movable` / `resizable` / `progressResizable` 設定との自動連動、編集可能セル（`.grid-cell-editable`）と読み取り専用セル（`.grid-cell-readonly`）の視覚的区別、Undo/Redo 履歴連動、`cell-edit` イベントに対応
   - カスタムカラム（`field`、`valueGetter`、`valueSetter`、`formatter`、`renderCell`、`comparator`、`footerValueGetter`、`footerFormatter`、`renderFooterCell`）および `customRendering.cornerContent` との上下2段レイアウト共存
-  - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）および **カラムヘッダーのドラッグ＆ドロップによる列の並び替え**（`reorderable`、`column-reorder` イベント）
+  - カラム境界ドラッグによる幅のリサイズ（`column-resize` イベント）、**左端へのカラムピン留め固定**（`pinned: 'left' | true`）、および **カラムヘッダーのドラッグ＆ドロップによる列の並び替え**（`reorderable`、`column-reorder` イベント）
   - グリッド領域とタイムライン領域のスプリッターリサイズ＆グリッド内独立横スクロール同期（トラックパッド横スワイプ、Shift+ホイール、ヘッダー上のホイールに対応）
+- 🔎 **WBS 階層維持フィルタリング ＆ 検索 (`option.filter` / `setFilter`)**:
+  - テキスト部分一致（行名・タスク名・WBSコード・グリッド列・任意フィールド）、進捗・遅延ステータス（`incomplete` / `completed` / `overdue` / `inProgress`）、タスク種別、期間範囲、カスタム述語関数を組み合わせた高速絞り込み
+  - 一致行の WBS 祖先行を自動維持・展開して非一致行を隠す `'hide'` モードと、全行を維持しつつ非一致要素を減光する `'dim'` モードに対応（`filter-change` イベント対応）
+- ♿ **WAI-ARIA アクセシビリティ対応**: `role="treegrid"`、`role="columnheader"`（`aria-sort` 連動）、`role="row"`（`aria-level` / `aria-expanded` / `aria-selected`）、タスクバーの `role="button"` / `role="progressbar"` および多言語 ARIA ラベル（`MoguchartLocale.aria`）を標準装備
 - ⌨️ **キーボード操作**: 矢印キーでのナビゲーション・選択・Shift+矢印キーでのタスク移動・Deleteキーでのタスク/依存関係線削除・グリッドセルの矢印移動/範囲選択・`Ctrl/Cmd+C` / `Ctrl/Cmd+V` でのTSVコピー＆ペースト・グリッド編集中の `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` セル間移動・Undo/Redo・ズームショートカット
 
 ## パッケージ一覧（エコシステム）
@@ -693,6 +698,9 @@ const option = {
     creatable: true, // コネクタからのドラッグによる依存関係作成を許可 (デフォルト: true)
     deletable: true, // 依存関係の削除を許可 (デフォルト: true)
     showDeleteButton: true, // 選択時の削除「×」ボタンを表示 (デフォルト: true)
+    enableEditPopover: true, // ダブルクリックまたは編集ボタンで組み込み依存関係編集ポップオーバーを表示 (デフォルト: true)
+    showEditButton: true, // 選択時の編集（鉛筆）ボタンを表示 (デフォルト: enableEditPopover !== false)
+    editPopoverTrigger: 'dblclick', // 編集トリガー ('dblclick' | 'click'、デフォルト: 'dblclick')
     autoSchedule: true, // 先行タスク変更時に後続タスクを自動カスケード移動 (デフォルト: false)
     scheduleMode: 'push-only', // 'push-only' (制約違反時のみ押し出し) | 'strict' (常に厳密追従)
     respectMovable: true, // movable: 'none' | 'y' のタスクを自動移動対象から除外 (デフォルト: true)
@@ -703,12 +711,49 @@ const option = {
 // プログラムから全依存関係または指定タスク起点で自動スケジューリングを実行
 const updatedTaskIds = chart.autoSchedule()
 
-// 依存関係の選択・削除イベント
+// 依存関係の選択・編集・更新・削除イベント
 chart.addEventListener('dependency-select', (e) => {
   console.log('選択された依存関係:', e.detail.selected)
 })
+chart.addEventListener('dependency-edit', (e) => {
+  console.log('編集アクション:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+  // e.preventDefault() を呼ぶ（または enableEditPopover: false）と独自ダイアログを開けます
+})
+chart.addEventListener('dependency-update', (e) => {
+  console.log('更新された依存関係:', e.detail.previousDependency, '->', e.detail.dependency)
+})
 chart.addEventListener('dependency-delete', (e) => {
   console.log('削除された依存関係:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+})
+
+// プログラムから依存関係の種別・ラグを更新（Undo/Redo・自動スケジュール対応）
+chart.updateDependency('t-1', 't-2', { type: 'SS', lagDays: 2 })
+```
+
+### タイムライン上での新規タスク作成 (`option.taskCreation`)
+
+`option.taskCreation` を有効にすると、タイムラインの空白領域を `Alt(Option) + ドラッグ`（またはダブルクリック）することで直感的に新しいタスクを作成できます（Undo / Redo 履歴 `'task-create'` および `beforeTaskCreate` / `afterTaskCreate` プラグインフック対応）。
+
+```javascript
+const option = {
+  taskCreation: {
+    enabled: true,
+    trigger: 'alt-drag-or-dblclick', // 'alt-drag-or-dblclick' (デフォルト) | 'alt-drag' | 'dblclick' | 'drag'
+    defaultTaskName: '新規タスク',
+    defaultBarColor: '#3b82f6',
+    allowOnSummaryRow: false,
+    // 任意: 作成されるタスクの初期値をカスタマイズ
+    createTask: ({ row, start, end }) => ({
+      id: `task-${Date.now()}`,
+      name: `${row.name} の作業`,
+      progress: 0,
+    }),
+  },
+}
+
+chart.addEventListener('task-create', (e) => {
+  const { task, rowId, source } = e.detail
+  console.log(`行 ${rowId} にタスクが作成されました (${source}):`, task)
 })
 ```
 
@@ -1031,8 +1076,8 @@ const option = {
     editable: true, // セルのインライン編集を有効化 (デフォルト: false)
     editTrigger: 'dblclick', // 編集開始トリガー ('dblclick' | 'click'、デフォルト: 'dblclick')
     columns: [
-      { id: 'wbs', width: 60, reorderable: false }, // WBS番号 (reorderable: false で列位置を固定可能)
-      { id: 'name', width: 220 }, // タスク名 (ツリー開閉トグル付き・テキスト編集)
+      { id: 'wbs', width: 60, pinned: 'left', reorderable: false }, // WBS番号 (pinned: 'left' で横スクロール時も左端固定)
+      { id: 'name', width: 220, pinned: 'left' }, // タスク名 (左端固定・ツリー開閉トグル付き・テキスト編集)
       { id: 'startDate', width: 125 }, // 開始日 (日/月/日時エディタに自動連動)
       { id: 'endDate', width: 125 }, // 終了日 (日/月/日時エディタに自動連動)
       { id: 'duration', width: 80 }, // 期間 (暦日数・数値エディタ)
@@ -1091,6 +1136,29 @@ chart.sortByColumn('startDate', 'asc') // 指定カラムでソート ('asc' | '
 chart.selectGridCells({ start: { rowId: 'row-1', columnId: 'name' }, end: { rowId: 'row-2', columnId: 'endDate' } })
 const tsv = chart.copySelectedCellsToTsv() // 選択範囲をTSV文字列として取得
 chart.pasteTsvToCells(tsv, 'row-3', 'name') // 指定セルを起点にTSVデータを一括貼り付け
+```
+
+### WBS 階層維持フィルタリング ＆ 検索 (`option.filter` / `setFilter`)
+
+`option.filter` または `chart.setFilter()` を使用すると、WBS の親子ツリー構造を壊さずにキーワード・進捗ステータス・タスク種別・対象期間・カスタム条件で行やタスクを絞り込めます。
+
+```javascript
+// 宣言的オプションまたは命令的メソッドでフィルタを適用
+const result = chart.setFilter({
+  query: 'API', // 行名・タスク名・WBSコード・グリッド列を部分一致検索
+  status: 'overdue', // 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'
+  mode: 'hide', // 'hide' (祖先行を維持して非表示) | 'dim' (非一致要素を減光表示)
+  autoExpandMatches: true, // 一致した子孫を持つ折りたたみ親行を自動展開
+})
+console.log(`一致: ${result.matchedRowCount} / ${result.totalRowCount} 行`)
+
+// フィルタ解除
+chart.clearFilter()
+
+// フィルタ状態変更イベント
+chart.addEventListener('filter-change', (e) => {
+  console.log('フィルタ更新:', e.detail.filter, e.detail.result)
+})
 ```
 
 ### パブリックメソッド
@@ -1226,6 +1294,12 @@ const option = {
       barHeight: true,
       fontScale: true,
     },
+    // オプション: 連続ズームに応じて Month ⇄ Week ⇄ Day ⇄ Hour の時間軸粒度を自動切替
+    semanticScale: {
+      enabled: true,
+      scales: ['month', 'week', 'day', 'hour'],
+      autoSnapDuration: true,
+    },
   },
 }
 
@@ -1357,9 +1431,11 @@ import {
   // セキュリティ・スタイルサニタイズ
   sanitizeCssValue,
   sanitizeInlineStyle,
-  // マルチカラムグリッド計算・ソート・フッター集計・TSV・インライン編集ヘルパー
+  // マルチカラムグリッド計算・ピン留め・ソート・フッター集計・TSV・インライン編集ヘルパー
   calculateRowSummaryDates,
   normalizeGridColumns,
+  isGridColumnPinned,
+  partitionGridColumns,
   reorderGridColumns,
   compareWbsCodes,
   compareGridRowValues,
@@ -1377,6 +1453,12 @@ import {
   findAdjacentEditableCell,
   formatGridCellEditValue,
   applyGridCellEdit,
+  // WBS 階層維持フィルタリング・セマンティックズーム・タスク作成ヘルパー
+  evaluateRowFilter,
+  isFilterConfigActive,
+  resolveSemanticZoomConfig,
+  resolveSemanticScale,
+  resolveTaskCreationConfig,
 } from '@mogura/moguchart-core'
 
 // 1. 各行のツリー階層レベル（深さ）の計算

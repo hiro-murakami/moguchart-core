@@ -26,6 +26,8 @@ moguchart-core は、Lit で構築されたガントチャート Web Component �
 | `canUndo`              | `boolean`                                                 | (読み取り専用) 直前の操作を取り消し (Undo) 可能かどうかを返します。                                                                                                   |
 | `canRedo`              | `boolean`                                                 | (読み取り専用) 直前に取り消した操作をやり直し (Redo) 可能かどうかを返します。                                                                                       |
 | `historyManager`       | `IHistoryManager \| undefined`                            | (読み取り専用) 内部の履歴マネージャーインスタンスへのアクセスを提供します。                                                                                          |
+| `activeSemanticScale`  | `GanttSemanticZoomScale \| undefined`                     | (読み取り専用) セマンティック・ズーム有効時の現在の表示スケール（`'month' \| 'week' \| 'day' \| 'hour'`）を返します。                                                |
+| `effectiveSnapDuration`| `number`                                                  | (読み取り専用) 現在の表示スケールやセマンティック・ズーム設定を考慮した実効スナップ間隔（分）を返します。                                                           |
 
 ## オプション設定 (GanttChartOption)
 
@@ -163,8 +165,12 @@ interface GanttChartOption {
   constraint?: GanttChartOptionConstraint
   /** マルチカラムデータグリッドに関する設定 */
   grid?: GanttChartOptionGrid
+  /** WBS階層維持フィルタリング・検索に関する設定 */
+  filter?: GanttFilterConfig | null
   /** タッチデバイス（タブレット・スマートフォン）操作の最適化設定 */
   touch?: GanttChartOptionTouch
+  /** タイムライン上での新規タスク作成に関する設定 */
+  taskCreation?: boolean | GanttChartOptionTaskCreation
   /** 拡張プラグインの配列 */
   plugins?: GanttPlugin[]
 }
@@ -183,6 +189,7 @@ interface GanttChartOption {
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`   | タスクバーの選択が変更されたときに発火します。                                               |
 | `bar-hover`              | `BarHoverEventDetail`             | タスクバーにマウスがホバーしたときに発火します。                                             |
 | `row-clicked`            | `RowClickedEventDetail`           | 行ヘッダーがクリックされたときに発火します。                                                 |
+| `task-create`            | `TaskCreateEventDetail`           | `option.taskCreation` 有効時にタイムライン上で新規タスクが作成されたときに発火します。       |
 | `task-update`            | `TaskUpdateEventDetail`           | タスクがドラッグ＆ドロップやリサイズで更新されたときに発火します。                           |
 | `task-progress-change`   | `TaskProgressChangeEventDetail`   | 進捗バーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。       |
 | `task-deadline-change`   | `TaskDeadlineChangeEventDetail`   | デッドラインマーカーのドラッグ編集が完了した時（またはEscキーでキャンセルされた時）に発火します。 |
@@ -199,6 +206,7 @@ interface GanttChartOption {
 | `cell-paste`             | `CellPasteEventDetail`            | マルチカラムグリッドのセルへ TSV データが一括貼り付けされたときに発火します。                |
 | `cell-edit`              | `CellEditEventDetail`             | マルチカラムグリッドのインラインセル編集が確定されたときに発火します。                       |
 | `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | `calendar.autoExtend` 有効時にドラッグ操作でカレンダー表示期間が自動拡張されたときに発火します。 |
+| `filter-change`          | `FilterChangeEventDetail`         | フィルタリング設定の適用・変更・解除によって表示状態が更新されたときに発火します。           |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | 行ヘッダーをクリックしたときに発火します。                                                   |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | 行ヘッダーをダブルクリックしたときに発火します。                                             |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | 行ヘッダーを右クリックしたときに発火します。カスタムコンテキストメニューの実装に使用します。 |
@@ -207,6 +215,8 @@ interface GanttChartOption {
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | ガントチャートの背景（タスクが無い部分）を右クリックしたときに発火します。                   |
 | `dependency-create`      | `DependencyCreateEventDetail`     | タスクバーのコネクターからドラッグ＆ドロップで依存関係が作成されたときに発火します。         |
 | `dependency-click`       | `DependencyClickEventDetail`      | 依存関係線をクリック、ダブルクリック、または右クリックしたときに発火します。                 |
+| `dependency-edit`        | `DependencyEditEventDetail`       | 依存関係線の編集アクション（線上の鉛筆ボタンクリックやダブルクリック等）が行われたときに発火します（`preventDefault()` で組み込みポップオーバーを抑止可能）。 |
+| `dependency-update`      | `DependencyUpdateEventDetail`     | 組み込みポップオーバーまたは `updateDependency()` により依存関係の種別・ラグが更新されたときに発火します。 |
 | `dependency-select`      | `DependencySelectEventDetail`     | 依存関係線が選択または選択解除されたときに発火します。                                       |
 | `dependency-delete`      | `DependencyDeleteEventDetail`     | 依存関係線が削除されたときに発火します（Deleteキー、×ボタン、メソッド等）。                  |
 | `task-delete`            | `TaskDeleteEventDetail`           | 選択中のタスクに対して Delete / Backspace キーが押されたときに発火します。                   |
@@ -237,8 +247,13 @@ interface GanttChartOption {
 | `zoomToFit`                | `() => void`                                                                                                 | 全タスクが表示領域に収まるようにズームレベルを自動調整します。タスクの開始位置にスクロールします。                                                                                                        |
 | `resetZoom`                | `() => void`                                                                                                 | ズームを100%（標準倍率）にリセットします。                                                                                                                                                                  |
 | `triggerDependencyDelete`  | `(sourceTaskId: string, targetTaskId: string) => boolean`                                                    | 指定した接続元・接続先タスク間の依存関係線を削除し、`dependency-delete` イベントおよび履歴コマンドを記録します。                                                                                            |
+| `updateDependency`         | `(sourceTaskId: string, targetTaskId: string, updates: DependencyUpdateInput) => boolean`                    | 指定した依存関係リンクの種別（`type`）やラグ期間（`lag` / `lagDays`）を更新し、`dependency-update` イベントおよび Undo / Redo 履歴コマンド（`'dependency-update'`）を記録します（`autoSchedule` 有効時は後続タスクも自動再計算）。 |
+| `openDependencyEditPopover`| `(sourceTaskId: string, targetTaskId: string) => boolean`                                                    | 指定した依存関係リンクの組み込み編集ポップオーバーをプログラムから開きます。                                                                                                                                |
+| `closeDependencyEditPopover`| `() => void`                                                                                                | 現在開いている組み込み依存関係編集ポップオーバーを閉じます。                                                                                                                                                |
+| `clearDependencySelection` | `() => void`                                                                                                 | 依存関係線の選択状態を解除し、開いている編集ポップオーバーがあれば閉じます。                                                                                                                                |
 | `autoSchedule`             | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                                     | 依存関係制約およびラグに基づいて後続タスクの日程をトポロジカルソート順で再計算・カスケード更新します。変更があった場合は Undo / Redo 履歴コマンドを記録し、更新されたタスクID配列を返します。                |
 | `selectTask`               | `(taskId: string) => boolean`                                                                                | 指定したIDのタスクを選択状態にします。タスクが画面外にある場合は自動的にスクロールして表示します。タスクが見つかった場合は `true`、見つからなかった場合は `false` を返します。                              |
+| `clearSelection`           | `() => void`                                                                                                 | タスクバー・行・依存関係線・グリッドセルの選択状態をすべて解除します。                                                                                                                                      |
 | `use`                      | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                                    | ガントチャートに拡張プラグイン（エクスポートプラグインなど）を登録・初期化します。メソッドチェーンが可能です。                                                                                             |
 | `hitTest`                  | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`                                | クライアント座標（画面上のピクセル位置）から、対応するガントチャートの行IDと日付を返します。座標がチャート領域外の場合は `null` を返します。                                                                |
 | `exportImage`              | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>`                  | ガントチャート全体を画像データまたはPDFとしてエクスポートします（**`@mogura/moguchart-plugin-export` プラグインの登録が必要**）。戻り値はPNGの場合はデータURL(文字列)、PDFの場合はBlobです。`options.download: true` を指定すると自動的にファイルダウンロードを開始します。 |
@@ -247,6 +262,10 @@ interface GanttChartOption {
 | `toggleRowCollapse`        | `(rowId: string, collapsed?: boolean) => boolean`                                                            | 指定した行の折りたたみ/展開状態を切り替えます（`collapsed` を指定した場合はその状態に設定）。状態が変更された場合は `true`、行が存在しない場合は `false` を返します。                                       |
 | `collapseAll`              | `() => void`                                                                                                 | 子行を持つすべての親行を一括で折りたたみます。                                                                                                                                                             |
 | `expandAll`                | `() => void`                                                                                                 | すべての行を一括で展開します。                                                                                                                                                                             |
+| `setFilter`                | `(filter: GanttFilterConfig \| null) => GanttFilterResult`                                                   | WBS 階層構造を維持した行・タスクのフィルタリング設定を適用（`null` で解除）し、評価結果（`GanttFilterResult`）を返します（`filter-change` イベント発火）。                                                   |
+| `clearFilter`              | `() => GanttFilterResult`                                                                                    | 現在適用されているフィルタリングを解除し、評価結果を返します。                                                                                                                                              |
+| `getFilter`                | `() => GanttFilterConfig \| null`                                                                            | 現在適用されているフィルタリング設定を取得します。                                                                                                                                                          |
+| `getFilterResult`          | `() => GanttFilterResult`                                                                                    | 現在のフィルタリング評価結果（一致行数・表示対象行ID集合等）を取得します。                                                                                                                                  |
 | `resetScroll`              | `() => void`                                                                                                 | ガントチャートのスクロール位置を左上（0, 0）にリセットします。                                                                                                                                             |
 | `scrollToPosition`         | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`                             | 指定したスクロール座標（left, top）にスクロールします。                                                                                                                                                    |
 | `scrollToTask`             | `(taskId: string) => void`                                                                                   | 指定したIDのタスクが表示範囲外にある場合、タスクが見える位置までスムーズにスクロールします（縦方向は画面中央付近、横方向は行ヘッダー幅とマージンを考慮してスクロール）。                                    |
@@ -729,6 +748,29 @@ interface GanttChartOptionZoom {
   min?: number
   /** 最大 pxPerDay (デフォルト: 200)。pxPerMonth モードの場合は最大 pxPerMonth (後方互換用) */
   max?: number
+  /** セマンティック・ズーム（連続ズームによる Month ⇄ Week ⇄ Day ⇄ Hour 自動粒度切替）設定 */
+  semanticScale?: boolean | GanttSemanticZoomConfig
+}
+
+type GanttSemanticZoomScale = 'month' | 'week' | 'day' | 'hour'
+
+interface GanttSemanticZoomConfig {
+  /** セマンティック・ズームを有効にするか (デフォルト: true) */
+  enabled?: boolean
+  /** 遷移を許可する表示スケールの配列 (デフォルト: ['month', 'week', 'day', 'hour']) */
+  scales?: GanttSemanticZoomScale[]
+  /** 各スケール間の切替閾値（1日あたりの換算ピクセル幅 px/day） */
+  thresholds?: {
+    monthToWeekPxPerDay?: number // デフォルト: 7
+    weekToDayPxPerDay?: number // デフォルト: 22
+    dayToHourPxPerDay?: number // デフォルト: 180
+  }
+  /** ズームアウト下限の換算 px/day (デフォルト: 1.5 ≒ pxPerMonth: 45) */
+  minEquivalentPxPerDay?: number
+  /** ズームイン上限の換算 px/day (デフォルト: 1440 ＝ 1時間あたり60px) */
+  maxEquivalentPxPerDay?: number
+  /** スケール遷移に応じて snapDuration を自動調整するか (デフォルト: true — Month/Week/Day: 1440分、Hour: 60分) */
+  autoSnapDuration?: boolean
 }
 ```
 
@@ -1255,6 +1297,16 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** 自動スケジューリング時にタスクの movable 設定 ('none' | 'y') を尊重して移動対象から除外するか (デフォルト: true) */
   respectMovable?: boolean
+  /** 組み込みの依存関係編集ポップオーバーを有効にするか (デフォルト: true、readOnly 時は無効) */
+  enableEditPopover?: boolean
+  /**
+   * 選択中の線上に編集用（鉛筆アイコン）ボタンを表示するか (デフォルト: enableEditPopover !== false、readOnly 時は無効)
+   * enableEditPopover: false と showEditButton: true を組み合わせることで、
+   * 組み込みポップオーバーを出さずに dependency-edit イベントで独自ダイアログを開ける
+   */
+  showEditButton?: boolean
+  /** 接続線操作から編集ポップオーバー（および dependency-edit イベント）を発火するトリガー (デフォルト: 'dblclick') */
+  editPopoverTrigger?: 'dblclick' | 'click'
 }
 ```
 
@@ -1304,6 +1356,67 @@ interface DependencyDeleteEventDetail {
 }
 ```
 
+### DependencyEditEventDetail / DependencyUpdateInput / DependencyUpdateEventDetail
+
+```typescript
+interface DependencyEditEventDetail {
+  sourceTaskId: string // 接続元のタスクID
+  targetTaskId: string // 接続先のタスクID
+  event?: MouseEvent // 元のマウスイベント
+}
+
+interface DependencyUpdateInput {
+  type?: DependencyType // 新しい依存関係の種別 ('FS' | 'SS' | 'FF' | 'SF')
+  lag?: number // 新しいラグ期間（分単位。1日 = 1440）
+  lagDays?: number // 新しいラグ日数（lag 未指定時に日数×1440分へ自動変換）
+}
+
+interface DependencyUpdateEventDetail {
+  sourceTaskId: string // 先行タスク（接続元）のID
+  targetTaskId: string // 後続タスク（接続先）のID
+  dependency: Required<GanttDependencyLink> // 更新後の正規化済み依存関係リンク
+  previousDependency: Required<GanttDependencyLink> // 更新前の正規化済み依存関係リンク
+  affectedTasks?: Array<{
+    task: GanttTask
+    rowId: string
+    oldStart: Date
+    oldEnd: Date
+  }>
+}
+```
+
+### GanttChartOptionTaskCreation / TaskCreateEventDetail
+
+タイムライン空白領域での新規タスク直接作成に関する設定およびイベント詳細です。
+
+```typescript
+type GanttTaskCreationTrigger = 'alt-drag-or-dblclick' | 'alt-drag' | 'dblclick' | 'drag'
+
+interface GanttChartOptionTaskCreation {
+  /** 新規タスク作成機能を有効にするか (デフォルト: false、taskCreation: true 指定時は true) */
+  enabled?: boolean
+  /** 作成操作のトリガー (デフォルト: 'alt-drag-or-dblclick') */
+  trigger?: GanttTaskCreationTrigger
+  /** ダブルクリック作成時または最小ドラッグ幅フォールバック時の期間（分）。未指定時は粒度に応じて自動決定（日以上: 1440分、時間粒度: 60分） */
+  defaultDurationMinutes?: number
+  /** 新規タスクの初期名称 (未指定時はロケールの taskCreation.defaultName) */
+  defaultTaskName?: string
+  /** 新規タスクの初期バー色 (CSSカラー文字列) */
+  defaultBarColor?: string
+  /** サマリー行（子を持つ親行）上でのタスク作成を許可するか (デフォルト: false) */
+  allowOnSummaryRow?: boolean
+  /** 作成確定時にタスクデータの初期値（独自IDやカスタムフィールド等）をカスタマイズするファクトリ関数 */
+  createTask?: (context: { row: GanttRow; start: Date; end: Date }) => Partial<GanttTask>
+}
+
+interface TaskCreateEventDetail {
+  task: GanttTask // 新規作成されたタスク
+  rowId: string // 作成先の行ID
+  row: GanttRow // 更新後の対象行データ
+  source: 'drag' | 'dblclick' // 作成方法
+}
+```
+
 ### TaskDeleteEventDetail
 
 ```typescript
@@ -1320,7 +1433,8 @@ interface ZoomChangeEventDetail {
   pxPerDay: number // ズーム後の pxPerDay
   pxPerMonth?: number // ズーム後の pxPerMonth（月単位モード時のみ）
   zoomScale: number // 現在のズーム倍率 (1.0 = 100%)
-  zoomPercent: number // 現在のズームパーセンテージ (50〜200)
+  zoomPercent: number // 現在のズームパーセンテージ
+  semanticScale?: GanttSemanticZoomScale // セマンティック・ズーム有効時の現在の表示スケール
 }
 ```
 
@@ -1614,9 +1728,9 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
 }
 
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' またはカスタム文字列) */
+  /** カラム識別子 ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' | 'deadline' またはカスタム文字列) */
   id: string
-  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用。startDate/endDate は月単位・時間単位モードに応じて自動切替) */
+  /** ヘッダー表示名 (未指定時はロケール辞書または id を使用。startDate/endDate/deadline は月単位・時間単位モードに応じて自動切替) */
   title?: string
   /** 列幅 (px)。未指定時はデフォルト幅 */
   width?: number
@@ -1630,6 +1744,8 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   resizable?: boolean
   /** ユーザーによるカラムヘッダーのドラッグ＆ドロップ並び替えを許可するか (デフォルト: true) */
   reorderable?: boolean
+  /** カラムを左側に固定（ピン留め）表示するか ('left' または true 指定時にグリッド横スクロール時も左端に固定) */
+  pinned?: 'left' | boolean
   /** カラムを表示するか (デフォルト: true) */
   visible?: boolean
   /** 階層ツリー（インデント＋展開折りたたみトグルボタン）を配置するカラムかどうか (デフォルト: 'name' カラム) */
@@ -1774,6 +1890,60 @@ interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
 }
 ```
 
+### GanttFilterConfig / GanttFilterResult / FilterChangeEventDetail
+
+WBS 階層構造を維持したまま行・タスクを検索・絞り込むフィルタリング機能の設定および結果インターフェースです。
+
+```typescript
+type GanttFilterMode = 'hide' | 'dim'
+type GanttFilterStatus = 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'
+
+interface GanttFilterRowContext {
+  row: GanttRow
+  tasks: GanttTask[]
+  depth: number
+  ancestorIds: string[]
+  wbsCode?: string
+}
+
+interface GanttFilterConfig {
+  /** テキスト部分一致検索（大文字小文字区別なし。行名・タスク名・WBSコード・可視グリッド列・fields を対象） */
+  query?: string
+  /** query 検索対象とする GanttRow / GanttTask の追加フィールド名 */
+  fields?: string[]
+  /** 進捗・遅延ステータスフィルタ（デフォルト: 'all'） */
+  status?: GanttFilterStatus
+  /** タスク種別フィルタ */
+  taskTypes?: Array<'task' | 'milestone' | 'summary'>
+  /** 指定した期間と重なるタスクを持つ行に絞り込み */
+  dateRange?: { start?: Date; end?: Date }
+  /** カスタム判定関数（指定時は組み込み条件との AND 評価） */
+  predicate?: (ctx: GanttFilterRowContext) => boolean
+  /** 非一致行の表示モード（'hide': 祖先行を維持して非表示、'dim': 非一致要素を減光表示。デフォルト: 'hide'） */
+  mode?: GanttFilterMode
+  /** 'hide' モード時に一致した子孫を持つ折りたたみ親行を一時展開するか（デフォルト: true） */
+  autoExpandMatches?: boolean
+  /** 親行自体が一致した場合に配下の子孫行もすべて表示対象に含めるか（デフォルト: false） */
+  includeDescendantsOfMatchedParent?: boolean
+}
+
+interface GanttFilterResult {
+  active: boolean
+  mode: GanttFilterMode
+  matchedRowIds: Set<string>
+  visibleRowIds: Set<string>
+  matchedTaskIds: Set<string>
+  totalRowCount: number
+  matchedRowCount: number
+  visibleRowCount: number
+}
+
+interface FilterChangeEventDetail {
+  filter: GanttFilterConfig | null
+  result: GanttFilterResult
+}
+```
+
 ### GanttCalendarAutoExtendOption / CalendarRangeChangeEventDetail
 
 ドラッグ操作中にカレンダー表示期間の端へ到達した際の自動拡張設定およびイベント詳細です。
@@ -1869,13 +2039,17 @@ interface GanttPlugin<TConfig = any, TChart = any> {
   renderOverlay?(context: GanttOverlayRenderContext<TChart>): unknown
   /** 各種ライフサイクルフック */
   hooks?: {
-    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail>
+    beforeTaskCreate?: (detail: BeforeTaskCreateHookDetail) => boolean | void | Promise<boolean | void>
+    afterTaskCreate?: (detail: TaskCreateEventDetail) => void
+    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail> | Promise<boolean | void>
     afterTaskUpdate?: (detail: TaskUpdateEventDetail) => void
-    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail>
+    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail> | Promise<boolean | void>
     afterDependencyCreate?: (detail: DependencyCreateEventDetail) => void
-    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void
+    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void | Promise<boolean | void>
     afterDependencyDelete?: (detail: DependencyDeleteEventDetail) => void
-    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any }
+    beforeDependencyUpdate?: (detail: BeforeDependencyUpdateHookDetail) => boolean | void | Promise<boolean | void>
+    afterDependencyUpdate?: (detail: DependencyUpdateEventDetail) => void
+    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any } | Promise<boolean | void>
     afterCellEdit?: (detail: CellEditEventDetail) => void
     onViewportChange?: (viewport: GanttViewportState) => void
     onZoomChange?: (detail: ZoomChangeEventDetail) => void
@@ -1930,7 +2104,31 @@ interface MoguchartLocale {
       duration: string // 期間列の見出し (例: '期間')
       workingDays?: string // 稼働日列の見出し (例: '稼働日')
       progress: string // 進捗列の見出し (例: '進捗率')
+      deadline?: string // 期限列の見出し (例: '期限')
     }
+    footerLabel?: string // 固定フッター集計行のラベル (例: '集計')
+  }
+  dependencyPopover?: {
+    title: string
+    typeLabel: string
+    lagLabel: (unit: string) => string
+    units: { days: string; hours: string; minutes: string; months: string }
+    types: { FS: string; SS: string; FF: string; SF: string }
+    save: string
+    delete: string
+    cancel: string
+    editButtonTitle: string
+    deleteButtonTitle: string
+  }
+  taskCreation?: {
+    defaultName: string
+    commandDescription: string
+  }
+  aria?: {
+    chartLabel: string
+    toggleExpand: string
+    toggleCollapse: string
+    taskBarLabel: (name: string, startStr: string, endStr: string, progress?: number) => string
   }
 }
 ```
@@ -2499,8 +2697,9 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
-  // 予実管理（Baseline）計算
+  // 予実管理（Baseline）・デッドライン計算
   calculateTaskDelay,
+  calculateTaskDeadline,
   calculateProjectBaselineSummary,
   // クリティカルパス計算
   computeCriticalPath,
@@ -2525,10 +2724,24 @@ import {
   computeVisibleTreeRows,
   computeSummaryTask,
   canDropRow,
-  // マルチカラムグリッド計算・インライン編集ヘルパー
+  // セキュリティ・スタイルサニタイズ
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+  // マルチカラムグリッド計算・ピン留め・ソート・フッター・TSV・インライン編集ヘルパー
   calculateRowSummaryDates,
   normalizeGridColumns,
+  isGridColumnPinned,
+  partitionGridColumns,
   reorderGridColumns,
+  compareWbsCodes,
+  compareGridRowValues,
+  sortGridRowsHierarchically,
+  calculateGridFooterSummary,
+  getGridFooterCellValue,
+  formatGridFooterCellValue,
+  resolveGridCellRange,
+  formatGridRangeToTsv,
+  parseTsvString,
   findAdjacentEditableCell,
   getGridCellValue,
   formatGridCellValue,
@@ -2536,6 +2749,12 @@ import {
   isGridCellEditable,
   formatGridCellEditValue,
   applyGridCellEdit,
+  // WBS 階層維持フィルタリング・セマンティックズーム・タスク作成ヘルパー
+  evaluateRowFilter,
+  isFilterConfigActive,
+  resolveSemanticZoomConfig,
+  resolveSemanticScale,
+  resolveTaskCreationConfig,
 } from '@mogura/moguchart-core'
 ```
 

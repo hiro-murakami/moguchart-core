@@ -16,10 +16,10 @@ Built on top of Lit's official `@lit/react`, it combines the high performance an
 - ⚡ **Imperative API Access**: Directly access methods like `chart.use()`, `chart.exportImage()`, `chart.exportExcel()`, `chart.selectTask()` via `ref`
 - 🔌 **Plugin Support**: Seamless integration with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel)
 - 📈 **Baseline & Deadline Tracking**: Compare planned schedules (`task.baseline`) against actual timelines, plus due-date markers (`task.deadline`), interactive deadline dragging (`onTaskDeadlineChange`), overdue badges, and `SNET`/`FNLT` scheduling constraints with interactive drag guides & clamping (`option.constraint`)
-- 📋 **Multi-Column Data Grid & Spreadsheet Operations**: WBS data table (`option.grid`, including built-in `workingDays` & `deadline` columns and sticky summary footer `showFooter`) with hierarchical column sorting (`onColumnSort`), cell range selection & TSV copy-paste (`onCellSelectionChange`, `onCellCopy`, `onCellPaste`), column resizing, drag-and-drop column reordering (`onColumnReorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`onCellEdit`, `onColumnResize`)
-- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
-- 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`)
-- 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`onCalendarRangeChange`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`)
+- 📋 **Multi-Column Data Grid & WBS Filtering**: WBS data table (`option.grid`, including left-pinned columns `pinned`, built-in `workingDays` & `deadline` columns, and sticky summary footer `showFooter`) with hierarchical column sorting (`onColumnSort`), cell range selection & TSV copy-paste (`onCellSelectionChange`, `onCellCopy`, `onCellPaste`), column resizing, drag-and-drop column reordering (`onColumnReorder`), inline cell editing with continuous `Tab`/`Enter` navigation (`onCellEdit`, `onColumnResize`), and WBS-aware filtering (`option.filter`, `onFilterChange`)
+- 🔗 **Auto-Scheduling & Interactive Dependency Editing**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), built-in dependency edit popover & on-line edit button (`onDependencyEdit`, `onDependencyUpdate`), and working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`)
+- 🏁 **Timeline Task Creation, Milestones & Smart Bar Labels**: Interactive timeline task creation via `Alt+Drag` or double-click (`option.taskCreation`, `onTaskCreate`), diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`)
+- 🗓️ **Semantic Zoom, Quarter Headers, Touch & WAI-ARIA**: Continuous `Month ⇄ Week ⇄ Day ⇄ Hour` semantic zoom (`option.zoom.semanticScale`), fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`onCalendarRangeChange`), tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`), and `role="treegrid"` WAI-ARIA accessibility
 - 📦 **Re-exported Types**: Core types, constants, and utilities are all re-exported from this package
 
 ---
@@ -147,10 +147,10 @@ The following methods can be invoked directly on `ref.current`:
 
 - **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`
-- **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`, `clearSelection()`
+- **WBS, Collapse & Filtering**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `setFilter(filter)`, `clearFilter()`, `getFilter()`, `getFilterResult()`, `getRowPositions()`
 - **Grid, Inline Editing, Sorting & TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
-- **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
+- **Dependency & Auto-Schedule Operations**: `updateDependency(sourceTaskId, targetTaskId, updates)`, `openDependencyEditPopover(sourceTaskId, targetTaskId)`, `closeDependencyEditPopover()`, `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`, `selectDependency(...)`, `clearDependencySelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (with `@mogura/moguchart-plugin-export`)
 - **Excel Export**: `exportExcel(options)` (with `@mogura/moguchart-plugin-excel`)
 
@@ -315,6 +315,7 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | Prop | Description | Event Argument Type |
 |---|---|---|
 | `onTaskUpdate` | Fired when a task is moved or resized | `CustomEvent<TaskUpdateEventDetail>` |
+| `onTaskCreate` | Fired when a new task is created on the timeline (`Alt+Drag` or double-click) | `CustomEvent<TaskCreateEventDetail>` |
 | `onTaskClick` | Fired when a task is clicked | `CustomEvent<TaskClickEventDetail>` |
 | `onTaskDblClick` | Fired when a task is double-clicked | `CustomEvent<TaskClickEventDetail>` |
 | `onTaskContextMenu` | Fired on task right-click | `CustomEvent<TaskContextMenuEventDetail>` |
@@ -336,13 +337,16 @@ Events dispatched by `@mogura/moguchart-core` can be listened to via standard ca
 | `onCellPaste` | Fired when TSV data is pasted into grid cells | `CustomEvent<CellPasteEventDetail>` |
 | `onCellEdit` | Fired when an inline grid cell edit is committed | `CustomEvent<CellEditEventDetail>` |
 | `onCalendarRangeChange` | Fired when the calendar display range is auto-extended during drag operations | `CustomEvent<CalendarRangeChangeEventDetail>` |
+| `onFilterChange` | Fired when row/task filtering configuration changes or is cleared | `CustomEvent<FilterChangeEventDetail>` |
 | `onRowsChange` | Fired when row data changes | `CustomEvent<RowsChangeEventDetail>` |
 | `onRowReordered` | Fired when rows are reordered | `CustomEvent<RowReorderEventDetail>` |
 | `onRowSelectionChange` | Fired when row selection changes | `CustomEvent<RowSelectionChangeEventDetail>` |
 | `onRowToggleCollapse` | Fired when a row is expanded or collapsed (WBS) | `CustomEvent<RowToggleCollapseEventDetail>` |
 | `onDependencyCreate` | Fired when a dependency link is created | `CustomEvent<DependencyCreateEventDetail>` |
 | `onDependencyClick` | Fired when a dependency link is clicked, double-clicked, or right-clicked | `CustomEvent<DependencyClickEventDetail>` |
-| `onDependencySelect` | Fired when dependency selection changes (highlight / delete button shown) | `CustomEvent<DependencySelectEventDetail>` |
+| `onDependencyEdit` | Fired when dependency editing is triggered (on-line edit button or double-click) | `CustomEvent<DependencyEditEventDetail>` |
+| `onDependencyUpdate` | Fired when a dependency link's type or lag is updated | `CustomEvent<DependencyUpdateEventDetail>` |
+| `onDependencySelect` | Fired when dependency selection changes (highlight / edit & delete buttons shown) | `CustomEvent<DependencySelectEventDetail>` |
 | `onDependencyDelete` | Fired when a dependency link is deleted | `CustomEvent<DependencyDeleteEventDetail>` |
 | `onMarkerDblClick` | Fired when a marker is double-clicked | `CustomEvent<MarkerDblClickEventDetail>` |
 | `onMarkerContextMenu` | Fired on marker right-click | `CustomEvent<MarkerContextMenuEventDetail>` |

@@ -118,7 +118,8 @@ await chart.exportExcel({ locale: 'fr' })
 | `themeColor` | `string` | `'#3B82F6'` | ヘッダー行やアクセントのテーマカラー（HEX） |
 | `isHoliday` | `GanttHolidayChecker` | 自動判定 | 祝祭日・休日判定関数（`boolean` または `{ name?, color? }` を返却。指定なし時は `chart.option.calendar.isHoliday` を自動参照） |
 | `holidayColor` | `string` | `'#FEE2E2'` | 祝祭日および日曜日の背景色（日単位出力時のみ適用、淡い赤/ピンク） |
-| `columns` | `ExcelExportColumn[]` | 標準カラム | 出力するテーブル列のカスタム定義配列 |
+| `columns` | `ExcelExportColumn[] \| ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])` | 標準カラム | 出力するテーブル列のカスタム定義配列（`pinned: true \| 'left'` で左側固定列に指定可能）、または標準カラム配列を加工する関数 |
+| `frozenColumns` | `number` | 自動判定 | Excel シートのウィンドウ枠固定の列数（`xSplit`）。未指定時は `columns` の `pinned` 指定列数、`chart.option.grid.columns` のピン留め列数、または全テーブル列数を自動適用 |
 | `sanitizeFormulas` | `boolean` | `true` | 文字列セルの先頭数式トリガー文字（`=`, `+`, `-`, `@`）を無害化するか |
 | `download` | `boolean` | `true` | ブラウザで自動ダウンロードをトリガーするか |
 

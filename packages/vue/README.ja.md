@@ -17,10 +17,10 @@ Vue 3 のリアクティビティシステム（Composition API `<script setup>`
 - 🛠️ **命令的メソッドの呼び出し**: Template Ref 経由で `exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll` などのメソッドにアクセス可能
 - 🔌 **プラグイン連携**: `@mogura/moguchart-plugin-export` (PNG/PDF) や `@mogura/moguchart-plugin-excel` (Excel) などの公式プラグインをシームレスに利用可能
 - 📈 **予実管理 (Baseline) ＆ デッドライン (Deadline) 対応**: `task.baseline` / `option.baseline` による計画 vs 実績比較に加え、`task.deadline` / `option.deadline` による期限マーカー描画・ドラッグ変更（`@task-deadline-change`）・超過検知、およびドラッグガイド＆自動クランプ付きのスケジュール制約（`SNET` / `FNLT`、`option.constraint`）に対応
-- 📋 **マルチカラムデータグリッド ＆ スプレッドシート操作**: `option.grid` による複数列WBSテーブル表示（稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`@column-sort`）・セル範囲選択＆TSVコピー＆ペースト（`@cell-selection-change`, `@cell-copy`, `@cell-paste`）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）に対応
-- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係対応**: `GanttDependencyLink` による4種類の依存関係・ラグ指定と、営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
-- 🏁 **タスクレベルのマイルストーン ＆ ラベル配置制御**: ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
-- 🗓️ **四半期ヘッダー・自動拡張・タッチ操作最適化**: 会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`@calendar-range-change`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）に対応
+- 📋 **マルチカラムデータグリッド ＆ フィルタ検索**: `option.grid` による複数列WBSテーブル表示（左固定ピン留め列 `pinned`、稼働日 `workingDays`・期限 `deadline` 列、固定集計フッター `showFooter` 対応）・階層対応ソート（`@column-sort`）・セル範囲選択＆TSVコピー＆ペースト（`@cell-selection-change`, `@cell-copy`, `@cell-paste`）・列幅リサイズ・カラムドラッグ並び替え（`@column-reorder`）・セル直接編集および `Tab`/`Enter` 連続移動（`@cell-edit`, `@column-resize`）、ならびに WBS 階層維持フィルタリング（`option.filter`, `@filter-change`）に対応
+- 🔗 **自動スケジューリング ＆ FS/SS/FF/SF 依存関係編集**: `GanttDependencyLink` による4種類の依存関係・ラグ指定、組み込み依存関係編集ポップオーバー＆線上編集ボタン（`@dependency-edit`, `@dependency-update`）、および営業日・カスタム定休日・祝日除外（`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`）にも対応した後続タスクの自動カスケード移動（`option.dependency.autoSchedule`, `autoSchedule()`）に対応
+- 🏁 **タイムラインタスク作成・マイルストーン ＆ ラベル配置制御**: タイムライン空白上の `Alt+ドラッグ` / ダブルクリックによる新規タスク作成（`option.taskCreation`, `@task-create`）、ひし形マイルストーンタスク（`task.type: 'milestone'`）、ドラッグ時の実稼働日数維持（`preserveWorkingDaysOnDrag`）、タスクバーラベルの自動外側退避（`labelPosition: 'auto'`）に対応
+- 🗓️ **セマンティック・ズーム・四半期ヘッダー・タッチ操作 ＆ WAI-ARIA 対応**: 連続ズームによる `Month ⇄ Week ⇄ Day ⇄ Hour` 自動粒度切替（`option.zoom.semanticScale`）、会計年度対応の四半期（`Q1`〜`Q4`）ヘッダー、X軸仮想スクロール、ドラッグ時の自動スクロール＆期間自動拡張（`@calendar-range-change`）、タブレット・スマホでのピンチズームや長押しドラッグ（`option.touch`）、および `role="treegrid"` 準拠の WAI-ARIA アクセシビリティに対応
 
 ---
 
@@ -191,10 +191,10 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 
 - **操作履歴 (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **ズーム操作**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **依存関係・自動スケジュール操作**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
-- **WBS・折りたたみ**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **依存関係・自動スケジュール操作**: `updateDependency(sourceTaskId, targetTaskId, updates)`, `openDependencyEditPopover(sourceTaskId, targetTaskId)`, `closeDependencyEditPopover()`, `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `clearDependencySelection()`, `autoSchedule(changedTaskIds?, options?)`
+- **WBS・折りたたみ・フィルタリング**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `setFilter(filter)`, `clearFilter()`, `getFilter()`, `getFilterResult()`, `getRowPositions()`
 - **グリッド・インラインセル編集・ソート・TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
-- **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
+- **スクロール・選択**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`, `clearSelection()`
 - **画像・PDFエクスポート**: `exportImage(format, options)`（`@mogura/moguchart-plugin-export` 導入時）
 - **Excelエクスポート**: `exportExcel(options)`（`@mogura/moguchart-plugin-excel` 導入時）
 
@@ -364,6 +364,7 @@ const handleExportExcel = async () => {
 | Vue イベント | 説明 | 引数型 |
 |---|---|---|
 | `@task-update` | タスクの期間移動・リサイズ完了時 | `TaskUpdateEventDetail` |
+| `@task-create` | タイムライン上での新規タスク作成時（Alt+ドラッグ / ダブルクリック） | `TaskCreateEventDetail` |
 | `@task-click` | タスクバークリック時 | `TaskClickEventDetail` |
 | `@task-dblclick` | タスクバーダブルクリック時 | `TaskClickEventDetail` |
 | `@task-contextmenu` | タスクバー右クリック時 | `TaskContextMenuEventDetail` |
@@ -385,13 +386,16 @@ const handleExportExcel = async () => {
 | `@cell-paste` | マルチカラムグリッドのセルへの TSV ペースト時 | `CellPasteEventDetail` |
 | `@cell-edit` | マルチカラムグリッドのインラインセル編集確定時 | `CellEditEventDetail` |
 | `@calendar-range-change` | ドラッグ操作によりカレンダー表示期間が自動拡張された時 | `CalendarRangeChangeEventDetail` |
+| `@filter-change` | フィルタリング設定の適用・解除により表示状態が変化した時 | `FilterChangeEventDetail` |
 | `@rows-change` | 行データの変更時 | `RowsChangeEventDetail` |
 | `@row-selection-change` | 行の選択状態変更時 | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | タスクの選択状態変更時 | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | ツリー行の展開・折りたたみ時 | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | 依存関係コネクタの接続完了時 | `DependencyCreateEventDetail` |
 | `@dependency-click` | 依存関係線のクリック・ダブルクリック・右クリック時 | `DependencyClickEventDetail` |
-| `@dependency-select` | 依存関係線の選択状態変更時（ハイライト・削除ボタン表示） | `DependencySelectEventDetail` |
+| `@dependency-edit` | 依存関係線の編集操作（線上鉛筆ボタンクリックやダブルクリック等）時 | `DependencyEditEventDetail` |
+| `@dependency-update` | 依存関係線の種別・ラグ更新確定時 | `DependencyUpdateEventDetail` |
+| `@dependency-select` | 依存関係線の選択状態変更時（ハイライト・編集/削除ボタン表示） | `DependencySelectEventDetail` |
 | `@dependency-delete` | 依存関係線の削除時 | `DependencyDeleteEventDetail` |
 | `@zoom-change` | ズーム倍率変更時 | `ZoomChangeEventDetail` |
 | `@command` | コマンド実行時（Undo / Redo 対象操作） | `CommandEventDetail` |

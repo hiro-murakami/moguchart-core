@@ -912,7 +912,7 @@ export class GanttRowElement extends LitElement {
       const editorEl = this.shadowRoot?.querySelector('.grid-cell-editor') as
         HTMLInputElement | HTMLSelectElement | null
       if (editorEl) {
-        editorEl.focus()
+        editorEl.focus({ preventScroll: true })
         if (
           editorEl instanceof HTMLInputElement &&
           (editorEl.type === 'text' || editorEl.type === 'number')
@@ -1144,7 +1144,7 @@ export class GanttRowElement extends LitElement {
           })
           if (customEl instanceof HTMLElement) {
             host.appendChild(customEl)
-            customEl.focus()
+            customEl.focus({ preventScroll: true })
           }
         }
       }

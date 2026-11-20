@@ -26,6 +26,8 @@ Properties that can be passed to the component.
 | `canUndo`              | `boolean`                                                 | (Readonly) Indicates whether an undo operation can be performed.                                                                                   |
 | `canRedo`              | `boolean`                                                 | (Readonly) Indicates whether a redo operation can be performed.                                                                                    |
 | `historyManager`       | `IHistoryManager \| undefined`                            | (Readonly) Provides access to the internal history manager instance.                                                                               |
+| `activeSemanticScale`  | `GanttSemanticZoomScale \| undefined`                     | (Readonly) Returns the active timeline scale (`'month' \| 'week' \| 'day' \| 'hour'`) when semantic zoom is enabled.                               |
+| `effectiveSnapDuration`| `number`                                                  | (Readonly) Returns the effective snap interval (in minutes) accounting for monthly mode and semantic zoom auto-snapping.                           |
 
 ## Options (GanttChartOption)
 
@@ -161,10 +163,14 @@ interface GanttChartOption {
   constraint?: GanttChartOptionConstraint
   /** Multi-column data grid configuration */
   grid?: GanttChartOptionGrid
+  /** WBS-aware filtering & search configuration */
+  filter?: GanttFilterConfig | null
   /** Operation history and Undo/Redo configuration */
   history?: GanttChartOptionHistory
   /** Touch device interaction optimization settings */
   touch?: GanttChartOptionTouch
+  /** Interactive timeline task creation settings */
+  taskCreation?: boolean | GanttChartOptionTaskCreation
   /** Extension plugins */
   plugins?: GanttPlugin[]
 }
@@ -183,6 +189,7 @@ Custom events dispatched by the component.
 | `bar-selection-change`   | `BarSelectionChangeEventDetail`   | Fired when task bar selection changes.                                               |
 | `bar-hover`              | `BarHoverEventDetail`             | Fired when a task bar is hovered over.                                               |
 | `row-clicked`            | `RowClickedEventDetail`           | Fired when a row header is clicked.                                                  |
+| `task-create`            | `TaskCreateEventDetail`           | Fired when a new task is created interactively on the timeline (`option.taskCreation`). |
 | `task-update`            | `TaskUpdateEventDetail`           | Fired when a task is updated via drag & drop or resize.                              |
 | `task-progress-change`   | `TaskProgressChangeEventDetail`   | Fired when progress drag editing is completed (or cancelled via Esc key).           |
 | `task-deadline-change`   | `TaskDeadlineChangeEventDetail`   | Fired when deadline marker drag editing is completed (or cancelled via Esc key).    |
@@ -199,6 +206,7 @@ Custom events dispatched by the component.
 | `cell-paste`             | `CellPasteEventDetail`            | Fired when TSV data is pasted into multi-column grid cells.                          |
 | `cell-edit`              | `CellEditEventDetail`             | Fired when an inline cell edit in the multi-column grid is committed.                |
 | `calendar-range-change`  | `CalendarRangeChangeEventDetail`  | Fired when the calendar display range is automatically extended during drag operations (`calendar.autoExtend`). |
+| `filter-change`          | `FilterChangeEventDetail`         | Fired when row/task filtering configuration is applied, updated, or cleared.         |
 | `row-header-click`       | `RowHeaderClickEventDetail`       | Fired when a row header is clicked.                                                  |
 | `row-header-dblclick`    | `RowHeaderDblClickEventDetail`    | Fired when a row header is double-clicked.                                           |
 | `row-header-contextmenu` | `RowHeaderContextMenuEventDetail` | Fired when a row header is right-clicked. Use for implementing custom context menus. |
@@ -207,6 +215,8 @@ Custom events dispatched by the component.
 | `chart-contextmenu`      | `ChartContextMenuEventDetail`     | Fired when the chart background (area without tasks) is right-clicked.               |
 | `dependency-create`      | `DependencyCreateEventDetail`     | Fired when a dependency is created via drag & drop from a task bar connector.        |
 | `dependency-click`       | `DependencyClickEventDetail`      | Fired when a dependency line is clicked, double-clicked, or right-clicked.           |
+| `dependency-edit`        | `DependencyEditEventDetail`       | Fired when a dependency edit action is triggered (via on-line edit button or double-click; cancelable via `preventDefault()`). |
+| `dependency-update`      | `DependencyUpdateEventDetail`     | Fired when a dependency's type or lag is updated via the built-in popover or `updateDependency()`. |
 | `dependency-select`      | `DependencySelectEventDetail`     | Fired when a dependency line is selected or deselected.                              |
 | `dependency-delete`      | `DependencyDeleteEventDetail`     | Fired when a dependency line is deleted (via Delete key, button, or method).         |
 | `task-delete`            | `TaskDeleteEventDetail`           | Fired when Delete / Backspace key is pressed while tasks are selected.               |
@@ -237,8 +247,13 @@ Public methods that can be called on the component instance.
 | `zoomToFit`               | `() => void`                                                                                                | Automatically adjusts the zoom level so that all tasks fit within the visible area. Scrolls to the task start position.                                                                          |
 | `resetZoom`               | `() => void`                                                                                                | Resets zoom back to 100% standard magnification.                                                                                                                                                |
 | `triggerDependencyDelete` | `(sourceTaskId: string, targetTaskId: string) => boolean`                                                   | Programmatically deletes the dependency connection between two tasks, emitting `dependency-delete` and recording the undoable command.                                                         |
+| `updateDependency`        | `(sourceTaskId: string, targetTaskId: string, updates: DependencyUpdateInput) => boolean`                   | Updates a dependency link's relationship `type` or `lag` / `lagDays`, emitting `dependency-update` and recording an undoable `'dependency-update'` command (with auto-scheduling cascade if enabled). |
+| `openDependencyEditPopover`| `(sourceTaskId: string, targetTaskId: string) => boolean`                                                  | Programmatically opens the built-in dependency edit popover for the specified link.                                                                                                             |
+| `closeDependencyEditPopover`| `() => void`                                                                                              | Closes the currently open built-in dependency edit popover.                                                                                                                                     |
+| `clearDependencySelection`| `() => void`                                                                                                | Clears the currently selected dependency line and closes any open dependency edit popover.                                                                                                      |
 | `autoSchedule`            | `(changedTaskIds?: string[], options?: AutoScheduleOptions) => string[]`                                    | Recalculates and cascades successor task dates in topological order based on dependency constraints and lag. Records an undoable command if changes occur and returns updated task IDs.         |
 | `selectTask`              | `(taskId: string) => boolean`                                                                               | Selects the task with the specified ID. If the task is off-screen, it auto-scrolls to show it. Returns `true` if the task was found, `false` otherwise.                                         |
+| `clearSelection`          | `() => void`                                                                                                | Clears all active selections across task bars, rows, dependency lines, and grid cells.                                                                                                          |
 | `use`                     | `<TConfig = any>(plugin: GanttPlugin<TConfig>, config?: TConfig) => this`                                   | Registers and initializes an extension plugin (such as the export plugin). Chainable.                                                                                                           |
 | `hitTest`                 | `(clientX: number, clientY: number) => { rowId: string; date: Date } \| null`                               | Returns the corresponding Gantt chart row ID and date from client coordinates (pixel position on screen). Returns `null` if the coordinates are outside the chart area.                         |
 | `exportImage`             | `(format: 'png' \| 'pdf' = 'png', options?: ExportImageOptions) => Promise<string \| Blob>`                 | Exports the entire Gantt chart as an image or PDF (**requires `@mogura/moguchart-plugin-export`**). Returns a Data URL (string) for PNG, or a Blob for PDF. If `options.download: true` is specified, it automatically starts the file download. |
@@ -247,6 +262,10 @@ Public methods that can be called on the component instance.
 | `toggleRowCollapse`       | `(rowId: string, collapsed?: boolean) => boolean`                                                           | Toggles or sets the collapse/expand state for a specified row (forces state if `collapsed` is provided). Returns `true` if the state changed, or `false` if the row does not exist.             |
 | `collapseAll`             | `() => void`                                                                                                | Collapses all parent rows with children in a single operation.                                                                                                                                   |
 | `expandAll`               | `() => void`                                                                                                | Expands all rows in a single operation.                                                                                                                                                          |
+| `setFilter`               | `(filter: GanttFilterConfig \| null) => GanttFilterResult`                                                  | Applies (or clears when `null`) WBS-aware row/task filtering and returns the computed `GanttFilterResult` (dispatches `filter-change`).                                                         |
+| `clearFilter`             | `() => GanttFilterResult`                                                                                   | Clears the active filter and returns the reset `GanttFilterResult`.                                                                                                                             |
+| `getFilter`               | `() => GanttFilterConfig \| null`                                                                           | Returns the currently active filter configuration, or `null` if none.                                                                                                                           |
+| `getFilterResult`         | `() => GanttFilterResult`                                                                                   | Returns the latest filter evaluation result (`matchedRowIds`, `visibleRowIds`, counts, etc.).                                                                                                    |
 | `resetScroll`             | `() => void`                                                                                                | Resets the Gantt chart scroll position to the top-left (0, 0).                                                                                                                                   |
 | `scrollToPosition`        | `(options: { left?: number; top?: number; behavior?: ScrollBehavior }) => void`                             | Scrolls to the specified coordinates (left, top).                                                                                                                                                |
 | `scrollToTask`            | `(taskId: string) => void`                                                                                  | Smoothly scrolls the chart to ensure the specified task is visible within the viewport (centered vertically, and adjusted horizontally with row header width and margin).                       |
@@ -1182,6 +1201,15 @@ interface GanttChartOptionDependency {
   scheduleMode?: AutoScheduleMode
   /** Whether auto-scheduling respects task.movable ('none' | 'y') and excludes locked tasks (default: true) */
   respectMovable?: boolean
+  /** Whether to enable the built-in dependency edit popover (default: true; disabled when readOnly) */
+  enableEditPopover?: boolean
+  /**
+   * Whether to show the edit (pencil) button on selected dependency lines (default: enableEditPopover !== false; disabled when readOnly).
+   * Combine enableEditPopover: false with showEditButton: true to open a custom edit dialog via dependency-edit without showing the built-in popover.
+   */
+  showEditButton?: boolean
+  /** Trigger action on a dependency line to fire dependency-edit / open the popover (default: 'dblclick') */
+  editPopoverTrigger?: 'dblclick' | 'click'
 }
 ```
 
@@ -1231,6 +1259,67 @@ interface DependencyDeleteEventDetail {
 }
 ```
 
+### DependencyEditEventDetail / DependencyUpdateInput / DependencyUpdateEventDetail
+
+```typescript
+interface DependencyEditEventDetail {
+  sourceTaskId: string // Source task ID
+  targetTaskId: string // Target task ID
+  event?: MouseEvent // Original mouse event
+}
+
+interface DependencyUpdateInput {
+  type?: DependencyType // Updated dependency relationship ('FS' | 'SS' | 'FF' | 'SF')
+  lag?: number // Updated lag duration in minutes (1 day = 1440)
+  lagDays?: number // Shorthand lag in days (converted to lagDays * 1440 when lag is omitted)
+}
+
+interface DependencyUpdateEventDetail {
+  sourceTaskId: string // Predecessor (source) task ID
+  targetTaskId: string // Successor (target) task ID
+  dependency: Required<GanttDependencyLink> // Normalized updated dependency link
+  previousDependency: Required<GanttDependencyLink> // Normalized previous dependency link
+  affectedTasks?: Array<{
+    task: GanttTask
+    rowId: string
+    oldStart: Date
+    oldEnd: Date
+  }>
+}
+```
+
+### GanttChartOptionTaskCreation / TaskCreateEventDetail
+
+Configuration and event detail payload for interactive task creation directly on empty timeline areas.
+
+```typescript
+type GanttTaskCreationTrigger = 'alt-drag-or-dblclick' | 'alt-drag' | 'dblclick' | 'drag'
+
+interface GanttChartOptionTaskCreation {
+  /** Whether interactive task creation is enabled (default: false; true when taskCreation: true) */
+  enabled?: boolean
+  /** Interaction trigger (default: 'alt-drag-or-dblclick') */
+  trigger?: GanttTaskCreationTrigger
+  /** Default duration in minutes for double-click creation or minimum drag fallback (auto-resolved to 1440 min for day+ views or 60 min for hourly view) */
+  defaultDurationMinutes?: number
+  /** Default name for newly created tasks (falls back to locale taskCreation.defaultName) */
+  defaultTaskName?: string
+  /** Default bar background color (CSS color string) */
+  defaultBarColor?: string
+  /** Whether to allow task creation on summary (parent) rows (default: false) */
+  allowOnSummaryRow?: boolean
+  /** Optional factory to customize initial task fields or custom IDs before creation */
+  createTask?: (context: { row: GanttRow; start: Date; end: Date }) => Partial<GanttTask>
+}
+
+interface TaskCreateEventDetail {
+  task: GanttTask // Newly created task
+  rowId: string // Target row ID
+  row: GanttRow // Updated target row data
+  source: 'drag' | 'dblclick' // Creation trigger source
+}
+```
+
 ### TaskDeleteEventDetail
 
 ```typescript
@@ -1247,7 +1336,8 @@ interface ZoomChangeEventDetail {
   pxPerDay: number // pxPerDay after zoom
   pxPerMonth?: number // pxPerMonth after zoom (only in monthly mode)
   zoomScale: number // Zoom magnification scale (1.0 = 100%)
-  zoomPercent: number // Zoom magnification percentage (50 to 200)
+  zoomPercent: number // Zoom magnification percentage
+  semanticScale?: GanttSemanticZoomScale // Active display scale when semantic zoom is enabled
 }
 ```
 
@@ -1284,6 +1374,29 @@ interface GanttChartOptionZoom {
   min?: number
   /** Maximum pxPerDay (default: 200). Acts as maximum pxPerMonth in monthly mode (backward compatibility) */
   max?: number
+  /** Semantic zoom configuration for continuous Month ⇄ Week ⇄ Day ⇄ Hour scale transitions */
+  semanticScale?: boolean | GanttSemanticZoomConfig
+}
+
+type GanttSemanticZoomScale = 'month' | 'week' | 'day' | 'hour'
+
+interface GanttSemanticZoomConfig {
+  /** Whether semantic zoom is enabled (default: true) */
+  enabled?: boolean
+  /** Permitted timeline scales in transition order (default: ['month', 'week', 'day', 'hour']) */
+  scales?: GanttSemanticZoomScale[]
+  /** Transition thresholds in equivalent pixels per day */
+  thresholds?: {
+    monthToWeekPxPerDay?: number // default: 7
+    weekToDayPxPerDay?: number // default: 22
+    dayToHourPxPerDay?: number // default: 180
+  }
+  /** Minimum zoom-out equivalent px/day (default: 1.5 ≈ pxPerMonth: 45) */
+  minEquivalentPxPerDay?: number
+  /** Maximum zoom-in equivalent px/day (default: 1440 = 60px/hour) */
+  maxEquivalentPxPerDay?: number
+  /** Automatically adjust snapDuration with scale transitions (default: true — 1440 min for Month/Week/Day, 60 min for Hour) */
+  autoSnapDuration?: boolean
 }
 ```
 
@@ -1614,9 +1727,9 @@ interface GanttCellEditorContext<TRow = GanttRow, TTask = GanttTask> {
 }
 
 interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
-  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' or custom string) */
+  /** Column identifier ('wbs' | 'name' | 'startDate' | 'endDate' | 'startMonth' | 'endMonth' | 'startDateTime' | 'endDateTime' | 'duration' | 'workingDays' | 'progress' | 'deadline' or custom string) */
   id: string
-  /** Header display title (defaults to locale dictionary or column id; startDate/endDate automatically adapt to monthly/hourly view modes) */
+  /** Header display title (defaults to locale dictionary or column id; startDate/endDate/deadline automatically adapt to monthly/hourly view modes) */
   title?: string
   /** Column width in px */
   width?: number
@@ -1630,6 +1743,8 @@ interface GanttColumn<TRow = GanttRow, TTask = GanttTask> {
   resizable?: boolean
   /** Whether to allow user dragging of the column header to reorder columns (default: true) */
   reorderable?: boolean
+  /** Whether to pin (freeze) this column on the left side during horizontal grid scrolling ('left' or true) */
+  pinned?: 'left' | boolean
   /** Whether the column is visible (default: true) */
   visible?: boolean
   /** Whether to place the hierarchy tree indent and expand/collapse toggle in this column (default: 'name' column) */
@@ -1774,6 +1889,60 @@ interface CellEditEventDetail<TRow = GanttRow, TTask = GanttTask> {
 }
 ```
 
+### GanttFilterConfig / GanttFilterResult / FilterChangeEventDetail
+
+Configuration and evaluation result interfaces for WBS-aware row and task filtering.
+
+```typescript
+type GanttFilterMode = 'hide' | 'dim'
+type GanttFilterStatus = 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'
+
+interface GanttFilterRowContext {
+  row: GanttRow
+  tasks: GanttTask[]
+  depth: number
+  ancestorIds: string[]
+  wbsCode?: string
+}
+
+interface GanttFilterConfig {
+  /** Case-insensitive substring text search across row names, task names, WBS codes, visible grid columns, and extra fields */
+  query?: string
+  /** Additional GanttRow / GanttTask property keys to include in query search */
+  fields?: string[]
+  /** Built-in status filter (default: 'all') */
+  status?: GanttFilterStatus
+  /** Task kind filter */
+  taskTypes?: Array<'task' | 'milestone' | 'summary'>
+  /** Filter to rows containing tasks overlapping the specified date range */
+  dateRange?: { start?: Date; end?: Date }
+  /** Custom row predicate combined via logical AND with built-in filters */
+  predicate?: (ctx: GanttFilterRowContext) => boolean
+  /** Display mode for non-matching rows ('hide': preserve WBS ancestors & hide non-matches, 'dim': dim non-matches in place; default: 'hide') */
+  mode?: GanttFilterMode
+  /** Automatically expand collapsed parent rows containing matched descendants in 'hide' mode (default: true) */
+  autoExpandMatches?: boolean
+  /** Include all descendant rows when a parent row itself matches (default: false) */
+  includeDescendantsOfMatchedParent?: boolean
+}
+
+interface GanttFilterResult {
+  active: boolean
+  mode: GanttFilterMode
+  matchedRowIds: Set<string>
+  visibleRowIds: Set<string>
+  matchedTaskIds: Set<string>
+  totalRowCount: number
+  matchedRowCount: number
+  visibleRowCount: number
+}
+
+interface FilterChangeEventDetail {
+  filter: GanttFilterConfig | null
+  result: GanttFilterResult
+}
+```
+
 ### GanttCalendarAutoExtendOption / CalendarRangeChangeEventDetail
 
 Configuration and event detail payload for automatic calendar range extension when dragging near the start or end boundaries of the timeline.
@@ -1869,13 +2038,17 @@ interface GanttPlugin<TConfig = any, TChart = any> {
   renderOverlay?(context: GanttOverlayRenderContext<TChart>): unknown
   /** Lifecycle hooks */
   hooks?: {
-    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail>
+    beforeTaskCreate?: (detail: BeforeTaskCreateHookDetail) => boolean | void | Promise<boolean | void>
+    afterTaskCreate?: (detail: TaskCreateEventDetail) => void
+    beforeTaskUpdate?: (detail: TaskUpdateEventDetail) => boolean | void | Partial<TaskUpdateEventDetail> | Promise<boolean | void>
     afterTaskUpdate?: (detail: TaskUpdateEventDetail) => void
-    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail>
+    beforeDependencyCreate?: (detail: DependencyCreateEventDetail) => boolean | void | Partial<DependencyCreateEventDetail> | Promise<boolean | void>
     afterDependencyCreate?: (detail: DependencyCreateEventDetail) => void
-    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void
+    beforeDependencyDelete?: (detail: DependencyDeleteEventDetail) => boolean | void | Promise<boolean | void>
     afterDependencyDelete?: (detail: DependencyDeleteEventDetail) => void
-    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any }
+    beforeDependencyUpdate?: (detail: BeforeDependencyUpdateHookDetail) => boolean | void | Promise<boolean | void>
+    afterDependencyUpdate?: (detail: DependencyUpdateEventDetail) => void
+    beforeCellEdit?: (detail: BeforeCellEditHookDetail) => boolean | void | { rawInputValue?: any } | Promise<boolean | void>
     afterCellEdit?: (detail: CellEditEventDetail) => void
     onViewportChange?: (viewport: GanttViewportState) => void
     onZoomChange?: (detail: ZoomChangeEventDetail) => void
@@ -1954,7 +2127,34 @@ interface MoguchartLocale {
       duration: string // Duration column header (e.g., 'Duration')
       workingDays?: string // Working days column header (e.g., 'Working Days')
       progress: string // Progress column header (e.g., 'Progress')
+      deadline?: string // Deadline column header (e.g., 'Deadline')
     }
+    footerLabel?: string // Sticky summary footer row label (e.g., 'Summary')
+  }
+  /** Built-in dependency edit popover strings */
+  dependencyPopover?: {
+    title: string
+    typeLabel: string
+    lagLabel: (unit: string) => string
+    units: { days: string; hours: string; minutes: string; months: string }
+    types: { FS: string; SS: string; FF: string; SF: string }
+    save: string
+    delete: string
+    cancel: string
+    editButtonTitle: string
+    deleteButtonTitle: string
+  }
+  /** Interactive timeline task creation strings */
+  taskCreation?: {
+    defaultName: string
+    commandDescription: string
+  }
+  /** WAI-ARIA accessibility strings */
+  aria?: {
+    chartLabel: string
+    toggleExpand: string
+    toggleCollapse: string
+    taskBarLabel: (name: string, startStr: string, endStr: string, progress?: number) => string
   }
 }
 ```
@@ -2525,8 +2725,9 @@ import {
   calculateRowProgress,
   calculateWeightedRowProgress,
   calculateProjectProgress,
-  // Baseline (plan vs actual) calculations
+  // Baseline (plan vs actual) & deadline calculations
   calculateTaskDelay,
+  calculateTaskDeadline,
   calculateProjectBaselineSummary,
   // Critical path computation
   computeCriticalPath,
@@ -2551,10 +2752,24 @@ import {
   computeVisibleTreeRows,
   computeSummaryTask,
   canDropRow,
-  // Multi-Column Grid calculations & inline editing helpers
+  // Security & style sanitization helpers
+  sanitizeCssValue,
+  sanitizeInlineStyle,
+  // Multi-Column Grid calculations, pinning, sorting, footer, TSV & inline editing helpers
   calculateRowSummaryDates,
   normalizeGridColumns,
+  isGridColumnPinned,
+  partitionGridColumns,
   reorderGridColumns,
+  compareWbsCodes,
+  compareGridRowValues,
+  sortGridRowsHierarchically,
+  calculateGridFooterSummary,
+  getGridFooterCellValue,
+  formatGridFooterCellValue,
+  resolveGridCellRange,
+  formatGridRangeToTsv,
+  parseTsvString,
   findAdjacentEditableCell,
   getGridCellValue,
   formatGridCellValue,
@@ -2562,6 +2777,12 @@ import {
   isGridCellEditable,
   formatGridCellEditValue,
   applyGridCellEdit,
+  // WBS-aware filtering, semantic zoom & timeline task creation helpers
+  evaluateRowFilter,
+  isFilterConfigActive,
+  resolveSemanticZoomConfig,
+  resolveSemanticScale,
+  resolveTaskCreationConfig,
 } from '@mogura/moguchart-core'
 ```
 

@@ -11,15 +11,16 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
 
 ## Features
 
-- 🚀 **Framework-agnostic**: Built as standard Web Components (Custom Elements), easily integrated into any frontend framework.
+- 🚀 **Framework-agnostic & Zero External Runtime Dependencies**: Built as standard Web Components (Custom Elements) with zero external runtime dependencies beyond `lit` (peer dependency), compatible with any frontend framework and strict `node16` / `nodenext` TypeScript ESM module resolution.
 - ⚡ **2D Virtual Scrolling & Sparse Background Rendering**: Combines vertical row virtualization (Y-axis) with horizontal timeline virtualization (`calendar.virtualScrollX`, X-axis) and sparse weekend/holiday cell rendering for smooth 60fps performance across hundreds of rows and multi-year timelines.
-- ↩️ **Operation History (Undo / Redo)**: Command pattern-based history manager. Complete undo/redo support for task movement, duration resizing, progress adjustments, deletion, row reordering, and dependency editing (`Ctrl+Z` / `Ctrl+Y`).
-- 🔍 **Comprehensive Zoom Controls**: Smooth magnification adjustments based on percentage (50% to 200%) and scale factors (0.5 to 2.0). Coordinated synchronization across calendar width, row header width, bar height, and font scale (`--moguchart-font-scale`). Keyboard shortcuts (`Ctrl/Cmd + + / - / 0`), mouse wheel zoom, and 2-finger touch pinch zoom.
+- ↩️ **Operation History (Undo / Redo)**: Command pattern-based history manager. Complete undo/redo support for timeline task creation, movement, duration resizing, progress & deadline adjustments, deletion, row reordering, dependency creation/updating/deletion, and inline grid edits (`Ctrl+Z` / `Ctrl+Y`).
+- 🔍 **Comprehensive Zoom & Semantic Zoom (`option.zoom.semanticScale`)**: Smooth magnification adjustments based on percentage (50% to 200%) and scale factors (0.5 to 2.0) synchronizing calendar width, row header width, bar height, and font scale (`--moguchart-font-scale`), plus **Semantic Zoom** that seamlessly transitions timeline granularity across **`Month ⇄ Week ⇄ Day ⇄ Hour`** views and adapts `snapDuration` while keeping the cursor/pinch anchor fixed. Supports keyboard shortcuts (`Ctrl/Cmd + + / - / 0`), mouse wheel zoom, and 2-finger touch pinch zoom.
 - 📱 **Touch Device (Tablet & Mobile) Optimization (`option.touch`)**:
   - Automatic differentiation between 1-finger swipe scrolling and long-press task bar drag movement
   - Smooth 2-finger pinch-in / pinch-out zoom anchored at the midpoint between fingers (`zoomToPercentAtPoint`)
   - Enlarged touch hit areas and visual handle indicators for resize handles, dependency connectors, and progress knobs on touch-selected bars, plus optional haptic feedback
 - 🖱️ **Rich Interactive Controls**:
+  - Direct timeline task creation via `Alt(Option) + Drag` or double-clicking empty timeline space (`option.taskCreation` / `task-create` event)
   - Drag & drop task movement (with optional cross-row vertical movement and automatic viewport edge scrolling `autoScrollOnDrag`)
   - Handle-based task duration resizing
   - Drag & drop row reordering
@@ -38,7 +39,7 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - Support all 4 standard dependency relationships (`FS`: Finish-to-Start, `SS`: Start-to-Start, `FF`: Finish-to-Finish, `SF`: Start-to-Finish) and lag/lead time (`lag` in minutes) via `GanttDependencyLink` (with 100% backward compatibility for string task IDs)
   - Topological cascade **Auto-Scheduling** (`autoSchedule`, `scheduleMode: 'push-only' | 'strict'`, `respectMovable`) seamlessly linked with `option.calendar` working-day settings (`calendarMode`, `nonWorkingDays`, `isHoliday`) for non-working day skipping and working-duration/lag preservation across drag/resize, multi-task move, keyboard movement, inline grid cell editing, and programmatic `chart.autoSchedule()`
   - Direct task dependencies visualised with orthogonal segmented lines or Bezier curves routed accurately to left/right bar endpoints
-  - Click, double-click, and right-click (`contextmenu`) support on dependency lines with dedicated highlight styling
+  - Click, double-click, and right-click (`contextmenu`) support on dependency lines, plus a **built-in dependency edit popover & on-line edit (pencil) button** for changing relationship types (`FS` / `SS` / `FF` / `SF`) and lag/lead times (`dependency-edit` / `dependency-update` events, `updateDependency()` method)
   - One-click deletion via on-line "×" button or `Delete` / `Backspace` key
   - Proximity connector toggle (`showConnectors`)
   - Automatic critical path detection and highlighted visualization (`showCriticalPath`)
@@ -63,9 +64,9 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - `task-progress-change` custom event
   - Progress calculation utility functions (simple & duration-weighted row/project averages)
   - Automatic progress visualization on the overview minimap
-- 🧩 **Plugin Architecture & Custom Overlay Slot**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while exposing cancellable `before*` / `after*` lifecycle hooks for task updates, dependency creation/deletion, and grid cell edits, `onViewportChange` hooks, and a custom timeline `renderOverlay` slot.
+- 🧩 **Plugin Architecture & Custom Overlay Slot**: Modular architecture keeping the core bundle ultra-lightweight (tens of KBs) while exposing cancellable `before*` / `after*` lifecycle hooks for task creation/updates, dependency creation/updates/deletion, and grid cell edits, `onViewportChange` hooks, and a custom timeline `renderOverlay` slot.
 - 📷 **Image & PDF Export Plugin**: Full Gantt chart PNG image and multi-page PDF export powered by `@mogura/moguchart-plugin-export` (with automatic zoom normalization `normalizeZoom`, scroll position preservation, and auto-download support).
-- 📊 **Excel Spreadsheet Export Plugin**: Styled Excel (.xlsx) schedule and timeline export powered by `@mogura/moguchart-plugin-excel` (multi-language support `ja`/`en`/`zh`, WBS hierarchy preservation, cell-shaded task duration bars, and holiday formatting).
+- 📊 **Excel Spreadsheet Export Plugin**: Styled Excel (.xlsx) schedule and timeline export powered by `@mogura/moguchart-plugin-excel` (multi-language support `ja`/`en`/`zh`, WBS hierarchy preservation, frozen columns `frozenColumns` automatically synced with pinned grid columns, cell-shaded task duration bars, and holiday formatting).
 - ✨ **Advanced Integration**:
   - External drag & drop for task creation
   - Task move / copy modes
@@ -106,8 +107,12 @@ A lightweight yet feature-rich Gantt chart Web Component built with Lit. Works s
   - **Spreadsheet Cell Range Selection & TSV Copy-Paste** (`option.grid.cellSelection: true`): Click, drag, or `Shift + Arrow` to select rectangular cell ranges, and press `Ctrl/Cmd+C` / `Ctrl/Cmd+V` for Excel / Google Sheets compatible TSV copy & batch paste (with Undo/Redo integration)
   - **Inline Cell Editing & Continuous Keyboard Navigation** (`option.grid.editable: true`): Direct editing via double-click or single-click (or `Enter` / `F2` on a selected cell), built-in editors (`text`, `number`, `date`, `datetime`, `month`, `select`) and custom DOM editor functions, spreadsheet-style `Tab` / `Shift+Tab` (next/previous editable cell with row wrap) and `Enter` / `Shift+Enter` (same column down/up) navigation (`navigateCellEdit`) that automatically skips read-only cells, automatic linkage with single-task `movable` / `resizable` / `progressResizable` settings, visual distinction between editable (`.grid-cell-editable`) and read-only (`.grid-cell-readonly`) cells, Undo/Redo history integration, and `cell-edit` events
   - Custom column definitions with `field`, `valueGetter`, `valueSetter`, `formatter`, `renderCell`, `comparator`, `footerValueGetter`, `footerFormatter`, and `renderFooterCell`, plus 2-tier layout coexistence with `customRendering.cornerContent`
-  - Column header drag-resizing (`column-resize` event) and **drag-and-drop column reordering** (`reorderable`, `column-reorder` event)
+  - Column header drag-resizing (`column-resize` event), **left-pinned (frozen) columns** (`pinned: 'left' | true`), and **drag-and-drop column reordering** (`reorderable`, `column-reorder` event)
   - Splitter-based area resizing with synchronized independent horizontal scrolling within the grid area (via trackpad swipe, Shift+wheel, or wheel over grid headers)
+- 🔎 **WBS-Aware Filtering & Search (`option.filter` / `setFilter`)**:
+  - Combine substring text search (across row names, task names, WBS codes, grid columns, and custom fields), status filters (`incomplete` / `completed` / `overdue` / `inProgress`), task types, date ranges, and custom row predicates
+  - Choose between `'hide'` mode (hides unmatched rows while preserving WBS ancestor chains and auto-expanding matched collapsed parents) and `'dim'` mode (dims unmatched rows/tasks in place), with `filter-change` event notifications
+- ♿ **WAI-ARIA Accessibility**: Built-in `role="treegrid"`, `role="columnheader"` (with `aria-sort`), `role="row"` (`aria-level` / `aria-expanded` / `aria-selected`), task bar `role="button"` & `role="progressbar"` attributes, and localized ARIA labels (`MoguchartLocale.aria`)
 - ⌨️ **Keyboard Navigation & Shortcuts**: Arrow key navigation & selection, Shift + Arrow task movement, Delete / Backspace task & dependency deletion, grid cell arrow selection & `Ctrl/Cmd+C` / `Ctrl/Cmd+V` TSV copy-paste, `Tab`/`Shift+Tab`/`Enter`/`Shift+Enter` inline grid cell navigation, Undo / Redo (`Ctrl+Z` / `Ctrl+Y`), and zoom controls.
 
 ## Packages (Ecosystem)
@@ -714,6 +719,9 @@ const option = {
     creatable: true,
     deletable: true,
     showDeleteButton: true,
+    enableEditPopover: true, // Built-in dependency edit popover on double-click or edit button (default: true)
+    showEditButton: true, // Show edit (pencil) button on selected line (default: enableEditPopover !== false)
+    editPopoverTrigger: 'dblclick', // 'dblclick' (default) | 'click'
     autoSchedule: true, // Enable topological cascade auto-scheduling
     scheduleMode: 'push-only', // 'push-only' | 'strict'
     respectMovable: true,
@@ -724,12 +732,49 @@ const option = {
 // Programmatically recalculate and cascade all dependencies
 const updatedTaskIds = chart.autoSchedule()
 
-// Dependency selection and deletion events
+// Dependency selection, edit, update, and deletion events
 chart.addEventListener('dependency-select', (e) => {
   console.log('Selected dependency:', e.detail.selected)
 })
+chart.addEventListener('dependency-edit', (e) => {
+  console.log('Edit dependency triggered:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+  // Call e.preventDefault() (or set enableEditPopover: false) to open your own custom dialog
+})
+chart.addEventListener('dependency-update', (e) => {
+  console.log('Updated dependency:', e.detail.previousDependency, '->', e.detail.dependency)
+})
 chart.addEventListener('dependency-delete', (e) => {
   console.log('Deleted dependency:', e.detail.sourceTaskId, '->', e.detail.targetTaskId)
+})
+
+// Programmatically update dependency type or lag (with Undo/Redo & auto-schedule support)
+chart.updateDependency('t-1', 't-2', { type: 'SS', lagDays: 2 })
+```
+
+### Interactive Timeline Task Creation (`option.taskCreation`)
+
+Enable `option.taskCreation` to let users create new tasks directly on empty timeline areas via `Alt(Option) + Drag` (with live ghost preview and grid snapping) or double-click, integrated with Undo/Redo (`'task-create'`) and `beforeTaskCreate` / `afterTaskCreate` plugin hooks.
+
+```javascript
+const option = {
+  taskCreation: {
+    enabled: true,
+    trigger: 'alt-drag-or-dblclick', // 'alt-drag-or-dblclick' (default) | 'alt-drag' | 'dblclick' | 'drag'
+    defaultTaskName: 'New Task',
+    defaultBarColor: '#3b82f6',
+    allowOnSummaryRow: false,
+    // Optional factory to customize initial task fields/ID
+    createTask: ({ row, start, end }) => ({
+      id: `task-${Date.now()}`,
+      name: `${row.name} Task`,
+      progress: 0,
+    }),
+  },
+}
+
+chart.addEventListener('task-create', (e) => {
+  const { task, rowId, source } = e.detail
+  console.log(`Created task in row ${rowId} (${source}):`, task)
 })
 ```
 
@@ -1053,8 +1098,8 @@ const option = {
     editable: true, // Enable inline cell editing (default: false)
     editTrigger: 'dblclick', // Trigger to start editing ('dblclick' | 'click', default: 'dblclick')
     columns: [
-      { id: 'wbs', width: 60, reorderable: false }, // WBS code (lock column position with reorderable: false)
-      { id: 'name', width: 220 }, // Task name (includes tree indent, collapse toggle, and text editing)
+      { id: 'wbs', width: 60, pinned: 'left', reorderable: false }, // WBS code (pinned: 'left' keeps column frozen on horizontal scroll)
+      { id: 'name', width: 220, pinned: 'left' }, // Task name (pinned left, includes tree indent, collapse toggle, and text editing)
       { id: 'startDate', width: 125 }, // Start date (adapts to date/month/datetime editor)
       { id: 'endDate', width: 125 }, // End date (adapts to date/month/datetime editor)
       { id: 'duration', width: 80 }, // Duration in calendar days (numeric editor)
@@ -1113,6 +1158,29 @@ chart.sortByColumn('startDate', 'asc') // Sort by column ('asc' | 'desc' | null)
 chart.selectGridCells({ start: { rowId: 'row-1', columnId: 'name' }, end: { rowId: 'row-2', columnId: 'endDate' } })
 const tsv = chart.copySelectedCellsToTsv() // Copy selected range as TSV string
 chart.pasteTsvToCells(tsv, 'row-3', 'name') // Batch paste TSV starting at target cell
+```
+
+### WBS-Aware Filtering & Search (`option.filter` / `setFilter`)
+
+Filter rows and tasks by keyword, status, task kind, date range, or custom predicate via `option.filter` or `chart.setFilter()` while automatically preserving WBS parent-child hierarchy.
+
+```javascript
+// Apply filter declaratively or imperatively
+const result = chart.setFilter({
+  query: 'API', // Case-insensitive match across row/task names, WBS codes, and grid columns
+  status: 'overdue', // 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'
+  mode: 'hide', // 'hide' (preserve ancestors & hide non-matches) | 'dim' (dim non-matches)
+  autoExpandMatches: true, // Auto-expand collapsed parents that contain matched descendants
+})
+console.log(`Matched: ${result.matchedRowCount} / ${result.totalRowCount} rows`)
+
+// Clear active filter
+chart.clearFilter()
+
+// Listen to filter state changes
+chart.addEventListener('filter-change', (e) => {
+  console.log('Filter changed:', e.detail.filter, e.detail.result)
+})
 ```
 
 ### Public Methods
@@ -1248,6 +1316,12 @@ const option = {
       barHeight: true,
       fontScale: true,
     },
+    // Optional: seamlessly transition across Month ⇄ Week ⇄ Day ⇄ Hour scales during continuous zoom
+    semanticScale: {
+      enabled: true,
+      scales: ['month', 'week', 'day', 'hour'],
+      autoSnapDuration: true,
+    },
   },
 }
 
@@ -1379,9 +1453,11 @@ import {
   // Security & style sanitization helpers
   sanitizeCssValue,
   sanitizeInlineStyle,
-  // Multi-Column Grid calculations, sorting, footer summary, TSV & inline editing helpers
+  // Multi-Column Grid calculations, pinning, sorting, footer summary, TSV & inline editing helpers
   calculateRowSummaryDates,
   normalizeGridColumns,
+  isGridColumnPinned,
+  partitionGridColumns,
   reorderGridColumns,
   compareWbsCodes,
   compareGridRowValues,
@@ -1399,6 +1475,12 @@ import {
   findAdjacentEditableCell,
   formatGridCellEditValue,
   applyGridCellEdit,
+  // WBS-aware filtering, semantic zoom & timeline task creation helpers
+  evaluateRowFilter,
+  isFilterConfigActive,
+  resolveSemanticZoomConfig,
+  resolveSemanticScale,
+  resolveTaskCreationConfig,
 } from '@mogura/moguchart-core'
 
 // 1. Calculate depth level for all rows

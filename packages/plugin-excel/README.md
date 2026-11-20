@@ -113,7 +113,8 @@ await chart.exportExcel({ locale: 'fr' })
 | `themeColor` | `string` | `'#3B82F6'` | Theme color for header & bars |
 | `isHoliday` | `GanttHolidayChecker` | Auto-detect | Holiday judgment function returning `boolean` or `{ name?, color? }` (auto-detected from `chart.option.calendar.isHoliday`) |
 | `holidayColor` | `string` | `'#FEE2E2'` | Background color for holiday and Sunday columns (applies to day scale only) |
-| `columns` | `ExcelExportColumn[]` | Standard cols | Custom column definitions |
+| `columns` | `ExcelExportColumn[] \| ((defaultColumns: ExcelExportColumn[]) => ExcelExportColumn[])` | Standard cols | Custom column definitions (supports `pinned: true \| 'left'` for frozen left columns) or a mapper function receiving default columns |
+| `frozenColumns` | `number` | Auto-detect | Number of frozen worksheet columns (`xSplit`). Defaults to `pinned` columns in `columns`, pinned columns in `chart.option.grid.columns`, or all table columns |
 | `sanitizeFormulas` | `boolean` | `true` | Neutralize leading formula trigger characters (`=`, `+`, `-`, `@`) in string cells |
 | `download` | `boolean` | `true` | Auto-trigger file download |
 

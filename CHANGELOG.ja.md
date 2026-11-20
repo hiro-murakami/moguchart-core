@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-11-21
+
+### Added
+
+- **WBS 階層維持フィルタリング・検索エンジン (`option.filter` / `setFilter` / `filter-change`)**:
+  - 行名・タスク名・WBS コード・可視グリッド列・追加指定フィールドに対する部分一致テキスト検索 (`query` / `fields`)、進捗・遅延ステータス (`status: 'all' | 'incomplete' | 'completed' | 'overdue' | 'inProgress'`)、タスク種別 (`taskTypes: Array<'task' | 'milestone' | 'summary'>`)、対象期間重複 (`dateRange`)、およびカスタム述語関数 (`predicate`) を組み合わせ可能な `GanttFilterConfig` (`option.filter`) を追加
+  - 非一致行の表示制御として、一致行の WBS 祖先行を維持（折りたたみ親行の自動一時展開 `autoExpandMatches` 対応）しつつ非一致行を隠す `'hide'` モードと、全行を表示したまま非一致行・タスクを減光表示（`_isFilteredOut: true`）する `'dim'` モード、および一致した親行配下の子孫行を含める `includeDescendantsOfMatchedParent` オプションをサポート
+  - パブリックメソッド `chart.setFilter(filter)`, `chart.clearFilter()`, `chart.getFilter()`, `chart.getFilterResult()`（および `@mogura/moguchart-vue` の `GanttChartPublicApi`）と、カスタムイベント `filter-change`（`FilterChangeEventDetail`、`@mogura/moguchart-react` の `onFilterChange`、`@mogura/moguchart-vue` の `@filter-change`）を追加
+  - 純粋評価ユーティリティ `evaluateRowFilter`, `isFilterConfigActive` および関連型定義を公開エクスポート
+- **マルチカラムデータグリッド：左固定（ピン留め）カラム (`GanttColumn.pinned`) ＆ Excel ウィンドウ枠固定連動**:
+  - `GanttColumn.pinned?: 'left' | boolean` を追加し、グリッド横スクロール時も指定カラム（WBS やタスク名など）を左端へスティッキー固定表示できる 2 ペイン分割描画に対応（カラムドラッグ並び替え時は固定ペインとスクロールペイン間の境界越えを自動抑止）
+  - カラム分割・判定ユーティリティ `isGridColumnPinned`, `partitionGridColumns`（`PartitionedGridColumns`）を公開エクスポート
+  - `@mogura/moguchart-plugin-excel`: `ExcelExportColumn.pinned?: 'left' | boolean` および `ExportExcelOptions.frozenColumns?: number` を追加し、未指定時は `chart.option.grid.columns` のピン留め列設定を自動検出して Excel シートのウィンドウ枠固定列数（`xSplit`）へ反映するよう拡張
+- **組み込み依存関係編集ポップオーバー・線上編集ボタン ＆ 依存関係更新 API (`option.dependency` / `dependency-edit` / `dependency-update`)**:
+  - 依存関係線のダブルクリック（または `editPopoverTrigger: 'click'`）や選択時の線上編集（鉛筆）ボタンクリックから、依存関係種別（`FS` / `SS` / `FF` / `SF`）およびラグ／リード期間（スナップ粒度・月表示に応じた単位自動切替）をその場で変更・削除できる組み込みポップオーバー機能を追加（`enableEditPopover?: boolean`、デフォルト: `true`、`showEditButton?: boolean`）
+  - `enableEditPopover: false` と `showEditButton: true` の組み合わせ（またはキャンセル可能な `dependency-edit` イベントでの `preventDefault()`）により、組み込みポップオーバーを表示せずホストアプリ独自の編集ダイアログを開く連携に対応
+  - パブリックメソッド `chart.updateDependency(sourceTaskId, targetTaskId, updates)`（Undo / Redo コマンド `'dependency-update'` 記録および自動スケジューリング連動対応）、`chart.openDependencyEditPopover(sourceTaskId, targetTaskId)`、`chart.closeDependencyEditPopover()` を追加（`@mogura/moguchart-vue` の `GanttChartPublicApi` にも公開、併せて `clearSelection` / `clearDependencySelection` も追加公開）
+  - カスタムイベント `dependency-edit` (`DependencyEditEventDetail`) および `dependency-update` (`DependencyUpdateEventDetail`) を `GanttChartElement`、`@mogura/moguchart-react`（`onDependencyEdit`, `onDependencyUpdate`）、`@mogura/moguchart-vue`（`@dependency-edit`, `@dependency-update`）に追加し、プラグインフック `beforeDependencyUpdate` / `afterDependencyUpdate` およびロケール辞書 `dependencyPopover` を追加
+- **タイムライン上でのインタラクティブな新規タスク作成 (`option.taskCreation` / `task-create`)**:
+  - タイムライン空白領域での `Alt(Option) + ドラッグ`（リアルタイムゴーストプレビュー＆グリッドスナップ対応）またはダブルクリックにより直接新規タスクを作成できる `option.taskCreation?: boolean | GanttChartOptionTaskCreation`（`enabled`, `trigger: 'alt-drag-or-dblclick' | 'alt-drag' | 'dblclick' | 'drag'`, `defaultDurationMinutes`, `defaultTaskName`, `defaultBarColor`, `allowOnSummaryRow`, `createTask` ファクトリ）を追加
+  - Undo / Redo 操作履歴（コマンド種別 `'task-create'`）、カスタムイベント `task-create`（`TaskCreateEventDetail`、React `onTaskCreate`、Vue `@task-create`）、キャンセル可能なプラグインライフサイクルフック `beforeTaskCreate` / `afterTaskCreate`、設定解決ヘルパー `resolveTaskCreationConfig`、およびロケール辞書 `taskCreation` を追加
+- **セマンティック・ズーム（連続ズームによる時間軸粒度の自動シームレス切替: `option.zoom.semanticScale`）**:
+  - `option.zoom.semanticScale?: boolean | GanttSemanticZoomConfig` を追加し、ホイールズーム・ピンチズーム・ショートカット・メソッド操作による拡大縮小に応じて `Month ⇄ Week ⇄ Day ⇄ Hour` の表示スケールおよびスナップ間隔（`autoSnapDuration`）をアンカー日時を維持したまま連続的に自動切替する機能を実装
+  - `ZoomChangeEventDetail.semanticScale`、`chart.activeSemanticScale` / `chart.effectiveSnapDuration` ゲッター、およびヘルパー関数・定数（`DAYS_PER_MONTH`, `DEFAULT_SEMANTIC_SCALES`, `resolveSemanticZoomConfig`, `resolveSemanticScale`）を公開エクスポート
+- **WAI-ARIA アクセシビリティ対応 (`treegrid` ロール・属性・多言語ラベル)**:
+  - `gantt-chart` ホスト（`role="treegrid"`, `aria-multiselectable`, `aria-label`, `aria-rowcount`, `aria-colcount`）、`gantt-calendar` 列ヘッダー（`role="columnheader"`, `aria-colindex`, `aria-sort`）、`gantt-row`（`role="row"`, `aria-rowindex`, `aria-level`, `aria-expanded`, `aria-selected`、ツリートグルボタンおよび `role="gridcell"`）、および `gantt-bar`（`role="button"`, `aria-label`、進捗バー `role="progressbar"` / `aria-valuenow`）に標準 WAI-ARIA 属性を実装し、`MoguchartLocale.aria`（`jaLocale` / `enLocale`）を追加
+
+### Changed
+
+- **外部ランタイム依存の完全排除（`lit` ピア依存のみのゼロ依存化）**:
+  - `@mogura/moguchart-core` から `dayjs` および `lodash-es` の外部依存を削除し、軽量なネイティブ日時処理・フォーマット関数および `throttle` 実装へ置き換えることでバンドルサイズと依存ツリーを軽量化
+
+### Fixed
+
+- **Node16 / NodeNext モジュール解決における ESM 相対パス拡張子の厳密化 (Fixes #2)**:
+  - 全公開パッケージ（`core`, `plugin-export`, `plugin-excel`, `react`, `vue`）の相対 `import` / `export` 指定子に明示的な `.js` 拡張子を付与し、`tsconfig.build.json` を `module: "NodeNext"` / `moduleResolution: "NodeNext"` に更新することで、利用側 TypeScript プロジェクトが `node16` / `nodenext` 環境であっても型定義（`.d.ts`）エラーが発生しないよう修正
+- **チャート操作・セル編集フォーカス時の外側ページスクロール抑止 (`preventScroll: true`)**:
+  - チャートクリック時（`pointerdown`）、コマンド適用時（`applyRowsChangeWithCommand`）、およびグリッドのインライン／カスタムセルエディタ起動時のフォーカス処理に `focus({ preventScroll: true })` を適用し、ページ内に埋め込まれたガントチャート操作時に親ページ全体が意図せずスクロールジャンプする問題を修正
+
+---
+
 ## [1.9.0] - 2026-11-14
 
 ### Added

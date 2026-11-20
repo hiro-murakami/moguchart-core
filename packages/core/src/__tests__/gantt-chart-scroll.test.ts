@@ -109,4 +109,31 @@ describe('GanttChartElement Scroll Reset', () => {
     expect(scrollContainer.scrollLeft).toBe(200)
     expect(scrollContainer.scrollTop).toBe(80)
   })
+
+  it('pointerdown focuses chart with preventScroll: true to avoid scrolling outer page', async () => {
+    document.body.focus()
+    const focusSpy = vi.spyOn(element, 'focus')
+
+    element.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        composed: true,
+      }),
+    )
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('applyRowsChangeWithCommand focuses chart with preventScroll: true', async () => {
+    document.body.focus()
+    const focusSpy = vi.spyOn(element, 'focus')
+
+    const nextRows = element.rows.map((r) => ({ ...r }))
+    element.applyRowsChangeWithCommand(element.rows, nextRows, {
+      type: 'task-move',
+      description: 'Update task',
+    })
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+  })
 })

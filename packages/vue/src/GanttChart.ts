@@ -54,6 +54,7 @@ import {
   type RowsChangeEventDetail,
   type CalendarRangeChangeEventDetail,
   type FilterChangeEventDetail,
+  type GanttSemanticZoomScale,
   type IHistoryManager,
 } from '@mogura/moguchart-core'
 
@@ -301,10 +302,17 @@ export const GanttChart = defineComponent({
       zoomOut: (...args: Parameters<GanttChartElement['zoomOut']>) => elRef.value?.zoomOut(...args),
       getZoomPercent: () => elRef.value?.getZoomPercent(),
       getZoomScale: () => elRef.value?.getZoomScale(),
+      get activeSemanticScale(): GanttSemanticZoomScale | undefined {
+        return elRef.value?.activeSemanticScale
+      },
+      get effectiveSnapDuration(): number | undefined {
+        return elRef.value?.effectiveSnapDuration
+      },
       resetScroll: (...args: Parameters<GanttChartElement['resetScroll']>) => elRef.value?.resetScroll(...args),
       scrollToPosition: (...args: Parameters<GanttChartElement['scrollToPosition']>) => elRef.value?.scrollToPosition(...args),
       scrollToTask: (...args: Parameters<GanttChartElement['scrollToTask']>) => elRef.value?.scrollToTask(...args),
       selectTask: (...args: Parameters<GanttChartElement['selectTask']>) => elRef.value?.selectTask(...args),
+      selectDependency: (...args: Parameters<GanttChartElement['selectDependency']>) => elRef.value?.selectDependency(...args),
       clearSelection: (...args: Parameters<GanttChartElement['clearSelection']>) => elRef.value?.clearSelection(...args),
       clearDependencySelection: (...args: Parameters<GanttChartElement['clearDependencySelection']>) => elRef.value?.clearDependencySelection(...args),
       toggleRowCollapse: (...args: Parameters<GanttChartElement['toggleRowCollapse']>) => elRef.value?.toggleRowCollapse(...args),
@@ -371,10 +379,13 @@ export interface GanttChartPublicApi {
   zoomOut: GanttChartElement['zoomOut']
   getZoomPercent: GanttChartElement['getZoomPercent']
   getZoomScale: GanttChartElement['getZoomScale']
+  readonly activeSemanticScale: GanttSemanticZoomScale | undefined
+  readonly effectiveSnapDuration: number | undefined
   resetScroll: GanttChartElement['resetScroll']
   scrollToPosition: GanttChartElement['scrollToPosition']
   scrollToTask: GanttChartElement['scrollToTask']
   selectTask: GanttChartElement['selectTask']
+  selectDependency: GanttChartElement['selectDependency']
   clearSelection: GanttChartElement['clearSelection']
   clearDependencySelection: GanttChartElement['clearDependencySelection']
   toggleRowCollapse: GanttChartElement['toggleRowCollapse']

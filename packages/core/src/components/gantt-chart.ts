@@ -660,7 +660,7 @@ export class GanttChartElement extends LitElement {
     if (target?.tagName && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return
     if (path.some((el) => (el as HTMLElement)?.classList?.contains?.('dependency-edit-popover'))) return
     if (document.activeElement !== this) {
-      this.focus()
+      this.focus({ preventScroll: true })
     }
   }
 
@@ -1540,7 +1540,7 @@ export class GanttChartElement extends LitElement {
     },
   ): void {
     if (document.activeElement !== this) {
-      this.focus()
+      this.focus({ preventScroll: true })
     }
     this.rows = nextRows
     this.dispatchEvent(

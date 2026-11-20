@@ -17,10 +17,10 @@ Easily integrate a high-performance, responsive Gantt chart Web Component into y
 - 🛠️ **Imperative Methods**: Access Web Component methods (`exportImage`, `exportExcel`, `use`, `zoomTo`, `resetScroll`, etc.) via template refs.
 - 🔌 **Plugin Support**: Integrates smoothly with `@mogura/moguchart-plugin-export` (PNG/PDF) and `@mogura/moguchart-plugin-excel` (Excel).
 - 📈 **Baseline & Deadline Tracking**: Compare planned schedules (`task.baseline`) against actual timelines, plus due-date markers (`task.deadline`), interactive deadline dragging (`@task-deadline-change`), overdue badges, and `SNET`/`FNLT` scheduling constraints with interactive drag guides & clamping (`option.constraint`).
-- 📋 **Multi-Column Data Grid & Spreadsheet Operations**: WBS data table (`option.grid`, including built-in `workingDays` & `deadline` columns and sticky summary footer `showFooter`) with hierarchical column sorting (`@column-sort`), cell range selection & TSV copy-paste (`@cell-selection-change`, `@cell-copy`, `@cell-paste`), column resizing, drag-and-drop column reordering (`@column-reorder`), and inline cell editing with continuous `Tab`/`Enter` navigation (`@cell-edit`, `@column-resize`).
-- 🔗 **Auto-Scheduling & FS/SS/FF/SF Dependencies**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
-- 🏁 **Task-Level Milestones & Smart Bar Labels**: Diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`).
-- 🗓️ **Quarter Headers, Auto-Extension & Touch Optimization**: Fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`@calendar-range-change`), and tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`).
+- 📋 **Multi-Column Data Grid & WBS Filtering**: WBS data table (`option.grid`, including left-pinned columns `pinned`, built-in `workingDays` & `deadline` columns, and sticky summary footer `showFooter`) with hierarchical column sorting (`@column-sort`), cell range selection & TSV copy-paste (`@cell-selection-change`, `@cell-copy`, `@cell-paste`), column resizing, drag-and-drop column reordering (`@column-reorder`), inline cell editing with continuous `Tab`/`Enter` navigation (`@cell-edit`, `@column-resize`), and WBS-aware filtering (`option.filter`, `@filter-change`).
+- 🔗 **Auto-Scheduling & Interactive Dependency Editing**: Support for `FS`/`SS`/`FF`/`SF` dependency links with lag (`GanttDependencyLink`), built-in dependency edit popover & on-line edit button (`@dependency-edit`, `@dependency-update`), and working-day/holiday-aware (`option.calendar.calendarMode`, `nonWorkingDays`, `isHoliday`) topological cascade scheduling (`option.dependency.autoSchedule`, `autoSchedule()`).
+- 🏁 **Timeline Task Creation, Milestones & Smart Bar Labels**: Interactive timeline task creation via `Alt+Drag` or double-click (`option.taskCreation`, `@task-create`), diamond milestone tasks (`task.type: 'milestone'`), drag working-day preservation (`preserveWorkingDaysOnDrag`), and auto-overflow external bar labels (`labelPosition: 'auto'`).
+- 🗓️ **Semantic Zoom, Quarter Headers, Touch & WAI-ARIA**: Continuous `Month ⇄ Week ⇄ Day ⇄ Hour` semantic zoom (`option.zoom.semanticScale`), fiscal-year-aware quarter (`Q1`–`Q4`) headers, X-axis virtual scrolling, viewport edge auto-scroll & calendar range auto-extension (`@calendar-range-change`), tablet/mobile pinch-to-zoom & long-press dragging (`option.touch`), and `role="treegrid"` WAI-ARIA accessibility.
 
 ---
 
@@ -191,10 +191,10 @@ const handleResetZoom = () => chartRef.value?.resetZoom()
 
 - **Operation History (Undo / Redo)**: `undo()`, `redo()`, `clearHistory()`, `recordCommand(cmd)`, `canUndo`, `canRedo`
 - **Zoom Operations**: `zoomIn()`, `zoomOut()`, `zoomToPercent(percent)`, `zoomToPercentAtPoint(percent, clientX, anchorUnits?)`, `zoomToScale(scale)`, `resetZoom()`, `zoomToFit()`, `getZoomPercent()`, `getZoomScale()`
-- **Dependency & Auto-Schedule Operations**: `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `autoSchedule(changedTaskIds?, options?)`
-- **WBS & Collapse**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `getRowPositions()`
+- **Dependency & Auto-Schedule Operations**: `updateDependency(sourceTaskId, targetTaskId, updates)`, `openDependencyEditPopover(sourceTaskId, targetTaskId)`, `closeDependencyEditPopover()`, `triggerDependencyDelete(sourceTaskId, targetTaskId)`, `clearDependencySelection()`, `autoSchedule(changedTaskIds?, options?)`
+- **WBS, Collapse & Filtering**: `toggleRowCollapse(rowId, collapsed?)`, `collapseAll()`, `expandAll()`, `setFilter(filter)`, `clearFilter()`, `getFilter()`, `getFilterResult()`, `getRowPositions()`
 - **Grid, Inline Editing, Sorting & TSV**: `startCellEdit(rowId, columnId)`, `commitCellEdit(overrideValue?, navigationDirection?)`, `cancelCellEdit()`, `navigateCellEdit(fromRowId, fromColumnId, direction)`, `sortByColumn(columnId, direction?)`, `getSortState()`, `selectGridCells(range)`, `getSelectedGridCells()`, `moveGridCellSelection(...)`, `copySelectedCellsToTsv()`, `pasteTsvToCells(tsv, targetRowId?, targetColumnId?)`
-- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId, multi?)`
+- **Scroll & Selection**: `scrollToTask(taskId)`, `scrollToPosition(pos)`, `resetScroll()`, `selectTask(taskId)`, `clearSelection()`
 - **Image & PDF Export**: `exportImage(format, options)` (when `@mogura/moguchart-plugin-export` is registered)
 - **Excel Export**: `exportExcel(options)` (when `@mogura/moguchart-plugin-excel` is registered)
 
@@ -364,6 +364,7 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | Vue Event | Description | Argument Type |
 |---|---|---|
 | `@task-update` | Dispatched when a task is moved or resized | `TaskUpdateEventDetail` |
+| `@task-create` | Dispatched when a new task is created on the timeline (`Alt+Drag` or double-click) | `TaskCreateEventDetail` |
 | `@task-click` | Dispatched when a task bar is clicked | `TaskClickEventDetail` |
 | `@task-dblclick` | Dispatched on double clicking a task bar | `TaskClickEventDetail` |
 | `@task-contextmenu` | Dispatched on right-clicking a task bar | `TaskContextMenuEventDetail` |
@@ -385,13 +386,16 @@ All events dispatched by `@mogura/moguchart-core` are forwarded as Vue events:
 | `@cell-paste` | Dispatched when TSV data is pasted into grid cells | `CellPasteEventDetail` |
 | `@cell-edit` | Dispatched when an inline grid cell edit is committed | `CellEditEventDetail` |
 | `@calendar-range-change` | Dispatched when the calendar display range is auto-extended during drag operations | `CalendarRangeChangeEventDetail` |
+| `@filter-change` | Dispatched when row/task filtering configuration changes or is cleared | `FilterChangeEventDetail` |
 | `@rows-change` | Dispatched when row data changes | `RowsChangeEventDetail` |
 | `@row-selection-change` | Dispatched when row selection changes | `RowSelectionChangeEventDetail` |
 | `@bar-selection-change` | Dispatched when task bar selection changes | `BarSelectionChangeEventDetail` |
 | `@row-toggle-collapse` | Dispatched when a tree row is collapsed/expanded | `RowToggleCollapseEventDetail` |
 | `@dependency-create` | Dispatched when a dependency link is drawn | `DependencyCreateEventDetail` |
 | `@dependency-click` | Dispatched when a dependency line is clicked, double-clicked, or right-clicked | `DependencyClickEventDetail` |
-| `@dependency-select` | Dispatched when a dependency line is selected (highlighted / delete button shown) | `DependencySelectEventDetail` |
+| `@dependency-edit` | Dispatched when dependency editing is triggered (on-line edit button or double-click) | `DependencyEditEventDetail` |
+| `@dependency-update` | Dispatched when a dependency link's type or lag is updated | `DependencyUpdateEventDetail` |
+| `@dependency-select` | Dispatched when a dependency line is selected (highlighted / edit & delete buttons shown) | `DependencySelectEventDetail` |
 | `@dependency-delete` | Dispatched when a dependency link is deleted | `DependencyDeleteEventDetail` |
 | `@zoom-change` | Dispatched when zoom level changes | `ZoomChangeEventDetail` |
 | `@command` | Dispatched when a command is executed (tracked for Undo/Redo) | `CommandEventDetail` |
